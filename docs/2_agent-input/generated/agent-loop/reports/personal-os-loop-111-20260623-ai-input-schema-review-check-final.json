@@ -1,0 +1,81 @@
+{
+  "id": "DATTR-024B",
+  "status": "ready_for_schema_review_packet_use",
+  "checkedAt": "2026-06-23T03:08:07.505Z",
+  "requiredObjects": [
+    "SourceConnection",
+    "SourceAsset",
+    "AIWorkflowRun",
+    "AIWorkItem",
+    "DataUnitProposal",
+    "ModuleWriteIntent",
+    "OperatingAuditEvent"
+  ],
+  "nextRunnableSlice": "DATTR-024C",
+  "safetyGuards": {
+    "schemaWriteAllowed": false,
+    "migrationApplyAllowed": false,
+    "runtimeReadAllowed": false,
+    "runtimeWriteAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "publicOutputExpansionAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false
+  },
+  "officialSourceRefs": [
+    "https://www.prisma.io/docs/orm/prisma-migrate/workflows/development-and-production",
+    "https://www.prisma.io/docs/orm/prisma-client/queries/transactions",
+    "https://supabase.com/docs/guides/database/postgres/row-level-security",
+    "https://supabase.com/docs/guides/database/vault",
+    "https://www.postgresql.org/docs/current/ddl-constraints.html"
+  ],
+  "evidence": {
+    "contract": {
+      "path": "src/lib/contracts/ai-input-source-workflow-schema-review.contract.ts",
+      "requiredObjects": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "DataUnitProposal",
+        "ModuleWriteIntent",
+        "OperatingAuditEvent"
+      ],
+      "officialRefsPresent": [
+        "https://www.prisma.io/docs/orm/prisma-migrate/workflows/development-and-production",
+        "https://www.prisma.io/docs/orm/prisma-client/queries/transactions",
+        "https://supabase.com/docs/guides/database/postgres/row-level-security",
+        "https://supabase.com/docs/guides/database/vault",
+        "https://www.postgresql.org/docs/current/ddl-constraints.html"
+      ],
+      "safetyGuardsPresent": [
+        "schemaWriteAllowed: false",
+        "migrationApplyAllowed: false",
+        "runtimeReadAllowed: false",
+        "runtimeWriteAllowed: false",
+        "connectorRuntimeAllowed: false",
+        "publicOutputExpansionAllowed: false",
+        "moduleFinalWriteAllowed: false",
+        "externalAgentDatabaseAccessAllowed: false",
+        "externalRegisterable: false"
+      ]
+    },
+    "prisma": {
+      "path": "prisma/schema.prisma",
+      "proposedModelsApplied": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "DataUnitProposal",
+        "ModuleWriteIntent"
+      ],
+      "noMigrationReviewSlice": false,
+      "supersededByDattr024hMigrationDraft": true
+    }
+  },
+  "warnings": [
+    "DATTR-024H migration draft has materialized Source Workflow models after the DATTR-024B no-migration review: SourceConnection, SourceAsset, AIWorkflowRun, AIWorkItem, DataUnitProposal, ModuleWriteIntent"
+  ],
+  "errors": []
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-23T12:18:49.672Z",
+  "status": "ready_for_internal_use",
+  "files": {
+    "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+    "manifestFile": "docs/2_agent-input/generated/agent-loop/agent-registry/internal-agent-manifests.agentfacts-lite.json",
+    "indexFile": "docs/2_agent-input/generated/agent-loop/agent-registry/manifest-index.json"
+  },
+  "sourceBasis": {
+    "local": [
+      "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+      "docs/02_architecture-and-rules/ARC-028_nanda-agent-protocol-alignment.md",
+      "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+      "docs/02_architecture-and-rules/ARC-021_skill-registry.md",
+      "docs/02_architecture-and-rules/ARC-022_task-routing.md",
+      "docs/02_architecture-and-rules/ARC-023_agent-team-os-operating-contract.md",
+      "docs/02_architecture-and-rules/ARC-024_ai-service-adapter-boundary.md"
+    ],
+    "external": [
+      "https://github.com/projnanda/projnanda",
+      "https://github.com/projnanda/agentfacts-format",
+      "https://github.com/projnanda/nanda-index"
+    ]
+  },
+  "summary": {
+    "sourceAgentCount": 15,
+    "manifestCount": 15,
+    "uniqueLabels": 15,
+    "internalDiscoverableCount": 15,
+    "externalRegisterableCount": 0,
+    "runtimeEndpointCount": 0,
+    "highOrCriticalCapabilityCount": 14,
+    "highOrCriticalCapabilitiesGatedCount": 14
+  },
+  "validation": {
+    "errors": [],
+    "warnings": []
+  },
+  "externalRegistration": {
+    "canRegisterExternally": false,
+    "status": "blocked_by_policy",
+    "protectedReadinessSurfaceReady": true,
+    "missingRegistrationReadinessFields": [
+      {
+        "field": "endpoints.external",
+        "agentCount": 15,
+        "reason": "No reviewed runtime public endpoint has been created."
+      },
+      {
+        "field": "auth.methods",
+        "agentCount": 15,
+        "reason": "No runtime auth method has been approved for agent registry access."
+      },
+      {
+        "field": "auth.requiredScopes",
+        "agentCount": 15,
+        "reason": "No owner/admin scopes have been defined for runtime agent discovery."
+      },
+      {
+        "field": "trust.attestations",
+        "agentCount": 15,
+        "reason": "No external trust attestations or verification statements exist."
+      },
+      {
+        "field": "observability.telemetryClaims",
+        "agentCount": 15,
+        "reason": "No runtime telemetry, uptime, or quality metrics have been measured."
+      },
+      {
+        "field": "registry.registryTargets",
+        "agentCount": 15,
+        "reason": "No external registry target has human approval."
+      }
+    ],
+    "blockers": [
+      "No runtime endpoint exists for agent discovery.",
+      "No runtime auth/scopes exist for agent discovery.",
+      "No human approval exists for external registry write."
+    ]
+  },
+  "nextActions": [
+    "Keep AGENT-007 protected readiness read-only while runtime endpoint/auth/scope work remains absent.",
+    "Keep registry output internal-only until runtime auth, scopes, endpoints, trust attestations, and human approval exist.",
+    "Run pnpm agent:registry:check in future loops after editing agent manifests."
+  ]
+}

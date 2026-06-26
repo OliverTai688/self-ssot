@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T06:05:44.073Z",
+  "command": "pnpm agent:op",
+  "mode": "dry_run",
+  "status": "ready_for_owner_dry_run",
+  "selectedOperation": {
+    "id": "work.proof.preflight",
+    "version": "0.1.0",
+    "label": "Plan Work proof preflight",
+    "ownerAgent": "WorkAgent",
+    "targetModule": "work",
+    "riskLevel": "MEDIUM",
+    "approvalLevel": "AUTO_PROPOSE",
+    "dataVisibilityLevel": "repo-docs-and-proof-metadata",
+    "scopes": [
+      "work:proof:read",
+      "agent:operation:read"
+    ],
+    "allowedModes": [
+      "dry_run"
+    ],
+    "inputContract": {
+      "proofTarget": "optional local/disposable target label; never a URL",
+      "requestedChecks": "optional string array"
+    },
+    "outputContract": {
+      "preflightPlan": "Planned Work proof checks",
+      "safetyBoundary": "No DB writes unless WORK-009 run-mode confirmations exist",
+      "nextReview": "WORK-009 or blocker analysis"
+    },
+    "cli": "pnpm agent:op -- --operation work.proof.preflight --json",
+    "futureProtectedApi": "POST /api/agent-operations/dry-run",
+    "uiSurfaceRefs": [
+      "protected Work Agent workspace",
+      "protected /admin launch proof surface"
+    ],
+    "auditRefs": [
+      "docs/2_agent-input/generated/agent-loop/reports/",
+      "future Work proof audit event"
+    ],
+    "sourceRefs": [
+      "docs/08_acceptance-and-qa/ACC-004_work-refresh-proof-harness.md",
+      "scripts/work-refresh-proof.mjs"
+    ],
+    "blockedActions": [
+      "DB write without WORK-009 confirmations",
+      "valuable database mutation",
+      "browser write smoke without approval"
+    ],
+    "requestedAgent": "WorkAgent",
+    "requestedTargetModule": "work"
+  },
+  "agentManifestSnapshot": {
+    "id": "personal-os:work-agent",
+    "agent_name": "urn:agent:personal-os:WorkAgent",
+    "label": "WorkAgent",
+    "lifecycleStatus": "governance-only",
+    "protocols": [
+      "internal",
+      "docs-governance"
+    ],
+    "approvalLevel": "AUTO_PROPOSE",
+    "dataVisibilityLevel": "work-project-scoped",
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "endpointCounts": {
+      "internal": 0,
+      "external": 0
+    }
+  },
+  "registrySnapshot": {
+    "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+    "manifestFile": "docs/2_agent-input/generated/agent-loop/agent-registry/internal-agent-manifests.agentfacts-lite.json",
+    "manifestCount": 15,
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "runtimeEndpoint": null,
+    "publicDirectory": false
+  },
+  "safety": {
+    "writesPerformed": false,
+    "databaseAccessed": false,
+    "environmentRead": false,
+    "publicEndpointCreated": false,
+    "externalRegistryWrite": false,
+    "externalRegisterableAfterRun": false,
+    "rawSecretsIncluded": false,
+    "blockedIfRunRequested": true,
+    "reasons": [
+      "AGENT-OPS-001 is owner-only dry-run CLI proof.",
+      "The command reads generated AgentFacts-lite files only.",
+      "No environment variables, cookies, tokens, database URLs, provider payloads, or private records are read.",
+      "The CLI creates no public endpoint, DB write, migration, seed, or external registration. Protected HTTP dry-run is handled separately by AGENT-014."
+    ]
+  },
+  "validation": {
+    "agentMatchesOperation": true,
+    "targetMatchesOperation": true,
+    "internalDiscoverable": true,
+    "externalRegisterableBlocked": true,
+    "allowedModeIsDryRunOnly": true
+  },
+  "nextReview": "Use this contract as the UI/API/CLI alignment base before any owner command center or approval-write slice."
+}

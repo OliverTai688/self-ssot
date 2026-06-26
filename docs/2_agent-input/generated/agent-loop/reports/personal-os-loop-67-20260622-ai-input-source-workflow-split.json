@@ -1,0 +1,113 @@
+{
+  "id": "DATTR-024-SPLIT",
+  "status": "ready_for_bff_split_use",
+  "checkedAt": "2026-06-22T00:37:22.682Z",
+  "contractPath": "src/lib/contracts/ai-input-source-workflow-split.contract.ts",
+  "architectureDoc": "docs/02_architecture-and-rules/ARC-031_ai-input-source-workflow-bff-split-contract.md",
+  "acceptanceDoc": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+  "splitSlices": [
+    "DATTR-024A",
+    "DATTR-024B",
+    "DATTR-024C",
+    "DATTR-024D",
+    "DATTR-024E"
+  ],
+  "requiredObjects": [
+    "SourceConnection",
+    "SourceAsset",
+    "AIWorkflowRun",
+    "AIWorkItem",
+    "DataUnitProposal",
+    "ModuleWriteIntent",
+    "OperatingAuditEvent"
+  ],
+  "officialSourceRefs": [
+    "https://nextjs.org/docs/app/getting-started/fetching-data",
+    "https://nextjs.org/docs/app/getting-started/mutating-data",
+    "https://nextjs.org/docs/app/guides/forms",
+    "https://nextjs.org/docs/app/api-reference/file-conventions/route",
+    "https://supabase.com/docs/guides/database/postgres/row-level-security",
+    "https://www.prisma.io/docs/orm/more/best-practices"
+  ],
+  "implementedSlices": [
+    {
+      "id": "DATTR-024A",
+      "status": "ready_for_read_contract_use",
+      "servicePath": "src/lib/services/ai-input-readiness.service.ts",
+      "clientPath": "src/app/(dashboard)/ai-input/ai-input-client.tsx",
+      "requiredObjects": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "DataUnitProposal",
+        "ModuleWriteIntent"
+      ],
+      "serviceMissingMarkers": [],
+      "clientMissingMarkers": []
+    },
+    {
+      "id": "DATTR-024B",
+      "status": "ready_for_schema_review_packet_use",
+      "contractPath": "src/lib/contracts/ai-input-source-workflow-schema-review.contract.ts",
+      "docPath": "docs/02_architecture-and-rules/SCH-003_ai-input-source-workflow-schema-review.md",
+      "requiredObjects": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "DataUnitProposal",
+        "ModuleWriteIntent",
+        "OperatingAuditEvent"
+      ],
+      "contractMissingMarkers": [],
+      "docMissingMarkers": []
+    },
+    {
+      "id": "DATTR-024C",
+      "status": "ready_for_proof_target_boundary_use",
+      "contractPath": "src/lib/contracts/ai-input-source-workflow-proof-target.contract.ts",
+      "docPath": "docs/08_acceptance-and-qa/ACC-006_ai-input-source-workflow-proof-target.md",
+      "requiredObjects": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "DataUnitProposal",
+        "ModuleWriteIntent",
+        "OperatingAuditEvent"
+      ],
+      "contractMissingMarkers": [],
+      "docMissingMarkers": []
+    },
+    {
+      "id": "DATTR-024D",
+      "status": "ready_for_proposal_action_contract_use",
+      "contractPath": "src/lib/contracts/ai-input-source-workflow-proposal-action.contract.ts",
+      "contractMissingMarkers": []
+    },
+    {
+      "id": "DATTR-024E",
+      "status": "ready_for_connector_boundary_contract_use",
+      "contractPath": "src/lib/contracts/ai-input-source-workflow-connector-boundary.contract.ts",
+      "contractMissingMarkers": []
+    }
+  ],
+  "safetyGuards": {
+    "schemaWriteAllowed": false,
+    "runtimeWriteAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "publicOutputExpansion": false,
+    "moduleFinalWriteAllowed": false,
+    "externalAgentAccessAllowed": false
+  },
+  "nextRunnableSlice": "DATTR-024",
+  "blockedTasks": [
+    "AUTH-005",
+    "WORK-009",
+    "DATTR-024",
+    "DATTR-024C"
+  ],
+  "errors": [],
+  "warnings": []
+}

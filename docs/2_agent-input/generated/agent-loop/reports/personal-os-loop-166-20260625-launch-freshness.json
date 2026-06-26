@@ -1,0 +1,143 @@
+{
+  "id": "ENV-004-LAUNCH-PROOF-FRESHNESS-GATE",
+  "status": "proof_refresh_required",
+  "generatedAt": "2026-06-24T18:19:38.847Z",
+  "command": "pnpm launch:freshness:check",
+  "mode": "static_no_secret_freshness_gate",
+  "targetLoop": 166,
+  "proofRefreshRequired": true,
+  "staleFamilies": [
+    "launch",
+    "auth",
+    "workTarget",
+    "preemption",
+    "ownerPlan"
+  ],
+  "orderIssues": [],
+  "latestEvidence": [
+    {
+      "family": "launch",
+      "evidenceLabel": "latest launch proof packet",
+      "latestPath": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260625-launch-proof.json",
+      "latestLoop": 165,
+      "requiredLoop": 166,
+      "stale": true,
+      "currentLoopPacketFound": false,
+      "payloadStatus": null,
+      "payloadRecommendation": null,
+      "refreshCommand": "pnpm launch:proof -- --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-launch-proof.json",
+      "passSignal": "current-loop launch-proof.json exists and is parseable",
+      "stopCondition": "do not paste Supabase values, deployment secrets, or provider payloads into evidence"
+    },
+    {
+      "family": "auth",
+      "evidenceLabel": "latest auth proof packet",
+      "latestPath": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260625-auth-proof.json",
+      "latestLoop": 165,
+      "requiredLoop": 166,
+      "stale": true,
+      "currentLoopPacketFound": false,
+      "payloadStatus": null,
+      "payloadRecommendation": null,
+      "refreshCommand": "pnpm auth:proof -- --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-auth-proof.json",
+      "passSignal": "current-loop auth-proof.json exists and is parseable",
+      "stopCondition": "do not include cookies, tokens, raw claims, provider payloads, or actual email values"
+    },
+    {
+      "family": "workTarget",
+      "evidenceLabel": "latest Work proof target readiness packet",
+      "latestPath": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260625-work-proof-target-readiness.json",
+      "latestLoop": 165,
+      "requiredLoop": 166,
+      "stale": true,
+      "currentLoopPacketFound": false,
+      "payloadStatus": "needs_operator_input",
+      "payloadRecommendation": null,
+      "refreshCommand": "pnpm work:proof-target:check -- --json --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-work-proof-target-readiness.json",
+      "passSignal": "current-loop work-proof-target-readiness.json exists and is parseable",
+      "stopCondition": "do not use valuable production or client data as the proof target"
+    },
+    {
+      "family": "preemption",
+      "evidenceLabel": "latest launch proof preemption router packet",
+      "latestPath": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260623-launch-preemption-router.json",
+      "latestLoop": 165,
+      "requiredLoop": 166,
+      "stale": true,
+      "currentLoopPacketFound": false,
+      "payloadStatus": "ready_for_proof_preemption_routing",
+      "payloadRecommendation": "RES-001-RESEARCH-REVIEW",
+      "refreshCommand": "pnpm launch:preempt:check -- --json --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-launch-preemption-router.json",
+      "passSignal": "current-loop launch-preemption-router.json exists after launch/auth/Work target refresh",
+      "stopCondition": "do not route from stale launch/auth/Work target packets"
+    },
+    {
+      "family": "ownerPlan",
+      "evidenceLabel": "latest launch owner proof plan packet",
+      "latestPath": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260623-launch-owner-proof-plan.json",
+      "latestLoop": 165,
+      "requiredLoop": 166,
+      "stale": true,
+      "currentLoopPacketFound": false,
+      "payloadStatus": "ready_for_owner_proof_plan",
+      "payloadRecommendation": null,
+      "refreshCommand": "pnpm launch:owner-plan:check -- --json --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-launch-owner-proof-plan.json",
+      "passSignal": "current-loop launch-owner-proof-plan.json exists after current-loop preemption",
+      "stopCondition": "do not compile owner action plans from older router packets"
+    }
+  ],
+  "orderedRefreshCommands": [
+    {
+      "family": "launch",
+      "command": "pnpm launch:proof -- --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-launch-proof.json",
+      "passSignal": "current-loop launch-proof.json exists and is parseable",
+      "stopCondition": "do not paste Supabase values, deployment secrets, or provider payloads into evidence"
+    },
+    {
+      "family": "auth",
+      "command": "pnpm auth:proof -- --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-auth-proof.json",
+      "passSignal": "current-loop auth-proof.json exists and is parseable",
+      "stopCondition": "do not include cookies, tokens, raw claims, provider payloads, or actual email values"
+    },
+    {
+      "family": "workTarget",
+      "command": "pnpm work:proof-target:check -- --json --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-work-proof-target-readiness.json",
+      "passSignal": "current-loop work-proof-target-readiness.json exists and is parseable",
+      "stopCondition": "do not use valuable production or client data as the proof target"
+    },
+    {
+      "family": "preemption",
+      "command": "pnpm launch:preempt:check -- --json --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-launch-preemption-router.json",
+      "passSignal": "current-loop launch-preemption-router.json exists after launch/auth/Work target refresh",
+      "stopCondition": "do not route from stale launch/auth/Work target packets"
+    },
+    {
+      "family": "ownerPlan",
+      "command": "pnpm launch:owner-plan:check -- --json --out docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-166-20260623-launch-owner-proof-plan.json",
+      "passSignal": "current-loop launch-owner-proof-plan.json exists after current-loop preemption",
+      "stopCondition": "do not compile owner action plans from older router packets"
+    }
+  ],
+  "safety": {
+    "executesProofCommands": false,
+    "fetchesAuthStatus": false,
+    "connectsToDatabase": false,
+    "writesDatabase": false,
+    "mutatesEnvironment": false,
+    "mutatesAuthProvider": false,
+    "mutatesDeployment": false,
+    "exposesRawPacketBodies": false,
+    "exposesSecrets": false,
+    "claimsLaunchUpgrade": false
+  },
+  "blockedClaims": [
+    "AUTH-005 success",
+    "WORK-009 success",
+    "WORK-007 success",
+    "DEPLOY-002 success",
+    "L1 launch upgrade",
+    "L3 launch upgrade",
+    "L4 launch upgrade"
+  ],
+  "errors": []
+}

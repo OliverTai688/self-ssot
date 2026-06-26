@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>商會成員的第一堂 ChatGPT 課｜Asking Doing Expressing</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111827;
+      --panel-2: #172036;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --line: rgba(255,255,255,0.12);
+      --gold: #d8b45f;
+      --blue: #60a5fa;
+      --green: #34d399;
+      --danger: #fb7185;
+      --card: rgba(255,255,255,0.06);
+      --card-strong: rgba(255,255,255,0.11);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top left, rgba(96,165,250,0.25), transparent 28%),
+                  radial-gradient(circle at bottom right, rgba(216,180,95,0.15), transparent 34%),
+                  var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(720px, 1fr) 420px;
+      height: 100vh;
+      gap: 0;
+    }
+
+    .stage {
+      position: relative;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.04em;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 16px rgba(216,180,95,0.8);
+    }
+
+    .timer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .progress-shell {
+      height: 5px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      width: 180px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--blue), var(--gold));
+      border-radius: 999px;
+      transition: width 240ms ease;
+    }
+
+    .slide-wrap {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    .slide {
+      width: min(100%, 1180px);
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(145deg, rgba(17,24,39,0.94), rgba(15,23,42,0.84));
+      box-shadow: 0 40px 100px rgba(0,0,0,0.45);
+      overflow: hidden;
+      position: relative;
+      padding: 58px 68px;
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(216,180,95,0.13), transparent 30%),
+                  radial-gradient(circle at 78% 20%, rgba(96,165,250,0.13), transparent 22%);
+      pointer-events: none;
+    }
+
+    .slide-inner {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .kicker {
+      font-size: 18px;
+      color: var(--gold);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .hero-title {
+      font-size: clamp(68px, 8vw, 122px);
+      line-height: 0.94;
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      margin: 0;
+    }
+
+    .hero-subtitle {
+      margin-top: 30px;
+      color: var(--muted);
+      font-size: clamp(20px, 2.2vw, 30px);
+      line-height: 1.45;
+      max-width: 820px;
+    }
+
+    .big-words {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+
+    .word {
+      font-size: clamp(54px, 6.6vw, 100px);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.055em;
+    }
+
+    .separator {
+      font-size: clamp(44px, 5vw, 72px);
+      color: var(--gold);
+      opacity: 0.9;
+    }
+
+    .data-title {
+      font-size: clamp(64px, 7vw, 112px);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.055em;
+      color: var(--text);
+    }
+
+    .visual-placeholder {
+      border: 1px dashed rgba(255,255,255,0.28);
+      background: rgba(255,255,255,0.045);
+      border-radius: 24px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--muted);
+      font-size: 26px;
+      line-height: 1.55;
+      padding: 40px;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.045);
+      font-size: clamp(24px, 2.4vw, 34px);
+    }
+
+    .table th, .table td {
+      padding: 26px 30px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .table tr:last-child td { border-bottom: 0; }
+    .table th {
+      color: var(--gold);
+      font-size: clamp(20px, 2vw, 28px);
+      font-weight: 700;
+      background: rgba(216,180,95,0.08);
+    }
+
+    .table td:nth-child(2) {
+      color: var(--blue);
+      font-weight: 800;
+    }
+
+    .mermaid-box {
+      background: rgba(255,255,255,0.94);
+      border-radius: 24px;
+      padding: 34px;
+      color: #111827;
+      font-size: 24px;
+    }
+
+    .practice-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 140px;
+      height: 140px;
+      border-radius: 999px;
+      border: 1px solid rgba(216,180,95,0.6);
+      background: rgba(216,180,95,0.08);
+      color: var(--gold);
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 28px;
+    }
+
+    .prompt-line {
+      font-size: clamp(28px, 3.2vw, 44px);
+      line-height: 1.35;
+      color: var(--text);
+      max-width: 960px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 11px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 160ms ease, background 160ms ease;
+    }
+
+    .btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .side {
+      border-left: 1px solid var(--line);
+      background: rgba(8,13,28,0.86);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .side-header {
+      padding: 24px 24px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .slide-count {
+      color: var(--gold);
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .side-title {
+      font-size: 24px;
+      line-height: 1.22;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0;
+    }
+
+    .side-time {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 14px 16px 0;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .tab.active {
+      background: rgba(216,180,95,0.12);
+      color: var(--gold);
+      border-color: rgba(216,180,95,0.34);
+    }
+
+    .side-body {
+      flex: 1;
+      overflow: auto;
+      padding: 18px 24px 24px;
+    }
+
+    .note-section { display: none; }
+    .note-section.active { display: block; }
+
+    .note-block {
+      background: rgba(255,255,255,0.055);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .note-block h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      color: var(--gold);
+      letter-spacing: 0.06em;
+    }
+
+    .note-block p, .note-block li {
+      color: #dbe4f0;
+      font-size: 15px;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .note-block ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .source-list a {
+      color: #93c5fd;
+      text-decoration: none;
+      word-break: break-word;
+    }
+
+    .source-list a:hover { text-decoration: underline; }
+
+    .thumbs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 14px 24px 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    .thumb {
+      flex: 0 0 auto;
+      width: 42px;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .thumb.active {
+      border-color: rgba(216,180,95,0.72);
+      background: rgba(216,180,95,0.16);
+      color: var(--gold);
+    }
+
+    code.inline {
+      background: rgba(255,255,255,0.08);
+      padding: 2px 6px;
+      border-radius: 7px;
+      color: #bfdbfe;
+    }
+
+    @media (max-width: 1080px) {
+      body { overflow: auto; }
+      .app { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+      .side { border-left: 0; border-top: 1px solid var(--line); min-height: 520px; }
+      .stage { min-height: 58vh; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="stage">
+      <div class="topbar">
+        <div class="brand"><span class="dot"></span><span>商會 AI 入門課｜Asking Doing Expressing</span></div>
+        <div class="timer">
+          <span id="timeLabel">50 min</span>
+          <div class="progress-shell"><div class="progress-bar" id="progressBar"></div></div>
+        </div>
+      </div>
+
+      <div class="slide-wrap">
+        <article class="slide" id="slideCanvas"></article>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="prevBtn">↑ 上一頁</button>
+        <div class="hint">鍵盤：↑ / ↓ 切換頁面，1 / 2 / 3 切換右側面板</div>
+        <button class="btn" id="nextBtn">下一頁 ↓</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="side-header">
+        <div class="slide-count" id="slideCount">Slide 01 / 16</div>
+        <h2 class="side-title" id="noteTitle">商業助理</h2>
+        <div class="side-time" id="noteTime">建議時間：1 分鐘</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="concept">核心概念</button>
+        <button class="tab" data-tab="script">講稿筆記</button>
+        <button class="tab" data-tab="source">資源來源</button>
+      </div>
+
+      <div class="side-body">
+        <section class="note-section active" id="conceptPanel"></section>
+        <section class="note-section" id="scriptPanel"></section>
+        <section class="note-section" id="sourcePanel"></section>
+      </div>
+
+      <div class="thumbs" id="thumbs"></div>
+    </aside>
+  </main>
+
+  <script>
+    const slides = [
+      {
+        title: "商業助理",
+        time: "1 分鐘",
+        type: "title",
+        kicker: "Slide 01",
+        words: ["商業助理"],
+        subtitle: "ChatGPT 不是工具清單，而是一套可放進日常商業溝通的助理流程。",
+        concept: "本堂課的定位：不是教 AI 技術，而是讓商會成員能把 ChatGPT 放進自我介紹、轉介紹、客戶跟進與價值表達。",
+        script: "開場可以說：今天我們不是要變成 AI 專家，而是學會讓 ChatGPT 成為你的業務助理、行銷助理與思考助理。50 分鐘內，我們只聚焦三件事：問清楚、做出來、說明白。",
+        sources: ["課程設計定位：商會成員日常商業溝通場景。"]
+      },
+      {
+        title: "為什麼現在",
+        time: "2 分鐘",
+        type: "words",
+        kicker: "Slide 02",
+        words: ["問題", "任務", "表達"],
+        concept: "商會成員每天都在處理三種工作：釐清問題、完成任務、表達價值。這剛好可以連到 OpenAI 使用報告的 Asking、Doing、Expressing。",
+        script: "很多老闆和專業工作者不是不會做，而是時間被大量溝通任務吃掉。ChatGPT 的價值不是只給答案，而是協助我們把問題拆清楚、把任務做出來、把價值講清楚。",
+        sources: ["OpenAI: How people are using ChatGPT — https://openai.com/index/how-people-are-using-chatgpt/"]
+      },
+      {
+        title: "報告封面",
+        time: "3 分鐘",
+        type: "image",
+        kicker: "Slide 03",
+        imageUrl: "chatgpt_report_cover.png",
+        placeholder: "圖：OpenAI《How people are using ChatGPT》報告封面\n之後補上官方報告截圖或封面圖",
+        concept: "這堂課的主架構不是工具心得，而是根據 OpenAI 與研究論文整理出的使用行為分類。",
+        script: "這份報告觀察人們如何使用 ChatGPT，並把使用行為整理成 Asking、Doing、Expressing 三種類型。今天我們把這三種類型翻成商會成員聽得懂、用得上的商業流程。",
+        sources: [
+          "OpenAI: How people are using ChatGPT — https://openai.com/index/how-people-are-using-chatgpt/",
+          "OpenAI / NBER working paper: How People Use ChatGPT — https://www.nber.org/system/files/working_papers/w34255/w34255.pdf"
+        ]
+      },
+      {
+        title: "49 / 40 / 11",
+        time: "3 分鐘",
+        type: "table",
+        kicker: "Slide 04",
+        table: {
+          headers: ["類型", "比例", "意思"],
+          rows: [["Asking", "49%", "問"], ["Doing", "40%", "做"], ["Expressing", "11%", "表達"]]
+        },
+        concept: "OpenAI 報告中的三種類型比例，可轉譯為商業使用：Asking 問痛點，Doing 做內容，Expressing 說價值。",
+        script: "這三個數字不用背，但可以讓大家理解：ChatGPT 最常見的使用不是單一工具，而是三種不同心智模式。你可以問它、叫它做事，也可以讓它協助你表達更清楚。",
+        sources: ["OpenAI: How people are using ChatGPT — https://openai.com/index/how-people-are-using-chatgpt/"]
+      },
+      {
+        title: "三種用法",
+        time: "3 分鐘",
+        type: "mermaid",
+        kicker: "Slide 05",
+        chart: "flowchart LR\n  A[Asking 問清楚] --> B[Doing 做出來]\n  B --> C[Expressing 說明白]\n  C --> D[商業溝通]",
+        concept: "課程邏輯鏈：先問清楚，再產出任務，最後轉成能溝通、能轉介紹、能留下印象的表達。",
+        script: "我們今天不是分散介紹 AI 功能，而是跑一條流程：第一步，問出客戶痛點；第二步，產出自我介紹、LINE 訊息與轉介紹話術；第三步，把你的服務價值整理成別人聽得懂的語言。",
+        sources: ["依 OpenAI 三分類延伸為課程教學流程。"]
+      },
+      {
+        title: "商會場景",
+        time: "3 分鐘",
+        type: "table",
+        kicker: "Slide 06",
+        table: {
+          headers: ["場景", "對應"],
+          rows: [["客戶痛點", "Asking"], ["自我介紹", "Doing"], ["品牌理念", "Expressing"]]
+        },
+        concept: "商會最重要的不是炫技，而是讓人聽懂你、記得你、願意幫你轉介紹。",
+        script: "今天所有範例都會回到商會日常：我怎麼介紹自己？別人怎麼幫我介紹？我活動後怎麼跟進？我的服務價值怎麼說得更自然？",
+        sources: ["課程情境設計：商會自我介紹、轉介紹、活動後跟進。"]
+      },
+      {
+        title: "Asking",
+        time: "4 分鐘",
+        type: "title",
+        kicker: "Slide 07",
+        words: ["Asking"],
+        subtitle: "問問題、問建議、問判斷。",
+        concept: "Asking 是把 ChatGPT 當成商業顧問。重點不是問很短，而是給足商業脈絡。",
+        script: "不要只問：幫我寫自我介紹。要改成：我是誰、服務誰、客戶痛點是什麼、要用在哪個場合、希望語氣如何。這樣 AI 才能從泛泛回答變成可用建議。示範提示詞：我是一位＿＿＿，主要服務＿＿＿。我的客戶常遇到＿＿＿問題。請幫我分析這類客戶在商會場合最容易被觸動的 5 個痛點。",
+        sources: ["OpenAI: How people are using ChatGPT — Asking 類別。https://openai.com/index/how-people-are-using-chatgpt/"]
+      },
+      {
+        title: "練習一",
+        time: "1.5 分鐘",
+        type: "practice",
+        kicker: "Slide 08",
+        words: ["1:30", "Prompt"],
+        prompt: "我是＿＿＿，服務＿＿＿，客戶最常遇到＿＿＿。請幫我分析 5 個客戶痛點。",
+        concept: "第一次 90 秒練習：讓學員先把自己的產業、服務對象、客戶問題寫出來。",
+        script: "請大家現在拿手機或紙筆，填空這句話。時間只有 90 秒，不求完美，只求有自己的版本。等一下我會挑一位現場輸入 ChatGPT 示範。",
+        sources: ["課堂互動設計：Prompt Practice 01。"]
+      },
+      {
+        title: "Doing",
+        time: "5 分鐘",
+        type: "title",
+        kicker: "Slide 09",
+        words: ["Doing"],
+        subtitle: "產出內容、完成任務、整理流程。",
+        concept: "Doing 是工作場景最直接有感的用法：讓 ChatGPT 幫忙產出可使用的商業內容。",
+        script: "工作場景中，大家更常把 ChatGPT 用來完成任務。對商會來說，最有感的是 30 秒自我介紹、LINE 跟進訊息、轉介紹話術、社群貼文。示範提示詞：請幫我寫一段 30 秒商會自我介紹，語氣自然、專業、不油膩，讓別人容易幫我轉介紹。",
+        sources: ["NBER working paper: How People Use ChatGPT — 工作相關使用中 Doing 比例更高。https://www.nber.org/system/files/working_papers/w34255/w34255.pdf"]
+      },
+      {
+        title: "練習二",
+        time: "1.5 分鐘",
+        type: "practice",
+        kicker: "Slide 10",
+        words: ["1:30", "Prompt"],
+        prompt: "請幫我產出一段 30 秒商會自我介紹，讓別人容易理解我服務誰、解決什麼問題、適合介紹誰給我。",
+        concept: "第二次 90 秒練習：把剛才的痛點轉成商會自我介紹。",
+        script: "現在請大家把剛剛的痛點接到這句提示詞後面。這裡要提醒：好的自我介紹不是塞滿專業名詞，而是讓別人知道誰適合找你。",
+        sources: ["課堂互動設計：Prompt Practice 02。"]
+      },
+      {
+        title: "Expressing",
+        time: "4 分鐘",
+        type: "title",
+        kicker: "Slide 11",
+        words: ["Expressing"],
+        subtitle: "整理想法、表達理念、說清楚價值。",
+        concept: "Expressing 幫助學員把模糊的專業經驗、服務熱情與品牌價值轉成可溝通語言。",
+        script: "很多老闆不是沒有價值，而是價值還停在腦中。ChatGPT 可以協助你把想法變成更真誠、更容易被理解的文字。示範提示詞：我不只是想賣＿＿＿，我真正想幫客戶的是＿＿＿。請幫我整理成一段真誠、有溫度、適合商會分享的品牌理念。",
+        sources: ["OpenAI / NBER working paper: How People Use ChatGPT — Expressing 類別。https://www.nber.org/system/files/working_papers/w34255/w34255.pdf"]
+      },
+      {
+        title: "練習三",
+        time: "1.5 分鐘",
+        type: "practice",
+        kicker: "Slide 12",
+        words: ["1:30", "Prompt"],
+        prompt: "我不只是賣＿＿＿，我真正想幫客戶的是＿＿＿。請轉成一段品牌價值表達。",
+        concept: "第三次 90 秒練習：從產品／服務走向價值與理念。",
+        script: "請大家完成這句話。這句話很重要，因為別人幫你轉介紹時，通常不是記住你的全部服務，而是記住你在幫哪一種人解決什麼重要問題。",
+        sources: ["課堂互動設計：Prompt Practice 03。"]
+      },
+      {
+        title: "完整案例",
+        time: "5 分鐘",
+        type: "table",
+        kicker: "Slide 13",
+        table: {
+          headers: ["步驟", "產出"],
+          rows: [["Asking", "痛點"], ["Doing", "話術"], ["Expressing", "理念"]]
+        },
+        concept: "挑一位成員完整跑一次：同一份產業資料，可以產出痛點、話術與理念三種成果。",
+        script: "這裡可以請一位成員提供產業。先問痛點，再產出自我介紹與 LINE 跟進，最後整理成品牌理念。重點是讓全場看到：ChatGPT 不是單次問答，而是一條從理解到產出的流程。",
+        sources: ["課程實作流程設計。"]
+      },
+      {
+        title: "好提示詞",
+        time: "4 分鐘",
+        type: "table",
+        kicker: "Slide 14",
+        table: {
+          headers: ["元素", "內容"],
+          rows: [["身分", "我是誰"], ["對象", "服務誰"], ["情境", "用在哪"], ["目標", "要產出什麼"], ["語氣", "怎麼說"]]
+        },
+        concept: "提示詞不是咒語，而是任務說明書。好的提示詞要有身分、對象、情境、目標、語氣。",
+        script: "大家之後不用背今天所有 prompt，只要記得這五個元素。每次使用 ChatGPT 前，先補上這五個資訊，通常品質就會大幅提升。",
+        sources: ["提示詞教學原則：身分、對象、情境、目標、語氣。"]
+      },
+      {
+        title: "風險邊界",
+        time: "4 分鐘",
+        type: "table",
+        kicker: "Slide 15",
+        table: {
+          headers: ["不要", "改成"],
+          rows: [["全信", "再判斷"], ["亂貼", "先修改"], ["代決策", "做輔助"]]
+        },
+        concept: "提醒學員：AI 產出需要人類判斷，尤其法律、財務、醫療、合約、個資等內容。",
+        script: "AI 很有用，但不是最後責任者。涉及高風險領域，不要直接照貼；涉及客戶資料，不要任意輸入；涉及決策，不要把 AI 當成唯一答案。把它當成初稿、助理與第二意見。",
+        sources: ["OpenAI Help Center: ChatGPT capabilities overview — https://help.openai.com/en/articles/9260256-chatgpt-capabilities-overview"]
+      },
+      {
+        title: "帶走一句",
+        time: "4.5 分鐘",
+        type: "words",
+        kicker: "Slide 16",
+        words: ["問", "做", "說"],
+        concept: "全課總結：Asking 問清楚，Doing 做出來，Expressing 說明白。",
+        script: "最後送大家一句話：問清楚、做出來、說明白。回去之後，先不要追求會所有 AI 工具，而是先用 ChatGPT 完成一個自己的商業助理流程。帶走提示詞：我是＿＿＿，主要服務＿＿＿。我的客戶常遇到＿＿＿問題。請分別用 Asking、Doing、Expressing 三種方式，幫我設計客戶痛點分析、30 秒自我介紹、轉介紹話術、LINE 跟進訊息，以及品牌價值表達。",
+        sources: ["全課程總結與課後實作提示詞。"]
+      }
+    ];
+
+    let current = 0;
+    let activeTab = "concept";
+
+    const slideCanvas = document.getElementById("slideCanvas");
+    const slideCount = document.getElementById("slideCount");
+    const noteTitle = document.getElementById("noteTitle");
+    const noteTime = document.getElementById("noteTime");
+    const conceptPanel = document.getElementById("conceptPanel");
+    const scriptPanel = document.getElementById("scriptPanel");
+    const sourcePanel = document.getElementById("sourcePanel");
+    const progressBar = document.getElementById("progressBar");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const thumbs = document.getElementById("thumbs");
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderSlideContent(slide) {
+      if (slide.type === "title") {
+        return `
+          <div class="slide-inner">
+            <div class="kicker">${escapeHtml(slide.kicker)}</div>
+            <h1 class="hero-title">${escapeHtml(slide.words[0])}</h1>
+            ${slide.subtitle ? `<div class="hero-subtitle">${escapeHtml(slide.subtitle)}</div>` : ""}
+          </div>
+        `;
+      }
+
+      if (slide.type === "words") {
+        return `
+          <div class="slide-inner">
+            <div class="kicker">${escapeHtml(slide.kicker)}</div>
+            <div class="big-words">
+              ${slide.words.map((w, i) => `
+                <span class="word">${escapeHtml(w)}</span>
+                ${i < slide.words.length - 1 ? `<span class="separator">｜</span>` : ""}
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      if (slide.type === "image") {
+        return `
+          <div class="slide-inner" style="display: flex; flex-direction: column; height: 100%;">
+            <div class="kicker">${escapeHtml(slide.kicker)}</div>
+            ${slide.imageUrl 
+              ? `<div style="flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;"><img src="${escapeHtml(slide.imageUrl)}" alt="${escapeHtml(slide.title)}" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" /></div>` 
+              : `<div class="visual-placeholder">${escapeHtml(slide.placeholder).replaceAll("\n", "<br>")}</div>`
+            }
+          </div>
+        `;
+      }
+
+      if (slide.type === "table") {
+        return `
+          <div class="slide-inner">
+            <div class="kicker">${escapeHtml(slide.kicker)}</div>
+            <table class="table">
+              <thead><tr>${slide.table.headers.map(h => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
+              <tbody>
+                ${slide.table.rows.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if (slide.type === "mermaid") {
+        return `
+          <div class="slide-inner">
+            <div class="kicker">${escapeHtml(slide.kicker)}</div>
+            <div class="mermaid-box">
+              <pre class="mermaid">${escapeHtml(slide.chart)}</pre>
+            </div>
+          </div>
+        `;
+      }
+
+      if (slide.type === "practice") {
+        return `
+          <div class="slide-inner">
+            <div class="practice-badge">${escapeHtml(slide.words[0])}</div>
+            <h1 class="data-title">${escapeHtml(slide.words[1])}</h1>
+            <div class="hero-subtitle prompt-line">${escapeHtml(slide.prompt)}</div>
+          </div>
+        `;
+      }
+
+      return "";
+    }
+
+    function renderNotes(slide) {
+      conceptPanel.innerHTML = `
+        <div class="note-block">
+          <h3>核心概念</h3>
+          <p>${escapeHtml(slide.concept)}</p>
+        </div>
+      `;
+
+      scriptPanel.innerHTML = `
+        <div class="note-block">
+          <h3>講稿筆記</h3>
+          <p>${escapeHtml(slide.script)}</p>
+        </div>
+      `;
+
+      sourcePanel.innerHTML = `
+        <div class="note-block source-list">
+          <h3>資源來源</h3>
+          <ul>
+            ${(slide.sources || []).map(src => {
+              const hasUrl = src.includes("http");
+              if (!hasUrl) return `<li>${escapeHtml(src)}</li>`;
+              const url = src.match(/https?:\/\/\S+/)?.[0] || "";
+              const label = src.replace(url, "").replace(/—\s*$/, "").trim();
+              return `<li>${escapeHtml(label)} <a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a></li>`;
+            }).join("")}
+          </ul>
+        </div>
+      `;
+    }
+
+    function renderThumbs() {
+      thumbs.innerHTML = slides.map((_, i) => `<button class="thumb ${i === current ? "active" : ""}" data-index="${i}">${i + 1}</button>`).join("");
+      thumbs.querySelectorAll(".thumb").forEach(btn => {
+        btn.addEventListener("click", () => {
+          current = Number(btn.dataset.index);
+          render();
+        });
+      });
+    }
+
+    function render() {
+      const slide = slides[current];
+      slideCanvas.innerHTML = renderSlideContent(slide);
+      slideCount.textContent = `Slide ${String(current + 1).padStart(2, "0")} / ${slides.length}`;
+      noteTitle.textContent = slide.title;
+      noteTime.textContent = `建議時間：${slide.time}`;
+      progressBar.style.width = `${((current + 1) / slides.length) * 100}%`;
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === slides.length - 1;
+      renderNotes(slide);
+      renderThumbs();
+      if (slide.type === "mermaid" && window.mermaid) {
+        mermaid.initialize({ startOnLoad: false, theme: "base" });
+        mermaid.run({ querySelector: ".mermaid" });
+      }
+    }
+
+    function go(delta) {
+      current = Math.max(0, Math.min(slides.length - 1, current + delta));
+      render();
+    }
+
+    function setTab(tabName) {
+      activeTab = tabName;
+      document.querySelectorAll(".tab").forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.tab === activeTab);
+      });
+      document.querySelectorAll(".note-section").forEach(panel => panel.classList.remove("active"));
+      document.getElementById(`${activeTab}Panel`).classList.add("active");
+    }
+
+    prevBtn.addEventListener("click", () => go(-1));
+    nextBtn.addEventListener("click", () => go(1));
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => setTab(tab.dataset.tab));
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown" || event.key === "PageDown" || event.key === " ") {
+        event.preventDefault();
+        go(1);
+      }
+      if (event.key === "ArrowUp" || event.key === "PageUp") {
+        event.preventDefault();
+        go(-1);
+      }
+      if (event.key === "1") setTab("concept");
+      if (event.key === "2") setTab("script");
+      if (event.key === "3") setTab("source");
+    });
+
+    render();
+  </script>
+</body>
+</html>

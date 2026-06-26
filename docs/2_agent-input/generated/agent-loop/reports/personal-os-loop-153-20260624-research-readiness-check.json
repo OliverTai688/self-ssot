@@ -1,0 +1,446 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T08:53:09.965Z",
+  "command": "pnpm research:readiness:check",
+  "taskId": "RESEARCH-OPS-002-RESEARCH-FORMAL-READINESS-SURFACE",
+  "status": "ready_for_research_formal_readiness_surface",
+  "contract": {
+    "path": "src/lib/contracts/research-formal-readiness.contract.ts",
+    "contractTaskId": "RESEARCH-OPS-001-RESEARCH-FORMAL-READINESS-BFF",
+    "acceptanceDoc": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlogDoc": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "tasksDoc": "tasks.md",
+    "loop141ResearchReport": "docs/06_audits-and-reports/RPT-040_loop-141-research-realdata-gap-review.md",
+    "resourceFamilyCount": 11,
+    "futureBffPathPresent": true,
+    "noHiddenMockToFormalClaim": true,
+    "launchLevelUpgradeClaimed": false
+  },
+  "surface": {
+    "servicePath": "src/lib/services/research-formal-readiness.service.ts",
+    "pagePath": "src/app/(dashboard)/research/readiness/page.tsx",
+    "hubPath": "src/app/(dashboard)/research/page.tsx",
+    "protectedRoute": "/research/readiness",
+    "resourceFamilySummaryPresent": true,
+    "stateSplitPresent": true,
+    "futureBffPathPresent": true,
+    "blockedWritesPresent": true,
+    "agentBoundaryPresent": true,
+    "hubEntryPresent": true,
+    "serviceUsesContractOnly": true
+  },
+  "checks": {
+    "requiredMarkers": [
+      {
+        "marker": "RESEARCH_FORMAL_READINESS_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_FORMAL_READINESS_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-OPS-001-RESEARCH-FORMAL-READINESS-BFF",
+        "present": true
+      },
+      {
+        "marker": "contract_only_no_db_runtime",
+        "present": true
+      },
+      {
+        "marker": "protected_owner_research",
+        "present": true
+      },
+      {
+        "marker": "useResearch() localStorage/mock UI state",
+        "present": true
+      },
+      {
+        "marker": "partial thread-first Prisma Research models",
+        "present": true
+      },
+      {
+        "marker": "existing unsafe-for-formal server actions",
+        "present": true
+      },
+      {
+        "marker": "ResearchIssue",
+        "present": true
+      },
+      {
+        "marker": "ResearchThread",
+        "present": true
+      },
+      {
+        "marker": "Server Component loader",
+        "present": true
+      },
+      {
+        "marker": "requireUser()",
+        "present": true
+      },
+      {
+        "marker": "Research service authorization",
+        "present": true
+      },
+      {
+        "marker": "Prisma or approved adapter",
+        "present": true
+      },
+      {
+        "marker": "UI-safe DTO",
+        "present": true
+      },
+      {
+        "marker": "Client Component interaction",
+        "present": true
+      },
+      {
+        "marker": "blockedWriteOperations",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbReadAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "schemaMigrationAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "migrationApplyAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "serverActionWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalCollaborationAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "agentFinalWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      },
+      {
+        "marker": "hiddenMockToFormalClaimAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "launchLevelUpgradeClaimed: false",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-OPS-002-RESEARCH-FORMAL-READINESS-SURFACE",
+        "present": true
+      }
+    ],
+    "surfaceMarkers": [
+      {
+        "path": "src/lib/services/research-formal-readiness.service.ts",
+        "markers": [
+          {
+            "marker": "server-only",
+            "present": true
+          },
+          {
+            "marker": "buildResearchFormalReadinessSurface",
+            "present": true
+          },
+          {
+            "marker": "RESEARCH-OPS-002-RESEARCH-FORMAL-READINESS-SURFACE",
+            "present": true
+          },
+          {
+            "marker": "resourceFamilyCount",
+            "present": true
+          },
+          {
+            "marker": "blockedWriteOperations",
+            "present": true
+          },
+          {
+            "marker": "externalRegisterable: false",
+            "present": true
+          },
+          {
+            "marker": "launchLevelUpgradeClaimed",
+            "present": true
+          }
+        ]
+      },
+      {
+        "path": "src/app/(dashboard)/research/readiness/page.tsx",
+        "markers": [
+          {
+            "marker": "buildResearchFormalReadinessSurface",
+            "present": true
+          },
+          {
+            "marker": "Research formal readiness surface",
+            "present": true
+          },
+          {
+            "marker": "Current state split",
+            "present": true
+          },
+          {
+            "marker": "Future BFF path",
+            "present": true
+          },
+          {
+            "marker": "Resource-family readiness",
+            "present": true
+          },
+          {
+            "marker": "Blocked writes",
+            "present": true
+          },
+          {
+            "marker": "Agent and safety boundary",
+            "present": true
+          },
+          {
+            "marker": "No Research persistence",
+            "present": true
+          },
+          {
+            "marker": "external collaboration",
+            "present": true
+          }
+        ]
+      },
+      {
+        "path": "src/app/(dashboard)/research/page.tsx",
+        "markers": [
+          {
+            "marker": "href=\"/research/readiness\"",
+            "present": true
+          },
+          {
+            "marker": "Research formal readiness",
+            "present": true
+          },
+          {
+            "marker": "Issue/Thread blocker",
+            "present": true
+          },
+          {
+            "marker": "proposal-only agent boundary",
+            "present": true
+          }
+        ]
+      }
+    ],
+    "resourceFamilies": [
+      {
+        "resourceFamily": "issues",
+        "present": true
+      },
+      {
+        "resourceFamily": "sources",
+        "present": true
+      },
+      {
+        "resourceFamily": "concepts",
+        "present": true
+      },
+      {
+        "resourceFamily": "writing-projects",
+        "present": true
+      },
+      {
+        "resourceFamily": "questions",
+        "present": true
+      },
+      {
+        "resourceFamily": "events",
+        "present": true
+      },
+      {
+        "resourceFamily": "people",
+        "present": true
+      },
+      {
+        "resourceFamily": "links",
+        "present": true
+      },
+      {
+        "resourceFamily": "graph",
+        "present": true
+      },
+      {
+        "resourceFamily": "agent-proposals",
+        "present": true
+      },
+      {
+        "resourceFamily": "records-readiness",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client import marker",
+        "present": false
+      },
+      {
+        "label": "database client import marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "database URL marker",
+        "present": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "route handler request marker",
+        "present": false
+      },
+      {
+        "label": "route handler response marker",
+        "present": false
+      }
+    ],
+    "forbiddenSurfaceRuntimeMarkers": [
+      {
+        "label": "Prisma client import marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "database client import marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "database client call marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "environment read marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "provider client marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "network call marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "database URL marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "request cookie read marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "request header read marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "route handler request marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "route handler response marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "server action marker",
+        "servicePresent": false,
+        "pagePresent": false
+      },
+      {
+        "label": "schema migration marker",
+        "servicePresent": false,
+        "pagePresent": false
+      }
+    ],
+    "referencedDocs": {
+      "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md": true,
+      "docs/05_execution-plans/PLN-060_task-backlog.md": true,
+      "tasks.md": true,
+      "docs/06_audits-and-reports/RPT-040_loop-141-research-realdata-gap-review.md": true
+    }
+  },
+  "safety": {
+    "readsEnv": false,
+    "connectsToDatabase": false,
+    "readsDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "appliesMigration": false,
+    "changesSeedData": false,
+    "addsRouteHandler": false,
+    "addsServerActionWrite": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "expandsPublicOutput": false,
+    "enablesExternalCollaboration": false,
+    "enablesAgentFinalWrites": false,
+    "externalRegisterable": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "errors": []
+}

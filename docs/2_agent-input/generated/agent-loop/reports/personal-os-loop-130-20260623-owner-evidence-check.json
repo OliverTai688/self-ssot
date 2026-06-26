@@ -1,0 +1,34 @@
+{
+  "id": "OWNER-EVIDENCE-001",
+  "status": "ready_for_owner_evidence_console_use",
+  "checkedAt": "2026-06-23T10:13:32.222Z",
+  "files": {
+    "service": "src/lib/services/admin-readiness.service.ts",
+    "dashboard": "src/app/(dashboard)/dashboard/page.tsx",
+    "admin": "src/app/(dashboard)/admin/page.tsx",
+    "settings": "src/app/(dashboard)/settings/page.tsx",
+    "acceptance": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlog": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "sprint": "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "completedLog": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "loopReview": "docs/06_audits-and-reports/RPT-011_loop-68-research-gap-review.md",
+    "tasks": "tasks.md",
+    "packageJson": "package.json"
+  },
+  "checkedRows": [
+    "AUTH-005",
+    "WORK-009",
+    "OWNER-UI-REVIEW",
+    "DATTR-024",
+    "DEPLOY-002"
+  ],
+  "noSecretBoundary": [
+    "Supabase URLs or keys",
+    "database URLs or hosts",
+    "cookies or tokens",
+    "raw auth claims",
+    "provider payloads",
+    "raw generated report payload bodies"
+  ],
+  "errors": []
+}

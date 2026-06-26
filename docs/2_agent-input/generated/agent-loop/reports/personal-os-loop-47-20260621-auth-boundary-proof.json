@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-21T02:32:02.202Z",
+  "sourceFiles": [
+    "src/lib/services/auth.service.ts",
+    "src/lib/auth/runtime.ts",
+    "src/lib/supabase/env.ts",
+    "prisma/seed.ts"
+  ],
+  "secretPolicy": {
+    "printsSecrets": false,
+    "excludedValues": [
+      "Supabase URLs",
+      "Supabase publishable or anon keys",
+      "database URLs",
+      "database hosts",
+      "cookies",
+      "tokens",
+      "raw auth claims",
+      "raw provider payloads",
+      "profile IDs",
+      "actual profile email values"
+    ]
+  },
+  "environmentSummary": {
+    "nodeEnvClass": "non_production_or_unset",
+    "requestedAuthMode": "supabase",
+    "effectiveAuthMode": "supabase",
+    "devUserEmailSource": "default_contract",
+    "supabasePublicUrlPresent": false,
+    "supabasePublishableOrAnonKeyPresent": false
+  },
+  "contractChecks": {
+    "seedDemoProfileEmailPresent": true,
+    "authDefaultDevEmailPresent": true,
+    "seedAndAuthDefaultMatch": true,
+    "seedUsesOwnerRole": true,
+    "runtimeDisablesMockInProduction": true,
+    "runtimeRequiresExplicitMockMode": true,
+    "configuredDevEmailMatchesSeed": null,
+    "demoEmailIsDefaultContract": true
+  },
+  "rows": [
+    {
+      "status": "ready",
+      "label": "Demo profile seed contract",
+      "signal": "Seed profile and auth default point to the same OWNER demo contract without printing the email.",
+      "nextAction": "No action."
+    },
+    {
+      "status": "ready",
+      "label": "Mock auth production guard",
+      "signal": "Mock auth requires explicit mode and is disabled when NODE_ENV is production.",
+      "nextAction": "No action."
+    },
+    {
+      "status": "ready",
+      "label": "Development demo identity",
+      "signal": "Development identity source is default_contract; no email value is printed.",
+      "nextAction": "No action."
+    },
+    {
+      "status": "ready",
+      "label": "Effective auth mode",
+      "signal": "Requested auth mode is supabase; effective auth mode is supabase.",
+      "nextAction": "Continue with Supabase session proof."
+    },
+    {
+      "status": "blocked",
+      "label": "Supabase public env",
+      "signal": "Supabase public URL and/or publishable key are missing.",
+      "nextAction": "Configure Supabase public env in the intended launch target without storing values in repo artifacts."
+    },
+    {
+      "status": "warn",
+      "label": "Signed-in owner session evidence",
+      "signal": "This command does not read cookies, tokens, /auth/status payloads, profile IDs, or actual emails.",
+      "nextAction": "Use pnpm auth:proof with sanitized signed-in /auth/status JSON before running AUTH-005."
+    }
+  ],
+  "proofSummary": {
+    "overallStatus": "blocked",
+    "boundaryStatus": "ready",
+    "canUseLocalDemo": false,
+    "canCollectSignedInAuthProof": false,
+    "canRunAuth005": false,
+    "auth005BlockedBy": [
+      "Supabase public env",
+      "Signed-in /auth/status evidence"
+    ],
+    "nextAction": "Configure Supabase public env, then collect signed-in /auth/status evidence."
+  }
+}

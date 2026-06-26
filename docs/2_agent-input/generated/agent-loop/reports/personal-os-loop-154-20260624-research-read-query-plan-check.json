@@ -1,0 +1,44 @@
+{
+  "status": "ready_for_owner_read_query_plan_contract_use",
+  "taskId": "RESEARCH-BFF-005-RESEARCH-OWNER-READ-QUERY-PLAN-CONTRACT",
+  "mode": "query_plan_contract_only_no_runtime_db_read",
+  "contractPath": "src/lib/contracts/research-owner-read-query-plan.contract.ts",
+  "familyCount": 11,
+  "requiredFamilies": [
+    "issues",
+    "sources",
+    "concepts",
+    "writing-projects",
+    "writing-sections",
+    "events",
+    "people",
+    "typed-links",
+    "graph-projections",
+    "readiness-evidence",
+    "agent-proposals"
+  ],
+  "safety": {
+    "runtimeDbReadAllowed": false,
+    "runtimeDbWriteAllowed": false,
+    "schemaMigrationAllowed": false,
+    "migrationApplyAllowed": false,
+    "seedChangeAllowed": false,
+    "routeHandlerAllowed": false,
+    "serverActionWriteAllowed": false,
+    "publicOutputAllowed": false,
+    "externalCollaborationAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "agentFinalWriteAllowed": false,
+    "externalRegisterable": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "nandaBoundary": {
+    "affectedSurface": "Research agent proposals",
+    "protocolStatus": "protected_owner_visible_proposal_only",
+    "externalRegisterable": false,
+    "finalWritesRequireHumanApproval": true
+  },
+  "nextRecommendedTask": "RESEARCH-BFF-006-RESEARCH-OWNER-READ-SERVICE-LOADER-SKELETON",
+  "errors": [],
+  "warnings": []
+}

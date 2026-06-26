@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-23T03:18:40.105Z",
+  "taskId": "DATTR-024I-PROOF-RUNNER",
+  "mode": "dry_run",
+  "status": "dry_run_ready",
+  "canAttemptFutureProofWrites": false,
+  "writesExecuted": false,
+  "target": {
+    "provided": false,
+    "source": "AI_INPUT_SOURCE_WORKFLOW_PROOF_DATABASE_URL",
+    "parseable": false,
+    "protocolAllowed": false,
+    "hostClass": "missing",
+    "databaseNameHasProofMarker": false,
+    "databaseNameLooksValuable": false,
+    "remoteOverrideAccepted": false,
+    "targetUrlRedacted": true,
+    "hostRedacted": true
+  },
+  "confirmations": {
+    "runRequested": false,
+    "allowWrites": false,
+    "confirmationAccepted": false,
+    "remoteOverride": false,
+    "confirmationPhrase": "I_UNDERSTAND_THIS_WRITES_TEST_DATA"
+  },
+  "safety": {
+    "targetSafe": false,
+    "missing": [
+      "AI_INPUT_SOURCE_WORKFLOW_PROOF_DATABASE_URL is not set."
+    ],
+    "warnings": [],
+    "doesNotConnectToDatabase": true,
+    "doesNotApplyMigration": true,
+    "doesNotWriteDatabase": true,
+    "migrationApplyAllowed": false,
+    "runtimeReadAllowed": false,
+    "runtimeWriteAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "providerDataAllowed": false,
+    "publicOutputAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "database usernames",
+      "database passwords",
+      "Supabase keys",
+      "tokens",
+      "cookies",
+      "raw auth claims",
+      "profile IDs",
+      "row IDs",
+      "provider payloads",
+      "source file bodies",
+      "private source material",
+      "target module final payloads"
+    ]
+  },
+  "requiredObjects": [
+    "SourceConnection",
+    "SourceAsset",
+    "AIWorkflowRun",
+    "AIWorkItem",
+    "SourceNamingProfile",
+    "DataUnitProposal",
+    "ModuleWriteIntent",
+    "OperatingAuditEvent"
+  ],
+  "plannedWriteSequence": [
+    "Classify target without printing URL, host, credentials, or row identifiers.",
+    "Require --run plus PERSONAL_OS_AI_INPUT_PROOF_ALLOW_WRITES=1 and the exact confirmation phrase.",
+    "Apply only a human-reviewed Source Workflow migration draft to an approved local/disposable target.",
+    "Create proof-only owner/profile context with example.invalid metadata.",
+    "Create proof-only SourceConnection, SourceAsset, AIWorkflowRun, AIWorkItem, SourceNamingProfile, DataUnitProposal, and ModuleWriteIntent rows.",
+    "Keep DataUnitProposal and ModuleWriteIntent proposal-only; do not write final Work, Research, Life, Finance, Chamber, Company, Client Portal, auth, permission, public-output, or external-collaboration rows.",
+    "Emit or reference redacted ai-input.source-workflow audit evidence.",
+    "Disconnect/reconnect before owner-scoped read verification.",
+    "Delete proof-only rows by marker and owner scope.",
+    "Verify cleanup count is zero for every proof object."
+  ],
+  "blockedUntil": [
+    "Human review approves MIG-003 and the create-only SQL draft for a disposable/local target.",
+    "DATTR-024J-SERVICE-AUTHZ-RUNTIME implements requireUser(), owner scope, service authorization, and UI-safe mappers.",
+    "DATTR-024K-RLS-AUDIT-STORAGE reviews RLS/audit storage or explicitly defers persisted audit storage for disposable proof only.",
+    "Owner/operator supplies an approved local/disposable AI_INPUT_SOURCE_WORKFLOW_PROOF_DATABASE_URL and confirmations."
+  ],
+  "nextActions": [
+    "Provide an explicit local/disposable AI_INPUT_SOURCE_WORKFLOW_PROOF_DATABASE_URL when ready.",
+    "Set PERSONAL_OS_AI_INPUT_PROOF_ALLOW_WRITES=1 only for a disposable proof run.",
+    "Set PERSONAL_OS_AI_INPUT_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA.",
+    "For a remote disposable target, set PERSONAL_OS_AI_INPUT_PROOF_ALLOW_REMOTE=1 only after confirming it is not valuable.",
+    "Continue DATTR-024J-SERVICE-AUTHZ-RUNTIME while proof target evidence remains Manual Ops."
+  ],
+  "sourceRefs": [
+    "docs/08_acceptance-and-qa/ACC-006_ai-input-source-workflow-proof-target.md",
+    "docs/02_architecture-and-rules/MIG-003_ai-input-source-workflow-create-only-migration-draft.md",
+    "docs/02_architecture-and-rules/ARC-031_ai-input-source-workflow-bff-split-contract.md",
+    "docs/02_architecture-and-rules/ARC-028_nanda-agent-protocol-alignment.md"
+  ],
+  "agentProtocol": {
+    "posture": "protected-owner/internal proof tooling only",
+    "affectedAgentFactsLiteFields": [
+      "identity",
+      "lifecycle",
+      "capabilities",
+      "skills",
+      "auth",
+      "trust",
+      "observability",
+      "registry status"
+    ],
+    "externalRegisterable": false,
+    "externalAgentDatabaseAccessAllowed": false
+  }
+}

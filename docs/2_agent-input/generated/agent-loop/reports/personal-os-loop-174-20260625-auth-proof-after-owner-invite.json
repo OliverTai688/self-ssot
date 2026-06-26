@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-25T08:18:52.770Z",
+  "sourceCommands": {
+    "readiness": "pnpm launch:check --json",
+    "authStatus": "status_url"
+  },
+  "secretPolicy": {
+    "printsSecrets": false,
+    "excludedValues": [
+      "Supabase URLs",
+      "Supabase publishable or anon keys",
+      "database URLs",
+      "database hosts",
+      "cookies",
+      "tokens",
+      "raw auth claims",
+      "raw provider payloads",
+      "profile IDs",
+      "actual profile email values"
+    ]
+  },
+  "readiness": {
+    "generatedAt": "2026-06-25T08:18:52.680Z",
+    "overallStatus": "warn",
+    "checks": {
+      "supabasePublicUrlPresent": true,
+      "supabasePublishableOrAnonKeyPresent": true,
+      "databaseUrlPresent": true,
+      "databaseUrlParseable": true,
+      "migrationDatabaseUrlPresent": true,
+      "migrationDatabaseUrlParseable": true,
+      "databaseHostPresent": true,
+      "databaseHostDnsChecked": true,
+      "databaseHostResolves": true,
+      "databaseHostError": null,
+      "requestedAuthMode": "supabase",
+      "effectiveAuthMode": "supabase",
+      "deploymentMarkerPresent": false
+    },
+    "rows": [
+      {
+        "status": "ready",
+        "label": "Supabase public URL",
+        "signal": "NEXT_PUBLIC_SUPABASE_URL is present.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Supabase publishable key",
+        "signal": "A publishable or legacy anon key is present.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Runtime database URL",
+        "signal": "DATABASE_URL is present and parseable.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Migration database URL",
+        "signal": "DIRECT_DATABASE_URL or DATABASE_URL is present and parseable.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Database host DNS",
+        "signal": "The selected database host resolves.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Auth runtime mode",
+        "signal": "Requested auth mode is supabase; effective mode is supabase.",
+        "nextAction": "Use /auth/status after signing in to prove Supabase session to Profile mapping."
+      },
+      {
+        "status": "warn",
+        "label": "Deployment marker",
+        "signal": "VERCEL_ENV is missing in this local check.",
+        "nextAction": "For deployed proof, run this check in the launch environment as well."
+      }
+    ],
+    "nextActions": [
+      "For deployed proof, run this check in the launch environment as well."
+    ]
+  },
+  "authStatusEvidence": {
+    "source": "status_url",
+    "provided": true,
+    "parseable": true,
+    "httpStatus": 401,
+    "urlClass": "local",
+    "authenticated": false,
+    "authMode": "supabase",
+    "supabasePublicConfig": "configured",
+    "authStatus": "supabase_session_missing",
+    "profile": null,
+    "work": null,
+    "nextAction": "Sign in through /login, then revisit /auth/status with the same browser session."
+  },
+  "proofSummary": {
+    "overallStatus": "blocked",
+    "launchAuthPrereqsReady": true,
+    "authStatusReady": false,
+    "canRunAuth005": false,
+    "canProceedToWork007": false,
+    "blockedLabels": [
+      "Auth status supabase_session_missing"
+    ],
+    "warnLabels": [
+      "Deployment marker"
+    ],
+    "expectedAuth005State": "BLOCKED_OR_SESSION_EVIDENCE_REQUIRED",
+    "nextAction": "Sign in through /login, then revisit /auth/status with the same browser session."
+  },
+  "nextActions": [
+    "For deployed proof, run this check in the launch environment as well.",
+    "Sign in through /login, then revisit /auth/status with the same browser session."
+  ]
+}

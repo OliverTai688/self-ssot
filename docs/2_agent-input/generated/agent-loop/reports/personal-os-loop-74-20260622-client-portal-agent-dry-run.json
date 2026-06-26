@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T03:50:55.234Z",
+  "command": "pnpm agent:op",
+  "mode": "dry_run",
+  "status": "ready_for_owner_dry_run",
+  "selectedOperation": {
+    "id": "client-portal.visibility.preflight",
+    "version": "0.1.0",
+    "label": "Preflight Client Portal visibility boundary",
+    "ownerAgent": "ClientPortalAgent",
+    "targetModule": "client-portal",
+    "riskLevel": "CRITICAL",
+    "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+    "dataVisibilityLevel": "public-output-boundary-metadata-only",
+    "scopes": [
+      "client-portal:visibility:read",
+      "agent:operation:read"
+    ],
+    "allowedModes": [
+      "dry_run"
+    ],
+    "inputContract": {
+      "operationId": "string",
+      "requestedChecks": "optional string array"
+    },
+    "outputContract": {
+      "proposalOutputs": "visibility checklist, public output risk note, and token-gate review",
+      "safetyBoundary": "No public output expansion, token mutation, or client-visible data change",
+      "nextReview": "Client Portal approval package"
+    },
+    "cli": "pnpm agent:op -- --operation client-portal.visibility.preflight --json",
+    "futureProtectedApi": "POST /api/agent-operations/dry-run",
+    "uiSurfaceRefs": [
+      "protected /admin client portal readiness panel"
+    ],
+    "auditRefs": [
+      "docs/2_agent-input/generated/agent-loop/reports/",
+      "future public-output audit event"
+    ],
+    "sourceRefs": [
+      "docs/02_architecture-and-rules/ARC-025_client-portal-public-bff.md",
+      "docs/02_architecture-and-rules/AUT-004_client-portal-public-storage-policy.md"
+    ],
+    "blockedActions": [
+      "public output expansion",
+      "token lifecycle mutation",
+      "client-visible data change"
+    ],
+    "requestedAgent": "ClientPortalAgent",
+    "requestedTargetModule": "client-portal"
+  },
+  "agentManifestSnapshot": {
+    "id": "personal-os:client-portal-agent",
+    "agent_name": "urn:agent:personal-os:ClientPortalAgent",
+    "label": "ClientPortalAgent",
+    "lifecycleStatus": "governance-only",
+    "protocols": [
+      "internal",
+      "docs-governance"
+    ],
+    "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+    "dataVisibilityLevel": "client-portal-boundary-metadata",
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "endpointCounts": {
+      "internal": 0,
+      "external": 0
+    }
+  },
+  "registrySnapshot": {
+    "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+    "manifestFile": "docs/2_agent-input/generated/agent-loop/agent-registry/internal-agent-manifests.agentfacts-lite.json",
+    "manifestCount": 15,
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "runtimeEndpoint": null,
+    "publicDirectory": false
+  },
+  "safety": {
+    "writesPerformed": false,
+    "databaseAccessed": false,
+    "environmentRead": false,
+    "publicEndpointCreated": false,
+    "externalRegistryWrite": false,
+    "externalRegisterableAfterRun": false,
+    "rawSecretsIncluded": false,
+    "blockedIfRunRequested": true,
+    "reasons": [
+      "AGENT-OPS-001 is owner-only dry-run CLI proof.",
+      "The command reads generated AgentFacts-lite files only.",
+      "No environment variables, cookies, tokens, database URLs, provider payloads, or private records are read.",
+      "The CLI creates no public endpoint, DB write, migration, seed, or external registration. Protected HTTP dry-run is handled separately by AGENT-014."
+    ]
+  },
+  "validation": {
+    "agentMatchesOperation": true,
+    "targetMatchesOperation": true,
+    "internalDiscoverable": true,
+    "externalRegisterableBlocked": true,
+    "allowedModeIsDryRunOnly": true
+  },
+  "nextReview": "Use this contract as the UI/API/CLI alignment base before any owner command center or approval-write slice."
+}

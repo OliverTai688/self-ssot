@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T15:25:41.001Z",
+  "command": "pnpm agent:commands:check",
+  "taskId": "AGENT-010",
+  "status": "ready_for_module_agent_workspace_use",
+  "catalog": {
+    "path": "src/lib/contracts/module-agent-command-catalog.contract.ts",
+    "moduleCount": 10,
+    "operationCount": 10,
+    "allowedMode": "dry_run",
+    "externalRegisterable": false,
+    "httpRoute": "/api/agent-operations/dry-run",
+    "cliCommand": "pnpm agent:op -- --operation <operation-id> --json"
+  },
+  "checks": {
+    "modules": [
+      {
+        "moduleKey": "work",
+        "present": true
+      },
+      {
+        "moduleKey": "research",
+        "present": true
+      },
+      {
+        "moduleKey": "ai-input",
+        "present": true
+      },
+      {
+        "moduleKey": "workflow",
+        "present": true
+      },
+      {
+        "moduleKey": "life",
+        "present": true
+      },
+      {
+        "moduleKey": "finance",
+        "present": true
+      },
+      {
+        "moduleKey": "chamber",
+        "present": true
+      },
+      {
+        "moduleKey": "company",
+        "present": true
+      },
+      {
+        "moduleKey": "client-portal",
+        "present": true
+      },
+      {
+        "moduleKey": "agent-team-os",
+        "present": true
+      }
+    ],
+    "operationIds": [
+      {
+        "operationId": "work.proof.preflight",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "research.workspace.plan",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "ai-input.source-workflow.review",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "workflow.queue.plan",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "life.routine.propose",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "finance.review-draft",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "chamber.relationship.plan",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "company.strategy.review",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "client-portal.visibility.preflight",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "agent.ops.describe-contract",
+        "inCatalog": true,
+        "apiImportsCatalog": true,
+        "inCliDryRun": true
+      }
+    ],
+    "requiredMarkers": [
+      {
+        "marker": "MODULE_AGENT_COMMAND_CATALOG",
+        "present": true
+      },
+      {
+        "marker": "MODULE_AGENT_OPERATION_API_OPERATIONS",
+        "present": true
+      },
+      {
+        "marker": "MODULE_AGENT_COMMAND_CATALOG_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "ready_for_module_agent_workspace_use",
+        "present": true
+      },
+      {
+        "marker": "allowedModes: [\"dry_run\"]",
+        "present": true
+      },
+      {
+        "marker": "proposalOutputs",
+        "present": true
+      },
+      {
+        "marker": "blockedWrites",
+        "present": true
+      },
+      {
+        "marker": "uiEntrySurface",
+        "present": true
+      },
+      {
+        "marker": "httpDryRunPayload",
+        "present": true
+      },
+      {
+        "marker": "cliDryRunCommand",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "label": "external registration enabled marker",
+        "present": false
+      },
+      {
+        "label": "execute mode branch",
+        "present": false
+      }
+    ],
+    "referencedDocs": {
+      "arc028": true,
+      "arc029": true,
+      "res004": true,
+      "acceptance": true,
+      "backlog": true
+    }
+  },
+  "safety": {
+    "publicEndpointCreated": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "externalRegistryWrite": false,
+    "externalRegisterable": false,
+    "autonomousExecution": false,
+    "externalAgentDatabaseAccess": false,
+    "highRiskFinalWrite": false
+  },
+  "nextActions": [
+    "Use AGENT-011 to define the internal multi-agent task/message bus before group-agent runtime.",
+    "Use AGENT-012 to bind this catalog into an owner command center UI.",
+    "Keep AGENT-013 external adapter work disabled until human approval and launch gates are complete."
+  ],
+  "errors": []
+}

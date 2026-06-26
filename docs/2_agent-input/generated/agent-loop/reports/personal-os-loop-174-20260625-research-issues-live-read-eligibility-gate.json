@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "taskId": "RESEARCH-BFF-016-RESEARCH-OWNER-READ-ISSUES-LIVE-READ-ELIGIBILITY-GATE",
+  "previousTaskId": "RESEARCH-BFF-015-RESEARCH-OWNER-READ-ISSUES-LIVE-READ-PROOF-RUNNER-DRY-RUN-CLI",
+  "status": "manual_ops_required_owner_evidence_missing",
+  "checkedAt": "2026-06-24T20:55:03.069Z",
+  "selectedPacketPath": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-173-20260625-research-issues-live-read-proof-runner-dry-run.json",
+  "nextRunnableSlice": "MANUAL-OPS-RESEARCH-OWNER-EVIDENCE-HANDOFF",
+  "eligibility": {
+    "status": "manual_ops_required_owner_evidence_missing",
+    "eligible": false,
+    "ownerEvidenceMissing": true,
+    "criteria": [
+      {
+        "id": "dry-run-packet",
+        "label": "BFF-015 dry-run packet",
+        "passed": true,
+        "requiredForEligibility": true,
+        "manualOps": false,
+        "signal": "dry_run_ready_no_live_research_read"
+      },
+      {
+        "id": "dependency-chain",
+        "label": "BFF-014/BFF-013/BFF-012 chain",
+        "passed": true,
+        "requiredForEligibility": true,
+        "manualOps": false,
+        "signal": "dependency markers ready"
+      },
+      {
+        "id": "allow-live-read",
+        "label": "PERSONAL_OS_RESEARCH_READ_PROOF_ALLOW_LIVE_READ=1",
+        "passed": false,
+        "requiredForEligibility": true,
+        "manualOps": true,
+        "signal": "missing_or_not_accepted"
+      },
+      {
+        "id": "owner-confirmation",
+        "label": "PERSONAL_OS_RESEARCH_READ_PROOF_CONFIRM=I_UNDERSTAND_THIS_READS_OWNER_RESEARCH_DATA",
+        "passed": false,
+        "requiredForEligibility": true,
+        "manualOps": true,
+        "signal": "missing_or_not_accepted"
+      },
+      {
+        "id": "proof-target",
+        "label": "PERSONAL_OS_RESEARCH_READ_PROOF_TARGET",
+        "passed": false,
+        "requiredForEligibility": true,
+        "manualOps": true,
+        "signal": "missing_owner_approved_target"
+      },
+      {
+        "id": "auth-proof",
+        "label": "AUTH-005 sanitized owner/Profile proof",
+        "passed": false,
+        "requiredForEligibility": true,
+        "manualOps": true,
+        "signal": "Run /auth/status from a signed-in browser session and provide sanitized JSON evidence."
+      },
+      {
+        "id": "dry-run-future-eligible",
+        "label": "BFF-015 futureLiveReadEligible",
+        "passed": false,
+        "requiredForEligibility": true,
+        "manualOps": false,
+        "signal": "false"
+      }
+    ],
+    "missing": [
+      "PERSONAL_OS_RESEARCH_READ_PROOF_ALLOW_LIVE_READ=1",
+      "PERSONAL_OS_RESEARCH_READ_PROOF_CONFIRM=I_UNDERSTAND_THIS_READS_OWNER_RESEARCH_DATA",
+      "PERSONAL_OS_RESEARCH_READ_PROOF_TARGET",
+      "AUTH-005 sanitized owner/Profile proof",
+      "BFF-015 futureLiveReadEligible"
+    ]
+  },
+  "launchLevelUpgradeClaimed": false,
+  "liveReadExecutionAllowed": false,
+  "runtimeDbReadEnabled": false,
+  "runtimeDbWriteEnabled": false,
+  "runtimePrismaReadEnabled": false,
+  "adapterExecutionAllowed": false,
+  "routeHandlerEnabled": false,
+  "serverActionWriteEnabled": false,
+  "publicOutputEnabled": false,
+  "externalCollaborationEnabled": false,
+  "externalAgentDatabaseAccessAllowed": false,
+  "agentFinalWriteAllowed": false,
+  "externalRegisterable": false,
+  "safety": {
+    "doesNotConnectToDatabase": true,
+    "doesNotReadResearchData": true,
+    "doesNotWriteDatabase": true,
+    "doesNotFetchNetwork": true,
+    "printsSecrets": false,
+    "noRouteHandlerOrServerAction": true,
+    "separateLiveReadTaskRequired": true
+  },
+  "ownerRunHandoff": {
+    "command": "pnpm research:read-issues-live-read-proof-runner:run -- --json --out docs/2_agent-input/generated/agent-loop/reports/owner-research-issues-read-dry-run.json",
+    "requiredEnv": [
+      "PERSONAL_OS_RESEARCH_READ_PROOF_ALLOW_LIVE_READ=1",
+      "PERSONAL_OS_RESEARCH_READ_PROOF_CONFIRM=I_UNDERSTAND_THIS_READS_OWNER_RESEARCH_DATA",
+      "PERSONAL_OS_RESEARCH_READ_PROOF_TARGET=local_or_disposable_or_owner_approved",
+      "AUTH-005 sanitized owner/Profile evidence"
+    ],
+    "passSignal": "This gate may return eligible_for_separate_owner_approved_live_read_selection, but liveReadExecutionAllowed remains false until a later explicitly selected task."
+  },
+  "evidence": {
+    "checker": {
+      "path": "scripts/check-research-owner-read-issues-live-read-eligibility-gate.mjs",
+      "noDbConnection": true,
+      "noResearchRead": true,
+      "noSecretPacket": true
+    },
+    "packetSummary": {
+      "status": "dry_run_ready_no_live_research_read",
+      "ownerRunReady": false,
+      "futureLiveReadEligible": false,
+      "authProofCanRunAuth005": false
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

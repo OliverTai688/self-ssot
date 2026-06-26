@@ -1,0 +1,94 @@
+{
+  "id": "DATTR-024C",
+  "status": "ready_for_proof_target_boundary_use",
+  "checkedAt": "2026-06-21T07:44:32.877Z",
+  "requiredObjects": [
+    "SourceConnection",
+    "SourceAsset",
+    "AIWorkflowRun",
+    "AIWorkItem",
+    "DataUnitProposal",
+    "ModuleWriteIntent",
+    "OperatingAuditEvent"
+  ],
+  "requiredAreas": [
+    "target-selection",
+    "write-confirmation",
+    "migration-boundary",
+    "data-isolation",
+    "cleanup-rollback",
+    "audit-proof",
+    "secret-redaction",
+    "rls-authz",
+    "transaction-behavior",
+    "stop-condition"
+  ],
+  "nextRecommendedTask": "AUTH-005 or WORK-009 if proof prerequisites appear; otherwise loop 63 RES-001/RES-002 research-to-task review.",
+  "safetyGuards": {
+    "writesAllowedByDefault": false,
+    "runtimeReadAllowedInDattr024c": false,
+    "runtimeWriteAllowedInDattr024c": false,
+    "migrationApplyAllowed": false,
+    "valuableDatabaseAllowed": false,
+    "providerDataAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "publicOutputAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false
+  },
+  "officialSourceRefs": [
+    "https://www.prisma.io/docs/orm/prisma-migrate/workflows/development-and-production",
+    "https://www.prisma.io/docs/orm/prisma-client/queries/transactions",
+    "https://supabase.com/docs/guides/local-development",
+    "https://supabase.com/docs/guides/database/postgres/row-level-security",
+    "https://www.postgresql.org/docs/current/ddl-constraints.html"
+  ],
+  "evidence": {
+    "contract": {
+      "path": "src/lib/contracts/ai-input-source-workflow-proof-target.contract.ts",
+      "requiredObjects": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "DataUnitProposal",
+        "ModuleWriteIntent",
+        "OperatingAuditEvent"
+      ],
+      "requiredAreas": [
+        "target-selection",
+        "write-confirmation",
+        "migration-boundary",
+        "data-isolation",
+        "cleanup-rollback",
+        "audit-proof",
+        "secret-redaction",
+        "rls-authz",
+        "transaction-behavior",
+        "stop-condition"
+      ],
+      "safetyGuardsPresent": [
+        "writesAllowedByDefault: false",
+        "runtimeReadAllowedInDattr024c: false",
+        "runtimeWriteAllowedInDattr024c: false",
+        "migrationApplyAllowed: false",
+        "valuableDatabaseAllowed: false",
+        "providerDataAllowed: false",
+        "connectorRuntimeAllowed: false",
+        "publicOutputAllowed: false",
+        "moduleFinalWriteAllowed: false",
+        "externalAgentDatabaseAccessAllowed: false",
+        "externalRegisterable: false"
+      ],
+      "officialRefsPresent": [
+        "https://www.prisma.io/docs/orm/prisma-migrate/workflows/development-and-production",
+        "https://www.prisma.io/docs/orm/prisma-client/queries/transactions",
+        "https://supabase.com/docs/guides/local-development",
+        "https://supabase.com/docs/guides/database/postgres/row-level-security",
+        "https://www.postgresql.org/docs/current/ddl-constraints.html"
+      ]
+    }
+  },
+  "warnings": [],
+  "errors": []
+}

@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T02:40:34.835Z",
+  "command": "pnpm module:realdata:check",
+  "taskId": "REALDATA-001",
+  "status": "ready_for_research_to_task_use",
+  "contract": {
+    "path": "src/lib/contracts/module-real-data-matrix.contract.ts",
+    "architectureDoc": "docs/02_architecture-and-rules/DBS-005_per-module-real-data-migration-matrix.md",
+    "acceptanceDoc": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlogDoc": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "resourceIndexDoc": "docs/02_architecture-and-rules/ARC-030_module-resource-index-bff-contract.md",
+    "moduleCount": 10,
+    "noSchemaWrites": true,
+    "noRuntimeWrites": true,
+    "noPublicOutputExpansion": true,
+    "nextNoProofFallback": "AUDIT-OPS-001"
+  },
+  "checks": {
+    "requiredMarkers": [
+      {
+        "marker": "REAL_DATA_MIGRATION_MATRIX",
+        "present": true
+      },
+      {
+        "marker": "REAL_DATA_MIGRATION_MATRIX_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "currentStage",
+        "present": true
+      },
+      {
+        "marker": "currentSources",
+        "present": true
+      },
+      {
+        "marker": "nextDataObjects",
+        "present": true
+      },
+      {
+        "marker": "bffRouteOrAction",
+        "present": true
+      },
+      {
+        "marker": "authzBoundary",
+        "present": true
+      },
+      {
+        "marker": "auditNeed",
+        "present": true
+      },
+      {
+        "marker": "acceptanceProof",
+        "present": true
+      },
+      {
+        "marker": "stopCondition",
+        "present": true
+      },
+      {
+        "marker": "schemaWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "runtimeWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "AUTH-005",
+        "present": true
+      },
+      {
+        "marker": "WORK-009",
+        "present": true
+      },
+      {
+        "marker": "AUDIT-OPS-001",
+        "present": true
+      }
+    ],
+    "moduleCoverage": [
+      {
+        "moduleKey": "work",
+        "present": true
+      },
+      {
+        "moduleKey": "research",
+        "present": true
+      },
+      {
+        "moduleKey": "ai-input",
+        "present": true
+      },
+      {
+        "moduleKey": "workflow",
+        "present": true
+      },
+      {
+        "moduleKey": "life",
+        "present": true
+      },
+      {
+        "moduleKey": "finance",
+        "present": true
+      },
+      {
+        "moduleKey": "chamber",
+        "present": true
+      },
+      {
+        "moduleKey": "company",
+        "present": true
+      },
+      {
+        "moduleKey": "client-portal",
+        "present": true
+      },
+      {
+        "moduleKey": "agent-team-os",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "database URL marker",
+        "present": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      }
+    ],
+    "referencedDocs": {
+      "architectureDoc": true,
+      "acceptanceDoc": true,
+      "backlogDoc": true,
+      "resourceIndexDoc": true
+    }
+  },
+  "errors": [],
+  "safety": {
+    "readsEnv": false,
+    "readsDatabase": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "expandsPublicOutput": false
+  }
+}

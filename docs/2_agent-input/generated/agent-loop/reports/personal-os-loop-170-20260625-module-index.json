@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T19:33:04.946Z",
+  "command": "pnpm module:index:check",
+  "taskId": "SURFACE-MATURITY-003",
+  "status": "ready_for_contract_use",
+  "contract": {
+    "path": "src/lib/contracts/module-resource-index.contract.ts",
+    "architectureDoc": "docs/02_architecture-and-rules/ARC-030_module-resource-index-bff-contract.md",
+    "acceptanceDoc": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlogDoc": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "moduleCount": 10,
+    "workFirst": true,
+    "noSchemaWrites": true,
+    "noModuleWrites": true,
+    "noPublicOutputExpansion": true
+  },
+  "checks": {
+    "requiredMarkers": [
+      {
+        "marker": "MODULE_RESOURCE_INDEX_CONTRACTS",
+        "present": true
+      },
+      {
+        "marker": "MODULE_RESOURCE_INDEX_CONTRACT_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "search",
+        "present": true
+      },
+      {
+        "marker": "filters",
+        "present": true
+      },
+      {
+        "marker": "sorts",
+        "present": true
+      },
+      {
+        "marker": "columns",
+        "present": true
+      },
+      {
+        "marker": "pagination",
+        "present": true
+      },
+      {
+        "marker": "selection",
+        "present": true
+      },
+      {
+        "marker": "rowActions",
+        "present": true
+      },
+      {
+        "marker": "bulkActions",
+        "present": true
+      },
+      {
+        "marker": "detailPanel",
+        "present": true
+      },
+      {
+        "marker": "emptyStates",
+        "present": true
+      },
+      {
+        "marker": "auditRefs",
+        "present": true
+      },
+      {
+        "marker": "noSecretFields",
+        "present": true
+      },
+      {
+        "marker": "rawPayloadsExcluded",
+        "present": true
+      },
+      {
+        "marker": "safePayloadOnly",
+        "present": true
+      },
+      {
+        "marker": "WORK-009",
+        "present": true
+      },
+      {
+        "marker": "REALDATA-001",
+        "present": true
+      }
+    ],
+    "moduleCoverage": [
+      {
+        "moduleKey": "work",
+        "present": true
+      },
+      {
+        "moduleKey": "research",
+        "present": true
+      },
+      {
+        "moduleKey": "ai-input",
+        "present": true
+      },
+      {
+        "moduleKey": "workflow",
+        "present": true
+      },
+      {
+        "moduleKey": "life",
+        "present": true
+      },
+      {
+        "moduleKey": "finance",
+        "present": true
+      },
+      {
+        "moduleKey": "chamber",
+        "present": true
+      },
+      {
+        "moduleKey": "company",
+        "present": true
+      },
+      {
+        "moduleKey": "client-portal",
+        "present": true
+      },
+      {
+        "moduleKey": "agent-team-os",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "database URL marker",
+        "present": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      }
+    ],
+    "referencedDocs": {
+      "architectureDoc": true,
+      "acceptanceDoc": true,
+      "backlogDoc": true
+    }
+  },
+  "errors": [],
+  "safety": {
+    "readsEnv": false,
+    "readsDatabase": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "expandsPublicOutput": false
+  }
+}

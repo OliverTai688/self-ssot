@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T06:45:17.279Z",
+  "taskId": "WORK-011",
+  "mode": "blocked_run_preflight",
+  "status": "blocked",
+  "canRunLocalProof": false,
+  "target": {
+    "inputKind": "missing",
+    "source": "none",
+    "provided": false,
+    "parseable": false,
+    "protocolAllowed": false,
+    "hostClass": "missing",
+    "databaseNameHasProofMarker": false,
+    "databaseNameLooksValuable": false
+  },
+  "databaseCreation": {
+    "available": false,
+    "requested": false,
+    "performed": false
+  },
+  "safety": {
+    "targetSafe": false,
+    "missing": [
+      "No local disposable target URL or local admin URL was provided."
+    ],
+    "warnings": [],
+    "doesNotUseDatabaseUrlSilently": true,
+    "doesNotAllowRemoteTargets": true,
+    "requiresProofMarker": true,
+    "injectsConfirmationOnlyIntoChildProcess": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies"
+    ]
+  },
+  "plannedChildProcess": {
+    "command": "pnpm work:proof -- --run --json",
+    "setup": false,
+    "proofOut": "docs/2_agent-input/generated/agent-loop/work-refresh-proof/latest-local-disposable-work-proof.json",
+    "writesOnlyInsideChildProcess": true
+  },
+  "nextActions": [
+    "Provide --target-url or WORK_PROOF_LOCAL_TARGET_URL pointing to a local disposable PostgreSQL database whose name contains personal_os_work_proof or work_proof.",
+    "Or provide --admin-url / WORK_PROOF_LOCAL_ADMIN_DATABASE_URL and run with --run --create-database --setup to create a local proof database.",
+    "Do not use DATABASE_URL unless you pass --use-database-url and it is explicitly local, disposable, and proof-marked."
+  ]
+}

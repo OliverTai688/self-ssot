@@ -1,0 +1,44 @@
+{
+  "id": "AIINPUT-OPS-002",
+  "status": "ready_for_source_control_matrix_use",
+  "checkedAt": "2026-06-22T01:19:32.032Z",
+  "files": {
+    "types": "src/types/ai-input-readiness.ts",
+    "service": "src/lib/services/ai-input-readiness.service.ts",
+    "client": "src/app/(dashboard)/ai-input/ai-input-client.tsx",
+    "adminService": "src/lib/services/admin-readiness.service.ts",
+    "acceptance": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlog": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "sprint": "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "completedLog": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "tasks": "tasks.md",
+    "packageJson": "package.json"
+  },
+  "requiredInputModes": [
+    "manual",
+    "polling",
+    "webhook",
+    "event",
+    "scheduled",
+    "one_time"
+  ],
+  "requiredRiskLevels": [
+    "low",
+    "medium",
+    "high",
+    "variable"
+  ],
+  "runtimeGuards": [
+    "OAuth runtime",
+    "webhook runtime",
+    "polling runtime",
+    "provider API calls",
+    "file ingestion",
+    "raw adapter payload exposure",
+    "Supabase reads or writes",
+    "module final writes",
+    "public output expansion",
+    "external agent registration"
+  ],
+  "errors": []
+}

@@ -1,0 +1,36 @@
+{
+  "status": "ready_for_issues_adapter_interface_and_mapper_proof",
+  "taskId": "RESEARCH-BFF-010-RESEARCH-OWNER-READ-ISSUES-ADAPTER-INTERFACE-AND-MAPPER-PROOF",
+  "selectedFamily": "issues",
+  "runtimeDbReadEnabled": false,
+  "adapterExecutionAllowed": false,
+  "mapperOutputBoundary": "ui_safe_research_issue_read_dto",
+  "nextRecommendedTask": "LOOP-163-RESEARCH-POST-ISSUES-ADAPTER-GAP-REVIEW",
+  "docs": [
+    {
+      "path": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "tasks.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "package.json",
+      "missingMarkers": []
+    }
+  ],
+  "failures": []
+}

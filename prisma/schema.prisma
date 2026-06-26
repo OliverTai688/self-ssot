@@ -1,0 +1,907 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  PARTNER
+  CLIENT
+  
+  @@map("user_role")
+}
+
+enum ProjectStatus {
+  EXPLORING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+  
+  @@map("project_status")
+}
+
+enum VisibilityType {
+  INTERNAL_ONLY
+  CLIENT_VISIBLE
+  
+  @@map("visibility_type")
+}
+
+enum DeliverableStatus {
+  DRAFT
+  DELIVERED
+  APPROVED
+  
+  @@map("deliverable_status")
+}
+
+enum ResearchThreadStatus {
+  EXPLORING
+  ACTIVE
+  WRITING
+  PUBLISHED
+  PAUSED
+  
+  @@map("research_thread_status")
+}
+
+enum ResearchSourceType {
+  PAPER
+  BOOK
+  ARTICLE
+  CONFERENCE_RECORD
+  WORKSHOP_RECORD
+  MEETING_RECORD
+  AUDIO_TRANSCRIPT
+  INSTITUTION_REPORT
+  DATASET
+  WEBSITE
+  PERSONAL_NOTE
+  
+  @@map("research_source_type")
+}
+
+enum SourceReliability {
+  PRIMARY
+  SECONDARY
+  INFORMAL
+  PERSONAL_OBSERVATION
+  
+  @@map("source_reliability")
+}
+
+enum WritingProjectType {
+  PAPER
+  CONFERENCE_PAPER
+  PROPOSAL
+  ESSAY
+  POSTER
+  PRESENTATION
+  
+  @@map("writing_project_type")
+}
+
+enum WritingProjectStatus {
+  IDEA
+  OUTLINE
+  DRAFTING
+  REVIEWING
+  SUBMITTED
+  
+  @@map("writing_project_status")
+}
+
+enum ReviewPerspective {
+  METHOD_REVIEWER
+  THEORY_REVIEWER
+  DOMAIN_EXPERT
+  CRITICAL_REVIEWER
+  FRIENDLY_MENTOR
+  CONFERENCE_CHAIR
+  JOURNAL_EDITOR
+  
+  @@map("review_perspective")
+}
+
+enum EventType {
+  CONFERENCE
+  WORKSHOP
+  SEMINAR
+  SUMMER_SCHOOL
+  WEBINAR
+  
+  @@map("event_type")
+}
+
+enum ParticipationMode {
+  SUBMIT_PAPER
+  SUBMIT_POSTER
+  ATTEND
+  ASK_QUESTION
+  NETWORKING
+  
+  @@map("participation_mode")
+}
+
+enum ProjectPhase {
+  DISCOVERY
+  PLANNING
+  EXECUTION
+  REVIEW
+  MAINTENANCE
+
+  @@map("project_phase")
+}
+
+enum ProjectHealth {
+  GOOD
+  WATCH
+  RISK
+
+  @@map("project_health")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  BLOCKED
+
+  @@map("task_status")
+}
+
+enum TaskSource {
+  MANUAL
+  AI_SUGGESTED
+  TRIAGE
+  CLIENT_REQUEST
+
+  @@map("task_source")
+}
+
+enum NoteSource {
+  LINE
+  EMAIL
+  MEETING
+  INTERNAL
+
+  @@map("note_source")
+}
+
+enum NoteOrigin {
+  AI
+  MANUAL
+
+  @@map("note_origin")
+}
+
+enum DeliverableNodeType {
+  FOLDER
+  FILE
+
+  @@map("deliverable_node_type")
+}
+
+enum SourceProvider {
+  MANUAL
+  LOCAL_FILE
+  URL
+  RSS
+  GOOGLE_DRIVE
+  GOOGLE_DOCS
+  GMAIL
+  LINE
+  TELEGRAM
+  GITHUB_MARKDOWN
+
+  @@map("source_provider")
+}
+
+enum SourceConnectionStatus {
+  SETUP_REQUIRED
+  ACTIVE
+  PAUSED
+  REVOKED
+  ERROR
+  ARCHIVED
+
+  @@map("source_connection_status")
+}
+
+enum SourceAssetKind {
+  DOCUMENT
+  MESSAGE
+  URL
+  FILE
+  NOTE
+  DATASET
+  THREAD
+  RECORD
+
+  @@map("source_asset_kind")
+}
+
+enum SourceAssetStatus {
+  INBOX
+  REVIEWING
+  READY
+  REJECTED
+  DELETED
+
+  @@map("source_asset_status")
+}
+
+enum AIWorkflowRunStatus {
+  QUEUED
+  RUNNING
+  NEEDS_REVIEW
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@map("ai_workflow_run_status")
+}
+
+enum AIWorkItemKind {
+  RECOGNITION
+  EXTRACTION
+  ORGANIZATION
+  CORRECTION
+  PROPOSAL
+  WRITE_INTENT
+  AUDIT_REVIEW
+
+  @@map("ai_work_item_kind")
+}
+
+enum AIWorkItemStatus {
+  TODO
+  IN_PROGRESS
+  NEEDS_REVIEW
+  DONE
+  BLOCKED
+
+  @@map("ai_work_item_status")
+}
+
+enum SourceProposalStatus {
+  DRAFT
+  OWNER_REVIEW
+  CHANGES_REQUESTED
+  APPROVED_FOR_WRITE_INTENT
+  REJECTED
+  ARCHIVED
+  SUPERSEDED
+  BLOCKED_HIGH_RISK
+
+  @@map("source_proposal_status")
+}
+
+enum ModuleWriteIntentStatus {
+  DRAFT
+  OWNER_REVIEW
+  APPROVED_FOR_MANUAL_APPLY
+  APPLIED_MANUALLY
+  REJECTED
+  CANCELLED
+  BLOCKED_HIGH_RISK
+
+  @@map("module_write_intent_status")
+}
+
+enum SourceApprovalLevel {
+  AUTO_PROPOSE_ONLY
+  OWNER_REVIEW_REQUIRED
+  HUMAN_APPROVAL_REQUIRED
+  BLOCKED_UNTIL_PROOF_TARGET
+  BLOCKED_HIGH_RISK
+
+  @@map("source_approval_level")
+}
+
+enum SourceRetentionClass {
+  EPHEMERAL
+  STANDARD
+  SENSITIVE
+  DELETE_REQUESTED
+  LEGAL_HOLD
+
+  @@map("source_retention_class")
+}
+
+// ─── MODELS ───────────────────────────────────────────────────────────────────
+
+model Profile {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String   @unique
+  fullName  String?  @map("full_name")
+  avatarUrl String?  @map("avatar_url")
+  role      UserRole @default(CLIENT)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  permissions     UserModulePermission[]
+  projects        Project[]
+  researchThreads ResearchThread[]
+  sourceConnections SourceConnection[]
+  sourceAssets SourceAsset[]
+  aiWorkflowRuns AIWorkflowRun[]
+  aiWorkItems AIWorkItem[]
+  sourceNamingProfiles SourceNamingProfile[]
+  dataUnitProposals DataUnitProposal[]
+  moduleWriteIntents ModuleWriteIntent[] @relation("ModuleWriteIntentOwner")
+  approvedModuleWriteIntents ModuleWriteIntent[] @relation("ModuleWriteIntentApprover")
+
+  @@map("profiles")
+}
+
+model UserModulePermission {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  moduleKey String   @map("module_key")
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([profileId, moduleKey])
+  @@map("user_module_permissions")
+}
+
+model Project {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String        @map("owner_id") @db.Uuid
+  owner       Profile       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  clientName  String?       @map("client_name")
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  phase       ProjectPhase  @default(PLANNING)
+  health      ProjectHealth @default(GOOD)
+  visibility  VisibilityType @default(INTERNAL_ONLY)
+  clientToken String?       @map("client_token")
+  startedAt   DateTime?     @map("started_at")
+  dueAt       DateTime?     @map("due_at")
+  nextAction  String?       @map("next_action")
+  companyAxis String?       @map("company_axis")
+  tasksDone   Int           @default(0) @map("tasks_done")
+  tasksTotal  Int           @default(0) @map("tasks_total")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  tasks        ProjectTask[]
+  notes        ProjectNote[]
+  deliverables ProjectDeliverable[]
+
+  @@map("projects")
+}
+
+model ProjectTask {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String         @map("project_id") @db.Uuid
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  body        String?
+  status      TaskStatus     @default(TODO)
+  visibility  VisibilityType @default(INTERNAL_ONLY)
+  priority    Int            @default(2)
+  source      TaskSource     @default(MANUAL)
+  dueAt       DateTime?      @map("due_at")
+  completedAt DateTime?      @map("completed_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@map("project_tasks")
+}
+
+model ProjectNote {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId  String         @map("project_id") @db.Uuid
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title      String?
+  body       String
+  source     NoteSource     @default(INTERNAL)
+  visibility VisibilityType @default(INTERNAL_ONLY)
+  origin     NoteOrigin     @default(MANUAL)
+  isPinned   Boolean        @default(false) @map("is_pinned")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  @@map("project_notes")
+}
+
+model ProjectDeliverable {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String              @map("project_id") @db.Uuid
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentId    String?             @map("parent_id") @db.Uuid
+  parent      ProjectDeliverable? @relation("DeliverableHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    ProjectDeliverable[] @relation("DeliverableHierarchy")
+  nodeType    DeliverableNodeType @default(FILE) @map("node_type")
+  title       String
+  description String?
+  status      DeliverableStatus   @default(DRAFT)
+  visibility  VisibilityType      @default(INTERNAL_ONLY)
+  deliveredAt DateTime?           @map("delivered_at")
+  fileUrl     String?             @map("file_url")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  @@map("project_deliverables")
+}
+
+model SourceConnection {
+  id                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId            String                 @map("owner_id") @db.Uuid
+  owner              Profile                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  provider           SourceProvider
+  displayName        String                 @map("display_name")
+  status             SourceConnectionStatus @default(SETUP_REQUIRED)
+  inputMode          String?                @map("input_mode")
+  scopeSummary       String?                @map("scope_summary")
+  secretRef          String?                @map("secret_ref")
+  providerAccountRef String?                @map("provider_account_ref")
+  lastSyncAt         DateTime?              @map("last_sync_at")
+  nextSyncAt         DateTime?              @map("next_sync_at")
+  revokedAt          DateTime?              @map("revoked_at")
+  deletedAt          DateTime?              @map("deleted_at")
+  retentionClass     SourceRetentionClass   @default(STANDARD) @map("retention_class")
+  redactionVersion   Int                    @default(1) @map("redaction_version")
+  metadata           Json                   @default("{}")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+
+  assets       SourceAsset[]
+  workflowRuns AIWorkflowRun[]
+
+  @@index([ownerId, status])
+  @@index([ownerId, provider, status])
+  @@index([ownerId, updatedAt])
+  @@map("source_connections")
+}
+
+model SourceAsset {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId            String               @map("owner_id") @db.Uuid
+  owner              Profile              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sourceConnectionId String?              @map("source_connection_id") @db.Uuid
+  sourceConnection   SourceConnection?    @relation(fields: [sourceConnectionId], references: [id], onDelete: SetNull)
+  externalRef        String?              @map("external_ref")
+  kind               SourceAssetKind      @default(DOCUMENT)
+  status             SourceAssetStatus    @default(INBOX)
+  title              String
+  summary            String?
+  sourceUriHash      String?              @map("source_uri_hash")
+  contentHash        String?              @map("content_hash")
+  language           String               @default("zh-TW")
+  capturedAt         DateTime?            @map("captured_at")
+  deletedAt          DateTime?            @map("deleted_at")
+  retentionClass     SourceRetentionClass @default(STANDARD) @map("retention_class")
+  redactionVersion   Int                  @default(1) @map("redaction_version")
+  metadata           Json                 @default("{}")
+  provenance         Json                 @default("{}")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  workflowRuns AIWorkflowRun[]
+  workItems AIWorkItem[]
+  proposals DataUnitProposal[]
+
+  @@index([ownerId, status])
+  @@index([ownerId, kind, status])
+  @@index([sourceConnectionId, status])
+  @@index([ownerId, updatedAt])
+  @@map("source_assets")
+}
+
+model AIWorkflowRun {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId            String              @map("owner_id") @db.Uuid
+  owner              Profile             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sourceConnectionId String?             @map("source_connection_id") @db.Uuid
+  sourceConnection   SourceConnection?   @relation(fields: [sourceConnectionId], references: [id], onDelete: SetNull)
+  sourceAssetId      String?             @map("source_asset_id") @db.Uuid
+  sourceAsset        SourceAsset?        @relation(fields: [sourceAssetId], references: [id], onDelete: SetNull)
+  status             AIWorkflowRunStatus @default(QUEUED)
+  runType            String              @map("run_type")
+  trigger            String?
+  initiatedBy        String?             @map("initiated_by")
+  promptSummary      String?             @map("prompt_summary")
+  outputSummary      String?             @map("output_summary")
+  proofRef           String?             @map("proof_ref")
+  auditRef           String?             @map("audit_ref")
+  redactionVersion   Int                 @default(1) @map("redaction_version")
+  metadata           Json                @default("{}")
+  startedAt          DateTime?           @map("started_at")
+  completedAt        DateTime?           @map("completed_at")
+  failedAt           DateTime?           @map("failed_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  workItems AIWorkItem[]
+  proposals DataUnitProposal[]
+  writeIntents ModuleWriteIntent[]
+
+  @@index([ownerId, status])
+  @@index([ownerId, runType, status])
+  @@index([sourceConnectionId])
+  @@index([sourceAssetId])
+  @@index([ownerId, createdAt])
+  @@map("ai_workflow_runs")
+}
+
+model AIWorkItem {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId          String           @map("owner_id") @db.Uuid
+  owner            Profile          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workflowRunId    String           @map("workflow_run_id") @db.Uuid
+  workflowRun      AIWorkflowRun    @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  sourceAssetId    String?          @map("source_asset_id") @db.Uuid
+  sourceAsset      SourceAsset?     @relation(fields: [sourceAssetId], references: [id], onDelete: SetNull)
+  kind             AIWorkItemKind   @default(RECOGNITION)
+  status           AIWorkItemStatus @default(TODO)
+  title            String
+  summary          String?
+  priority         Int              @default(2)
+  assignedAgent    String?          @map("assigned_agent")
+  reviewRequired   Boolean          @default(true) @map("review_required")
+  dueAt            DateTime?        @map("due_at")
+  completedAt      DateTime?        @map("completed_at")
+  redactionVersion Int              @default(1) @map("redaction_version")
+  metadata         Json             @default("{}")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  proposals DataUnitProposal[]
+  writeIntents ModuleWriteIntent[]
+
+  @@index([ownerId, status])
+  @@index([workflowRunId, status])
+  @@index([sourceAssetId])
+  @@index([ownerId, createdAt])
+  @@map("ai_work_items")
+}
+
+model SourceNamingProfile {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String   @map("owner_id") @db.Uuid
+  owner       Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  moduleKey   String?  @map("module_key")
+  name        String
+  description String?
+  pattern     Json     @default("{}")
+  examples    Json     @default("[]")
+  isDefault   Boolean  @default(false) @map("is_default")
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  proposals DataUnitProposal[]
+
+  @@unique([ownerId, name])
+  @@index([ownerId, moduleKey, isDefault])
+  @@map("source_naming_profiles")
+}
+
+model DataUnitProposal {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId           String               @map("owner_id") @db.Uuid
+  owner             Profile              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sourceAssetId     String?              @map("source_asset_id") @db.Uuid
+  sourceAsset       SourceAsset?         @relation(fields: [sourceAssetId], references: [id], onDelete: SetNull)
+  workflowRunId     String?              @map("workflow_run_id") @db.Uuid
+  workflowRun       AIWorkflowRun?       @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+  workItemId        String?              @map("work_item_id") @db.Uuid
+  workItem          AIWorkItem?          @relation(fields: [workItemId], references: [id], onDelete: SetNull)
+  namingProfileId   String?              @map("naming_profile_id") @db.Uuid
+  namingProfile     SourceNamingProfile? @relation(fields: [namingProfileId], references: [id], onDelete: SetNull)
+  title             String
+  summary           String?
+  targetModule      String               @map("target_module")
+  status            SourceProposalStatus @default(DRAFT)
+  confidence        Int?
+  proposalPayload   Json                 @default("{}") @map("proposal_payload")
+  provenance        Json                 @default("{}")
+  reviewerNote      String?              @map("reviewer_note")
+  proofRef          String?              @map("proof_ref")
+  auditRef          String?              @map("audit_ref")
+  rollbackRef       String?              @map("rollback_ref")
+  retentionClass    SourceRetentionClass @default(STANDARD) @map("retention_class")
+  redactionVersion  Int                  @default(1) @map("redaction_version")
+  approvedAt        DateTime?            @map("approved_at")
+  rejectedAt        DateTime?            @map("rejected_at")
+  archivedAt        DateTime?            @map("archived_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  writeIntents ModuleWriteIntent[]
+
+  @@index([ownerId, status])
+  @@index([targetModule, status])
+  @@index([sourceAssetId])
+  @@index([workflowRunId])
+  @@index([workItemId])
+  @@map("data_unit_proposals")
+}
+
+model ModuleWriteIntent {
+  id                  String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId             String                  @map("owner_id") @db.Uuid
+  owner               Profile                 @relation("ModuleWriteIntentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  dataUnitProposalId  String?                 @map("data_unit_proposal_id") @db.Uuid
+  dataUnitProposal    DataUnitProposal?       @relation(fields: [dataUnitProposalId], references: [id], onDelete: SetNull)
+  workflowRunId       String?                 @map("workflow_run_id") @db.Uuid
+  workflowRun         AIWorkflowRun?          @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+  workItemId          String?                 @map("work_item_id") @db.Uuid
+  workItem            AIWorkItem?             @relation(fields: [workItemId], references: [id], onDelete: SetNull)
+  targetModule        String                  @map("target_module")
+  targetRecordKind    String?                 @map("target_record_kind")
+  targetRecordId      String?                 @map("target_record_id")
+  status              ModuleWriteIntentStatus @default(DRAFT)
+  approvalLevel       SourceApprovalLevel     @default(OWNER_REVIEW_REQUIRED) @map("approval_level")
+  intentPayload       Json                    @default("{}") @map("intent_payload")
+  diffSummary         String?                 @map("diff_summary")
+  approvedByProfileId String?                 @map("approved_by_profile_id") @db.Uuid
+  approvedByProfile   Profile?                @relation("ModuleWriteIntentApprover", fields: [approvedByProfileId], references: [id], onDelete: SetNull)
+  proofRef            String?                 @map("proof_ref")
+  auditRef            String?                 @map("audit_ref")
+  rollbackRef         String?                 @map("rollback_ref")
+  retentionClass      SourceRetentionClass    @default(STANDARD) @map("retention_class")
+  redactionVersion    Int                     @default(1) @map("redaction_version")
+  approvedAt          DateTime?               @map("approved_at")
+  appliedAt           DateTime?               @map("applied_at")
+  rejectedAt          DateTime?               @map("rejected_at")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+
+  @@index([ownerId, status])
+  @@index([targetModule, status])
+  @@index([dataUnitProposalId])
+  @@index([workflowRunId])
+  @@index([workItemId])
+  @@index([approvedByProfileId])
+  @@map("module_write_intents")
+}
+
+model ResearchThread {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId              String               @map("owner_id") @db.Uuid
+  owner                Profile              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title                String
+  description          String?
+  status               ResearchThreadStatus @default(EXPLORING)
+  keywords             String[]             @default([])
+  disciplines          String[]             @default([])
+  regions              String[]             @default([])
+  methodType           String?              @map("method_type") // qualitative, quantitative, design_research, mixed
+  mainResearchQuestion String?              @map("main_research_question")
+  workLinkage          String?              @map("work_linkage")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  sources         ResearchSource[]
+  concepts        ResearchConcept[]
+  writingProjects ResearchWritingProject[]
+  feedbackRuns    AIFeedbackRun[]
+  digests         ResearchDigest[]
+
+  @@map("research_threads")
+}
+
+model ResearchSource {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId     String             @map("thread_id") @db.Uuid
+  thread       ResearchThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  title        String
+  sourceType   ResearchSourceType @default(PAPER) @map("source_type")
+  authors      String[]           @default([])
+  year         Int?
+  doi          String?
+  url          String?
+  institution  String?
+  region       String?
+  country      String?
+  language     String             @default("zh-TW")
+  abstract     String?
+  summary      String? // AI 自動產生的學術摘要
+  originalText String?            @map("original_text")
+  fileUrl      String?            @map("file_url")
+  reliability  SourceReliability  @default(PRIMARY)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  feedbackRuns AIFeedbackRun[]
+
+  @@map("research_sources")
+}
+
+model ResearchConcept {
+  id                     String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId               String         @map("thread_id") @db.Uuid
+  thread                 ResearchThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  name                   String
+  aliases                String[]       @default([])
+  definition             String?
+  relatedSources         String[]       @default([]) @map("related_sources")
+  relatedAuthors         String[]       @default([]) @map("related_authors")
+  competingDefinitions   Json?          @default("[]") @map("competing_definitions")
+  myCurrentUnderstanding String?        @map("my_current_understanding")
+  aiClarification        String?        @map("ai_clarification")
+  confusionPoints        String[]       @default([]) @map("confusion_points")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
+
+  @@map("research_concepts")
+}
+
+model ResearchWritingProject {
+  id               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId         String               @map("thread_id") @db.Uuid
+  thread           ResearchThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  title            String
+  writingType      WritingProjectType   @default(PAPER) @map("writing_type")
+  status           WritingProjectStatus @default(IDEA)
+  targetVenueId    String?              @map("target_venue_id") @db.Uuid
+  researchQuestion String?              @map("research_question")
+  thesisStatement  String?              @map("thesis_statement")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  sections     ResearchWritingSection[]
+  feedbackRuns AIFeedbackRun[]
+
+  @@map("research_writing_projects")
+}
+
+model ResearchWritingSection {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId       String                 @map("project_id") @db.Uuid
+  project         ResearchWritingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title           String
+  sectionOrder    Int                    @map("section_order")
+  body            String                 @default("")
+  linkedSourceIds String[]               @default([]) @map("linked_source_ids")
+  aiNotes         String[]               @default([]) @map("ai_notes")
+
+  @@map("research_writing_sections")
+}
+
+model AIFeedbackRun {
+  id               String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId         String                 @map("thread_id") @db.Uuid
+  thread           ResearchThread         @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  writingProjectId String?                @map("writing_project_id") @db.Uuid
+  writingProject   ResearchWritingProject? @relation(fields: [writingProjectId], references: [id], onDelete: SetNull)
+  sourceId         String?                @map("source_id") @db.Uuid
+  source           ResearchSource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  inputType        String?                @map("input_type")
+  perspective      ReviewPerspective      @default(FRIENDLY_MENTOR)
+  summary          String
+  strengths        String[]               @default([])
+  weaknesses       String[]               @default([])
+  questions        String[]               @default([])
+  suggestions      String[]               @default([])
+  actionItems      String[]               @default([]) @map("action_items")
+  createdAt        DateTime               @default(now()) @map("created_at")
+
+  @@map("ai_feedback_runs")
+}
+
+model ResearchDigest {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId           String         @map("thread_id") @db.Uuid
+  thread             ResearchThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  scheduleType       String?        @map("schedule_type")
+  title              String
+  newSources         String[]       @default([]) @map("new_sources")
+  keyFindings        String[]       @default([]) @map("key_findings")
+  openQuestions      String[]       @default([]) @map("open_questions")
+  recommendedReadings String[]       @default([]) @map("recommended_readings")
+  writingSuggestions String[]       @default([]) @map("writing_suggestions")
+  generatedAt        DateTime       @default(now()) @map("generated_at")
+
+  @@map("research_digests")
+}
+
+model ResearchEvent {
+  id                         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                       String
+  eventType                  EventType         @default(CONFERENCE) @map("event_type")
+  field                      String[]          @default([])
+  location                   String?
+  country                    String?
+  isOnline                   Boolean           @default(false) @map("is_online")
+  startDate                  DateTime?         @map("start_date")
+  endDate                    DateTime?         @map("end_date")
+  submissionDeadline         DateTime?         @map("submission_deadline")
+  registrationDeadline       DateTime?         @map("registration_deadline")
+  url                        String?
+  cfpText                    String?           @map("cfp_text")
+  relatedThreadIds           String[]          @default([]) @map("related_thread_ids")
+  fitScore                   Int?              @map("fit_score")
+  aiFitReason                String?           @map("ai_fit_reason")
+  suggestedParticipationMode ParticipationMode @default(ATTEND) @map("suggested_participation_mode")
+  createdAt                  DateTime          @default(now()) @map("created_at")
+  updatedAt                  DateTime          @updatedAt @map("updated_at")
+
+  @@map("research_events")
+}
+
+enum AgentMessageStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+
+  @@map("agent_message_status")
+}
+
+model WorkflowRule {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  fromAgent        String         @map("from_agent")
+  intent           String
+  conditions       String?
+  toAgent          String         @map("to_agent")
+  targetIntent     String         @map("target_intent")
+  mode             String         @default("broadcast")
+  delaySeconds     Int            @default(0) @map("delay_seconds")
+  requiresApproval Boolean        @default(false) @map("requires_approval")
+  enabled          Boolean        @default(true)
+  priority         Int            @default(100)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  messages AgentMessage[]
+
+  @@map("workflow_rules")
+}
+
+model AgentMessage {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  traceId         String             @map("trace_id") @db.Uuid
+  parentMessageId String?            @map("parent_message_id") @db.Uuid
+  parent          AgentMessage?      @relation("MessageChain", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  children        AgentMessage[]     @relation("MessageChain")
+  fromAgent       String             @map("from_agent")
+  toAgent         String             @map("to_agent")
+  intent          String
+  payload         Json               @default("{}")
+  status          AgentMessageStatus @default(PENDING)
+  ruleId          String?            @map("rule_id") @db.Uuid
+  rule            WorkflowRule?      @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  summary         String?
+  errorMessage    String?            @map("error_message")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  completedAt     DateTime?          @map("completed_at")
+
+  @@map("agent_messages")
+}
+
+model AcademicPerson {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  academicRole          String?  @map("academic_role")
+  affiliation           String?
+  country               String?
+  profileUrl            String?  @map("profile_url")
+  researchAreas         String[] @default([]) @map("research_areas")
+  importantWorks        String[] @default([]) @map("important_works")
+  relatedEvents         String[] @default([]) @map("related_events")
+  backgroundSummary     String?  @map("background_summary")
+  relevanceToMyResearch String?  @map("relevance_to_my_research")
+  conversationAngles    String[] @default([]) @map("conversation_angles")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("academic_people")
+}

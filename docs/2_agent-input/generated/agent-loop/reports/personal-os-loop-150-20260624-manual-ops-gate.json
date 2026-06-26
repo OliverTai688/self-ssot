@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T05:47:49.644Z",
+  "taskId": "MANUAL-OPS-001",
+  "status": "manual_ops_ready",
+  "formalLaunchLevel": {
+    "current": "L0_LOCAL_PROTOTYPE",
+    "canUpgradeToL1Now": false,
+    "reason": "Formal L1 still requires auth/session, Work persistence, and deployment evidence."
+  },
+  "conditionalManualOps": {
+    "level": "M1_MANUAL_OPS_READY",
+    "canConditionallyUpgradeWorkflow": true,
+    "meaning": "Product/runtime baselines are far enough along that remaining launch blockers can be handled as owner/operator Manual Ops, without claiming formal L1."
+  },
+  "noUpgradeReasons": [
+    "Supabase public URL",
+    "Supabase publishable key",
+    "Deployment marker",
+    "Auth status evidence",
+    "Work proof target",
+    "Docker disposable Work proof"
+  ],
+  "manualOpsRows": [
+    {
+      "id": "manual.supabase-public-env",
+      "area": "Auth",
+      "blocks": [
+        "AUTH-005",
+        "L1_PRIVATE_ONLINE_WORK_OS"
+      ],
+      "status": "owner_action_required",
+      "ownerAction": "Configure Supabase public URL and publishable key in the intended launch environment, then rerun launch proof.",
+      "command": "pnpm launch:proof -- --out docs/2_agent-input/generated/agent-loop/reports/owner-launch-proof.json",
+      "evidenceTarget": "docs/2_agent-input/generated/agent-loop/reports/owner-launch-proof.json",
+      "passSignal": "blockedLabels no longer include Supabase public URL or Supabase publishable key.",
+      "failSignal": "blockedLabels still include Supabase public URL or Supabase publishable key.",
+      "risk": "medium",
+      "writesDatabase": false,
+      "requiresApproval": false,
+      "printsSecrets": false
+    },
+    {
+      "id": "manual.signed-in-auth-status",
+      "area": "Auth",
+      "blocks": [
+        "AUTH-005",
+        "WORK-007",
+        "L1_PRIVATE_ONLINE_WORK_OS"
+      ],
+      "status": "owner_action_required",
+      "ownerAction": "Sign in through /login, open /auth/status in the same browser session, save sanitized JSON, and run auth proof.",
+      "command": "pnpm auth:proof -- --status-json docs/2_agent-input/generated/agent-loop/reports/manual-auth-status-YYYYMMDD.json --out docs/2_agent-input/generated/agent-loop/reports/owner-auth-proof.json",
+      "evidenceTarget": "docs/2_agent-input/generated/agent-loop/reports/owner-auth-proof.json",
+      "passSignal": "proofSummary.canRunAuth005=true and proofSummary.canProceedToWork007=true.",
+      "failSignal": "Auth status evidence is missing, unauthenticated, not Supabase-backed, Profile mapping fails, or owner Work scope is absent.",
+      "risk": "medium",
+      "writesDatabase": false,
+      "requiresApproval": false,
+      "printsSecrets": false
+    },
+    {
+      "id": "manual.work-proof-target",
+      "area": "Work",
+      "blocks": [
+        "WORK-009",
+        "WORK-007",
+        "L1_PRIVATE_ONLINE_WORK_OS"
+      ],
+      "status": "operator_action_required",
+      "ownerAction": "Provide only an approved local/disposable Work proof target and explicit write confirmations.",
+      "command": "pnpm work:proof-target:check -- --out docs/2_agent-input/generated/agent-loop/reports/owner-work-proof-target-readiness.json",
+      "evidenceTarget": "docs/2_agent-input/generated/agent-loop/reports/owner-work-proof-target-readiness.json",
+      "passSignal": "status=ready_for_work_009 and canRunWork009=true.",
+      "failSignal": "Target is missing, unsafe, not parseable, missing write confirmation, or remote override is absent.",
+      "risk": "high",
+      "writesDatabase": false,
+      "requiresApproval": false,
+      "printsSecrets": false
+    },
+    {
+      "id": "manual.docker-disposable-work-proof",
+      "area": "Work",
+      "blocks": [
+        "WORK-009",
+        "WORK-007"
+      ],
+      "status": "owner_action_required",
+      "ownerAction": "Start Docker and run the Docker disposable Work proof; inspect the child Work proof packet before claiming WORK-009.",
+      "command": "pnpm work:proof:docker-disposable -- --run --setup --out docs/2_agent-input/generated/agent-loop/reports/owner-work-docker-proof.json",
+      "evidenceTarget": "docs/2_agent-input/generated/agent-loop/reports/owner-work-docker-proof.json",
+      "passSignal": "canRunDockerProof=true, child proof exits 0, Work proof status=passed, and cleanup passes.",
+      "failSignal": "Docker daemon is unavailable, setup fails, child Work proof fails, or cleanup fails.",
+      "risk": "high",
+      "writesDatabase": true,
+      "requiresApproval": true,
+      "printsSecrets": false
+    },
+    {
+      "id": "manual.deployment-marker-proof",
+      "area": "Deployment",
+      "blocks": [
+        "DEPLOY-002",
+        "L1_PRIVATE_ONLINE_WORK_OS"
+      ],
+      "status": "operator_action_required",
+      "ownerAction": "Run launch proof in the intended deployed or preview environment after auth and Work proof are meaningful.",
+      "command": "pnpm launch:proof -- --out docs/2_agent-input/generated/agent-loop/reports/owner-deployment-proof.json",
+      "evidenceTarget": "docs/2_agent-input/generated/agent-loop/reports/owner-deployment-proof.json",
+      "passSignal": "proofSummary.canClaimL1=true in the intended launch environment.",
+      "failSignal": "Deployment marker is missing or auth/Work proof remains absent.",
+      "risk": "medium",
+      "writesDatabase": false,
+      "requiresApproval": false,
+      "printsSecrets": false
+    }
+  ],
+  "manualOpsSummary": {
+    "rowCount": 5,
+    "ownerActionCount": 3,
+    "operatorActionCount": 2,
+    "highRiskCount": 2,
+    "writesDatabaseCount": 1,
+    "approvalRequiredCount": 1,
+    "primaryManualOp": "manual.supabase-public-env",
+    "nextAction": "Configure Supabase public URL and publishable key in the intended launch environment, then rerun launch proof."
+  },
+  "sourceChecks": {
+    "launchReadiness": {
+      "ok": true,
+      "exitCode": 0,
+      "overallStatus": "blocked",
+      "blockedLabels": [
+        "Supabase public URL",
+        "Supabase publishable key"
+      ],
+      "warnLabels": [
+        "Deployment marker"
+      ]
+    },
+    "workProofTarget": {
+      "ok": true,
+      "exitCode": 0,
+      "status": "needs_operator_input",
+      "canRunWork009": false
+    },
+    "dockerDisposable": {
+      "ok": true,
+      "exitCode": 0,
+      "status": "docker_daemon_unavailable",
+      "canRunDockerProof": false,
+      "dockerDaemonAvailable": false
+    }
+  },
+  "secretPolicy": {
+    "printsSecrets": false,
+    "excludedValues": [
+      "Supabase URLs or keys",
+      "database URLs or hosts",
+      "cookies or tokens",
+      "raw auth claims",
+      "provider payloads",
+      "profile IDs",
+      "row IDs",
+      "client share tokens",
+      "Docker socket paths",
+      "external registry credentials"
+    ]
+  }
+}

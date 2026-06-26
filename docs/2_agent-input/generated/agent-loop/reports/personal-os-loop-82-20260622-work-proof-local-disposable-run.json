@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T07:04:39.803Z",
+  "taskId": "WORK-011",
+  "mode": "run",
+  "status": "failed",
+  "canRunLocalProof": false,
+  "target": {
+    "inputKind": "admin_create_or_identify",
+    "source": "--admin-url",
+    "provided": true,
+    "parseable": true,
+    "protocolAllowed": true,
+    "hostClass": "local",
+    "databaseNameHasProofMarker": true,
+    "databaseNameLooksValuable": false
+  },
+  "databaseCreation": {
+    "available": true,
+    "requested": true,
+    "performed": false,
+    "alreadyExisted": false
+  },
+  "safety": {
+    "targetSafe": true,
+    "missing": [],
+    "warnings": [],
+    "doesNotUseDatabaseUrlSilently": true,
+    "doesNotAllowRemoteTargets": true,
+    "requiresProofMarker": true,
+    "injectsConfirmationOnlyIntoChildProcess": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies"
+    ]
+  },
+  "plannedChildProcess": {
+    "command": "pnpm work:proof -- --run --json",
+    "setup": true,
+    "proofOut": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-82-20260622-work-proof-run.json",
+    "writesOnlyInsideChildProcess": true
+  },
+  "nextActions": [
+    "Inspect whether a local PostgreSQL server is running and accepts a local admin connection.",
+    "Rerun with --run --create-database --admin-url pointing to a local disposable admin database, or provide --target-url for an existing local proof-marker database.",
+    "Do not retry against a valuable or remote database."
+  ],
+  "childProof": {
+    "command": "pnpm work:proof -- --setup --run --json",
+    "exitCode": null,
+    "proofOut": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-82-20260622-work-proof-run.json",
+    "outputCapturedButNotEmbedded": true,
+    "started": false
+  },
+  "failure": {
+    "category": "local_admin_database_unreachable_or_rejected",
+    "name": "AggregateError",
+    "code": "ECONNREFUSED",
+    "messageRedacted": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies",
+      "raw error messages that may contain connection details"
+    ]
+  }
+}

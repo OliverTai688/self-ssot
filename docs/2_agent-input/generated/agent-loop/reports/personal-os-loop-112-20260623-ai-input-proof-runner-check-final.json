@@ -1,0 +1,37 @@
+{
+  "id": "DATTR-024I-PROOF-RUNNER",
+  "status": "ready_for_dry_run_first_proof_runner_use",
+  "checkedAt": "2026-06-23T03:24:09.984Z",
+  "nextRunnableSlice": "DATTR-024J-SERVICE-AUTHZ-RUNTIME",
+  "safetyGuards": {
+    "dryRunFirst": true,
+    "dbConnectionAllowedByChecker": false,
+    "migrationApplyAllowed": false,
+    "runtimeWriteAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "providerDataAllowed": false,
+    "publicOutputAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  },
+  "evidence": {
+    "proofRunner": {
+      "path": "scripts/ai-input-source-workflow-proof-runner.mjs",
+      "requiredObjects": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "SourceNamingProfile",
+        "DataUnitProposal",
+        "ModuleWriteIntent",
+        "OperatingAuditEvent"
+      ],
+      "dryRunFirst": true,
+      "noDbConnection": true
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

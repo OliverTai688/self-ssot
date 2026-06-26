@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-21T02:50:17.801Z",
+  "sourceCommands": {
+    "readiness": "pnpm launch:check --json",
+    "authStatus": "not_provided"
+  },
+  "secretPolicy": {
+    "printsSecrets": false,
+    "excludedValues": [
+      "Supabase URLs",
+      "Supabase publishable or anon keys",
+      "database URLs",
+      "database hosts",
+      "cookies",
+      "tokens",
+      "raw auth claims",
+      "raw provider payloads",
+      "profile IDs",
+      "actual profile email values"
+    ]
+  },
+  "readiness": {
+    "generatedAt": "2026-06-21T02:50:17.793Z",
+    "overallStatus": "blocked",
+    "checks": {
+      "supabasePublicUrlPresent": false,
+      "supabasePublishableOrAnonKeyPresent": false,
+      "databaseUrlPresent": true,
+      "databaseUrlParseable": true,
+      "migrationDatabaseUrlPresent": true,
+      "migrationDatabaseUrlParseable": true,
+      "databaseHostPresent": true,
+      "databaseHostDnsChecked": true,
+      "databaseHostResolves": true,
+      "databaseHostError": null,
+      "requestedAuthMode": "supabase",
+      "effectiveAuthMode": "supabase",
+      "deploymentMarkerPresent": false
+    },
+    "rows": [
+      {
+        "status": "blocked",
+        "label": "Supabase public URL",
+        "signal": "NEXT_PUBLIC_SUPABASE_URL is missing.",
+        "nextAction": "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment."
+      },
+      {
+        "status": "blocked",
+        "label": "Supabase publishable key",
+        "signal": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing.",
+        "nextAction": "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects."
+      },
+      {
+        "status": "ready",
+        "label": "Runtime database URL",
+        "signal": "DATABASE_URL is present and parseable.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Migration database URL",
+        "signal": "DIRECT_DATABASE_URL or DATABASE_URL is present and parseable.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Database host DNS",
+        "signal": "The selected database host resolves.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Auth runtime mode",
+        "signal": "Requested auth mode is supabase; effective mode is supabase.",
+        "nextAction": "Use /auth/status after signing in to prove Supabase session to Profile mapping."
+      },
+      {
+        "status": "warn",
+        "label": "Deployment marker",
+        "signal": "VERCEL_ENV is missing in this local check.",
+        "nextAction": "For deployed proof, run this check in the launch environment as well."
+      }
+    ],
+    "nextActions": [
+      "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment.",
+      "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects.",
+      "For deployed proof, run this check in the launch environment as well."
+    ]
+  },
+  "authStatusEvidence": {
+    "source": "not_provided",
+    "provided": false,
+    "parseable": false,
+    "httpStatus": null,
+    "urlClass": null,
+    "authenticated": false,
+    "authMode": "unknown",
+    "supabasePublicConfig": "unknown",
+    "authStatus": "unknown",
+    "profile": null,
+    "work": null,
+    "nextAction": "Run /auth/status from a signed-in browser session and provide sanitized JSON evidence."
+  },
+  "proofSummary": {
+    "overallStatus": "blocked",
+    "launchAuthPrereqsReady": false,
+    "authStatusReady": false,
+    "canRunAuth005": false,
+    "canProceedToWork007": false,
+    "blockedLabels": [
+      "Supabase public URL",
+      "Supabase publishable key",
+      "Auth status evidence"
+    ],
+    "warnLabels": [
+      "Deployment marker"
+    ],
+    "expectedAuth005State": "BLOCKED_OR_SESSION_EVIDENCE_REQUIRED",
+    "nextAction": "Run /auth/status from a signed-in browser session and provide sanitized JSON evidence."
+  },
+  "nextActions": [
+    "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment.",
+    "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects.",
+    "For deployed proof, run this check in the launch environment as well.",
+    "Run /auth/status from a signed-in browser session and provide sanitized JSON evidence."
+  ]
+}

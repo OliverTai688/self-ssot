@@ -1,0 +1,95 @@
+{
+  "id": "DATTR-024F-CONTRACT",
+  "status": "ready_for_service_authz_contract_use",
+  "checkedAt": "2026-06-23T02:29:57.836Z",
+  "contractPath": "src/lib/contracts/ai-input-source-workflow-service-authz.contract.ts",
+  "requiredObjects": [
+    "SourceConnection",
+    "SourceAsset",
+    "AIWorkflowRun",
+    "AIWorkItem",
+    "SourceNamingProfile",
+    "DataUnitProposal",
+    "ModuleWriteIntent",
+    "OperatingAuditEvent"
+  ],
+  "requiredOperations": [
+    "ai-input.source-workflow.list",
+    "ai-input.source-workflow.detail",
+    "ai-input.source-connection.review",
+    "ai-input.source-asset.review",
+    "ai-input.workflow-run.review",
+    "ai-input.work-item.review",
+    "ai-input.naming-profile.review",
+    "ai-input.data-unit-proposal.review",
+    "ai-input.module-write-intent.review",
+    "ai-input.connector-consent.review",
+    "ai-input.proof-target.review",
+    "ai-input.audit-lineage.review"
+  ],
+  "nextRunnableSlice": "DATTR-024",
+  "safetyGuards": {
+    "routeHandlerAllowed": false,
+    "serverActionAllowedInDattr024fContract": false,
+    "schemaWriteAllowed": false,
+    "migrationApplyAllowed": false,
+    "seedChangeAllowed": false,
+    "runtimeReadAllowed": false,
+    "runtimeWriteAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "providerDataAllowed": false,
+    "publicOutputAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalCollaborationAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  },
+  "evidence": {
+    "contract": {
+      "path": "src/lib/contracts/ai-input-source-workflow-service-authz.contract.ts",
+      "requiredObjects": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "SourceNamingProfile",
+        "DataUnitProposal",
+        "ModuleWriteIntent",
+        "OperatingAuditEvent"
+      ],
+      "requiredOperations": [
+        "ai-input.source-workflow.list",
+        "ai-input.source-workflow.detail",
+        "ai-input.source-connection.review",
+        "ai-input.source-asset.review",
+        "ai-input.workflow-run.review",
+        "ai-input.work-item.review",
+        "ai-input.naming-profile.review",
+        "ai-input.data-unit-proposal.review",
+        "ai-input.module-write-intent.review",
+        "ai-input.connector-consent.review",
+        "ai-input.proof-target.review",
+        "ai-input.audit-lineage.review"
+      ],
+      "operationCount": 12,
+      "safetyGuardsPresent": [
+        "externalRegisterable: false",
+        "routeHandlerAllowed: false",
+        "serverActionAllowedInDattr024fContract: false",
+        "schemaWriteAllowed: false",
+        "migrationApplyAllowed: false",
+        "seedChangeAllowed: false",
+        "runtimeReadAllowed: false",
+        "runtimeWriteAllowed: false",
+        "connectorRuntimeAllowed: false",
+        "providerDataAllowed: false",
+        "publicOutputAllowed: false",
+        "moduleFinalWriteAllowed: false",
+        "externalCollaborationAllowed: false",
+        "externalAgentDatabaseAccessAllowed: false"
+      ]
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

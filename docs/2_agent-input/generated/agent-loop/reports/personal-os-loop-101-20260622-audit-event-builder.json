@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T15:20:03.785Z",
+  "command": "pnpm audit:event-builder:check",
+  "taskId": "AUDIT-OPS-003",
+  "status": "ready_for_operating_audit_event_drafts",
+  "contract": {
+    "builderPath": "src/lib/services/operating-audit-event-builder.ts",
+    "readinessCatalogPath": "src/lib/contracts/operating-audit-readiness-catalog.contract.ts",
+    "eventContractPath": "src/lib/contracts/operating-audit-event.contract.ts",
+    "acceptanceDoc": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlogDoc": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "representativeDraftOperationIds": [
+      "launch.proof",
+      "work.proof.preflight",
+      "client-portal.visibility.preflight"
+    ],
+    "requiredEventFamilies": [
+      "auth.session",
+      "work.mutation",
+      "ai-input.source-workflow",
+      "agent.operation",
+      "client-portal.public-access",
+      "high-risk.proposal",
+      "admin.operator"
+    ],
+    "runtimeAuditStorageImplemented": false,
+    "schemaMigrationImplemented": false,
+    "routeHandlerAdded": false,
+    "serverActionAdded": false,
+    "databaseReadPerformed": false,
+    "databaseWriteAdded": false,
+    "providerCalled": false,
+    "networkCalled": false,
+    "publicOutputAdded": false,
+    "externalRegistrationEnabled": false,
+    "directDatabaseAccessByExternalAgents": false,
+    "persistedAuditRowsCreated": false,
+    "externalRegisterable": false
+  },
+  "checks": {
+    "requiredMarkers": 25,
+    "representativeDrafts": [
+      {
+        "operationId": "launch.proof",
+        "present": true
+      },
+      {
+        "operationId": "work.proof.preflight",
+        "present": true
+      },
+      {
+        "operationId": "client-portal.visibility.preflight",
+        "present": true
+      }
+    ],
+    "eventFamilies": [
+      "auth.session",
+      "work.mutation",
+      "ai-input.source-workflow",
+      "agent.operation",
+      "client-portal.public-access",
+      "high-risk.proposal",
+      "admin.operator"
+    ],
+    "supportSourcesChecked": [
+      "acceptanceDoc",
+      "backlogDoc",
+      "sprintDoc",
+      "completedLog",
+      "tasksDoc"
+    ],
+    "packageScriptChecked": true,
+    "docsChecked": true,
+    "noSecretScan": true,
+    "noRuntimeImportScan": true,
+    "noRouteOrServerActionScan": true,
+    "noPrismaOrDbScan": true,
+    "noProviderOrNetworkScan": true,
+    "noExternalRegistrationScan": true
+  },
+  "safety": {
+    "printsSecrets": false,
+    "readsRuntimeEnv": false,
+    "connectsToDatabase": false,
+    "readsDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "addsRouteHandler": false,
+    "addsServerAction": false,
+    "addsPublicOutput": false,
+    "mutatesProvider": false,
+    "callsNetwork": false,
+    "externalRegistryWrite": false,
+    "directDatabaseAccessByExternalAgents": false,
+    "persistedAuditRowsCreated": false
+  },
+  "errors": [],
+  "warnings": [
+    {
+      "code": "SAMPLE_METADATA_REDACTION_FIXTURE",
+      "message": "Sample input includes a token-like metadata key to prove redaction stays in the builder boundary.",
+      "path": "src/lib/services/operating-audit-event-builder.ts"
+    }
+  ],
+  "nextAction": "Use the draft builder as the final no-write step before a reviewed persisted OperatingAuditEvent schema/storage task."
+}

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T07:03:01.337Z",
+  "taskId": "WORK-010",
+  "mode": "readiness_check",
+  "status": "needs_operator_input",
+  "canRunWork009": false,
+  "target": {
+    "provided": false,
+    "source": "WORK_PROOF_DATABASE_URL",
+    "parseable": false,
+    "hostClass": "missing",
+    "databaseNameHasProofMarker": false
+  },
+  "confirmations": {
+    "allowWrites": false,
+    "confirmationAccepted": false,
+    "remoteOverride": false
+  },
+  "missing": [
+    "WORK_PROOF_DATABASE_URL is not set.",
+    "Selected target must be local, or a remote disposable WORK_PROOF_DATABASE_URL must set PERSONAL_OS_WORK_PROOF_ALLOW_REMOTE=1.",
+    "PERSONAL_OS_WORK_PROOF_ALLOW_WRITES=1 is missing.",
+    "PERSONAL_OS_WORK_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA is missing."
+  ],
+  "warnings": [],
+  "nextActions": [
+    "Provide an explicit local/disposable WORK_PROOF_DATABASE_URL or rerun with --use-database-url only for a local disposable DATABASE_URL.",
+    "Set PERSONAL_OS_WORK_PROOF_ALLOW_WRITES=1.",
+    "Set PERSONAL_OS_WORK_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA.",
+    "For a remote disposable proof DB, set PERSONAL_OS_WORK_PROOF_ALLOW_REMOTE=1 only after confirming it is not a valuable launch database."
+  ],
+  "safety": {
+    "doesNotConnectToDatabase": true,
+    "doesNotWriteDatabase": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies"
+    ]
+  }
+}

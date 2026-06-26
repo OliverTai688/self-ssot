@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-23T07:16:47.538Z",
+  "taskId": "DATTR-024N-SOURCE-WORKFLOW-LOCAL-PROOF-BOOTSTRAP",
+  "mode": "dry_run",
+  "status": "needs_operator_input",
+  "target": {
+    "inputKind": "missing",
+    "source": "none",
+    "provided": false,
+    "parseable": false,
+    "protocolAllowed": false,
+    "hostClass": "missing",
+    "databaseNameHasProofMarker": false,
+    "databaseNameLooksValuable": false,
+    "remoteOverrideAccepted": false,
+    "targetUrlRedacted": true,
+    "hostRedacted": true
+  },
+  "safety": {
+    "targetSafe": false,
+    "canRunChildProof": false,
+    "missing": [
+      "No explicit Source Workflow proof target URL was provided."
+    ],
+    "warnings": [],
+    "doesNotUseDatabaseUrlSilently": true,
+    "doesNotApplyMigration": true,
+    "doesNotPromoteMigrationDraft": true,
+    "doesNotWriteDatabaseByDefault": true,
+    "doesNotConnectToValuableDatabase": true,
+    "doesNotSetGlobalEnv": true,
+    "databaseConnectionAllowedByBootstrap": false,
+    "migrationApplyAllowed": false,
+    "runtimeWriteAllowedByBootstrap": false,
+    "connectorRuntimeAllowed": false,
+    "providerApiRuntimeAllowed": false,
+    "publicOutputAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false,
+    "injectsConfirmationOnlyIntoChildProcess": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "database usernames",
+      "database passwords",
+      "Supabase keys",
+      "tokens",
+      "cookies",
+      "raw auth claims",
+      "profile IDs",
+      "row IDs",
+      "provider payloads",
+      "source file bodies",
+      "private source material",
+      "target module final payloads"
+    ]
+  },
+  "plannedChildProcess": {
+    "command": "pnpm ai-input:proof -- --run --json",
+    "proofOut": "docs/2_agent-input/generated/agent-loop/ai-input-source-workflow-proof/latest-local-proof-runner.json",
+    "runnableNow": false,
+    "writesOnlyInsideChildProcess": true,
+    "environmentInjectedIntoChildOnly": {
+      "AI_INPUT_SOURCE_WORKFLOW_PROOF_DATABASE_URL": "redacted",
+      "PERSONAL_OS_AI_INPUT_PROOF_ALLOW_WRITES": "missing",
+      "PERSONAL_OS_AI_INPUT_PROOF_CONFIRM": "missing",
+      "PERSONAL_OS_AI_INPUT_PROOF_ALLOW_REMOTE": "not_injected_unless_present"
+    }
+  },
+  "writesExecuted": false,
+  "nextActions": [
+    "Provide --target-url or AI_INPUT_SOURCE_WORKFLOW_LOCAL_TARGET_URL pointing to a local/disposable proof database.",
+    "Use --use-database-url only when DATABASE_URL is explicitly disposable and proof-marked.",
+    "Set PERSONAL_OS_AI_INPUT_PROOF_ALLOW_WRITES=1 only for an approved proof run.",
+    "Set PERSONAL_OS_AI_INPUT_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA.",
+    "For remote disposable targets, set PERSONAL_OS_AI_INPUT_PROOF_ALLOW_REMOTE=1 only after confirming the target is not valuable."
+  ],
+  "sourceRefs": [
+    "docs/08_acceptance-and-qa/ACC-006_ai-input-source-workflow-proof-target.md",
+    "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "scripts/ai-input-source-workflow-proof-runner.mjs",
+    "src/lib/contracts/ai-input-source-workflow-formal-cutover-readiness.contract.ts"
+  ],
+  "nextTask": "DATTR-024O-SOURCE-WORKFLOW-PROOF-PACKET-UI",
+  "agentProtocol": {
+    "posture": "protected-owner/internal proof tooling only",
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  }
+}

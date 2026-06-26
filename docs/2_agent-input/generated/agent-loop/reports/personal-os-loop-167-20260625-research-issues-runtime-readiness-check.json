@@ -1,0 +1,45 @@
+{
+  "status": "ready_for_issues_runtime_readiness_preflight_gate",
+  "taskId": "RESEARCH-BFF-011-RESEARCH-OWNER-READ-ISSUES-RUNTIME-READINESS-GATE",
+  "selectedFamily": "issues",
+  "selectedModel": "ResearchThread",
+  "ownerIdentitySource": "requireUser().profileId",
+  "ownerScopePredicate": "ResearchThread.ownerId equals requireUser().profileId",
+  "futureOperation": "prisma.researchThread.findMany",
+  "relationCountKeys": [
+    "sources",
+    "concepts",
+    "writingProjects"
+  ],
+  "runtimeDbReadEnabled": false,
+  "adapterExecutionAllowed": false,
+  "nextRecommendedTask": "LOOP-165-LAUNCH-LEVEL-REVIEW",
+  "followUpTask": "RESEARCH-BFF-012-RESEARCH-OWNER-READ-ISSUES-SERVICE-AUTHZ-RUNTIME-PROOF",
+  "docs": [
+    {
+      "path": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "tasks.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "missingMarkers": []
+    },
+    {
+      "path": "package.json",
+      "missingMarkers": []
+    }
+  ],
+  "failures": []
+}

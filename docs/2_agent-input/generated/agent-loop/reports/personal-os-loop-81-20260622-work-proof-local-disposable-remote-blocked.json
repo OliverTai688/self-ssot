@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T06:46:16.433Z",
+  "taskId": "WORK-011",
+  "mode": "dry_run",
+  "status": "needs_local_target",
+  "canRunLocalProof": false,
+  "target": {
+    "inputKind": "existing_target",
+    "source": "--target-url",
+    "provided": true,
+    "parseable": true,
+    "protocolAllowed": true,
+    "hostClass": "remote",
+    "databaseNameHasProofMarker": true,
+    "databaseNameLooksValuable": false
+  },
+  "databaseCreation": {
+    "available": false,
+    "requested": false,
+    "performed": false
+  },
+  "safety": {
+    "targetSafe": false,
+    "missing": [
+      "Selected target must be local: localhost, 127.0.0.1, or ::1."
+    ],
+    "warnings": [],
+    "doesNotUseDatabaseUrlSilently": true,
+    "doesNotAllowRemoteTargets": true,
+    "requiresProofMarker": true,
+    "injectsConfirmationOnlyIntoChildProcess": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies"
+    ]
+  },
+  "plannedChildProcess": {
+    "command": "pnpm work:proof -- --run --json",
+    "setup": false,
+    "proofOut": "docs/2_agent-input/generated/agent-loop/work-refresh-proof/latest-local-disposable-work-proof.json",
+    "writesOnlyInsideChildProcess": true
+  },
+  "nextActions": [
+    "Provide --target-url or WORK_PROOF_LOCAL_TARGET_URL pointing to a local disposable PostgreSQL database whose name contains personal_os_work_proof or work_proof.",
+    "Or provide --admin-url / WORK_PROOF_LOCAL_ADMIN_DATABASE_URL and run with --run --create-database --setup to create a local proof database.",
+    "Do not use DATABASE_URL unless you pass --use-database-url and it is explicitly local, disposable, and proof-marked."
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-20T21:13:56.667Z",
+  "mode": "dry_run",
+  "status": "ready_for_review",
+  "target": {
+    "provided": false,
+    "source": "WORK_PROOF_DATABASE_URL",
+    "parseable": false,
+    "hostClass": "missing",
+    "databaseNameHasProofMarker": false
+  },
+  "safety": {
+    "writesRequested": false,
+    "writesAllowed": false,
+    "reasons": [
+      "No --run flag was provided; dry-run only.",
+      "No proof database URL was provided.",
+      "PERSONAL_OS_WORK_PROOF_ALLOW_WRITES=1 is missing.",
+      "PERSONAL_OS_WORK_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA is missing.",
+      "Target is not local, or remote disposable override is not explicitly enabled."
+    ],
+    "requiredForRun": [
+      "WORK_PROOF_DATABASE_URL or --use-database-url",
+      "PERSONAL_OS_WORK_PROOF_ALLOW_WRITES=1",
+      "PERSONAL_OS_WORK_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA",
+      "local DB host, or WORK_PROOF_DATABASE_URL plus PERSONAL_OS_WORK_PROOF_ALLOW_REMOTE=1"
+    ]
+  },
+  "plannedProof": {
+    "createsProofOnlyProfile": true,
+    "createsProofOnlyProject": true,
+    "createsTaskThenReadsDoneAfterReconnect": true,
+    "createsNoteThenReadsPinnedAfterReconnect": true,
+    "createsDeliverableThenReadsDeliveredClientVisibleAfterReconnect": true,
+    "verifiesDerivedProgressFromTaskRows": true,
+    "deletesProofOnlyProfileAndCascadedRecords": true,
+    "doesNotPrintDatabaseUrlOrHost": true
+  }
+}

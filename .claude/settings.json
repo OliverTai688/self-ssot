@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(xargs ls *)"
+    ],
+    "additionalDirectories": [
+      "/Users/pzps0964713/Documents/github/self-stucture-v1/src/app/client"
+    ]
+  }
+}

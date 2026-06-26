@@ -1,0 +1,40 @@
+{
+  "id": "AIINPUT-OPS-003",
+  "status": "protected_source_workflow_gate_surface_ready",
+  "checkedAt": "2026-06-23T07:41:54.163Z",
+  "surfaces": [
+    "ai-input",
+    "admin",
+    "settings"
+  ],
+  "requiredGateIds": [
+    "DATTR-024H-MIGRATION-DRAFT",
+    "DATTR-024I-PROOF-RUNNER",
+    "DATTR-024N-SOURCE-WORKFLOW-LOCAL-PROOF-BOOTSTRAP",
+    "DATTR-024J-SERVICE-AUTHZ-RUNTIME",
+    "DATTR-024K-RLS-AUDIT-STORAGE",
+    "DATTR-024L-CONNECTOR-RUNTIME"
+  ],
+  "requiredCommands": [
+    "pnpm ai-input:migration-draft:check",
+    "pnpm ai-input:proof-runner:check",
+    "pnpm ai-input:proof-local",
+    "pnpm ai-input:proof-local:check",
+    "pnpm ai-input:service-runtime:check",
+    "pnpm ai-input:rls-audit-storage:check",
+    "pnpm ai-input:connector-runtime:check",
+    "pnpm ai-input:ops-surface:check"
+  ],
+  "databaseReadAllowed": false,
+  "databaseWriteAllowed": false,
+  "connectorRuntimeAllowed": false,
+  "oauthRuntimeAllowed": false,
+  "webhookRuntimeAllowed": false,
+  "pollingRuntimeAllowed": false,
+  "providerApiRuntimeAllowed": false,
+  "secretWriteAllowed": false,
+  "publicOutputAllowed": false,
+  "externalRegisterable": false,
+  "nextTask": "LOOP-123",
+  "errors": []
+}

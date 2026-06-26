@@ -1,0 +1,61 @@
+{
+  "id": "ADMIN-OPS-002",
+  "status": "ready_for_operator_action_registry_use",
+  "generatedAt": "2026-06-22T12:14:45.058Z",
+  "requiredActionIds": [
+    "launch.proof",
+    "auth.session-proof",
+    "work.target-readiness",
+    "work.docker-disposable",
+    "deploy.marker-proof",
+    "owner.ui-review",
+    "client.token-lifecycle-approval",
+    "ai-input.persistence-approval",
+    "agent.external-registration-approval"
+  ],
+  "summary": {
+    "actionCount": 9,
+    "docsChecked": [
+      "acceptance",
+      "backlog",
+      "sprint",
+      "completedLog",
+      "tasks"
+    ],
+    "surfaces": [
+      "admin",
+      "settings"
+    ],
+    "noSecretBoundaryChecked": true,
+    "publicRouteAdded": false
+  },
+  "files": {
+    "contract": "src/lib/contracts/launch-operator-action-registry.contract.ts",
+    "service": "src/lib/services/admin-readiness.service.ts",
+    "admin": "src/app/(dashboard)/admin/page.tsx",
+    "settings": "src/app/(dashboard)/settings/page.tsx",
+    "acceptance": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlog": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "sprint": "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "completedLog": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "tasks": "tasks.md",
+    "packageJson": "package.json"
+  },
+  "errors": [],
+  "warnings": [],
+  "secretPolicy": {
+    "printsSecrets": false,
+    "forbidden": [
+      "Supabase URLs or keys",
+      "database URLs or hosts",
+      "cookies or tokens",
+      "raw auth claims",
+      "provider payloads",
+      "profile IDs",
+      "row IDs",
+      "client share tokens",
+      "external registry writes"
+    ]
+  },
+  "nextAction": "Use protected admin/settings launch operator actions for owner-run evidence, dry-run checks, and approval-required blockers."
+}

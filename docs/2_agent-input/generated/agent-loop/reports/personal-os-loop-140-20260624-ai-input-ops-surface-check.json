@@ -1,0 +1,44 @@
+{
+  "id": "AIINPUT-OPS-003",
+  "status": "protected_source_workflow_gate_surface_ready",
+  "checkedAt": "2026-06-24T02:15:31.876Z",
+  "surfaces": [
+    "ai-input",
+    "admin",
+    "settings"
+  ],
+  "requiredGateIds": [
+    "DATTR-024H-MIGRATION-DRAFT",
+    "DATTR-024I-PROOF-RUNNER",
+    "DATTR-024N-SOURCE-WORKFLOW-LOCAL-PROOF-BOOTSTRAP",
+    "DATTR-024P-SOURCE-WORKFLOW-LATEST-PROOF-EVIDENCE-RESOLVER",
+    "DATTR-024Q-SOURCE-WORKFLOW-PROOF-TARGET-HANDOFF-SURFACE",
+    "DATTR-024J-SERVICE-AUTHZ-RUNTIME",
+    "DATTR-024K-RLS-AUDIT-STORAGE",
+    "DATTR-024L-CONNECTOR-RUNTIME"
+  ],
+  "requiredCommands": [
+    "pnpm ai-input:migration-draft:check",
+    "pnpm ai-input:proof-runner:check",
+    "pnpm ai-input:proof-local",
+    "pnpm ai-input:proof-local:check",
+    "pnpm ai-input:proof-evidence:check",
+    "pnpm ai-input:service-runtime:check",
+    "pnpm ai-input:rls-audit-storage:check",
+    "pnpm ai-input:connector-runtime:check",
+    "pnpm ai-input:ops-surface:check"
+  ],
+  "databaseReadAllowed": false,
+  "databaseWriteAllowed": false,
+  "connectorRuntimeAllowed": false,
+  "oauthRuntimeAllowed": false,
+  "webhookRuntimeAllowed": false,
+  "pollingRuntimeAllowed": false,
+  "providerApiRuntimeAllowed": false,
+  "secretWriteAllowed": false,
+  "publicOutputAllowed": false,
+  "externalRegisterable": false,
+  "proofTargetHandoffReady": true,
+  "nextTask": "AUTH-005_OR_WORK-009_IF_PREREQUISITES_APPEAR_ELSE_OWNER_RUN_DATTR_024Q_HANDOFF",
+  "errors": []
+}

@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T03:52:58.370Z",
+  "command": "pnpm agent:op",
+  "mode": "dry_run",
+  "status": "ready_for_owner_dry_run",
+  "selectedOperation": {
+    "id": "agent.ops.describe-contract",
+    "version": "0.1.0",
+    "label": "Describe owner-only agent operation contract",
+    "ownerAgent": "WorkflowAgent",
+    "targetModule": "agent-team-os",
+    "riskLevel": "MEDIUM",
+    "approvalLevel": "AUTO_PROPOSE",
+    "dataVisibilityLevel": "repo-docs-and-generated-agent-evidence",
+    "scopes": [
+      "agent:operation:read",
+      "agent:manifest:read"
+    ],
+    "allowedModes": [
+      "dry_run"
+    ],
+    "inputContract": {
+      "operationId": "string",
+      "agentLabel": "optional string",
+      "targetModule": "optional string"
+    },
+    "outputContract": {
+      "operationContract": "UI/API/CLI-aligned operation contract",
+      "safetyBoundary": "No-write, no-secret, no-public-endpoint boundary",
+      "auditRefs": "Generated evidence refs and future audit event shape",
+      "nextReview": "Recommended next implementation or approval gate"
+    },
+    "cli": "pnpm agent:op -- --operation agent.ops.describe-contract --json",
+    "futureProtectedApi": "POST /api/agent-operations/dry-run",
+    "uiSurfaceRefs": [
+      "protected /admin Agent Protocol readiness surface",
+      "protected /settings Agent Protocol readiness surface"
+    ],
+    "auditRefs": [
+      "docs/2_agent-input/generated/agent-loop/reports/",
+      "future append-only operating audit event"
+    ],
+    "sourceRefs": [
+      "docs/02_architecture-and-rules/ARC-028_nanda-agent-protocol-alignment.md",
+      "docs/07_research-and-design/RES-002_saas-os-operating-surface-maturity-research.md",
+      "docs/05_execution-plans/PLN-060_task-backlog.md"
+    ],
+    "blockedActions": [
+      "runtime agent execution",
+      "autonomous write",
+      "public endpoint exposure",
+      "external registry write",
+      "direct database access by external agents",
+      "high-risk module final write"
+    ],
+    "requestedAgent": "WorkflowAgent",
+    "requestedTargetModule": "agent-team-os"
+  },
+  "agentManifestSnapshot": {
+    "id": "personal-os:workflow-agent",
+    "agent_name": "urn:agent:personal-os:WorkflowAgent",
+    "label": "WorkflowAgent",
+    "lifecycleStatus": "governance-only",
+    "protocols": [
+      "internal",
+      "docs-governance"
+    ],
+    "approvalLevel": "AUTO_PROPOSE",
+    "dataVisibilityLevel": "workflow-rules-and-audit",
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "endpointCounts": {
+      "internal": 0,
+      "external": 0
+    }
+  },
+  "registrySnapshot": {
+    "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+    "manifestFile": "docs/2_agent-input/generated/agent-loop/agent-registry/internal-agent-manifests.agentfacts-lite.json",
+    "manifestCount": 15,
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "runtimeEndpoint": null,
+    "publicDirectory": false
+  },
+  "safety": {
+    "writesPerformed": false,
+    "databaseAccessed": false,
+    "environmentRead": false,
+    "publicEndpointCreated": false,
+    "externalRegistryWrite": false,
+    "externalRegisterableAfterRun": false,
+    "rawSecretsIncluded": false,
+    "blockedIfRunRequested": true,
+    "reasons": [
+      "AGENT-OPS-001 is owner-only dry-run CLI proof.",
+      "The command reads generated AgentFacts-lite files only.",
+      "No environment variables, cookies, tokens, database URLs, provider payloads, or private records are read.",
+      "The CLI creates no public endpoint, DB write, migration, seed, or external registration. Protected HTTP dry-run is handled separately by AGENT-014."
+    ]
+  },
+  "validation": {
+    "agentMatchesOperation": true,
+    "targetMatchesOperation": true,
+    "internalDiscoverable": true,
+    "externalRegisterableBlocked": true,
+    "allowedModeIsDryRunOnly": true
+  },
+  "nextReview": "Use this contract as the UI/API/CLI alignment base before any owner command center or approval-write slice."
+}

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-23T08:31:11.547Z",
+  "taskId": "WORK-012",
+  "mode": "dry_run",
+  "status": "docker_daemon_unavailable",
+  "canRunDockerProof": false,
+  "docker": {
+    "cliAvailable": true,
+    "daemonAvailable": false,
+    "errorCategory": "docker_daemon_unavailable",
+    "imageSource": "default_postgres_16_alpine",
+    "imageWasCustomized": false,
+    "containerNameHasProofMarker": true,
+    "requestedPort": "15432"
+  },
+  "target": {
+    "inputKind": "docker_local_container",
+    "hostClass": "local",
+    "externalTargetProvided": false,
+    "externalTargetParseable": false,
+    "externalTargetProtocolAllowed": false,
+    "databaseNameHasProofMarker": true,
+    "databaseNameLooksValuable": false,
+    "targetUrlRedacted": true,
+    "hostRedacted": true
+  },
+  "plannedChildProcess": {
+    "command": "pnpm work:proof:local-disposable -- --run",
+    "setup": false,
+    "helperOut": "docs/2_agent-input/generated/agent-loop/work-refresh-proof/latest-docker-disposable-local-bootstrap.json",
+    "proofOut": "docs/2_agent-input/generated/agent-loop/work-refresh-proof/latest-docker-disposable-work-proof.json",
+    "writesOnlyInsideChildProcess": true,
+    "confirmationTextInjectedIntoChildOnly": true
+  },
+  "safety": {
+    "targetSafe": true,
+    "missing": [],
+    "warnings": [],
+    "createsOnlyLocalDockerTarget": true,
+    "refusesExternalTargetUrls": true,
+    "doesNotUseDatabaseUrlSilently": true,
+    "requiresProofMarker": true,
+    "injectsConfirmationOnlyIntoChildProcess": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "database passwords",
+      "Docker socket paths",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies",
+      "raw Docker stderr"
+    ]
+  },
+  "nextActions": [
+    "Start Docker Desktop or the local Docker daemon.",
+    "Rerun pnpm work:proof:docker-disposable -- --run --setup after the daemon is reachable.",
+    "Do not retry WORK-009 against a valuable or remote database."
+  ]
+}

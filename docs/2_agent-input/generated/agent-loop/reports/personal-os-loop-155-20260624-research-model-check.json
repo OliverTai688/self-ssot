@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T09:44:50.134Z",
+  "command": "pnpm research:model:check",
+  "taskId": "RESEARCH-MODEL-001-RESEARCH-ISSUE-THREAD-RECONCILIATION",
+  "status": "ready_for_research_model_reconciliation_use",
+  "contract": {
+    "path": "src/lib/contracts/research-model-reconciliation.contract.ts",
+    "mode": "contract_only_no_runtime_db",
+    "currentPrismaState": "partial_thread_first_transitional",
+    "staleDbs003StatementSuperseded": true,
+    "transitionalModelCount": 9,
+    "canonicalFamilyCount": 15,
+    "typedLinkGroupsPresent": true,
+    "futureBffPathPresent": true
+  },
+  "modelMapping": {
+    "transitionalPrismaModels": [
+      {
+        "model": "ResearchThread",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "ResearchSource",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "ResearchConcept",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "ResearchWritingProject",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "ResearchWritingSection",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "AIFeedbackRun",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "ResearchDigest",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "ResearchEvent",
+        "presentInContract": true,
+        "presentInSchema": true
+      },
+      {
+        "model": "AcademicPerson",
+        "presentInContract": true,
+        "presentInSchema": true
+      }
+    ],
+    "canonicalFamilies": [
+      {
+        "family": "issues",
+        "presentInContract": true
+      },
+      {
+        "family": "threads",
+        "presentInContract": true
+      },
+      {
+        "family": "questions",
+        "presentInContract": true
+      },
+      {
+        "family": "sources",
+        "presentInContract": true
+      },
+      {
+        "family": "concepts",
+        "presentInContract": true
+      },
+      {
+        "family": "ideas",
+        "presentInContract": true
+      },
+      {
+        "family": "writing-projects",
+        "presentInContract": true
+      },
+      {
+        "family": "writing-sections",
+        "presentInContract": true
+      },
+      {
+        "family": "feedback-runs",
+        "presentInContract": true
+      },
+      {
+        "family": "events",
+        "presentInContract": true
+      },
+      {
+        "family": "people",
+        "presentInContract": true
+      },
+      {
+        "family": "links",
+        "presentInContract": true
+      },
+      {
+        "family": "graph-projection",
+        "presentInContract": true
+      },
+      {
+        "family": "records-audit",
+        "presentInContract": true
+      },
+      {
+        "family": "agent-proposals",
+        "presentInContract": true
+      }
+    ],
+    "typeLayerMarkers": {
+      "researchIssue": true,
+      "researchThread": true,
+      "researchLink": true,
+      "relationType": true
+    }
+  },
+  "unsafeActions": {
+    "threadActionsMarked": true,
+    "sourceConceptActionsMarked": true,
+    "writingActionsMarked": true,
+    "eventDigestActionsMarked": true,
+    "callerSuppliedOwnerOrThreadEvidencePresent": true
+  },
+  "docs": {
+    "dbs003": "docs/02_architecture-and-rules/DBS-003_research-db-model-decision.md",
+    "acc002": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlog": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "sprint": "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "tasks": "tasks.md",
+    "dbs005": "docs/02_architecture-and-rules/DBS-005_per-module-real-data-migration-matrix.md"
+  },
+  "safety": {
+    "connectsToDatabase": false,
+    "readsDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "appliesMigration": false,
+    "changesSeedData": false,
+    "addsRouteHandler": false,
+    "addsServerActionWrite": false,
+    "expandsPublicOutput": false,
+    "enablesExternalCollaboration": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "enablesAgentFinalWrites": false,
+    "externalRegisterable": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "checks": {
+    "contractMarkers": [
+      {
+        "marker": "RESEARCH_MODEL_RECONCILIATION_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_MODEL_RECONCILIATION_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_MODEL_TRANSITIONAL_PRISMA_MODELS",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_MODEL_OWNER_SCOPED_BFF_READ_DTO_PATH",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_MODEL_CANONICAL_FAMILIES",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_MODEL_TYPED_LINKS",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_MODEL_UNSAFE_CURRENT_ACTIONS",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-MODEL-001-RESEARCH-ISSUE-THREAD-RECONCILIATION",
+        "present": true
+      },
+      {
+        "marker": "contract_only_no_runtime_db",
+        "present": true
+      },
+      {
+        "marker": "partial_thread_first_transitional",
+        "present": true
+      },
+      {
+        "marker": "DBS-003 previous no-research-tables statement is superseded",
+        "present": true
+      },
+      {
+        "marker": "ResearchIssue",
+        "present": true
+      },
+      {
+        "marker": "ResearchThread",
+        "present": true
+      },
+      {
+        "marker": "ResearchLink",
+        "present": true
+      },
+      {
+        "marker": "typed owner-scoped issue table or explicitly renamed thread mapping",
+        "present": true
+      },
+      {
+        "marker": "transitional bridge to issues, not canonical parent for all resources",
+        "present": true
+      },
+      {
+        "marker": "explicit typed link table with source/target families, relation, provenance, and audit refs",
+        "present": true
+      },
+      {
+        "marker": "Server Component loader",
+        "present": true
+      },
+      {
+        "marker": "requireUser()",
+        "present": true
+      },
+      {
+        "marker": "Research service authorization",
+        "present": true
+      },
+      {
+        "marker": "Prisma or approved adapter",
+        "present": true
+      },
+      {
+        "marker": "UI-safe DTO",
+        "present": true
+      },
+      {
+        "marker": "Client Component interaction",
+        "present": true
+      },
+      {
+        "marker": "src/lib/actions/research-threads.ts",
+        "present": true
+      },
+      {
+        "marker": "src/lib/actions/research-sources.ts",
+        "present": true
+      },
+      {
+        "marker": "src/lib/actions/research-writing.ts",
+        "present": true
+      },
+      {
+        "marker": "src/lib/actions/research-events.ts",
+        "present": true
+      },
+      {
+        "marker": "ownerId",
+        "present": true
+      },
+      {
+        "marker": "threadId",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbReadAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "schemaMigrationAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "migrationApplyAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "seedChangeAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "serverActionWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalCollaborationAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalAgentDatabaseAccessAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "agentFinalWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      },
+      {
+        "marker": "launchLevelUpgradeClaimed: false",
+        "present": true
+      },
+      {
+        "marker": "protected_owner_visible_proposal_only",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client import marker",
+        "present": false
+      },
+      {
+        "label": "database client import marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "database URL marker",
+        "present": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "route handler request marker",
+        "present": false
+      },
+      {
+        "label": "route handler response marker",
+        "present": false
+      },
+      {
+        "label": "server action marker",
+        "present": false
+      }
+    ],
+    "forbiddenTrueMarkers": [
+      {
+        "marker": "runtimeDbReadAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "runtimeDbWriteAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "schemaMigrationAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "migrationApplyAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "seedChangeAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "routeHandlerAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "serverActionWriteAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "publicOutputAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "externalCollaborationAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "externalAgentDatabaseAccessAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "agentFinalWriteAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "externalRegisterable: true",
+        "present": false
+      },
+      {
+        "marker": "launchLevelUpgradeClaimed: true",
+        "present": false
+      }
+    ]
+  },
+  "errors": []
+}

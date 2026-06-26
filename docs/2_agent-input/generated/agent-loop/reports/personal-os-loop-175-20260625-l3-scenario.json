@@ -1,0 +1,424 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-25T08:39:07.100Z",
+  "command": "pnpm l3:scenario:check",
+  "taskId": "L3-SCENARIO-001",
+  "status": "conditional_l3_scenario_routes_ready",
+  "conditionalProductMaturity": "C2_SCENARIO_ROUTES_READY",
+  "formalLaunchLevelUnchanged": "L0_LOCAL_PROTOTYPE",
+  "prerequisiteConditionalProductMaturity": "C1_INTERFACE_MATRIX_READY",
+  "scenarioCoverage": {
+    "requiredRouteCount": 9,
+    "requiredRouteIds": [
+      "owner-access",
+      "daily-command",
+      "work-operation",
+      "source-to-work",
+      "research-to-decision",
+      "chamber-opportunity",
+      "high-risk-review",
+      "agent-command",
+      "admin-manual-ops"
+    ],
+    "routeFiles": {
+      "owner-access": [
+        "src/app/page.tsx",
+        "src/app/(auth)/login/page.tsx",
+        "src/app/auth/status/route.ts"
+      ],
+      "daily-command": [
+        "src/app/(dashboard)/dashboard/page.tsx"
+      ],
+      "work-operation": [
+        "src/app/(dashboard)/work/page.tsx",
+        "src/app/actions/work.ts"
+      ],
+      "source-to-work": [
+        "src/app/(dashboard)/ai-input/page.tsx"
+      ],
+      "research-to-decision": [
+        "src/app/(dashboard)/research/page.tsx"
+      ],
+      "chamber-opportunity": [
+        "src/app/(dashboard)/chamber/page.tsx"
+      ],
+      "high-risk-review": [
+        "src/app/(dashboard)/finance/page.tsx",
+        "src/app/(dashboard)/life/page.tsx",
+        "src/app/(dashboard)/company/page.tsx"
+      ],
+      "agent-command": [
+        "src/app/(dashboard)/agents/page.tsx"
+      ],
+      "admin-manual-ops": [
+        "src/app/(dashboard)/admin/page.tsx",
+        "src/app/(dashboard)/settings/page.tsx"
+      ]
+    },
+    "requiredFieldNames": [
+      "trigger",
+      "actor",
+      "entrySurface",
+      "dataSource",
+      "actionPath",
+      "agentProposal",
+      "output",
+      "auditProof",
+      "nextTask",
+      "manualOps"
+    ],
+    "criticalGapRowsEmpty": 9
+  },
+  "blockersThatRemainManualOps": [
+    "AUTH-005",
+    "WORK-009",
+    "WORK-007",
+    "DEPLOY-002"
+  ],
+  "checks": {
+    "requiredContractMarkers": [
+      {
+        "marker": "CONDITIONAL_L3_SCENARIO_ROUTE_MAP",
+        "present": true
+      },
+      {
+        "marker": "CONDITIONAL_L3_SCENARIO_ROUTE_MAP_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "CONDITIONAL_L3_REQUIRED_SCENARIO_ROUTE_IDS",
+        "present": true
+      },
+      {
+        "marker": "L3-SCENARIO-001",
+        "present": true
+      },
+      {
+        "marker": "C2_SCENARIO_ROUTES_READY",
+        "present": true
+      },
+      {
+        "marker": "C1_INTERFACE_MATRIX_READY",
+        "present": true
+      },
+      {
+        "marker": "L0_LOCAL_PROTOTYPE",
+        "present": true
+      },
+      {
+        "marker": "M1_MANUAL_OPS_READY",
+        "present": true
+      },
+      {
+        "marker": "AUTH-005",
+        "present": true
+      },
+      {
+        "marker": "WORK-009",
+        "present": true
+      },
+      {
+        "marker": "WORK-007",
+        "present": true
+      },
+      {
+        "marker": "DEPLOY-002",
+        "present": true
+      },
+      {
+        "marker": "trigger",
+        "present": true
+      },
+      {
+        "marker": "actor",
+        "present": true
+      },
+      {
+        "marker": "entrySurface",
+        "present": true
+      },
+      {
+        "marker": "dataSource",
+        "present": true
+      },
+      {
+        "marker": "actionPath",
+        "present": true
+      },
+      {
+        "marker": "agentProposal",
+        "present": true
+      },
+      {
+        "marker": "output",
+        "present": true
+      },
+      {
+        "marker": "auditProof",
+        "present": true
+      },
+      {
+        "marker": "nextTask",
+        "present": true
+      },
+      {
+        "marker": "manualOps",
+        "present": true
+      },
+      {
+        "marker": "missingCriticalForC2",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerAdded: false",
+        "present": true
+      },
+      {
+        "marker": "serverActionAdded: false",
+        "present": true
+      },
+      {
+        "marker": "schemaChanged: false",
+        "present": true
+      },
+      {
+        "marker": "readsDatabase: false",
+        "present": true
+      },
+      {
+        "marker": "writesDatabase: false",
+        "present": true
+      },
+      {
+        "marker": "providerCallAdded: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputExpanded: false",
+        "present": true
+      },
+      {
+        "marker": "highRiskFinalWriteEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "autonomousExecutionEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "directDatabaseAccessByExternalAgents: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      }
+    ],
+    "routeCoverage": [
+      {
+        "routeId": "owner-access",
+        "present": true,
+        "sourceFiles": [
+          "src/app/page.tsx",
+          "src/app/(auth)/login/page.tsx",
+          "src/app/auth/status/route.ts"
+        ]
+      },
+      {
+        "routeId": "daily-command",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/dashboard/page.tsx"
+        ]
+      },
+      {
+        "routeId": "work-operation",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/work/page.tsx",
+          "src/app/actions/work.ts"
+        ]
+      },
+      {
+        "routeId": "source-to-work",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/ai-input/page.tsx"
+        ]
+      },
+      {
+        "routeId": "research-to-decision",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/research/page.tsx"
+        ]
+      },
+      {
+        "routeId": "chamber-opportunity",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/chamber/page.tsx"
+        ]
+      },
+      {
+        "routeId": "high-risk-review",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/finance/page.tsx",
+          "src/app/(dashboard)/life/page.tsx",
+          "src/app/(dashboard)/company/page.tsx"
+        ]
+      },
+      {
+        "routeId": "agent-command",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/agents/page.tsx"
+        ]
+      },
+      {
+        "routeId": "admin-manual-ops",
+        "present": true,
+        "sourceFiles": [
+          "src/app/(dashboard)/admin/page.tsx",
+          "src/app/(dashboard)/settings/page.tsx"
+        ]
+      }
+    ],
+    "fieldCoverage": [
+      {
+        "field": "trigger",
+        "count": 10
+      },
+      {
+        "field": "actor",
+        "count": 10
+      },
+      {
+        "field": "entrySurface",
+        "count": 10
+      },
+      {
+        "field": "dataSource",
+        "count": 10
+      },
+      {
+        "field": "actionPath",
+        "count": 10
+      },
+      {
+        "field": "agentProposal",
+        "count": 10
+      },
+      {
+        "field": "output",
+        "count": 10
+      },
+      {
+        "field": "auditProof",
+        "count": 10
+      },
+      {
+        "field": "nextTask",
+        "count": 10
+      },
+      {
+        "field": "manualOps",
+        "count": 10
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client import marker",
+        "present": false
+      },
+      {
+        "label": "runtime env read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "filesystem import marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "route handler export marker",
+        "present": false
+      },
+      {
+        "label": "server action directive",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "label": "external registerable true marker",
+        "present": false
+      },
+      {
+        "label": "database write true marker",
+        "present": false
+      },
+      {
+        "label": "public output true marker",
+        "present": false
+      },
+      {
+        "label": "high-risk final write true marker",
+        "present": false
+      }
+    ],
+    "docs": {
+      "acceptance": true,
+      "backlog": true,
+      "sprint": true,
+      "completedLog": true,
+      "tasks": true,
+      "research": true,
+      "interfaceContract": true,
+      "adminReadinessService": true
+    }
+  },
+  "safety": {
+    "readsEnv": false,
+    "readsDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "addsRouteHandler": false,
+    "addsServerAction": false,
+    "expandsPublicOutput": false,
+    "enablesHighRiskFinalWrite": false,
+    "enablesAutonomousExecution": false,
+    "directDatabaseAccessByExternalAgents": false,
+    "externalRegisterable": false
+  },
+  "errors": [],
+  "warnings": []
+}

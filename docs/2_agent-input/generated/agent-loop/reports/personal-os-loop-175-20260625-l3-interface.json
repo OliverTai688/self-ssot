@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-25T08:39:07.100Z",
+  "command": "pnpm l3:interface:check",
+  "taskId": "L3-UI-001",
+  "status": "conditional_l3_interface_matrix_ready",
+  "conditionalProductMaturity": "C1_INTERFACE_MATRIX_READY",
+  "formalLaunchLevelUnchanged": "L0_LOCAL_PROTOTYPE",
+  "surfaceCoverage": {
+    "requiredSurfaceCount": 15,
+    "requiredSurfaceIds": [
+      "frontstage",
+      "login",
+      "dashboard",
+      "settings",
+      "admin",
+      "work",
+      "research",
+      "ai-input",
+      "workflow",
+      "life",
+      "finance",
+      "chamber",
+      "company",
+      "client-portal",
+      "agents"
+    ],
+    "routeFiles": {
+      "frontstage": "src/app/page.tsx",
+      "login": "src/app/(auth)/login/page.tsx",
+      "dashboard": "src/app/(dashboard)/dashboard/page.tsx",
+      "settings": "src/app/(dashboard)/settings/page.tsx",
+      "admin": "src/app/(dashboard)/admin/page.tsx",
+      "work": "src/app/(dashboard)/work/page.tsx",
+      "research": "src/app/(dashboard)/research/page.tsx",
+      "ai-input": "src/app/(dashboard)/ai-input/page.tsx",
+      "workflow": "src/app/(dashboard)/workflow/page.tsx",
+      "life": "src/app/(dashboard)/life/page.tsx",
+      "finance": "src/app/(dashboard)/finance/page.tsx",
+      "chamber": "src/app/(dashboard)/chamber/page.tsx",
+      "company": "src/app/(dashboard)/company/page.tsx",
+      "client-portal": "src/app/client/[token]/page.tsx",
+      "agents": "src/app/(dashboard)/agents/page.tsx"
+    },
+    "viewframeFields": [
+      "identityMode",
+      "primaryAction",
+      "resourceOrWorkbench",
+      "commandPath",
+      "detailOrInspection",
+      "agentWorkspace",
+      "recordsOrReadiness",
+      "settingsOrBoundaries",
+      "stateLabel",
+      "mobileDesktop",
+      "noSecretBoundary"
+    ],
+    "criticalGapRowsEmpty": 15
+  },
+  "blockersThatRemainManualOps": [
+    "AUTH-005",
+    "WORK-009",
+    "WORK-007",
+    "DEPLOY-002"
+  ],
+  "checks": {
+    "requiredContractMarkers": [
+      {
+        "marker": "CONDITIONAL_L3_INTERFACE_MATRIX",
+        "present": true
+      },
+      {
+        "marker": "CONDITIONAL_L3_INTERFACE_MATRIX_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "CONDITIONAL_L3_REQUIRED_SURFACE_IDS",
+        "present": true
+      },
+      {
+        "marker": "L3-UI-001",
+        "present": true
+      },
+      {
+        "marker": "C1_INTERFACE_MATRIX_READY",
+        "present": true
+      },
+      {
+        "marker": "L0_LOCAL_PROTOTYPE",
+        "present": true
+      },
+      {
+        "marker": "M1_MANUAL_OPS_READY",
+        "present": true
+      },
+      {
+        "marker": "AUTH-005",
+        "present": true
+      },
+      {
+        "marker": "WORK-009",
+        "present": true
+      },
+      {
+        "marker": "WORK-007",
+        "present": true
+      },
+      {
+        "marker": "DEPLOY-002",
+        "present": true
+      },
+      {
+        "marker": "identityMode",
+        "present": true
+      },
+      {
+        "marker": "primaryAction",
+        "present": true
+      },
+      {
+        "marker": "resourceOrWorkbench",
+        "present": true
+      },
+      {
+        "marker": "commandPath",
+        "present": true
+      },
+      {
+        "marker": "detailOrInspection",
+        "present": true
+      },
+      {
+        "marker": "agentWorkspace",
+        "present": true
+      },
+      {
+        "marker": "recordsOrReadiness",
+        "present": true
+      },
+      {
+        "marker": "settingsOrBoundaries",
+        "present": true
+      },
+      {
+        "marker": "stateLabel",
+        "present": true
+      },
+      {
+        "marker": "mobileDesktop",
+        "present": true
+      },
+      {
+        "marker": "noSecretBoundary",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      },
+      {
+        "marker": "directDatabaseAccessByExternalAgents: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputExpanded: false",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerAdded: false",
+        "present": true
+      },
+      {
+        "marker": "serverActionAdded: false",
+        "present": true
+      },
+      {
+        "marker": "schemaChanged: false",
+        "present": true
+      },
+      {
+        "marker": "readsDatabase: false",
+        "present": true
+      },
+      {
+        "marker": "writesDatabase: false",
+        "present": true
+      },
+      {
+        "marker": "providerCallAdded: false",
+        "present": true
+      },
+      {
+        "marker": "autonomousExecutionEnabled: false",
+        "present": true
+      }
+    ],
+    "surfaceCoverage": [
+      {
+        "surfaceId": "frontstage",
+        "present": true,
+        "routeFile": "src/app/page.tsx"
+      },
+      {
+        "surfaceId": "login",
+        "present": true,
+        "routeFile": "src/app/(auth)/login/page.tsx"
+      },
+      {
+        "surfaceId": "dashboard",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/dashboard/page.tsx"
+      },
+      {
+        "surfaceId": "settings",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/settings/page.tsx"
+      },
+      {
+        "surfaceId": "admin",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/admin/page.tsx"
+      },
+      {
+        "surfaceId": "work",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/work/page.tsx"
+      },
+      {
+        "surfaceId": "research",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/research/page.tsx"
+      },
+      {
+        "surfaceId": "ai-input",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/ai-input/page.tsx"
+      },
+      {
+        "surfaceId": "workflow",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/workflow/page.tsx"
+      },
+      {
+        "surfaceId": "life",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/life/page.tsx"
+      },
+      {
+        "surfaceId": "finance",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/finance/page.tsx"
+      },
+      {
+        "surfaceId": "chamber",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/chamber/page.tsx"
+      },
+      {
+        "surfaceId": "company",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/company/page.tsx"
+      },
+      {
+        "surfaceId": "client-portal",
+        "present": true,
+        "routeFile": "src/app/client/[token]/page.tsx"
+      },
+      {
+        "surfaceId": "agents",
+        "present": true,
+        "routeFile": "src/app/(dashboard)/agents/page.tsx"
+      }
+    ],
+    "viewframeCoverage": [
+      {
+        "field": "identityMode",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "primaryAction",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "resourceOrWorkbench",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "commandPath",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "detailOrInspection",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "agentWorkspace",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "recordsOrReadiness",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "settingsOrBoundaries",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "stateLabel",
+        "count": 16,
+        "sharedSpreadCount": 0
+      },
+      {
+        "field": "mobileDesktop",
+        "count": 2,
+        "sharedSpreadCount": 15
+      },
+      {
+        "field": "noSecretBoundary",
+        "count": 3,
+        "sharedSpreadCount": 15
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client import marker",
+        "present": false
+      },
+      {
+        "label": "runtime env read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "filesystem import marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "route handler export marker",
+        "present": false
+      },
+      {
+        "label": "server action directive",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "label": "external registerable true marker",
+        "present": false
+      },
+      {
+        "label": "direct database access true marker",
+        "present": false
+      },
+      {
+        "label": "public output expansion true marker",
+        "present": false
+      },
+      {
+        "label": "database write true marker",
+        "present": false
+      },
+      {
+        "label": "schema changed true marker",
+        "present": false
+      }
+    ],
+    "docs": {
+      "acceptance": true,
+      "backlog": true,
+      "sprint": true,
+      "completedLog": true,
+      "tasks": true,
+      "research": true,
+      "interfaceSmoke": true
+    }
+  },
+  "safety": {
+    "readsEnv": false,
+    "readsDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "addsRouteHandler": false,
+    "addsServerAction": false,
+    "expandsPublicOutput": false,
+    "enablesAutonomousExecution": false,
+    "directDatabaseAccessByExternalAgents": false,
+    "externalRegisterable": false
+  },
+  "errors": [],
+  "warnings": []
+}

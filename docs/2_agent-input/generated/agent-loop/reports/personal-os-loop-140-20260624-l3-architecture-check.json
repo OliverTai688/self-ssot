@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T02:14:55.505Z",
+  "command": "pnpm l3:architecture:check",
+  "taskId": "L3-ARCH-001",
+  "status": "conditional_l3_architecture_gate_ready",
+  "conditionalProductMaturity": "C3_ARCHITECTURE_GATE_READY",
+  "formalLaunchLevelUnchanged": "L0_LOCAL_PROTOTYPE",
+  "prerequisiteConditionalProductMaturity": "C2_SCENARIO_ROUTES_READY",
+  "conditionalManualOpsLevel": "M1_MANUAL_OPS_READY",
+  "nextConditionalProductMaturityCandidate": "C-L3_CONDITIONAL_FULL_EXPERIENCE",
+  "nextConditionalProductMaturityBlockedBy": [
+    "OWNER-UI-REVIEW"
+  ],
+  "formalLaunchClaimsAllowed": false,
+  "formalLaunchClaimBlockers": [
+    "AUTH-005",
+    "WORK-009",
+    "WORK-007",
+    "DEPLOY-002"
+  ],
+  "architectureCoverage": {
+    "requiredGateCount": 12,
+    "requiredGateIds": [
+      "interface-viewframe",
+      "scenario-route-map",
+      "formal-launch-proof",
+      "manual-ops-handoff",
+      "bff-api-cli-boundary",
+      "auth-permission-boundary",
+      "persistence-boundary",
+      "audit-observability-boundary",
+      "agent-protocol-boundary",
+      "public-output-boundary",
+      "deployment-boundary",
+      "owner-review-boundary"
+    ],
+    "gatesBlockingConditionalC3": 0,
+    "gatesBlockingFormalLaunchClaim": 5,
+    "gatesBlockingConditionalFullExperience": 1
+  },
+  "checks": {
+    "requiredContractMarkers": [
+      {
+        "marker": "CONDITIONAL_L3_ARCHITECTURE_CLAIM_GATE",
+        "present": true
+      },
+      {
+        "marker": "CONDITIONAL_L3_ARCHITECTURE_CLAIM_GATE_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "CONDITIONAL_L3_REQUIRED_ARCHITECTURE_GATE_IDS",
+        "present": true
+      },
+      {
+        "marker": "L3-ARCH-001",
+        "present": true
+      },
+      {
+        "marker": "C3_ARCHITECTURE_GATE_READY",
+        "present": true
+      },
+      {
+        "marker": "C2_SCENARIO_ROUTES_READY",
+        "present": true
+      },
+      {
+        "marker": "C-L3_CONDITIONAL_FULL_EXPERIENCE",
+        "present": true
+      },
+      {
+        "marker": "L0_LOCAL_PROTOTYPE",
+        "present": true
+      },
+      {
+        "marker": "M1_MANUAL_OPS_READY",
+        "present": true
+      },
+      {
+        "marker": "AUTH-005",
+        "present": true
+      },
+      {
+        "marker": "WORK-009",
+        "present": true
+      },
+      {
+        "marker": "WORK-007",
+        "present": true
+      },
+      {
+        "marker": "DEPLOY-002",
+        "present": true
+      },
+      {
+        "marker": "OWNER-UI-REVIEW",
+        "present": true
+      },
+      {
+        "marker": "formalLaunchClaimsAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "formalLaunchLevelUnchanged",
+        "present": true
+      },
+      {
+        "marker": "formalLaunchLevelMutated: false",
+        "present": true
+      },
+      {
+        "marker": "blocksFormalLaunchClaim",
+        "present": true
+      },
+      {
+        "marker": "blocksConditionalC3",
+        "present": true
+      },
+      {
+        "marker": "blocksConditionalFullExperience",
+        "present": true
+      },
+      {
+        "marker": "ownerReviewRequiredBeforeConditionalFullExperience: true",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerAdded: false",
+        "present": true
+      },
+      {
+        "marker": "serverActionAdded: false",
+        "present": true
+      },
+      {
+        "marker": "schemaChanged: false",
+        "present": true
+      },
+      {
+        "marker": "readsDatabase: false",
+        "present": true
+      },
+      {
+        "marker": "writesDatabase: false",
+        "present": true
+      },
+      {
+        "marker": "providerCallAdded: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputExpanded: false",
+        "present": true
+      },
+      {
+        "marker": "highRiskFinalWriteEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "autonomousExecutionEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "directDatabaseAccessByExternalAgents: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      }
+    ],
+    "gateCoverage": [
+      {
+        "gateId": "interface-viewframe",
+        "present": true
+      },
+      {
+        "gateId": "scenario-route-map",
+        "present": true
+      },
+      {
+        "gateId": "formal-launch-proof",
+        "present": true
+      },
+      {
+        "gateId": "manual-ops-handoff",
+        "present": true
+      },
+      {
+        "gateId": "bff-api-cli-boundary",
+        "present": true
+      },
+      {
+        "gateId": "auth-permission-boundary",
+        "present": true
+      },
+      {
+        "gateId": "persistence-boundary",
+        "present": true
+      },
+      {
+        "gateId": "audit-observability-boundary",
+        "present": true
+      },
+      {
+        "gateId": "agent-protocol-boundary",
+        "present": true
+      },
+      {
+        "gateId": "public-output-boundary",
+        "present": true
+      },
+      {
+        "gateId": "deployment-boundary",
+        "present": true
+      },
+      {
+        "gateId": "owner-review-boundary",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client import marker",
+        "present": false
+      },
+      {
+        "label": "runtime env read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "filesystem import marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "route handler export marker",
+        "present": false
+      },
+      {
+        "label": "server action directive",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "label": "external registerable true marker",
+        "present": false
+      },
+      {
+        "label": "direct database access true marker",
+        "present": false
+      },
+      {
+        "label": "public output expansion true marker",
+        "present": false
+      },
+      {
+        "label": "database write true marker",
+        "present": false
+      },
+      {
+        "label": "schema changed true marker",
+        "present": false
+      },
+      {
+        "label": "formal launch mutation true marker",
+        "present": false
+      },
+      {
+        "label": "formal launch claims allowed true marker",
+        "present": false
+      }
+    ],
+    "docs": {
+      "acceptance": true,
+      "backlog": true,
+      "sprint": true,
+      "completedLog": true,
+      "tasks": true,
+      "loopState": true,
+      "strategy": true,
+      "research": true,
+      "interfaceContract": true,
+      "scenarioContract": true,
+      "manualOpsScript": true,
+      "backendOperationCatalog": true,
+      "moduleRealDataMatrix": true,
+      "operatingAuditStorageReview": true,
+      "agentOperationApi": true,
+      "agentTaskMessageBus": true,
+      "adminReadinessService": true
+    }
+  },
+  "safety": {
+    "readsEnv": false,
+    "readsDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "addsRouteHandler": false,
+    "addsServerAction": false,
+    "expandsPublicOutput": false,
+    "mutatesFormalLaunchLevel": false,
+    "enablesHighRiskFinalWrite": false,
+    "enablesAutonomousExecution": false,
+    "directDatabaseAccessByExternalAgents": false,
+    "externalRegisterable": false
+  },
+  "errors": [],
+  "warnings": []
+}

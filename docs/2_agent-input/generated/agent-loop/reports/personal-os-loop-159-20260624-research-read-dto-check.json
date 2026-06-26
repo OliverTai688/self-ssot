@@ -1,0 +1,1059 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-24T15:12:05.326Z",
+  "command": "pnpm research:read-dto:check",
+  "taskId": "RESEARCH-BFF-004-RESEARCH-OWNER-READ-DTO-MAPPER-EMPTY-STATE",
+  "serviceLoaderTaskId": "RESEARCH-BFF-006-RESEARCH-OWNER-READ-SERVICE-LOADER-SKELETON",
+  "authorizationTaskId": "RESEARCH-BFF-003-RESEARCH-OWNER-READ-DTO-AUTHZ-SKELETON",
+  "serviceSurfaceTaskId": "RESEARCH-BFF-002-RESEARCH-OWNER-READ-DTO-SERVICE-SURFACE",
+  "contractTaskId": "RESEARCH-BFF-001-RESEARCH-OWNER-SCOPED-READ-DTO-CONTRACT",
+  "status": "ready_for_owner_scoped_research_read_dto_mapper_empty_state_response",
+  "contract": {
+    "path": "src/lib/contracts/research-owner-read-dto.contract.ts",
+    "mode": "contract_only_no_runtime_db_read",
+    "readFamilyCount": 11,
+    "dtoNameCount": 11,
+    "futureBffPathPresent": true,
+    "ownerIdentityFromRequireUser": true,
+    "directThreadOnlyAccessBlocked": true,
+    "emptyStatesPresent": true,
+    "nandaProposalOnly": true
+  },
+  "serviceSurface": {
+    "path": "src/lib/services/research-owner-read-dto.service.ts",
+    "pagePath": "src/app/(dashboard)/research/readiness/page.tsx",
+    "hubPath": "src/app/(dashboard)/research/page.tsx",
+    "status": true,
+    "mode": true,
+    "serverOnly": true,
+    "consumesContract": true,
+    "ownerIdentityReserved": true,
+    "directRuntimeReadsBlocked": true,
+    "routeAndActionBlocked": true,
+    "publicExternalBlocked": true,
+    "readinessPageVisible": true,
+    "hubEntryVisible": true,
+    "readFamilyRowsVisible": true,
+    "emptyStateRowsVisible": true,
+    "authorizationRowsVisible": true
+  },
+  "authorizationSkeleton": {
+    "status": true,
+    "mode": true,
+    "ownerIdentityFromRequireUser": true,
+    "serviceAuthorizationRequiredBeforeAdapter": true,
+    "mapperRequiresAuthorizedRows": true,
+    "callerSuppliedOwnerIdRefused": true,
+    "directThreadIdAccessRefused": true,
+    "stageRowsVisible": true,
+    "permissionDecisionRowsVisible": true,
+    "runtimeReadsBlocked": true
+  },
+  "mapperResponse": {
+    "status": true,
+    "mode": true,
+    "taskVisible": true,
+    "mapperInputExplicit": true,
+    "mapperOutputUiSafe": true,
+    "noMockFallback": true,
+    "responseStatesPresent": true,
+    "responseRowsVisible": true,
+    "responseStateRowsVisible": true,
+    "protectedUiOnlyNoRouteResponse": true,
+    "runtimeReadsBlocked": true,
+    "routeAndWritesBlocked": true
+  },
+  "queryPlanLoader": {
+    "taskId": "RESEARCH-BFF-006-RESEARCH-OWNER-READ-SERVICE-LOADER-SKELETON",
+    "contractTaskId": "RESEARCH-BFF-005-RESEARCH-OWNER-READ-QUERY-PLAN-CONTRACT",
+    "status": true,
+    "mode": true,
+    "consumesQueryPlanContract": true,
+    "pageVisible": true,
+    "adapterExecutionBlocked": true,
+    "runtimeReadsBlocked": true
+  },
+  "sourceBoundaries": {
+    "requireUserPresent": true,
+    "projectServiceAuthzPatternPresent": true,
+    "modelContractRefsNextTask": true,
+    "formalReadinessPathPresent": true
+  },
+  "checks": {
+    "readFamilies": [
+      {
+        "family": "issues",
+        "present": true
+      },
+      {
+        "family": "sources",
+        "present": true
+      },
+      {
+        "family": "concepts",
+        "present": true
+      },
+      {
+        "family": "writing-projects",
+        "present": true
+      },
+      {
+        "family": "writing-sections",
+        "present": true
+      },
+      {
+        "family": "events",
+        "present": true
+      },
+      {
+        "family": "people",
+        "present": true
+      },
+      {
+        "family": "typed-links",
+        "present": true
+      },
+      {
+        "family": "graph-projections",
+        "present": true
+      },
+      {
+        "family": "readiness-evidence",
+        "present": true
+      },
+      {
+        "family": "agent-proposals",
+        "present": true
+      }
+    ],
+    "dtoNames": [
+      {
+        "dtoName": "ResearchIssueReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchSourceReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchConceptReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchWritingProjectReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchWritingSectionReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchEventReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchPersonReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchLinkReadDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchGraphProjectionDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchReadinessEvidenceDto",
+        "present": true
+      },
+      {
+        "dtoName": "ResearchAgentProposalReadDto",
+        "present": true
+      }
+    ],
+    "requiredMarkers": [
+      {
+        "marker": "RESEARCH_OWNER_READ_DTO_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_DTO_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_DTO_BFF_PATH",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_DTO_FAMILIES",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_AUTHORIZATION_INVARIANTS",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_EMPTY_STATES",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-001-RESEARCH-OWNER-SCOPED-READ-DTO-CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "contract_only_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "ready_for_owner_scoped_research_read_dto_contract_use",
+        "present": true
+      },
+      {
+        "marker": "protected_owner_research_read",
+        "present": true
+      },
+      {
+        "marker": "Server Component loader",
+        "present": true
+      },
+      {
+        "marker": "requireUser()",
+        "present": true
+      },
+      {
+        "marker": "Research service authorization",
+        "present": true
+      },
+      {
+        "marker": "Prisma or approved adapter",
+        "present": true
+      },
+      {
+        "marker": "owner-scoped read query",
+        "present": true
+      },
+      {
+        "marker": "mapper",
+        "present": true
+      },
+      {
+        "marker": "UI-safe DTO",
+        "present": true
+      },
+      {
+        "marker": "Client Component interaction",
+        "present": true
+      },
+      {
+        "marker": "owner profile id from requireUser(); no caller-supplied ownerId",
+        "present": true
+      },
+      {
+        "marker": "No source read may use direct threadId-only access without service ownership authorization.",
+        "present": true
+      },
+      {
+        "marker": "no caller-supplied ownerId",
+        "present": true
+      },
+      {
+        "marker": "no direct threadId-only access",
+        "present": true
+      },
+      {
+        "marker": "no raw model payload or private identifier passthrough",
+        "present": true
+      },
+      {
+        "marker": "empty-no-research-rows",
+        "present": true
+      },
+      {
+        "marker": "model-ready-read-unavailable",
+        "present": true
+      },
+      {
+        "marker": "partial-transitional-data",
+        "present": true
+      },
+      {
+        "marker": "formal-read-disabled",
+        "present": true
+      },
+      {
+        "marker": "proposal-only-agent-output",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbReadAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "schemaMigrationAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "migrationApplyAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "seedChangeAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "serverActionWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "connectorRuntimeAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "providerRuntimeAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalCollaborationAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalAgentDatabaseAccessAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "agentFinalWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      },
+      {
+        "marker": "hiddenMockToFormalClaimAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "launchLevelUpgradeClaimed: false",
+        "present": true
+      },
+      {
+        "marker": "protected_owner_visible_proposal_only",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-002-RESEARCH-OWNER-READ-DTO-SERVICE-SURFACE",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client import marker",
+        "present": false
+      },
+      {
+        "label": "database client import marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "database URL marker",
+        "present": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "route handler request marker",
+        "present": false
+      },
+      {
+        "label": "route handler response marker",
+        "present": false
+      },
+      {
+        "label": "server action marker",
+        "present": false
+      }
+    ],
+    "serviceRequiredMarkers": [
+      {
+        "marker": "server-only",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_DTO_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_DTO_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "buildResearchOwnerReadDtoSurface",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_DTO_SERVICE_SURFACE",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-002-RESEARCH-OWNER-READ-DTO-SERVICE-SURFACE",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-003-RESEARCH-OWNER-READ-DTO-AUTHZ-SKELETON",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-004-RESEARCH-OWNER-READ-DTO-MAPPER-EMPTY-STATE",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-006-RESEARCH-OWNER-READ-SERVICE-LOADER-SKELETON",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_QUERY_PLAN_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH_OWNER_READ_QUERY_PLAN_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "service_surface_skeleton_ready_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "owner_read_dto_authz_skeleton_ready_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "owner_read_dto_mapper_empty_state_skeleton_ready_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "owner_read_query_plan_service_loader_skeleton_ready_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "protected_surface_skeleton_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "require_user_shaped_service_authorization_skeleton",
+        "present": true
+      },
+      {
+        "marker": "mapper_empty_state_skeleton_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "query_plan_service_loader_skeleton_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "ownerIdentitySource: \"requireUser()\"",
+        "present": true
+      },
+      {
+        "marker": "runtimeRequireUserCallInThisSlice: false",
+        "present": true
+      },
+      {
+        "marker": "callerSuppliedOwnerIdAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "directThreadIdOnlyAccessAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "serviceAuthorizationRequiredBeforeAdapter: true",
+        "present": true
+      },
+      {
+        "marker": "mapperRequiresAuthorizedRows: true",
+        "present": true
+      },
+      {
+        "marker": "consumesQueryPlanContract: true",
+        "present": true
+      },
+      {
+        "marker": "selectedFieldBoundaryVisible: true",
+        "present": true
+      },
+      {
+        "marker": "rejectedUnsafePatternsVisible: true",
+        "present": true
+      },
+      {
+        "marker": "adapterExecutionAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "callerSuppliedOwnerIdDecision: \"refused\"",
+        "present": true
+      },
+      {
+        "marker": "directThreadIdAccessDecision: \"refused_without_owner_scope\"",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbReadEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "runtimeDbWriteEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "serverActionWriteEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "externalCollaborationEnabled: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      },
+      {
+        "marker": "launchLevelUpgradeClaimed: false",
+        "present": true
+      },
+      {
+        "marker": "readFamilyRows",
+        "present": true
+      },
+      {
+        "marker": "emptyStateRows",
+        "present": true
+      },
+      {
+        "marker": "authorizationRows",
+        "present": true
+      },
+      {
+        "marker": "authorizationSkeleton",
+        "present": true
+      },
+      {
+        "marker": "authorizationSkeletonRows",
+        "present": true
+      },
+      {
+        "marker": "permissionDecisionRows",
+        "present": true
+      },
+      {
+        "marker": "mapperResponseSkeleton",
+        "present": true
+      },
+      {
+        "marker": "mapperResponseRows",
+        "present": true
+      },
+      {
+        "marker": "responseStateRows",
+        "present": true
+      },
+      {
+        "marker": "queryPlanLoaderSkeleton",
+        "present": true
+      },
+      {
+        "marker": "queryPlanLoaderRows",
+        "present": true
+      },
+      {
+        "marker": "mapperInput: \"authorized_rows_or_explicit_unavailable_state\"",
+        "present": true
+      },
+      {
+        "marker": "mapperOutput: \"ui_safe_research_owner_read_response_dto\"",
+        "present": true
+      },
+      {
+        "marker": "emptyStateFallbackPolicy: \"explicit_state_only_no_mock_fallback\"",
+        "present": true
+      },
+      {
+        "marker": "formalMockFallbackAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "authorized_empty",
+        "present": true
+      },
+      {
+        "marker": "model_ready_unavailable",
+        "present": true
+      },
+      {
+        "marker": "partial_transitional_unavailable",
+        "present": true
+      },
+      {
+        "marker": "formal_read_disabled",
+        "present": true
+      },
+      {
+        "marker": "proposal_only",
+        "present": true
+      },
+      {
+        "marker": "protected_ui_state_only_no_route_response",
+        "present": true
+      },
+      {
+        "marker": "UI-safe DTO",
+        "present": true
+      },
+      {
+        "marker": "no caller-supplied ownerId",
+        "present": true
+      },
+      {
+        "marker": "no direct threadId-only access",
+        "present": true
+      },
+      {
+        "marker": "direct threadId-only read",
+        "present": true
+      },
+      {
+        "marker": "protected-owner visible proposal-only",
+        "present": true
+      }
+    ],
+    "readinessPageRequiredMarkers": [
+      {
+        "marker": "buildResearchOwnerReadDtoSurface",
+        "present": true
+      },
+      {
+        "marker": "Owner read DTO service skeleton",
+        "present": true
+      },
+      {
+        "marker": "Owner read authorization skeleton",
+        "present": true
+      },
+      {
+        "marker": "Owner read DTO mapper and empty-state response",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-002-RESEARCH-OWNER-READ-DTO-SERVICE-SURFACE",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-003-RESEARCH-OWNER-READ-DTO-AUTHZ-SKELETON",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-004-RESEARCH-OWNER-READ-DTO-MAPPER-EMPTY-STATE",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-005-RESEARCH-OWNER-READ-QUERY-PLAN-CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "RESEARCH-BFF-006-RESEARCH-OWNER-READ-SERVICE-LOADER-SKELETON",
+        "present": true
+      },
+      {
+        "marker": "UI-safe DTO boundary",
+        "present": true
+      },
+      {
+        "marker": "No runtime Research DB read",
+        "present": true
+      },
+      {
+        "marker": "no caller-supplied ownerId",
+        "present": true
+      },
+      {
+        "marker": "no direct threadId-only access",
+        "present": true
+      },
+      {
+        "marker": "requireUser()-shaped service authorization",
+        "present": true
+      },
+      {
+        "marker": "direct threadId access refusal",
+        "present": true
+      },
+      {
+        "marker": "serviceAuthorizationRequiredBeforeAdapter",
+        "present": true
+      },
+      {
+        "marker": "protected-owner visible proposal-only",
+        "present": true
+      },
+      {
+        "marker": "mapper_empty_state_skeleton_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "query_plan_service_loader_skeleton_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "ui_safe_research_owner_read_response_dto",
+        "present": true
+      },
+      {
+        "marker": "explicit_state_only_no_mock_fallback",
+        "present": true
+      },
+      {
+        "marker": "No mock fallback in formal owner-read responses",
+        "present": true
+      },
+      {
+        "marker": "Owner read query-plan service loader skeleton",
+        "present": true
+      },
+      {
+        "marker": "Adapter kind",
+        "present": true
+      },
+      {
+        "marker": "Owner-scope predicate",
+        "present": true
+      },
+      {
+        "marker": "Selected-field boundary",
+        "present": true
+      },
+      {
+        "marker": "Rejected unsafe patterns",
+        "present": true
+      },
+      {
+        "marker": "Next safe loader action",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.readFamilyRows",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.emptyStateRows",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.authorizationRows",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.authorizationSkeletonRows",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.permissionDecisionRows",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.mapperResponseRows",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.responseStateRows",
+        "present": true
+      },
+      {
+        "marker": "ownerReadSurface.queryPlanLoaderRows",
+        "present": true
+      }
+    ],
+    "hubRequiredMarkers": [
+      {
+        "marker": "href=\"/research/readiness\"",
+        "present": true
+      },
+      {
+        "marker": "Research formal readiness",
+        "present": true
+      },
+      {
+        "marker": "Owner read DTO skeleton",
+        "present": true
+      }
+    ],
+    "serviceForbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client import marker",
+        "present": false
+      },
+      {
+        "label": "database client import marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "database URL marker",
+        "present": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "route handler request marker",
+        "present": false
+      },
+      {
+        "label": "route handler response marker",
+        "present": false
+      },
+      {
+        "label": "server action marker",
+        "present": false
+      }
+    ],
+    "authorizationSkeletonMarkers": [
+      {
+        "marker": "owner_read_dto_authz_skeleton_ready_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "require_user_shaped_service_authorization_skeleton",
+        "present": true
+      },
+      {
+        "marker": "serviceAuthorizationRequiredBeforeAdapter: true",
+        "present": true
+      },
+      {
+        "marker": "mapperRequiresAuthorizedRows: true",
+        "present": true
+      },
+      {
+        "marker": "callerSuppliedOwnerIdDecision: \"refused\"",
+        "present": true
+      },
+      {
+        "marker": "directThreadIdAccessDecision: \"refused_without_owner_scope\"",
+        "present": true
+      },
+      {
+        "marker": "authorizationSkeletonRows",
+        "present": true
+      },
+      {
+        "marker": "permissionDecisionRows",
+        "present": true
+      }
+    ],
+    "mapperResponseMarkers": [
+      {
+        "marker": "RESEARCH-BFF-004-RESEARCH-OWNER-READ-DTO-MAPPER-EMPTY-STATE",
+        "present": true
+      },
+      {
+        "marker": "owner_read_dto_mapper_empty_state_skeleton_ready_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "mapper_empty_state_skeleton_no_runtime_db_read",
+        "present": true
+      },
+      {
+        "marker": "mapperInput: \"authorized_rows_or_explicit_unavailable_state\"",
+        "present": true
+      },
+      {
+        "marker": "mapperOutput: \"ui_safe_research_owner_read_response_dto\"",
+        "present": true
+      },
+      {
+        "marker": "emptyStateFallbackPolicy: \"explicit_state_only_no_mock_fallback\"",
+        "present": true
+      },
+      {
+        "marker": "formalMockFallbackAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "mapperResponseRows",
+        "present": true
+      },
+      {
+        "marker": "responseStateRows",
+        "present": true
+      }
+    ],
+    "forbiddenTrueMarkers": [
+      {
+        "marker": "runtimeDbReadAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "runtimeDbWriteAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "schemaMigrationAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "migrationApplyAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "seedChangeAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "routeHandlerAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "serverActionWriteAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "connectorRuntimeAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "providerRuntimeAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "publicOutputAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "externalCollaborationAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "externalAgentDatabaseAccessAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "agentFinalWriteAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "externalRegisterable: true",
+        "present": false
+      },
+      {
+        "marker": "hiddenMockToFormalClaimAllowed: true",
+        "present": false
+      },
+      {
+        "marker": "launchLevelUpgradeClaimed: true",
+        "present": false
+      }
+    ]
+  },
+  "docs": {
+    "dbs003": "docs/02_architecture-and-rules/DBS-003_research-db-model-decision.md",
+    "acc002": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlog": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "sprint": "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "tasks": "tasks.md",
+    "completedLog": "docs/06_audits-and-reports/RPT-007_completed-log.md"
+  },
+  "safety": {
+    "readsEnv": false,
+    "connectsToDatabase": false,
+    "readsDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "appliesMigration": false,
+    "changesSeedData": false,
+    "addsRouteHandler": false,
+    "addsServerActionWrite": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "expandsPublicOutput": false,
+    "enablesExternalCollaboration": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "enablesAgentFinalWrites": false,
+    "externalRegisterable": false,
+    "hiddenMockToFormalClaimAllowed": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "errors": []
+}

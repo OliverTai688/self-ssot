@@ -1,0 +1,539 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T13:38:49.087Z",
+  "command": "pnpm agent:command-center:check",
+  "taskId": "AGENT-015",
+  "status": "protected_owner_dry_run_proof_panel_ready",
+  "surface": {
+    "route": "/agents",
+    "page": "src/app/(dashboard)/agents/page.tsx",
+    "client": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+    "service": "src/lib/services/agent-command-center.service.ts",
+    "sourceCatalog": "src/lib/contracts/module-agent-command-catalog.contract.ts",
+    "sourceBus": "src/lib/contracts/agent-task-message-bus.contract.ts",
+    "operationCount": 10,
+    "groupCount": 4,
+    "modes": [
+      "single_agent",
+      "group_agent"
+    ]
+  },
+  "checks": {
+    "operations": [
+      {
+        "operationId": "work.proof.preflight",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "research.workspace.plan",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "ai-input.source-workflow.review",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "workflow.queue.plan",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "life.routine.propose",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "finance.review-draft",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "chamber.relationship.plan",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "company.strategy.review",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "client-portal.visibility.preflight",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      },
+      {
+        "operationId": "agent.ops.describe-contract",
+        "inCommandCenter": true,
+        "inCatalog": true,
+        "inBus": true
+      }
+    ],
+    "groups": [
+      {
+        "groupId": "launch-proof-squad",
+        "inCommandCenter": true
+      },
+      {
+        "groupId": "source-workflow-squad",
+        "inCommandCenter": true
+      },
+      {
+        "groupId": "high-risk-review-board",
+        "inCommandCenter": true
+      },
+      {
+        "groupId": "relationship-growth-cell",
+        "inCommandCenter": true
+      }
+    ],
+    "sidebarEntry": true,
+    "packageScript": true,
+    "requiredMarkers": {
+      "service": [
+        {
+          "marker": "import \"server-only\"",
+          "present": true
+        },
+        {
+          "marker": "buildOwnerAgentCommandCenterContract",
+          "present": true
+        },
+        {
+          "marker": "AGENT_TASK_MESSAGE_BUS_CONTRACT",
+          "present": true
+        },
+        {
+          "marker": "AGENT_BUS_OPERATION_BINDINGS",
+          "present": true
+        },
+        {
+          "marker": "AGENT_BUS_TASK_TEMPLATES",
+          "present": true
+        },
+        {
+          "marker": "MODULE_AGENT_COMMAND_CATALOG",
+          "present": true
+        },
+        {
+          "marker": "protected_owner_dry_run_proof_panel_ready",
+          "present": true
+        },
+        {
+          "marker": "proposalOnly: true",
+          "present": true
+        },
+        {
+          "marker": "protectedOwnerOnly: true",
+          "present": true
+        },
+        {
+          "marker": "protectedDryRunRouteAvailable: true",
+          "present": true
+        },
+        {
+          "marker": "dryRunProofPanelReady: true",
+          "present": true
+        },
+        {
+          "marker": "publicEndpointCreated: false",
+          "present": true
+        },
+        {
+          "marker": "routeHandlerCreated: false",
+          "present": true
+        },
+        {
+          "marker": "serverActionCreated: false",
+          "present": true
+        },
+        {
+          "marker": "databaseRead: false",
+          "present": true
+        },
+        {
+          "marker": "databaseWrite: false",
+          "present": true
+        },
+        {
+          "marker": "providerCall: false",
+          "present": true
+        },
+        {
+          "marker": "externalRuntimeEnabled: false",
+          "present": true
+        },
+        {
+          "marker": "externalRegistryWrite: false",
+          "present": true
+        },
+        {
+          "marker": "autonomousExecution: false",
+          "present": true
+        },
+        {
+          "marker": "highRiskFinalWrite: false",
+          "present": true
+        },
+        {
+          "marker": "externalAgentDatabaseAccess: false",
+          "present": true
+        },
+        {
+          "marker": "externalRegisterable: false",
+          "present": true
+        }
+      ],
+      "page": [
+        {
+          "marker": "dynamic = \"force-dynamic\"",
+          "present": true
+        },
+        {
+          "marker": "getCurrentUser",
+          "present": true
+        },
+        {
+          "marker": "role !== \"OWNER\"",
+          "present": true
+        },
+        {
+          "marker": "buildOwnerAgentCommandCenterContract",
+          "present": true
+        },
+        {
+          "marker": "AgentCommandCenterClient",
+          "present": true
+        },
+        {
+          "marker": "AI 指令中心",
+          "present": true
+        }
+      ],
+      "client": [
+        {
+          "marker": "\"use client\"",
+          "present": true
+        },
+        {
+          "marker": "Create proposal packet",
+          "present": true
+        },
+        {
+          "marker": "LocalProposalPacket",
+          "present": true
+        },
+        {
+          "marker": "proposal_ready",
+          "present": true
+        },
+        {
+          "marker": "proposal only",
+          "present": true
+        },
+        {
+          "marker": "write blocked",
+          "present": true
+        },
+        {
+          "marker": "external false",
+          "present": true
+        },
+        {
+          "marker": "No provider call, no DB write, no external runtime.",
+          "present": true
+        },
+        {
+          "marker": "Run protected dry-run",
+          "present": true
+        },
+        {
+          "marker": "Protected dry-run proof",
+          "present": true
+        },
+        {
+          "marker": "fetch(selectedCommand.httpDryRun.path",
+          "present": true
+        },
+        {
+          "marker": "clientRequestId",
+          "present": true
+        },
+        {
+          "marker": "agent-command-center-proof-panel",
+          "present": true
+        },
+        {
+          "marker": "selectedGroup",
+          "present": true
+        }
+      ]
+    },
+    "forbiddenRuntimeMarkers": [
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "server action marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "server action marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "server action marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "form action marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "form action marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "form action marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "external registration enabled marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "external registration enabled marker",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "external registration enabled marker",
+        "present": false
+      },
+      {
+        "path": "src/lib/services/agent-command-center.service.ts",
+        "label": "execute mode branch",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/page.tsx",
+        "label": "execute mode branch",
+        "present": false
+      },
+      {
+        "path": "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+        "label": "execute mode branch",
+        "present": false
+      }
+    ],
+    "clientFetchBoundary": {
+      "allowedFetchCount": 1,
+      "actualFetchCount": 1,
+      "requiredMarkers": [
+        {
+          "marker": "fetch(selectedCommand.httpDryRun.path",
+          "present": true
+        },
+        {
+          "marker": "method: \"POST\"",
+          "present": true
+        },
+        {
+          "marker": "credentials: \"same-origin\"",
+          "present": true
+        },
+        {
+          "marker": "cache: \"no-store\"",
+          "present": true
+        },
+        {
+          "marker": "\"Content-Type\": \"application/json\"",
+          "present": true
+        },
+        {
+          "marker": "operationId: selectedCommand.httpDryRun.operationId",
+          "present": true
+        },
+        {
+          "marker": "mode: selectedCommand.httpDryRun.mode",
+          "present": true
+        },
+        {
+          "marker": "targetModule: selectedCommand.httpDryRun.targetModule",
+          "present": true
+        },
+        {
+          "marker": "requestedChecks: [\"agent-command-center-proof-panel\", mode]",
+          "present": true
+        },
+        {
+          "marker": "clientRequestId",
+          "present": true
+        }
+      ],
+      "externalAbsoluteUrlPresent": false
+    }
+  },
+  "safety": {
+    "protectedOwnerOnly": true,
+    "proposalOnly": true,
+    "protectedDryRunRouteAvailable": true,
+    "dryRunProofPanelReady": true,
+    "publicEndpointCreated": false,
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "databaseRead": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "externalRuntimeEnabled": false,
+    "externalRegistryWrite": false,
+    "autonomousExecution": false,
+    "highRiskFinalWrite": false,
+    "persistedAuditNow": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "nextActions": [
+    "Run Loop 80 fifth-loop launch review, then choose AUTH-005 or WORK-009 if owner evidence is available.",
+    "Do not add live external agent runtime until AGENT-013 approval gates are satisfied.",
+    "Persist command threads only after audit storage, authorization, and owner approval rules are selected."
+  ],
+  "errors": []
+}

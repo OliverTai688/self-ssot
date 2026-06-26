@@ -1,0 +1,76 @@
+{
+  "status": "ready_for_research_owner_read_adapter_mock_harness_use",
+  "taskId": "RESEARCH-BFF-008-RESEARCH-OWNER-READ-ADAPTER-MOCK-HARNESS",
+  "nextRecommendedTask": "RESEARCH-BFF-009-RESEARCH-OWNER-READ-FIRST-RUNTIME-ADAPTER-SLICE",
+  "mode": "adapter_mock_harness_only_no_runtime_db_read",
+  "contractPath": "src/lib/contracts/research-owner-read-adapter-mock-harness.contract.ts",
+  "prerequisiteAuthzContractPath": "src/lib/contracts/research-owner-read-adapter-authz.contract.ts",
+  "prerequisiteQueryPlanContractPath": "src/lib/contracts/research-owner-read-query-plan.contract.ts",
+  "familyCount": 11,
+  "requiredFamilies": [
+    "issues",
+    "sources",
+    "concepts",
+    "writing-projects",
+    "writing-sections",
+    "events",
+    "people",
+    "typed-links",
+    "graph-projections",
+    "readiness-evidence",
+    "agent-proposals"
+  ],
+  "harness": {
+    "consumesBff007AuthzDecisions": true,
+    "requiresBff007AuthzDecision": true,
+    "fixtureOnlyAdapter": true,
+    "contractEligibleFamilies": [
+      "issues",
+      "sources",
+      "concepts",
+      "writing-projects",
+      "writing-sections"
+    ],
+    "nonExecutableFamilies": [
+      "events",
+      "people",
+      "typed-links",
+      "graph-projections",
+      "readiness-evidence",
+      "agent-proposals"
+    ],
+    "fixtureAdapterExercisedOutcome": "fixture_adapter_exercised_no_db",
+    "blockedOutcome": "blocked_no_adapter_execution",
+    "derivedOutcome": "derived_projection_no_adapter_execution",
+    "generatedOutcome": "generated_evidence_metadata_only",
+    "proposalOutcome": "proposal_only_no_final_write",
+    "realAdapterExecutionAllowed": false,
+    "runtimeDbReadEnabled": false
+  },
+  "safety": {
+    "mockOnlyAdapterHarness": true,
+    "realAdapterExecutionAllowed": false,
+    "runtimeAdapterExecutionAllowed": false,
+    "runtimeDbReadAllowed": false,
+    "runtimeDbWriteAllowed": false,
+    "schemaMigrationAllowed": false,
+    "migrationApplyAllowed": false,
+    "seedChangeAllowed": false,
+    "routeHandlerAllowed": false,
+    "serverActionWriteAllowed": false,
+    "publicOutputAllowed": false,
+    "externalCollaborationAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "agentFinalWriteAllowed": false,
+    "externalRegisterable": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "nandaBoundary": {
+    "affectedSurface": "Research agent proposals",
+    "protocolStatus": "protected_owner_visible_proposal_only",
+    "externalRegisterable": false,
+    "finalWritesRequireHumanApproval": true
+  },
+  "errors": [],
+  "warnings": []
+}

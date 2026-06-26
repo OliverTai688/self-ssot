@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T11:41:22.589Z",
+  "taskId": "WORK-013",
+  "mode": "source_static_smoke",
+  "status": "ready_for_source_path_review",
+  "doesNotConnectToDatabase": true,
+  "doesNotWriteDatabase": true,
+  "safety": {
+    "scannedLocalSourceOnly": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "database passwords",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies",
+      "raw provider payloads"
+    ]
+  },
+  "checkedFiles": {
+    "formalRuntimeFiles": [
+      "src/app/(dashboard)/work/page.tsx",
+      "src/app/(dashboard)/work/[projectId]/page.tsx",
+      "src/app/actions/work.ts",
+      "src/lib/services/project.service.ts",
+      "src/lib/mappers/work.mapper.ts"
+    ],
+    "workUiFiles": [
+      "src/app/(dashboard)/work/work-client.tsx",
+      "src/app/(dashboard)/work/[projectId]/project-detail-client.tsx",
+      "src/components/work/deliverable/add-deliverable-dialog.tsx",
+      "src/components/work/deliverable/deliverable-table.tsx",
+      "src/components/work/deliverable/deliverable-tree.tsx",
+      "src/components/work/note/add-note-dialog.tsx",
+      "src/components/work/note/note-item.tsx",
+      "src/components/work/note/note-timeline.tsx",
+      "src/components/work/project/add-project-dialog.tsx",
+      "src/components/work/project/project-card.tsx",
+      "src/components/work/project/project-filter-bar.tsx",
+      "src/components/work/project/project-focus-card.tsx",
+      "src/components/work/pulse/pulse-source-meta.tsx",
+      "src/components/work/share/share-link-button.tsx",
+      "src/components/work/task/task-item.tsx",
+      "src/components/work/task/task-list.tsx",
+      "src/components/work/task/task-sheet.tsx",
+      "src/components/work/timeline/project-timeline-section.tsx"
+    ],
+    "docs": [
+      "docs/08_acceptance-and-qa/ACC-004_work-refresh-proof-harness.md",
+      "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "tasks.md"
+    ]
+  },
+  "markers": [
+    {
+      "id": "file:listPage",
+      "label": "src/app/(dashboard)/work/page.tsx exists",
+      "file": "src/app/(dashboard)/work/page.tsx",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:detailPage",
+      "label": "src/app/(dashboard)/work/[projectId]/page.tsx exists",
+      "file": "src/app/(dashboard)/work/[projectId]/page.tsx",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:workClient",
+      "label": "src/app/(dashboard)/work/work-client.tsx exists",
+      "file": "src/app/(dashboard)/work/work-client.tsx",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:detailClient",
+      "label": "src/app/(dashboard)/work/[projectId]/project-detail-client.tsx exists",
+      "file": "src/app/(dashboard)/work/[projectId]/project-detail-client.tsx",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:actions",
+      "label": "src/app/actions/work.ts exists",
+      "file": "src/app/actions/work.ts",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:service",
+      "label": "src/lib/services/project.service.ts exists",
+      "file": "src/lib/services/project.service.ts",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:mapper",
+      "label": "src/lib/mappers/work.mapper.ts exists",
+      "file": "src/lib/mappers/work.mapper.ts",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:db",
+      "label": "src/lib/db.ts exists",
+      "file": "src/lib/db.ts",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:packageJson",
+      "label": "package.json exists",
+      "file": "package.json",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:acceptance",
+      "label": "docs/08_acceptance-and-qa/ACC-004_work-refresh-proof-harness.md exists",
+      "file": "docs/08_acceptance-and-qa/ACC-004_work-refresh-proof-harness.md",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:backlog",
+      "label": "docs/05_execution-plans/PLN-060_task-backlog.md exists",
+      "file": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:sprint",
+      "label": "docs/05_execution-plans/PLN-061_current-sprint.md exists",
+      "file": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:completedLog",
+      "label": "docs/06_audits-and-reports/RPT-007_completed-log.md exists",
+      "file": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "file:tasks",
+      "label": "tasks.md exists",
+      "file": "tasks.md",
+      "passed": true,
+      "evidence": "readable",
+      "required": true
+    },
+    {
+      "id": "work-list-page-server-action",
+      "label": "Work list page loads through getProjects server action",
+      "file": "src/app/(dashboard)/work/page.tsx",
+      "passed": true,
+      "evidence": "all required list-page markers present",
+      "required": true
+    },
+    {
+      "id": "work-detail-page-server-action",
+      "label": "Work detail page loads through getProjectById server action",
+      "file": "src/app/(dashboard)/work/[projectId]/page.tsx",
+      "passed": true,
+      "evidence": "all required detail-page markers present",
+      "required": true
+    },
+    {
+      "id": "work-actions-server-service-boundary",
+      "label": "Work actions are server-only, validated, and routed to project service",
+      "file": "src/app/actions/work.ts",
+      "passed": true,
+      "evidence": "all required action-boundary markers present",
+      "required": true
+    },
+    {
+      "id": "work-actions-require-user",
+      "label": "Canonical Work action functions call requireUser()",
+      "file": "src/app/actions/work.ts",
+      "passed": true,
+      "evidence": "17 canonical actions checked",
+      "required": true
+    },
+    {
+      "id": "work-service-db-backed",
+      "label": "Project service uses DB-backed project/task/note/deliverable models",
+      "file": "src/lib/services/project.service.ts",
+      "passed": true,
+      "evidence": "all required service DB markers present",
+      "required": true
+    },
+    {
+      "id": "work-service-project-owner-boundary",
+      "label": "Project service has owner-scoped project authorization",
+      "file": "src/lib/services/project.service.ts",
+      "passed": true,
+      "evidence": "owner-scoped project authorization markers present",
+      "required": true
+    },
+    {
+      "id": "work-service-project-scope-before-writes",
+      "label": "Project-scoped service operations assert access before project data writes/reads",
+      "file": "src/lib/services/project.service.ts",
+      "passed": true,
+      "evidence": "6 project-scoped service functions checked",
+      "required": true
+    },
+    {
+      "id": "work-service-child-row-owner-boundary",
+      "label": "Task/note/deliverable helper lookups verify project ownership",
+      "file": "src/lib/services/project.service.ts",
+      "passed": true,
+      "evidence": "3 child-row helper boundaries checked",
+      "required": true
+    },
+    {
+      "id": "work-mapper-db-viewmodel-boundary",
+      "label": "Work mapper keeps Prisma models separate from UI view models",
+      "file": "src/lib/mappers/work.mapper.ts",
+      "passed": true,
+      "evidence": "mapper markers present",
+      "required": true
+    },
+    {
+      "id": "work-formal-runtime-no-mock-source",
+      "label": "Formal Work runtime source does not import Work mock data",
+      "file": "src/app/(dashboard)/work/page.tsx, src/app/(dashboard)/work/[projectId]/page.tsx, src/app/actions/work.ts, src/lib/services/project.service.ts, src/lib/mappers/work.mapper.ts",
+      "passed": true,
+      "evidence": "5 formal runtime files checked",
+      "required": true
+    },
+    {
+      "id": "work-ui-no-db-or-mock-source-imports",
+      "label": "Work UI source avoids DB/client provider imports and Work mock-data imports",
+      "file": "src/app/(dashboard)/work/work-client.tsx, src/app/(dashboard)/work/[projectId]/project-detail-client.tsx, src/components/work",
+      "passed": true,
+      "evidence": "18 Work UI files checked",
+      "required": true
+    },
+    {
+      "id": "package-script-present",
+      "label": "package.json exposes pnpm work:source:check",
+      "file": "package.json",
+      "passed": true,
+      "evidence": "package script present",
+      "required": true
+    },
+    {
+      "id": "docs-task-memory-present",
+      "label": "Work source smoke is recorded in acceptance and task memory",
+      "file": "docs/08_acceptance-and-qa/ACC-004_work-refresh-proof-harness.md, docs/05_execution-plans/PLN-060_task-backlog.md, docs/05_execution-plans/PLN-061_current-sprint.md, docs/06_audits-and-reports/RPT-007_completed-log.md, tasks.md",
+      "passed": true,
+      "evidence": "docs/task memory markers present",
+      "required": true
+    }
+  ],
+  "failures": [],
+  "warnings": [
+    "Work detail page still reads AI pulse/timeline mock adapter data; WORK-013 treats this as adjunct AI prototype data, not formal Work CRUD source."
+  ],
+  "nextActions": [
+    "Keep WORK-013 as source regression proof only.",
+    "Run AUTH-005 when Supabase public env plus signed-in /auth/status evidence is available.",
+    "Run WORK-009 only after a local/disposable proof target and write confirmations are ready."
+  ]
+}

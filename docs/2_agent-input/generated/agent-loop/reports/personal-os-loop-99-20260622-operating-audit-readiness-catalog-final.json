@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T14:31:34.235Z",
+  "command": "pnpm audit:readiness:check",
+  "taskId": "AUDIT-OPS-002",
+  "status": "ready_for_operating_audit_readiness_mapping",
+  "contract": {
+    "path": "src/lib/contracts/operating-audit-readiness-catalog.contract.ts",
+    "operationCount": 23,
+    "eventFamilyCount": 7,
+    "requiredBackendOperationCount": 13,
+    "requiredModuleAgentCommandCount": 10,
+    "runtimeAuditStorageImplemented": false,
+    "schemaMigrationImplemented": false,
+    "routeHandlerAdded": false,
+    "serverActionAdded": false,
+    "databaseWriteAdded": false,
+    "publicOutputAdded": false,
+    "externalRegistrationEnabled": false,
+    "directDatabaseAccessByExternalAgents": false
+  },
+  "checks": {
+    "requiredMarkers": 21,
+    "requiredOperationIds": [
+      "launch.proof",
+      "auth.session-proof",
+      "work.target-readiness",
+      "work.docker-disposable",
+      "work.server-actions",
+      "work.source-smoke",
+      "client.portal.gated-loader",
+      "agent.operations.dry-run-api",
+      "module.resource-index-check",
+      "module.realdata-check",
+      "launch.operator-actions-check",
+      "backend.operation-catalog-check",
+      "agent.external-registration-approval",
+      "work.proof.preflight",
+      "research.workspace.plan",
+      "ai-input.source-workflow.review",
+      "workflow.queue.plan",
+      "life.routine.propose",
+      "finance.review-draft",
+      "chamber.relationship.plan",
+      "company.strategy.review",
+      "client-portal.visibility.preflight",
+      "agent.ops.describe-contract"
+    ],
+    "requiredEventFamilies": [
+      "auth.session",
+      "work.mutation",
+      "ai-input.source-workflow",
+      "agent.operation",
+      "client-portal.public-access",
+      "high-risk.proposal",
+      "admin.operator"
+    ],
+    "supportSourcesChecked": [
+      "auditEventContract",
+      "backendOperationCatalog",
+      "moduleAgentCommandCatalog",
+      "architectureDoc",
+      "nandaDoc",
+      "acceptanceDoc",
+      "backlogDoc",
+      "sprintDoc",
+      "completedLog",
+      "tasksDoc"
+    ],
+    "packageScriptChecked": true,
+    "docsChecked": true,
+    "noSecretScan": true,
+    "noRuntimeImportScan": true,
+    "noRouteOrServerActionScan": true,
+    "noExternalRegistrationScan": true
+  },
+  "safety": {
+    "printsSecrets": false,
+    "readsRuntimeEnv": false,
+    "connectsToDatabase": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "addsRouteHandler": false,
+    "addsServerAction": false,
+    "addsPublicOutput": false,
+    "mutatesProvider": false,
+    "externalRegistryWrite": false,
+    "directDatabaseAccessByExternalAgents": false,
+    "persistedAuditRowsCreated": false
+  },
+  "errors": [],
+  "warnings": [
+    {
+      "code": "CRITICAL_ROWS_REQUIRE_MANUAL_REVIEW_CHECK",
+      "message": "Critical rows are present; checker relies on row-level human approval markers and static review.",
+      "path": "src/lib/contracts/operating-audit-readiness-catalog.contract.ts"
+    }
+  ],
+  "nextAction": "Use this mapping to scope the next persisted audit/storage task; do not write audit rows until schema, auth, retention, and proof target approvals exist."
+}

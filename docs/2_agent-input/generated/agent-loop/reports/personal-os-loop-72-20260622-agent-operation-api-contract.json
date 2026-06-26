@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T03:17:40.822Z",
+  "command": "pnpm agent:api:check",
+  "taskId": "AGENT-009",
+  "status": "ready_for_contract_only_use",
+  "contract": {
+    "path": "src/lib/contracts/agent-operation-api.contract.ts",
+    "futureRoutePath": "src/app/api/agent-operations/dry-run/route.ts",
+    "routeHandlerImplemented": false,
+    "routeHandlerExpectedNow": false,
+    "endpointPath": "/api/agent-operations/dry-run",
+    "method": "POST",
+    "operationCount": 2,
+    "allowedMode": "dry_run",
+    "protectedOwnerOnly": true,
+    "routeBlockedByAuthProof": true
+  },
+  "checks": {
+    "requiredMarkers": [
+      {
+        "marker": "AGENT_OPERATION_API_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "AGENT_OPERATION_API_OPERATIONS",
+        "present": true
+      },
+      {
+        "marker": "AGENT_OPERATION_API_CONTRACT_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "contract_only_until_auth_proof",
+        "present": true
+      },
+      {
+        "marker": "/api/agent-operations/dry-run",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerImplemented: false",
+        "present": true
+      },
+      {
+        "marker": "requireUser()",
+        "present": true
+      },
+      {
+        "marker": "private_no_store",
+        "present": true
+      },
+      {
+        "marker": "AUTH-005",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      },
+      {
+        "marker": "publicEndpointCreated: false",
+        "present": true
+      },
+      {
+        "marker": "databaseWrite: false",
+        "present": true
+      },
+      {
+        "marker": "providerCall: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegistryWrite: false",
+        "present": true
+      }
+    ],
+    "operationParity": [
+      {
+        "operationId": "agent.ops.describe-contract",
+        "inApiContract": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "work.proof.preflight",
+        "inApiContract": true,
+        "inCliDryRun": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged Supabase env marker",
+        "present": false
+      }
+    ],
+    "referencedDocs": {
+      "arc029": true,
+      "res004": true,
+      "acceptance": true,
+      "backlog": true
+    }
+  },
+  "safety": {
+    "routeHandlerCreated": false,
+    "publicEndpointCreated": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "externalRegistryWrite": false,
+    "externalRegisterable": false,
+    "autonomousExecution": false,
+    "externalAgentDatabaseAccess": false,
+    "highRiskFinalWrite": false,
+    "reason": "AUTH-005 and real owner session proof are still blocked, so AGENT-009 only proves the API/BFF contract shape and CLI parity."
+  },
+  "nextActions": [
+    "Keep the future route disabled until AUTH-005 or explicit mock-owner approval exists.",
+    "When enabled, implement POST /api/agent-operations/dry-run with requireUser(), owner/admin authorization, JSON validation, generated registry lookup, no-store response, and no writes.",
+    "Run pnpm agent:api:check after editing the operation catalog or future route contract."
+  ],
+  "errors": []
+}

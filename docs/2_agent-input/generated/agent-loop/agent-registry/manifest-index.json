@@ -1,0 +1,37 @@
+{
+  "schema": "personal-os-agentfacts-lite-index",
+  "version": 1,
+  "generatedAt": "2026-06-21T02:30:58+08:00",
+  "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+  "manifestFile": "docs/2_agent-input/generated/agent-loop/agent-registry/internal-agent-manifests.agentfacts-lite.json",
+  "coverage": {
+    "sourceAgentCount": 15,
+    "manifestCount": 15,
+    "missingAgents": []
+  },
+  "registryState": {
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "runtimeEndpoint": null,
+    "publicDirectory": false
+  },
+  "agents": [
+    "ProductManagerAgent",
+    "DBAgent",
+    "WorkAgent",
+    "ResearchAgent",
+    "IngestionAgent",
+    "WorkflowAgent",
+    "UIUXAgent",
+    "AuthPermissionAgent",
+    "ClientPortalAgent",
+    "LifeAgent",
+    "FinanceAgent",
+    "CompanyAgent",
+    "ChamberAgent",
+    "QAAgent",
+    "DevOpsAgent"
+  ],
+  "nextValidationTask": "AGENT-006"
+}

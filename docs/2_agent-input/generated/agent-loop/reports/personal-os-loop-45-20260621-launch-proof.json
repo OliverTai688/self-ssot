@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-21T01:41:02.285Z",
+  "sourceCommand": "pnpm launch:check --json",
+  "secretPolicy": {
+    "printsSecrets": false,
+    "excludedValues": [
+      "Supabase URLs",
+      "Supabase publishable or anon keys",
+      "database URLs",
+      "database hosts",
+      "cookies",
+      "tokens",
+      "raw auth claims",
+      "profile IDs"
+    ]
+  },
+  "readiness": {
+    "generatedAt": "2026-06-21T01:41:02.280Z",
+    "overallStatus": "blocked",
+    "checks": {
+      "supabasePublicUrlPresent": false,
+      "supabasePublishableOrAnonKeyPresent": false,
+      "databaseUrlPresent": true,
+      "databaseUrlParseable": true,
+      "migrationDatabaseUrlPresent": true,
+      "migrationDatabaseUrlParseable": true,
+      "databaseHostPresent": true,
+      "databaseHostDnsChecked": true,
+      "databaseHostResolves": true,
+      "databaseHostError": null,
+      "requestedAuthMode": "supabase",
+      "effectiveAuthMode": "supabase",
+      "deploymentMarkerPresent": false
+    },
+    "rows": [
+      {
+        "status": "blocked",
+        "label": "Supabase public URL",
+        "signal": "NEXT_PUBLIC_SUPABASE_URL is missing.",
+        "nextAction": "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment."
+      },
+      {
+        "status": "blocked",
+        "label": "Supabase publishable key",
+        "signal": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing.",
+        "nextAction": "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects."
+      },
+      {
+        "status": "ready",
+        "label": "Runtime database URL",
+        "signal": "DATABASE_URL is present and parseable.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Migration database URL",
+        "signal": "DIRECT_DATABASE_URL or DATABASE_URL is present and parseable.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Database host DNS",
+        "signal": "The selected database host resolves.",
+        "nextAction": "No action."
+      },
+      {
+        "status": "ready",
+        "label": "Auth runtime mode",
+        "signal": "Requested auth mode is supabase; effective mode is supabase.",
+        "nextAction": "Use /auth/status after signing in to prove Supabase session to Profile mapping."
+      },
+      {
+        "status": "warn",
+        "label": "Deployment marker",
+        "signal": "VERCEL_ENV is missing in this local check.",
+        "nextAction": "For deployed proof, run this check in the launch environment as well."
+      }
+    ],
+    "nextActions": [
+      "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment.",
+      "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects.",
+      "For deployed proof, run this check in the launch environment as well."
+    ]
+  },
+  "proofSummary": {
+    "overallStatus": "blocked",
+    "blockedLabels": [
+      "Supabase public URL",
+      "Supabase publishable key"
+    ],
+    "warnLabels": [
+      "Deployment marker"
+    ],
+    "canRunAuth005": false,
+    "canRunWork007": true,
+    "canClaimL1": false,
+    "expectedStrictExitCode": 1,
+    "loop20ReviewInput": "Review should keep launch level below L1 and prioritize remaining blocked labels."
+  },
+  "nextActions": [
+    "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment.",
+    "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects.",
+    "For deployed proof, run this check in the launch environment as well."
+  ]
+}

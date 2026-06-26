@@ -1,0 +1,111 @@
+{
+  "id": "WORK-014-LATEST-PROOF-EVIDENCE-RESOLVER",
+  "status": "ready_for_work_proof_evidence_resolver",
+  "generatedAt": "2026-06-23T11:01:18.193Z",
+  "mode": "static_no_secret_contract_check",
+  "evidence": {
+    "allowedDirectories": [
+      "docs/2_agent-input/generated/agent-loop/reports",
+      "docs/2_agent-input/generated/agent-loop/work-refresh-proof"
+    ],
+    "allowedPatternCount": 8,
+    "packetCount": 113,
+    "latest": {
+      "overall": {
+        "family": "target-readiness",
+        "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-132-20260623-work-proof-target-readiness.json",
+        "status": "needs_operator_input",
+        "taskId": "WORK-010",
+        "modifiedAt": "2026-06-23T10:54:40.548Z",
+        "modifiedMs": 1782212080547.557,
+        "canRunWork009": false,
+        "canRunDockerProof": false,
+        "canRunLocalProof": false
+      },
+      "targetReadiness": {
+        "family": "target-readiness",
+        "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-132-20260623-work-proof-target-readiness.json",
+        "status": "needs_operator_input",
+        "taskId": "WORK-010",
+        "modifiedAt": "2026-06-23T10:54:40.548Z",
+        "modifiedMs": 1782212080547.557,
+        "canRunWork009": false,
+        "canRunDockerProof": false,
+        "canRunLocalProof": false
+      },
+      "dockerDisposable": {
+        "family": "docker-disposable",
+        "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-128-20260623-work-proof-docker-disposable.json",
+        "status": "docker_daemon_unavailable",
+        "taskId": "WORK-012",
+        "modifiedAt": "2026-06-23T09:33:13.653Z",
+        "modifiedMs": 1782207193652.6572,
+        "canRunWork009": false,
+        "canRunDockerProof": false,
+        "canRunLocalProof": false
+      },
+      "localDisposable": {
+        "family": "local-disposable",
+        "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-128-20260623-work-proof-local-disposable.json",
+        "status": "needs_local_target",
+        "taskId": "WORK-011",
+        "modifiedAt": "2026-06-23T09:33:12.462Z",
+        "modifiedMs": 1782207192462.2393,
+        "canRunWork009": false,
+        "canRunDockerProof": false,
+        "canRunLocalProof": false
+      },
+      "workProofRun": {
+        "family": "work-proof-run",
+        "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-81-20260622-work-proof-dry-run.json",
+        "status": "ready_for_review",
+        "taskId": "unknown_task",
+        "modifiedAt": "2026-06-22T06:45:17.303Z",
+        "modifiedMs": 1782110717303.3591,
+        "canRunWork009": false,
+        "canRunDockerProof": false,
+        "canRunLocalProof": false
+      },
+      "sourceSmoke": {
+        "family": "source-smoke",
+        "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-128-20260623-work-source-check.json",
+        "status": "ready_for_source_path_review",
+        "taskId": "WORK-013",
+        "modifiedAt": "2026-06-23T09:35:10.261Z",
+        "modifiedMs": 1782207310260.6877,
+        "canRunWork009": false,
+        "canRunDockerProof": false,
+        "canRunLocalProof": false
+      },
+      "latestAgeMinutes": 7,
+      "freshness": "fresh"
+    }
+  },
+  "adminOps003": {
+    "id": "ADMIN-OPS-003-WORK-PROOF-EVIDENCE-SURFACE",
+    "status": "protected_admin_settings_surface_ready",
+    "validatesAdminReadinessService": true,
+    "validatesAdminPage": true,
+    "validatesSettingsPage": true,
+    "rendersRawPacketBody": false,
+    "uiExecutesCommands": false,
+    "databaseConnectionAllowedBySurface": false,
+    "databaseWriteAllowedBySurface": false,
+    "launchLevelUpgradeClaimed": false,
+    "work009Claimed": false
+  },
+  "safety": {
+    "scansWhitelistedDirectoriesOnly": true,
+    "returnsRawPacketBody": false,
+    "executesCommands": false,
+    "databaseConnectionAllowed": false,
+    "databaseWriteAllowed": false,
+    "migrationApplyAllowed": false,
+    "publicOutputAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "printsSecrets": false,
+    "launchLevelUpgradeAllowed": false,
+    "work009ClaimAllowed": false
+  },
+  "errors": []
+}

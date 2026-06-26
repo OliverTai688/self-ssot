@@ -1,0 +1,50 @@
+{
+  "id": "DATTR-024P-SOURCE-WORKFLOW-LATEST-PROOF-EVIDENCE-RESOLVER",
+  "status": "latest_proof_evidence_resolver_ready",
+  "checkedAt": "2026-06-23T10:14:01.505Z",
+  "evidence": {
+    "latestBootstrapPacket": {
+      "family": "bootstrap",
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-121-20260623-ai-input-source-workflow-local-proof-bootstrap.json",
+      "status": "needs_operator_input",
+      "taskId": "DATTR-024N-SOURCE-WORKFLOW-LOCAL-PROOF-BOOTSTRAP",
+      "modifiedAt": "2026-06-23T07:16:47.539Z",
+      "modifiedMs": 1782199007539.44
+    },
+    "latestCheckerPacket": {
+      "family": "bootstrap-check",
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-126-20260623-ai-input-source-workflow-proof-local-check.json",
+      "status": "ready_for_owner_run_source_workflow_proof_bootstrap",
+      "taskId": "DATTR-024N-SOURCE-WORKFLOW-LOCAL-PROOF-BOOTSTRAP",
+      "modifiedAt": "2026-06-23T08:58:52.583Z",
+      "modifiedMs": 1782205132583.1003
+    },
+    "latestRunnerPacket": null,
+    "candidateCount": 7,
+    "allowedDirectories": [
+      "docs/2_agent-input/generated/agent-loop/reports",
+      "docs/2_agent-input/generated/agent-loop/ai-input-source-workflow-proof"
+    ],
+    "allowedFamilies": [
+      "bootstrap",
+      "bootstrap-check",
+      "ops-surface-check",
+      "proof-runner"
+    ]
+  },
+  "safetyGuards": {
+    "scansWhitelistedDirectoriesOnly": true,
+    "returnsRawPacketBody": false,
+    "executesCommands": false,
+    "databaseConnectionAllowed": false,
+    "databaseWriteAllowed": false,
+    "migrationApplyAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "providerApiRuntimeAllowed": false,
+    "publicOutputAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  },
+  "nextTask": "LOOP-125",
+  "errors": []
+}

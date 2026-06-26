@@ -1,0 +1,61 @@
+{
+  "id": "DATTR-024H-MIGRATION-DRAFT",
+  "status": "ready_for_migration_draft_review",
+  "checkedAt": "2026-06-23T03:08:07.508Z",
+  "nextRunnableSlice": "DATTR-024I-PROOF-RUNNER",
+  "safetyGuards": {
+    "migrationDraftCreated": true,
+    "draftOutsidePrismaMigrations": true,
+    "migrationApplyAllowed": false,
+    "runtimeReadAllowed": false,
+    "runtimeWriteAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "providerDataAllowed": false,
+    "publicOutputAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  },
+  "evidence": {
+    "prisma": {
+      "path": "prisma/schema.prisma",
+      "models": [
+        "SourceConnection",
+        "SourceAsset",
+        "AIWorkflowRun",
+        "AIWorkItem",
+        "SourceNamingProfile",
+        "DataUnitProposal",
+        "ModuleWriteIntent"
+      ],
+      "enums": [
+        "SourceProvider",
+        "SourceConnectionStatus",
+        "SourceAssetKind",
+        "SourceAssetStatus",
+        "AIWorkflowRunStatus",
+        "AIWorkItemKind",
+        "AIWorkItemStatus",
+        "SourceProposalStatus",
+        "ModuleWriteIntentStatus",
+        "SourceApprovalLevel",
+        "SourceRetentionClass"
+      ]
+    },
+    "sql": {
+      "path": "prisma/migration-drafts/20260623_dattr_024h_source_workflow_create_only/migration.sql",
+      "tables": [
+        "source_connections",
+        "source_assets",
+        "ai_workflow_runs",
+        "ai_work_items",
+        "source_naming_profiles",
+        "data_unit_proposals",
+        "module_write_intents"
+      ],
+      "failClosedRlsTables": 7
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T04:40:47.444Z",
+  "command": "pnpm agent:bus:check",
+  "taskId": "AGENT-011",
+  "status": "ready_for_internal_agent_bus_contract_use",
+  "contract": {
+    "path": "src/lib/contracts/agent-task-message-bus.contract.ts",
+    "sourceArchitecture": "docs/02_architecture-and-rules/ARC-032_internal-multi-agent-task-message-bus-contract.md",
+    "operationCount": 10,
+    "lifecycleStateCount": 9,
+    "participantKindPolicyCount": 5,
+    "manifestLabelCount": 15,
+    "highRiskOperationCount": 5,
+    "externalRuntimeEnabled": false,
+    "externalRegisterable": false
+  },
+  "checks": {
+    "lifecycleStates": [
+      {
+        "state": "draft",
+        "present": true
+      },
+      {
+        "state": "submitted",
+        "present": true
+      },
+      {
+        "state": "working",
+        "present": true
+      },
+      {
+        "state": "input_required",
+        "present": true
+      },
+      {
+        "state": "proposal_ready",
+        "present": true
+      },
+      {
+        "state": "approved_for_manual_action",
+        "present": true
+      },
+      {
+        "state": "rejected",
+        "present": true
+      },
+      {
+        "state": "blocked",
+        "present": true
+      },
+      {
+        "state": "completed_no_write",
+        "present": true
+      }
+    ],
+    "participantKindPolicies": [
+      {
+        "participantKind": "owner",
+        "present": true
+      },
+      {
+        "participantKind": "internal_agent",
+        "present": true
+      },
+      {
+        "participantKind": "system",
+        "present": true
+      },
+      {
+        "participantKind": "external_agent_placeholder",
+        "present": true
+      },
+      {
+        "participantKind": "external_agent_runtime",
+        "present": true
+      }
+    ],
+    "operationIds": [
+      {
+        "operationId": "work.proof.preflight",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "research.workspace.plan",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "ai-input.source-workflow.review",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "workflow.queue.plan",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "life.routine.propose",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "finance.review-draft",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "chamber.relationship.plan",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "company.strategy.review",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "client-portal.visibility.preflight",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      },
+      {
+        "operationId": "agent.ops.describe-contract",
+        "inBusContract": true,
+        "inCommandCatalog": true
+      }
+    ],
+    "generatedAgentFactsLabels": [
+      {
+        "label": "ProductManagerAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "DBAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "WorkAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "ResearchAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "IngestionAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "WorkflowAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "UIUXAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "AuthPermissionAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "ClientPortalAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "LifeAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "FinanceAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "CompanyAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "ChamberAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "QAAgent",
+        "inBusContract": true
+      },
+      {
+        "label": "DevOpsAgent",
+        "inBusContract": true
+      }
+    ],
+    "highRiskOperationPolicies": [
+      {
+        "operationId": "ai-input.source-workflow.review",
+        "inBusContract": true,
+        "policyWriteBlocked": true,
+        "policyApprovalRequired": true
+      },
+      {
+        "operationId": "life.routine.propose",
+        "inBusContract": true,
+        "policyWriteBlocked": true,
+        "policyApprovalRequired": true
+      },
+      {
+        "operationId": "finance.review-draft",
+        "inBusContract": true,
+        "policyWriteBlocked": true,
+        "policyApprovalRequired": true
+      },
+      {
+        "operationId": "company.strategy.review",
+        "inBusContract": true,
+        "policyWriteBlocked": true,
+        "policyApprovalRequired": true
+      },
+      {
+        "operationId": "client-portal.visibility.preflight",
+        "inBusContract": true,
+        "policyWriteBlocked": true,
+        "policyApprovalRequired": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged Supabase env marker",
+        "present": false
+      },
+      {
+        "label": "external registration enabled marker",
+        "present": false
+      },
+      {
+        "label": "execute mode branch",
+        "present": false
+      }
+    ],
+    "referencedDocs": {
+      "arc028": true,
+      "arc032": true,
+      "dbs006": true,
+      "res004": true,
+      "acceptance": true,
+      "backlog": true
+    }
+  },
+  "safety": {
+    "publicEndpointCreated": false,
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "databaseRead": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "externalRuntimeEnabled": false,
+    "externalRegistryWrite": false,
+    "externalRegisterable": false,
+    "autonomousExecution": false,
+    "highRiskFinalWrite": false,
+    "persistedAuditNow": false,
+    "externalAgentDatabaseAccess": false
+  },
+  "nextActions": [
+    "Use AGENT-012 to build the protected owner AI command center only after this checker passes.",
+    "Keep AGENT-013 external adapter work disabled until auth/session, endpoint scopes, trust, deployment proof, rollback, public-safety review, and human approval exist.",
+    "Do not persist bus rows until schema, service authorization, audit storage, and proof target approvals are complete."
+  ],
+  "errors": []
+}

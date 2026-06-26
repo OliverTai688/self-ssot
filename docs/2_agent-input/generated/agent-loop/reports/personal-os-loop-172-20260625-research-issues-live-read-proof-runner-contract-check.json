@@ -1,0 +1,20 @@
+{
+  "status": "ready_for_issues_live_read_proof_runner_contract",
+  "taskId": "RESEARCH-BFF-014-RESEARCH-OWNER-READ-ISSUES-LIVE-READ-PROOF-RUNNER-CONTRACT",
+  "previousTaskId": "RESEARCH-BFF-013-RESEARCH-OWNER-READ-ISSUES-SELECTED-FIELD-RUNTIME-ADAPTER-PROOF",
+  "ownerRunCommand": "pnpm research:read-issues-live-read-proof-runner:check",
+  "dryRunOnly": true,
+  "liveReadExecutionAllowed": false,
+  "proofTargetReady": false,
+  "ownerRunReady": false,
+  "nextRecommendedTask": "LOOP-170-LAUNCH-LEVEL-REVIEW",
+  "docs": [
+    "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "tasks.md",
+    "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "package.json"
+  ],
+  "failures": []
+}

@@ -1,0 +1,20 @@
+{
+  "status": "ready_for_connector_runtime_approval_review",
+  "taskId": "DATTR-024L-CONNECTOR-RUNTIME",
+  "mode": "connector_runtime_approval_only_no_activation",
+  "gateCount": 12,
+  "providerFamilyCount": 10,
+  "runtimeApprovalSelected": false,
+  "connectorRuntimeAllowed": false,
+  "oauthRuntimeAllowed": false,
+  "webhookRuntimeAllowed": false,
+  "pollingRuntimeAllowed": false,
+  "providerApiRuntimeAllowed": false,
+  "secretWriteAllowed": false,
+  "databaseReadAllowed": false,
+  "databaseWriteAllowed": false,
+  "externalRegisterable": false,
+  "nextTask": "AIINPUT-OPS-003",
+  "warnings": [],
+  "errors": []
+}

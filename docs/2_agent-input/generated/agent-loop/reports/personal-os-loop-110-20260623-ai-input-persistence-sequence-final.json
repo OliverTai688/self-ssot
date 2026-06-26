@@ -1,0 +1,15 @@
+{
+  "status": "ready_for_persistence_sequence_use",
+  "taskId": "DATTR-024G-CONTRACT",
+  "checkedAt": "2026-06-23T02:40:44.720Z",
+  "contract": "src/lib/contracts/ai-input-source-workflow-persistence-sequence.contract.ts",
+  "report": "docs/06_audits-and-reports/RPT-024_loop-109-dattr-024-persistence-gap-review.md",
+  "evidence": {
+    "gateCount": 8,
+    "hasNoRuntimeGuard": true,
+    "selectedNextImplementationTask": true
+  },
+  "warnings": [],
+  "errors": [],
+  "nextTask": "DATTR-024H-MIGRATION-DRAFT"
+}

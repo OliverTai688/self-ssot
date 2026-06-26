@@ -1,0 +1,112 @@
+{
+  "id": "LAUNCH-ROUTER-001-PROOF-PREEMPTION-ROUTER",
+  "status": "ready_for_proof_preemption_routing",
+  "generatedAt": "2026-06-24T18:40:44.611Z",
+  "mode": "static_no_secret_latest_proof_router",
+  "latestEvidence": {
+    "launch": {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260625-launch-proof.json",
+      "modifiedMs": 1782323366340.3162
+    },
+    "auth": {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260625-auth-proof.json",
+      "modifiedMs": 1782323366340.3806
+    },
+    "workTarget": {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260625-work-proof-target-readiness.json",
+      "modifiedMs": 1782323356622.1072
+    },
+    "workEvidence": {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-160-20260624-work-proof-evidence-check.json",
+      "modifiedMs": 1782314656634.3872
+    },
+    "manualOps": {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-165-20260625-manual-ops-gate.json",
+      "modifiedMs": 1782323357924.502
+    }
+  },
+  "recommendation": {
+    "nextTask": "RES-001-RESEARCH-REVIEW",
+    "label": "Research-to-task fallback",
+    "state": "fallback_research",
+    "proofPreemptionReady": false,
+    "nextAction": "Run the due RES-001/RES-002 research-to-task gap review and create one implementation-ready artifact."
+  },
+  "candidates": [
+    {
+      "id": "AUTH-005",
+      "label": "Real Supabase owner session/Profile proof",
+      "state": "blocked_by_owner_input",
+      "ready": false,
+      "blockerLabels": [
+        "Supabase public URL",
+        "Supabase publishable key",
+        "Auth status evidence"
+      ],
+      "evidenceSignal": "Supabase public URL, Supabase publishable key, Auth status evidence",
+      "nextAction": "Configure Supabase public env and provide sanitized signed-in /auth/status evidence."
+    },
+    {
+      "id": "WORK-009",
+      "label": "Disposable Work refresh proof",
+      "state": "blocked_by_owner_input",
+      "ready": false,
+      "blockerLabels": [
+        "WORK_PROOF_DATABASE_URL is not set.",
+        "Selected target must be local, or a remote disposable WORK_PROOF_DATABASE_URL must set PERSONAL_OS_WORK_PROOF_ALLOW_REMOTE=1.",
+        "PERSONAL_OS_WORK_PROOF_ALLOW_WRITES=1 is missing.",
+        "PERSONAL_OS_WORK_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA is missing."
+      ],
+      "evidenceSignal": "WORK_PROOF_DATABASE_URL is not set., Selected target must be local, or a remote disposable WORK_PROOF_DATABASE_URL must set PERSONAL_OS_WORK_PROOF_ALLOW_REMOTE=1., PERSONAL_OS_WORK_PROOF_ALLOW_WRITES=1 is missing., PERSONAL_OS_WORK_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA is missing.",
+      "nextAction": "Provide WORK_PROOF_DATABASE_URL plus explicit Work proof write confirmations."
+    },
+    {
+      "id": "DEPLOY-002",
+      "label": "Deployment marker and private route proof",
+      "state": "blocked_downstream",
+      "ready": false,
+      "blockerLabels": [
+        "AUTH-005 not ready",
+        "WORK-009 not ready",
+        "deployment marker missing"
+      ],
+      "evidenceSignal": "AUTH-005 not ready, WORK-009 not ready, deployment marker missing",
+      "nextAction": "Wait until AUTH-005 and Work proof are ready, then run launch proof in the deployed environment."
+    },
+    {
+      "id": "RES-001-RESEARCH-REVIEW",
+      "label": "Research-to-task fallback",
+      "state": "fallback_research",
+      "ready": true,
+      "blockerLabels": [],
+      "evidenceSignal": "proof preemption not available",
+      "nextAction": "Run the due RES-001/RES-002 research-to-task gap review and create one implementation-ready artifact."
+    }
+  ],
+  "manualOps": {
+    "latestStatus": "manual_ops_ready",
+    "formalLaunchUnchanged": true
+  },
+  "safety": {
+    "scansWhitelistedReportsDirectoryOnly": true,
+    "executesCommands": false,
+    "connectsToDatabase": false,
+    "writesDatabase": false,
+    "mutatesAuthProvider": false,
+    "mutatesDeploymentProvider": false,
+    "printsSecrets": false,
+    "exposesRawPacketBodies": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "blockedClaims": [
+    "AUTH-005 success",
+    "WORK-009 success",
+    "WORK-007 success",
+    "DEPLOY-002 success",
+    "L1 launch upgrade",
+    "L3 launch upgrade",
+    "L4 launch upgrade"
+  ],
+  "errors": [],
+  "warnings": []
+}

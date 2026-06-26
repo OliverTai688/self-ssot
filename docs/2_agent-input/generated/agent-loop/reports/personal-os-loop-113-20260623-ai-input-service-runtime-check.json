@@ -1,0 +1,14 @@
+{
+  "status": "ready_for_rls_audit_storage",
+  "taskId": "DATTR-024J-SERVICE-AUTHZ-RUNTIME",
+  "mode": "service_authz_runtime_no_db_read",
+  "protectedByRequireUser": true,
+  "runtimeDbReadEnabled": false,
+  "runtimeDbWriteEnabled": false,
+  "externalRegisterable": false,
+  "objectCount": 8,
+  "operationCount": 12,
+  "nextTask": "DATTR-024K-RLS-AUDIT-STORAGE",
+  "warnings": [],
+  "errors": []
+}

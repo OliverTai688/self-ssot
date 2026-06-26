@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T06:21:28.012Z",
+  "command": "pnpm agent:api:check",
+  "taskId": "AGENT-014",
+  "status": "protected_route_ready",
+  "contract": {
+    "path": "src/lib/contracts/agent-operation-api.contract.ts",
+    "servicePath": "src/lib/services/agent-operation.service.ts",
+    "routePath": "src/app/api/agent-operations/dry-run/route.ts",
+    "routeHandlerImplemented": true,
+    "routeHandlerExpectedNow": true,
+    "endpointPath": "/api/agent-operations/dry-run",
+    "method": "POST",
+    "operationCount": 10,
+    "allowedMode": "dry_run",
+    "protectedOwnerOnly": true,
+    "ownerOnlyRoute": true
+  },
+  "checks": {
+    "requiredMarkers": [
+      {
+        "marker": "AGENT_OPERATION_API_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "AGENT_OPERATION_API_OPERATIONS",
+        "present": true
+      },
+      {
+        "marker": "MODULE_AGENT_OPERATION_API_OPERATIONS",
+        "present": true
+      },
+      {
+        "marker": "AGENT_OPERATION_API_CONTRACT_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "protected_dry_run_ready",
+        "present": true
+      },
+      {
+        "marker": "/api/agent-operations/dry-run",
+        "present": true
+      },
+      {
+        "marker": "routeHandlerImplemented: true",
+        "present": true
+      },
+      {
+        "marker": "requireUser()",
+        "present": true
+      },
+      {
+        "marker": "private_no_store",
+        "present": true
+      },
+      {
+        "marker": "internalHttpEndpointCreated: true",
+        "present": true
+      },
+      {
+        "marker": "externalRegisterable: false",
+        "present": true
+      },
+      {
+        "marker": "publicEndpointCreated: false",
+        "present": true
+      },
+      {
+        "marker": "databaseWrite: false",
+        "present": true
+      },
+      {
+        "marker": "providerCall: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegistryWrite: false",
+        "present": true
+      }
+    ],
+    "operationParity": [
+      {
+        "operationId": "work.proof.preflight",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "research.workspace.plan",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "ai-input.source-workflow.review",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "workflow.queue.plan",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "life.routine.propose",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "finance.review-draft",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "chamber.relationship.plan",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "company.strategy.review",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "client-portal.visibility.preflight",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      },
+      {
+        "operationId": "agent.ops.describe-contract",
+        "inApiOperationCatalog": true,
+        "inCliDryRun": true
+      }
+    ],
+    "serviceMarkers": [
+      {
+        "marker": "server-only",
+        "present": true
+      },
+      {
+        "marker": "buildAgentOperationDryRun",
+        "present": true
+      },
+      {
+        "marker": "AGENT_OPERATION_API_OPERATIONS",
+        "present": true
+      },
+      {
+        "marker": "mode: \"dry_run\"",
+        "present": true
+      },
+      {
+        "marker": "internalHttpEndpointUsed: true",
+        "present": true
+      },
+      {
+        "marker": "publicEndpointCreated: false",
+        "present": true
+      },
+      {
+        "marker": "writesPerformed: false",
+        "present": true
+      },
+      {
+        "marker": "databaseAccessed: false",
+        "present": true
+      },
+      {
+        "marker": "providerCalled: false",
+        "present": true
+      },
+      {
+        "marker": "externalRegistryWrite: false",
+        "present": true
+      },
+      {
+        "marker": "autonomousExecution: false",
+        "present": true
+      },
+      {
+        "marker": "highRiskFinalWrite: false",
+        "present": true
+      }
+    ],
+    "routeMarkers": [
+      {
+        "marker": "runtime = \"nodejs\"",
+        "present": true
+      },
+      {
+        "marker": "dynamic = \"force-dynamic\"",
+        "present": true
+      },
+      {
+        "marker": "export async function POST",
+        "present": true
+      },
+      {
+        "marker": "requireUser()",
+        "present": true
+      },
+      {
+        "marker": "user.role !== \"OWNER\"",
+        "present": true
+      },
+      {
+        "marker": "buildAgentOperationDryRun",
+        "present": true
+      },
+      {
+        "marker": "Cache-Control",
+        "present": true
+      },
+      {
+        "marker": "private, no-store",
+        "present": true
+      },
+      {
+        "marker": "NextResponse.json",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged Supabase env marker",
+        "present": false
+      }
+    ],
+    "forbiddenServiceMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "external registerable true marker",
+        "present": false
+      }
+    ],
+    "forbiddenRouteMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "external registry marker",
+        "present": false
+      },
+      {
+        "label": "execute mode branch",
+        "present": false
+      }
+    ],
+    "referencedDocs": {
+      "arc029": true,
+      "res004": true,
+      "acceptance": true,
+      "backlog": true
+    }
+  },
+  "safety": {
+    "routeHandlerCreated": true,
+    "internalHttpEndpointCreated": true,
+    "publicEndpointCreated": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "externalRegistryWrite": false,
+    "externalRegisterable": false,
+    "autonomousExecution": false,
+    "externalAgentDatabaseAccess": false,
+    "highRiskFinalWrite": false,
+    "reason": "The route is protected owner-only dry-run, uses requireUser(), returns no-store DTOs, and does not write to DB/providers/external registries."
+  },
+  "nextActions": [
+    "Bind the protected route into an owner UI only after AGENT-010 defines per-module command semantics.",
+    "Keep external/public agent operation endpoints disabled until auth scopes, trust policy, rollback, deployment proof, and human approval exist.",
+    "Run pnpm agent:api:check after editing the operation catalog or future route contract."
+  ],
+  "errors": []
+}

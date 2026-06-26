@@ -1,0 +1,30 @@
+{
+  "id": "DATTR-024N-SOURCE-WORKFLOW-LOCAL-PROOF-BOOTSTRAP",
+  "status": "ready_for_owner_run_source_workflow_proof_bootstrap",
+  "checkedAt": "2026-06-23T07:41:54.165Z",
+  "nextRunnableSlice": "DATTR-024O-SOURCE-WORKFLOW-PROOF-PACKET-UI",
+  "safetyGuards": {
+    "dryRunFirst": true,
+    "databaseUrlFallbackRequiresExplicitFlag": true,
+    "dbConnectionAllowedByChecker": false,
+    "migrationApplyAllowed": false,
+    "migrationPromotionAllowed": false,
+    "runtimeWriteAllowedByBootstrap": false,
+    "connectorRuntimeAllowed": false,
+    "providerApiRuntimeAllowed": false,
+    "publicOutputAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  },
+  "evidence": {
+    "bootstrap": {
+      "path": "scripts/ai-input-source-workflow-local-proof-bootstrap.mjs",
+      "dryRunFirst": true,
+      "childOnlyEnvInjection": true,
+      "noGlobalEnvMutation": true,
+      "externalRegisterable": false
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T03:50:54.833Z",
+  "command": "pnpm agent:op",
+  "mode": "dry_run",
+  "status": "ready_for_owner_dry_run",
+  "selectedOperation": {
+    "id": "finance.review-draft",
+    "version": "0.1.0",
+    "label": "Review Finance draft and risk boundary",
+    "ownerAgent": "FinanceAgent",
+    "targetModule": "finance",
+    "riskLevel": "CRITICAL",
+    "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+    "dataVisibilityLevel": "local-prototype-and-owner-reviewed-finance-context",
+    "scopes": [
+      "finance:proposal:read",
+      "agent:operation:read"
+    ],
+    "allowedModes": [
+      "dry_run"
+    ],
+    "inputContract": {
+      "operationId": "string",
+      "requestedChecks": "optional string array"
+    },
+    "outputContract": {
+      "proposalOutputs": "finance draft review, risk note, and manual approval checklist",
+      "safetyBoundary": "No financial final write, transaction, provider mutation, or external sharing",
+      "nextReview": "Owner-reviewed Finance proposal UI"
+    },
+    "cli": "pnpm agent:op -- --operation finance.review-draft --json",
+    "futureProtectedApi": "POST /api/agent-operations/dry-run",
+    "uiSurfaceRefs": [
+      "protected /finance agent proposals tab"
+    ],
+    "auditRefs": [
+      "docs/2_agent-input/generated/agent-loop/reports/",
+      "future high-risk proposal audit event"
+    ],
+    "sourceRefs": [
+      "docs/05_execution-plans/PLN-026_finance-draft-only-mvp.md",
+      "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md"
+    ],
+    "blockedActions": [
+      "financial final write",
+      "transaction",
+      "external sharing",
+      "provider mutation"
+    ],
+    "requestedAgent": "FinanceAgent",
+    "requestedTargetModule": "finance"
+  },
+  "agentManifestSnapshot": {
+    "id": "personal-os:finance-agent",
+    "agent_name": "urn:agent:personal-os:FinanceAgent",
+    "label": "FinanceAgent",
+    "lifecycleStatus": "governance-only",
+    "protocols": [
+      "internal",
+      "docs-governance"
+    ],
+    "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+    "dataVisibilityLevel": "finance-draft-proposals",
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "endpointCounts": {
+      "internal": 0,
+      "external": 0
+    }
+  },
+  "registrySnapshot": {
+    "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+    "manifestFile": "docs/2_agent-input/generated/agent-loop/agent-registry/internal-agent-manifests.agentfacts-lite.json",
+    "manifestCount": 15,
+    "internalDiscoverable": true,
+    "externalRegisterable": false,
+    "registrationStatus": "not-registered",
+    "runtimeEndpoint": null,
+    "publicDirectory": false
+  },
+  "safety": {
+    "writesPerformed": false,
+    "databaseAccessed": false,
+    "environmentRead": false,
+    "publicEndpointCreated": false,
+    "externalRegistryWrite": false,
+    "externalRegisterableAfterRun": false,
+    "rawSecretsIncluded": false,
+    "blockedIfRunRequested": true,
+    "reasons": [
+      "AGENT-OPS-001 is owner-only dry-run CLI proof.",
+      "The command reads generated AgentFacts-lite files only.",
+      "No environment variables, cookies, tokens, database URLs, provider payloads, or private records are read.",
+      "The CLI creates no public endpoint, DB write, migration, seed, or external registration. Protected HTTP dry-run is handled separately by AGENT-014."
+    ]
+  },
+  "validation": {
+    "agentMatchesOperation": true,
+    "targetMatchesOperation": true,
+    "internalDiscoverable": true,
+    "externalRegisterableBlocked": true,
+    "allowedModeIsDryRunOnly": true
+  },
+  "nextReview": "Use this contract as the UI/API/CLI alignment base before any owner command center or approval-write slice."
+}

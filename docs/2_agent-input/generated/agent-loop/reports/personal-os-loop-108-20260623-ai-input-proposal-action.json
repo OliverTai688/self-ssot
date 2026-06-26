@@ -1,0 +1,121 @@
+{
+  "id": "DATTR-024D-CONTRACT",
+  "status": "ready_for_proposal_action_contract_use",
+  "checkedAt": "2026-06-23T02:08:33.866Z",
+  "contractPath": "src/lib/contracts/ai-input-source-workflow-proposal-action.contract.ts",
+  "splitContractPath": "src/lib/contracts/ai-input-source-workflow-split.contract.ts",
+  "requiredObjects": [
+    "DataUnitProposal",
+    "ModuleWriteIntent",
+    "OperatingAuditEvent"
+  ],
+  "requiredCommands": [
+    "ai-input.proposal.review",
+    "ai-input.proposal.request_changes",
+    "ai-input.proposal.approve_for_write_intent",
+    "ai-input.proposal.reject",
+    "ai-input.proposal.archive",
+    "ai-input.write-intent.review",
+    "ai-input.write-intent.approve_draft",
+    "ai-input.write-intent.request_changes",
+    "ai-input.write-intent.reject",
+    "ai-input.write-intent.cancel"
+  ],
+  "requiredStates": [
+    "drafted_by_agent",
+    "needs_owner_review",
+    "changes_requested",
+    "approved_for_write_intent",
+    "write_intent_draft",
+    "approved_for_manual_apply",
+    "rejected",
+    "archived",
+    "superseded",
+    "blocked_high_risk"
+  ],
+  "requiredApprovalLevels": [
+    "AUTO_PROPOSE_ONLY",
+    "OWNER_REVIEW_REQUIRED",
+    "HUMAN_APPROVAL_REQUIRED",
+    "BLOCKED_UNTIL_PROOF_TARGET",
+    "BLOCKED_HIGH_RISK"
+  ],
+  "completedFollowUpSlice": "DATTR-024E-CONTRACT",
+  "nextRunnableSlice": "DATTR-024",
+  "safetyGuards": {
+    "routeHandlerAllowed": false,
+    "serverActionAllowedInDattr024dContract": false,
+    "schemaWriteAllowed": false,
+    "migrationApplyAllowed": false,
+    "seedChangeAllowed": false,
+    "runtimeReadAllowed": false,
+    "runtimeWriteAllowed": false,
+    "connectorRuntimeAllowed": false,
+    "providerDataAllowed": false,
+    "publicOutputAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalCollaborationAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  },
+  "evidence": {
+    "contract": {
+      "path": "src/lib/contracts/ai-input-source-workflow-proposal-action.contract.ts",
+      "requiredObjects": [
+        "DataUnitProposal",
+        "ModuleWriteIntent",
+        "OperatingAuditEvent"
+      ],
+      "requiredCommands": [
+        "ai-input.proposal.review",
+        "ai-input.proposal.request_changes",
+        "ai-input.proposal.approve_for_write_intent",
+        "ai-input.proposal.reject",
+        "ai-input.proposal.archive",
+        "ai-input.write-intent.review",
+        "ai-input.write-intent.approve_draft",
+        "ai-input.write-intent.request_changes",
+        "ai-input.write-intent.reject",
+        "ai-input.write-intent.cancel"
+      ],
+      "requiredStates": [
+        "drafted_by_agent",
+        "needs_owner_review",
+        "changes_requested",
+        "approved_for_write_intent",
+        "write_intent_draft",
+        "approved_for_manual_apply",
+        "rejected",
+        "archived",
+        "superseded",
+        "blocked_high_risk"
+      ],
+      "approvalLevels": [
+        "AUTO_PROPOSE_ONLY",
+        "OWNER_REVIEW_REQUIRED",
+        "HUMAN_APPROVAL_REQUIRED",
+        "BLOCKED_UNTIL_PROOF_TARGET",
+        "BLOCKED_HIGH_RISK"
+      ],
+      "commandCount": 10,
+      "safetyGuardsPresent": [
+        "externalRegisterable: false",
+        "routeHandlerAllowed: false",
+        "serverActionAllowedInDattr024dContract: false",
+        "schemaWriteAllowed: false",
+        "migrationApplyAllowed: false",
+        "seedChangeAllowed: false",
+        "runtimeReadAllowed: false",
+        "runtimeWriteAllowed: false",
+        "connectorRuntimeAllowed: false",
+        "providerDataAllowed: false",
+        "publicOutputAllowed: false",
+        "moduleFinalWriteAllowed: false",
+        "externalCollaborationAllowed: false",
+        "externalAgentDatabaseAccessAllowed: false"
+      ]
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

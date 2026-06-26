@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T06:46:16.433Z",
+  "taskId": "WORK-011",
+  "mode": "dry_run",
+  "status": "ready_for_local_disposable_run",
+  "canRunLocalProof": true,
+  "target": {
+    "inputKind": "existing_target",
+    "source": "--target-url",
+    "provided": true,
+    "parseable": true,
+    "protocolAllowed": true,
+    "hostClass": "local",
+    "databaseNameHasProofMarker": true,
+    "databaseNameLooksValuable": false
+  },
+  "databaseCreation": {
+    "available": false,
+    "requested": false,
+    "performed": false
+  },
+  "safety": {
+    "targetSafe": true,
+    "missing": [],
+    "warnings": [],
+    "doesNotUseDatabaseUrlSilently": true,
+    "doesNotAllowRemoteTargets": true,
+    "requiresProofMarker": true,
+    "injectsConfirmationOnlyIntoChildProcess": true,
+    "printsSecrets": false,
+    "excludedValues": [
+      "database URLs",
+      "database hosts",
+      "profile IDs",
+      "project IDs",
+      "task IDs",
+      "note IDs",
+      "deliverable IDs",
+      "tokens",
+      "cookies"
+    ]
+  },
+  "plannedChildProcess": {
+    "command": "pnpm work:proof -- --run --json",
+    "setup": false,
+    "proofOut": "docs/2_agent-input/generated/agent-loop/work-refresh-proof/latest-local-disposable-work-proof.json",
+    "writesOnlyInsideChildProcess": true
+  },
+  "nextActions": [
+    "Run pnpm work:proof:local-disposable -- --run with the same local disposable target.",
+    "Add --setup when the target is empty or newly created.",
+    "Inspect the generated child proof packet for status=passed and cleanup.cleanup=passed."
+  ]
+}

@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "taskId": "RESEARCH-BFF-015-RESEARCH-OWNER-READ-ISSUES-LIVE-READ-PROOF-RUNNER-DRY-RUN-CLI",
+  "status": "dry_run_ready_no_live_research_read",
+  "mode": "owner_run_no_secret_dry_run_cli",
+  "generatedAt": "2026-06-24T20:37:29.344Z",
+  "dryRunOnly": true,
+  "selectedFamily": "issues",
+  "selectedModel": "ResearchThread",
+  "ownerIdentitySource": "requireUser().profileId",
+  "ownerScopePredicate": "ResearchThread.ownerId equals requireUser().profileId",
+  "plannedPrismaOperation": "prisma.researchThread.findMany",
+  "plannedWhere": "where: { ownerId: ownerProfileId }",
+  "stableSort": "updatedAt desc, id asc",
+  "defaultLimit": 50,
+  "selectedScalarFields": [
+    "id",
+    "title",
+    "description",
+    "status",
+    "keywords",
+    "disciplines",
+    "regions",
+    "methodType",
+    "mainResearchQuestion",
+    "workLinkage",
+    "createdAt",
+    "updatedAt"
+  ],
+  "relationCountKeys": [
+    "sources",
+    "concepts",
+    "writingProjects"
+  ],
+  "plannedSelectShape": [
+    "id",
+    "title",
+    "description",
+    "status",
+    "keywords",
+    "disciplines",
+    "regions",
+    "methodType",
+    "mainResearchQuestion",
+    "workLinkage",
+    "createdAt",
+    "updatedAt",
+    "_count.sources",
+    "_count.concepts",
+    "_count.writingProjects"
+  ],
+  "mapperFunction": "mapAuthorizedResearchIssueRowsToDtos",
+  "mapperInputBoundary": "authorized_rows_or_explicit_unavailable_state",
+  "mapperOutputBoundary": "ui_safe_research_issue_read_dto",
+  "dependencies": {
+    "bff014": {
+      "path": "src/lib/services/research-owner-read-issues-live-read-proof-runner.service.ts",
+      "present": true,
+      "markerReady": true,
+      "missing": []
+    },
+    "bff013": {
+      "path": "src/lib/services/research-owner-read-issues-selected-field-runtime-adapter.service.ts",
+      "present": true,
+      "markerReady": true,
+      "missing": []
+    },
+    "bff012": {
+      "path": "src/lib/services/research-owner-read-issues-runtime-readiness.service.ts",
+      "present": true,
+      "markerReady": true,
+      "missing": []
+    }
+  },
+  "ownerRunInputs": {
+    "allowLiveRead": {
+      "envName": "PERSONAL_OS_RESEARCH_READ_PROOF_ALLOW_LIVE_READ",
+      "provided": false,
+      "accepted": false,
+      "expectedValue": "1",
+      "valueRedacted": true
+    },
+    "confirmation": {
+      "envName": "PERSONAL_OS_RESEARCH_READ_PROOF_CONFIRM",
+      "provided": false,
+      "accepted": false,
+      "expectedValue": "I_UNDERSTAND_THIS_READS_OWNER_RESEARCH_DATA",
+      "valueRedacted": true
+    },
+    "proofTarget": {
+      "envName": "PERSONAL_OS_RESEARCH_READ_PROOF_TARGET",
+      "provided": false,
+      "classification": "missing_owner_approved_target",
+      "parseable": false,
+      "protocolAllowed": false,
+      "hostClass": "missing",
+      "databaseNameHasProofMarker": false,
+      "databaseNameLooksValuable": false,
+      "proofTargetReady": false,
+      "valueRedacted": true,
+      "hostRedacted": true
+    },
+    "authProof": {
+      "available": true,
+      "latestPath": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-170-20260625-auth-proof.json",
+      "canRunAuth005": false,
+      "launchAuthPrereqsReady": false,
+      "authStatusReady": false,
+      "statusEvidenceProvided": false,
+      "rawPacketRedacted": true,
+      "nextAction": "Run /auth/status from a signed-in browser session and provide sanitized JSON evidence."
+    }
+  },
+  "ownerRunReady": false,
+  "futureLiveReadEligible": false,
+  "liveReadExecutionAllowed": false,
+  "runtimeDbReadEnabled": false,
+  "runtimeDbWriteEnabled": false,
+  "runtimePrismaReadEnabled": false,
+  "adapterExecutionAllowed": false,
+  "routeHandlerEnabled": false,
+  "serverActionWriteEnabled": false,
+  "publicOutputEnabled": false,
+  "externalCollaborationEnabled": false,
+  "externalAgentDatabaseAccessAllowed": false,
+  "agentFinalWriteAllowed": false,
+  "externalRegisterable": false,
+  "launchLevelUpgradeClaimed": false,
+  "rows": [
+    {
+      "id": "dependency-chain",
+      "label": "BFF-014/013/012 dependency chain",
+      "readinessSignal": "Contract, selected-field proof, and service-authz markers are present.",
+      "passCriteria": "BFF-014, BFF-013, and BFF-012 remain no-live-read and no-public-output.",
+      "blockedPattern": "Live Research read before dependency markers are ready",
+      "tone": "good"
+    },
+    {
+      "id": "owner-run-inputs",
+      "label": "Owner-run allow and confirmation",
+      "readinessSignal": "Explicit allow flag or owner confirmation phrase is missing.",
+      "passCriteria": "PERSONAL_OS_RESEARCH_READ_PROOF_ALLOW_LIVE_READ=1 and PERSONAL_OS_RESEARCH_READ_PROOF_CONFIRM=I_UNDERSTAND_THIS_READS_OWNER_RESEARCH_DATA",
+      "blockedPattern": "Implicit live read from default environment state",
+      "tone": "blocked"
+    },
+    {
+      "id": "proof-target-classification",
+      "label": "Proof target classification",
+      "readinessSignal": "Proof target is missing, ambiguous, remote, or not marked disposable/local/owner-approved.",
+      "passCriteria": "Target is a declared safe category or a local disposable database URL with proof markers.",
+      "blockedPattern": "Ambiguous or valuable Research data target",
+      "tone": "blocked"
+    },
+    {
+      "id": "auth-proof-availability",
+      "label": "Auth proof availability",
+      "readinessSignal": "Latest sanitized auth proof does not yet allow AUTH-005.",
+      "passCriteria": "Supabase public env, signed-in /auth/status, and Profile mapping proof are all present.",
+      "blockedPattern": "Owner-scoped Research read without authenticated owner/Profile proof",
+      "tone": "blocked"
+    },
+    {
+      "id": "dry-run-boundary",
+      "label": "Dry-run boundary",
+      "readinessSignal": "liveReadExecutionAllowed=false, runtimePrismaReadEnabled=false, doesNotConnectToDatabase=true.",
+      "passCriteria": "This CLI emits readiness only and performs no Research DB read or write.",
+      "blockedPattern": "Proof runner connecting to DB or returning private Research data",
+      "tone": "good"
+    }
+  ],
+  "safety": {
+    "doesNotConnectToDatabase": true,
+    "doesNotApplyMigration": true,
+    "doesNotWriteDatabase": true,
+    "doesNotReadResearchData": true,
+    "doesNotFetchNetwork": true,
+    "printsSecrets": false,
+    "redactedValues": [
+      "Supabase URLs",
+      "Supabase keys",
+      "database URLs",
+      "database hosts",
+      "cookies",
+      "tokens",
+      "raw claims",
+      "Profile ids",
+      "owner emails",
+      "raw Prisma rows",
+      "source bodies",
+      "private Research content"
+    ]
+  },
+  "missing": [
+    "PERSONAL_OS_RESEARCH_READ_PROOF_ALLOW_LIVE_READ=1 is missing.",
+    "PERSONAL_OS_RESEARCH_READ_PROOF_CONFIRM=I_UNDERSTAND_THIS_READS_OWNER_RESEARCH_DATA is missing.",
+    "PERSONAL_OS_RESEARCH_READ_PROOF_TARGET is missing or not classified as a safe proof target.",
+    "AUTH-005 sanitized owner/Profile evidence is not ready."
+  ],
+  "warnings": [],
+  "stopConditions": [
+    "Stop before importing Prisma client, db clients, provider clients, cookies, headers, fetch, or Next route helpers.",
+    "Stop before connecting to a database, executing a live Research read/write, applying schema/migration/seed changes, or adding route handlers/server actions.",
+    "Stop before public output, external collaboration, external agent database access, Research agent final writes, external registration, or launch-level claims.",
+    "Stop if owner identity, proof target classification, selected fields, mapper output, or no-secret evidence becomes ambiguous."
+  ],
+  "nextSafeAction": "Keep collecting owner-run prerequisites; this packet is safe for owner inspection and does not prove formal launch readiness."
+}

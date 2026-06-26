@@ -1,0 +1,54 @@
+{
+  "status": "ready_for_owner_read_query_plan_service_loader_skeleton",
+  "taskId": "RESEARCH-BFF-006-RESEARCH-OWNER-READ-SERVICE-LOADER-SKELETON",
+  "contractTaskId": "RESEARCH-BFF-005-RESEARCH-OWNER-READ-QUERY-PLAN-CONTRACT",
+  "mode": "query_plan_service_loader_skeleton_no_runtime_db_read",
+  "contractPath": "src/lib/contracts/research-owner-read-query-plan.contract.ts",
+  "servicePath": "src/lib/services/research-owner-read-dto.service.ts",
+  "readinessPagePath": "src/app/(dashboard)/research/readiness/page.tsx",
+  "familyCount": 11,
+  "requiredFamilies": [
+    "issues",
+    "sources",
+    "concepts",
+    "writing-projects",
+    "writing-sections",
+    "events",
+    "people",
+    "typed-links",
+    "graph-projections",
+    "readiness-evidence",
+    "agent-proposals"
+  ],
+  "serviceLoader": {
+    "consumesQueryPlanContract": true,
+    "rowSurfacePresent": true,
+    "pageSurfacePresent": true,
+    "adapterExecutionAllowed": false,
+    "runtimeDbReadEnabled": false
+  },
+  "safety": {
+    "runtimeDbReadAllowed": false,
+    "runtimeDbWriteAllowed": false,
+    "schemaMigrationAllowed": false,
+    "migrationApplyAllowed": false,
+    "seedChangeAllowed": false,
+    "routeHandlerAllowed": false,
+    "serverActionWriteAllowed": false,
+    "publicOutputAllowed": false,
+    "externalCollaborationAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "agentFinalWriteAllowed": false,
+    "externalRegisterable": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "nandaBoundary": {
+    "affectedSurface": "Research agent proposals",
+    "protocolStatus": "protected_owner_visible_proposal_only",
+    "externalRegisterable": false,
+    "finalWritesRequireHumanApproval": true
+  },
+  "nextRecommendedTask": "LOOP-157-RESEARCH-POST-LOADER-GAP-REVIEW",
+  "errors": [],
+  "warnings": []
+}

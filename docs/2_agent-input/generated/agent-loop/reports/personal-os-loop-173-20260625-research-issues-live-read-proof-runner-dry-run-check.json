@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "taskId": "RESEARCH-BFF-015-RESEARCH-OWNER-READ-ISSUES-LIVE-READ-PROOF-RUNNER-DRY-RUN-CLI",
+  "status": "ready_for_research_issues_live_read_proof_runner_dry_run_cli",
+  "checkedAt": "2026-06-24T20:37:59.934Z",
+  "runCommand": "pnpm research:read-issues-live-read-proof-runner:run",
+  "nextRunnableSlice": "RESEARCH-BFF-016-RESEARCH-OWNER-READ-ISSUES-LIVE-READ-ELIGIBILITY-GATE",
+  "safetyGuards": {
+    "dryRunOnly": true,
+    "databaseConnectionAllowed": false,
+    "liveResearchReadAllowed": false,
+    "runtimeWriteAllowed": false,
+    "routeHandlerAllowed": false,
+    "serverActionAllowed": false,
+    "publicOutputAllowed": false,
+    "externalCollaborationAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "evidence": {
+    "runner": {
+      "path": "scripts/run-research-owner-read-issues-live-read-proof-runner.mjs",
+      "taskId": "RESEARCH-BFF-015-RESEARCH-OWNER-READ-ISSUES-LIVE-READ-PROOF-RUNNER-DRY-RUN-CLI",
+      "dryRunDefault": true,
+      "noDbConnection": true,
+      "noSecretPacket": true
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

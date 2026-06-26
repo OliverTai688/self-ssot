@@ -1,0 +1,66 @@
+{
+  "id": "ENV-005-LOCAL-ROUTE-IDENTITY-SMOKE",
+  "status": "personal_os_route_verified",
+  "generatedAt": "2026-06-25T15:19:56.041Z",
+  "profile": "admin-detail",
+  "url": "http://localhost:3100/admin/detail",
+  "expectedPath": "/admin/detail",
+  "httpStatus": 200,
+  "redirected": false,
+  "requiredMarkers": [
+    {
+      "marker": "Personal OS",
+      "present": true
+    },
+    {
+      "marker": "Admin write boundary",
+      "present": true
+    },
+    {
+      "marker": "Full launch console detail",
+      "present": true
+    },
+    {
+      "marker": "Overview",
+      "present": true
+    }
+  ],
+  "forbiddenMarkers": [
+    {
+      "marker": "誠問 AI",
+      "present": false
+    },
+    {
+      "marker": "試用設定",
+      "present": false
+    },
+    {
+      "marker": "asai-rag",
+      "present": false
+    }
+  ],
+  "responseBodyBytes": 875174,
+  "timeoutMs": 120000,
+  "safety": {
+    "printsSecrets": false,
+    "sendsCookies": false,
+    "followsRedirects": false,
+    "writesDatabase": false,
+    "mutatesAuthProvider": false,
+    "mutatesDeploymentProvider": false,
+    "exposesRawHtml": false,
+    "launchLevelUpgradeClaimed": false
+  },
+  "blockedClaims": [
+    "AUTH-005 success",
+    "WORK-009 success",
+    "WORK-007 success",
+    "DEPLOY-002 success",
+    "L1 launch upgrade",
+    "L3 launch upgrade",
+    "L4 launch upgrade"
+  ],
+  "nextAction": "Route identity verified. It is safe to interpret this route smoke output as Personal OS evidence.",
+  "errors": [],
+  "warnings": []
+}

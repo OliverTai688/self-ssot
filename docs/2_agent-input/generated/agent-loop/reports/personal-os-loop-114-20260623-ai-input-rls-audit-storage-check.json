@@ -1,0 +1,16 @@
+{
+  "status": "ready_for_rls_audit_storage_review",
+  "taskId": "DATTR-024K-RLS-AUDIT-STORAGE",
+  "mode": "rls_audit_storage_review_only_no_runtime",
+  "gateCount": 12,
+  "requiredTableCount": 8,
+  "identityStrategySelected": false,
+  "rlsPolicyApplyAllowed": false,
+  "auditStorageRuntimeAllowed": false,
+  "databaseReadAllowed": false,
+  "databaseWriteAllowed": false,
+  "externalRegisterable": false,
+  "nextTask": "DATTR-024L-CONNECTOR-RUNTIME",
+  "warnings": [],
+  "errors": []
+}

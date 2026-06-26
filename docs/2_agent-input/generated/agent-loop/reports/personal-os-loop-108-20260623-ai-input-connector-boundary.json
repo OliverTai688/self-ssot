@@ -1,0 +1,72 @@
+{
+  "id": "DATTR-024E-CONTRACT",
+  "status": "ready_for_connector_boundary_contract_use",
+  "checkedAt": "2026-06-23T02:08:33.874Z",
+  "contractPath": "src/lib/contracts/ai-input-source-workflow-connector-boundary.contract.ts",
+  "splitContractPath": "src/lib/contracts/ai-input-source-workflow-split.contract.ts",
+  "architectureDoc": "docs/02_architecture-and-rules/ARC-031_ai-input-source-workflow-bff-split-contract.md",
+  "acceptanceDoc": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+  "requiredProviders": [
+    "manual",
+    "local_file",
+    "url",
+    "rss",
+    "google_drive",
+    "google_docs",
+    "gmail",
+    "line",
+    "telegram",
+    "github_markdown"
+  ],
+  "requiredRequirementAreas": [
+    "consent-scope",
+    "pause-resume-revoke",
+    "provider-event-verification",
+    "replay-protection",
+    "secret-separation",
+    "retention-deletion",
+    "audit-refs",
+    "runtime-stop-conditions"
+  ],
+  "requiredCommands": [
+    "ai-input.connector.scope.review",
+    "ai-input.connector.consent.grant",
+    "ai-input.connector.pause",
+    "ai-input.connector.resume",
+    "ai-input.connector.revoke",
+    "ai-input.provider-event.receive",
+    "ai-input.provider-event.verify",
+    "ai-input.provider-event.reject_replay",
+    "ai-input.provider-event.block",
+    "ai-input.connector.retention.delete_request"
+  ],
+  "officialSourceRefs": [
+    "https://datatracker.ietf.org/doc/html/rfc7009",
+    "https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries",
+    "https://docs.stripe.com/webhooks",
+    "https://docs.stripe.com/webhooks/signature",
+    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+  ],
+  "safetyGuards": {
+    "routeHandlerAllowedInDattr024eContract": false,
+    "oauthRuntimeAllowed": false,
+    "webhookRuntimeAllowed": false,
+    "pollingRuntimeAllowed": false,
+    "providerApiCallAllowed": false,
+    "fileIngestionAllowed": false,
+    "ocrTranscriptionAllowed": false,
+    "rawAdapterPayloadExposureAllowed": false,
+    "schemaWriteAllowed": false,
+    "migrationApplyAllowed": false,
+    "runtimeReadAllowed": false,
+    "runtimeWriteAllowed": false,
+    "publicOutputAllowed": false,
+    "moduleFinalWriteAllowed": false,
+    "externalCollaborationAllowed": false,
+    "externalAgentDatabaseAccessAllowed": false,
+    "externalRegisterable": false
+  },
+  "nextRecommendedTask": "AUTH-005 if auth/session evidence appears; WORK-009 if an approved proof DB target appears; otherwise DATTR-024 remains blocked until migration/authz/audit/proof approval.",
+  "errors": [],
+  "warnings": []
+}

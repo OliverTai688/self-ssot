@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-22T00:34:49.916Z",
+  "command": "pnpm audit:ops:check",
+  "taskId": "AUDIT-OPS-001",
+  "status": "ready_for_schema_review",
+  "contract": {
+    "path": "src/lib/contracts/operating-audit-event.contract.ts",
+    "architectureDoc": "docs/02_architecture-and-rules/DBS-006_operating-audit-event-schema-contract.md",
+    "acceptanceDoc": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "backlogDoc": "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "adminAuditDoc": "docs/02_architecture-and-rules/ARC-026_admin-settings-audit-bff.md",
+    "realDataDoc": "docs/02_architecture-and-rules/DBS-005_per-module-real-data-migration-matrix.md",
+    "agentOperationDoc": "docs/02_architecture-and-rules/ARC-029_agent-operation-dry-run-contract.md",
+    "fieldCount": 21,
+    "familyCount": 7,
+    "appendOnlyRequired": true,
+    "noSchemaWrites": true,
+    "noRuntimeWrites": true,
+    "noPublicOutputExpansion": true,
+    "hasRedactionPolicy": true,
+    "hasRetentionPolicy": true,
+    "hasTamperEvidenceFields": true
+  },
+  "checks": {
+    "requiredMarkers": [
+      {
+        "marker": "OPERATING_AUDIT_EVENT_FIELDS",
+        "present": true
+      },
+      {
+        "marker": "OPERATING_AUDIT_EVENT_FAMILIES",
+        "present": true
+      },
+      {
+        "marker": "OPERATING_AUDIT_BFF_CONTRACT",
+        "present": true
+      },
+      {
+        "marker": "OPERATING_AUDIT_CONTRACT_SUMMARY",
+        "present": true
+      },
+      {
+        "marker": "appendOnlyRequired: true",
+        "present": true
+      },
+      {
+        "marker": "schemaWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "runtimeWriteAllowed: false",
+        "present": true
+      },
+      {
+        "marker": "publicOutputExpansion: false",
+        "present": true
+      },
+      {
+        "marker": "previousEventHash",
+        "present": true
+      },
+      {
+        "marker": "eventHash",
+        "present": true
+      },
+      {
+        "marker": "redactionVersion",
+        "present": true
+      },
+      {
+        "marker": "retentionClass",
+        "present": true
+      },
+      {
+        "marker": "AUTH-005",
+        "present": true
+      },
+      {
+        "marker": "WORK-009",
+        "present": true
+      },
+      {
+        "marker": "DATTR-024-SPLIT",
+        "present": true
+      },
+      {
+        "marker": "CLIENT-005",
+        "present": true
+      },
+      {
+        "marker": "AGENT-OPS-001",
+        "present": true
+      },
+      {
+        "marker": "DEPLOY-002",
+        "present": true
+      }
+    ],
+    "moduleCoverage": [
+      {
+        "moduleKey": "work",
+        "present": true
+      },
+      {
+        "moduleKey": "research",
+        "present": true
+      },
+      {
+        "moduleKey": "ai-input",
+        "present": true
+      },
+      {
+        "moduleKey": "workflow",
+        "present": true
+      },
+      {
+        "moduleKey": "life",
+        "present": true
+      },
+      {
+        "moduleKey": "finance",
+        "present": true
+      },
+      {
+        "moduleKey": "chamber",
+        "present": true
+      },
+      {
+        "moduleKey": "company",
+        "present": true
+      },
+      {
+        "moduleKey": "client-portal",
+        "present": true
+      },
+      {
+        "moduleKey": "agent-team-os",
+        "present": true
+      },
+      {
+        "moduleKey": "auth",
+        "present": true
+      },
+      {
+        "moduleKey": "admin",
+        "present": true
+      },
+      {
+        "moduleKey": "settings",
+        "present": true
+      },
+      {
+        "moduleKey": "deployment",
+        "present": true
+      }
+    ],
+    "familyCoverage": [
+      {
+        "familyKey": "auth.session",
+        "present": true
+      },
+      {
+        "familyKey": "work.mutation",
+        "present": true
+      },
+      {
+        "familyKey": "ai-input.source-workflow",
+        "present": true
+      },
+      {
+        "familyKey": "agent.operation",
+        "present": true
+      },
+      {
+        "familyKey": "client-portal.public-access",
+        "present": true
+      },
+      {
+        "familyKey": "high-risk.proposal",
+        "present": true
+      },
+      {
+        "familyKey": "admin.operator",
+        "present": true
+      }
+    ],
+    "fieldCoverage": [
+      {
+        "fieldName": "actorType",
+        "present": true
+      },
+      {
+        "fieldName": "actorRef",
+        "present": true
+      },
+      {
+        "fieldName": "moduleKey",
+        "present": true
+      },
+      {
+        "fieldName": "action",
+        "present": true
+      },
+      {
+        "fieldName": "targetType",
+        "present": true
+      },
+      {
+        "fieldName": "targetRef",
+        "present": true
+      },
+      {
+        "fieldName": "result",
+        "present": true
+      },
+      {
+        "fieldName": "riskLevel",
+        "present": true
+      },
+      {
+        "fieldName": "approvalLevel",
+        "present": true
+      },
+      {
+        "fieldName": "humanApprovalRequired",
+        "present": true
+      },
+      {
+        "fieldName": "sourceKind",
+        "present": true
+      },
+      {
+        "fieldName": "sourceRef",
+        "present": true
+      },
+      {
+        "fieldName": "agentRef",
+        "present": true
+      },
+      {
+        "fieldName": "operationId",
+        "present": true
+      },
+      {
+        "fieldName": "proposalRef",
+        "present": true
+      },
+      {
+        "fieldName": "proofRef",
+        "present": true
+      },
+      {
+        "fieldName": "metadata",
+        "present": true
+      },
+      {
+        "fieldName": "redactionVersion",
+        "present": true
+      },
+      {
+        "fieldName": "retentionClass",
+        "present": true
+      },
+      {
+        "fieldName": "previousEventHash",
+        "present": true
+      },
+      {
+        "fieldName": "eventHash",
+        "present": true
+      }
+    ],
+    "forbiddenRuntimeMarkers": [
+      {
+        "label": "Prisma client marker",
+        "present": false
+      },
+      {
+        "label": "database client call marker",
+        "present": false
+      },
+      {
+        "label": "environment read marker",
+        "present": false
+      },
+      {
+        "label": "provider client marker",
+        "present": false
+      },
+      {
+        "label": "network call marker",
+        "present": false
+      },
+      {
+        "label": "database URL env marker",
+        "present": false
+      },
+      {
+        "label": "privileged provider env marker",
+        "present": false
+      },
+      {
+        "label": "request cookie read marker",
+        "present": false
+      },
+      {
+        "label": "request header read marker",
+        "present": false
+      }
+    ],
+    "referencedDocs": {
+      "architectureDoc": true,
+      "acceptanceDoc": true,
+      "backlogDoc": true,
+      "adminAuditDoc": true,
+      "realDataDoc": true,
+      "agentOperationDoc": true
+    }
+  },
+  "errors": [],
+  "safety": {
+    "readsEnv": false,
+    "readsDatabase": false,
+    "callsProvider": false,
+    "callsNetwork": false,
+    "writesDatabase": false,
+    "mutatesSchema": false,
+    "expandsPublicOutput": false,
+    "exposesPublicRoute": false,
+    "enablesExternalAgents": false
+  }
+}

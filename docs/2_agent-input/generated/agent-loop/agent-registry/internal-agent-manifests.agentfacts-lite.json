@@ -1,0 +1,1173 @@
+{
+  "schema": "personal-os-agentfacts-lite",
+  "version": 1,
+  "generatedAt": "2026-06-21T02:30:58+08:00",
+  "sourceBasis": {
+    "local": [
+      "docs/02_architecture-and-rules/ARC-020_internal-agents.md",
+      "docs/02_architecture-and-rules/ARC-028_nanda-agent-protocol-alignment.md",
+      "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+      "docs/02_architecture-and-rules/ARC-021_skill-registry.md",
+      "docs/02_architecture-and-rules/ARC-022_task-routing.md",
+      "docs/02_architecture-and-rules/ARC-023_agent-team-os-operating-contract.md",
+      "docs/02_architecture-and-rules/ARC-024_ai-service-adapter-boundary.md"
+    ],
+    "external": [
+      "https://github.com/projnanda/projnanda",
+      "https://github.com/projnanda/agentfacts-format",
+      "https://github.com/projnanda/nanda-index"
+    ]
+  },
+  "safetyPolicy": {
+    "runtimeStatus": "generated-internal-inventory-only",
+    "secretsIncluded": false,
+    "publicEndpointCreated": false,
+    "databaseSchemaChanged": false,
+    "externalRegistryWrite": false,
+    "externalRegisterableDefault": false
+  },
+  "manifests": [
+    {
+      "id": "personal-os:product-manager-agent",
+      "agent_name": "urn:agent:personal-os:ProductManagerAgent",
+      "label": "ProductManagerAgent",
+      "description": "Keeps product intent, roadmap, v0.1 scope, and task sequencing coherent.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "product",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "task-prioritization",
+          "description": "Convert product intent into executable backlog slices and acceptance criteria.",
+          "riskLevel": "LOW",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "docs",
+            "backlog",
+            "acceptance"
+          ]
+        },
+        {
+          "id": "scope-resolution",
+          "description": "Flag PRD conflicts, scope changes, and public commitment risks for review.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "product",
+            "roadmap"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "prd-to-task-planning",
+          "source": ".codex/skills/prd-to-task-planning/SKILL.md"
+        },
+        {
+          "id": "closed-loop-sprint",
+          "source": ".codex/skills/closed-loop-sprint/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "repo-docs",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "direct high-risk runtime edits without task approval",
+          "public commitments without owner review"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:db-agent",
+      "agent_name": "urn:agent:personal-os:DBAgent",
+      "label": "DBAgent",
+      "description": "Protects the database contract, migration strategy, seed flow, and persistence safety.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "database",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "schema-review",
+          "description": "Review Prisma schema, migration strategy, enum consistency, and seed safety.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "database",
+            "prisma",
+            "migrations"
+          ]
+        },
+        {
+          "id": "database-contract-notes",
+          "description": "Write migration risk checklists and DB contract updates without applying migrations.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "docs",
+            "database"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "db-contract-review",
+          "source": ".codex/skills/db-contract-review/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+        "dataVisibilityLevel": "repo-docs-and-schema",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "apply risky schema changes without migration impact notes",
+          "delete data",
+          "mutate valuable databases without approval"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:work-agent",
+      "agent_name": "urn:agent:personal-os:WorkAgent",
+      "label": "WorkAgent",
+      "description": "Moves the Work module toward DB-backed operational CRUD through approved service boundaries.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "work",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "work-crud-boundary",
+          "description": "Implement and review Work CRUD through server actions, services, mappers, and ownership checks.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "work"
+          ]
+        },
+        {
+          "id": "client-visibility-review",
+          "description": "Flag Work records that may become client-visible for explicit review.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "work",
+            "client-portal"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "work-crud-implementation",
+          "source": ".codex/skills/work-crud-implementation/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "work-project-scoped",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "bypass requireUser()",
+          "bypass assertCanAccessProject()",
+          "expose internal notes to public routes"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:research-agent",
+      "agent_name": "urn:agent:personal-os:ResearchAgent",
+      "label": "ResearchAgent",
+      "description": "Preserves research network intent, source identity, citation metadata, and traceability.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "research",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "research-model-mapping",
+          "description": "Map research PRDs to DB tasks while preserving source and citation metadata.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "research",
+            "source-asset"
+          ]
+        },
+        {
+          "id": "external-source-sharing-review",
+          "description": "Require review before sharing research context or external source material.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "research"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "prd-to-task-planning",
+          "source": ".codex/skills/prd-to-task-planning/SKILL.md"
+        },
+        {
+          "id": "db-contract-review",
+          "source": ".codex/skills/db-contract-review/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "research-source-scoped",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "drop source IDs",
+          "drop citation metadata",
+          "share research context externally without approval"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:ingestion-agent",
+      "agent_name": "urn:agent:personal-os:IngestionAgent",
+      "label": "IngestionAgent",
+      "description": "Governs raw input classification, AI Input triage proposals, and evidence-preserving routing.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "ai-input",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "source-triage-proposals",
+          "description": "Create source triage and module-routing proposals while preserving evidence.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "ai-input",
+            "inbox",
+            "source-asset"
+          ]
+        },
+        {
+          "id": "high-risk-write-blocker",
+          "description": "Block direct writes to finance, client-visible, and public output paths.",
+          "riskLevel": "CRITICAL",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "finance",
+            "client-portal",
+            "public-output"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "codebase-audit",
+          "source": ".codex/skills/codebase-audit/SKILL.md"
+        },
+        {
+          "id": "closed-loop-sprint",
+          "source": ".codex/skills/closed-loop-sprint/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "source-intake-proposals",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "write finance records",
+          "write client-visible output",
+          "write public data"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:workflow-agent",
+      "agent_name": "urn:agent:personal-os:WorkflowAgent",
+      "label": "WorkflowAgent",
+      "description": "Keeps automation rules, dispatch, run status, and audit behavior reviewable.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "workflow",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "automation-risk-review",
+          "description": "Review rule execution, automation status, dispatch behavior, and audit trail risk.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "workflow",
+            "agent-messages"
+          ]
+        },
+        {
+          "id": "cross-module-write-gate",
+          "description": "Require approval before high-risk automation or cross-module writes.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "workflow",
+            "all-modules"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "codebase-audit",
+          "source": ".codex/skills/codebase-audit/SKILL.md"
+        },
+        {
+          "id": "closed-loop-sprint",
+          "source": ".codex/skills/closed-loop-sprint/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "workflow-rules-and-audit",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "bypass module permissions",
+          "bypass approval gates",
+          "dispatch high-risk writes autonomously"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:uiux-agent",
+      "agent_name": "urn:agent:personal-os:UIUXAgent",
+      "label": "UIUXAgent",
+      "description": "Improves usability, responsive states, and visual hierarchy without broad redesign by default.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "ui",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "small-ui-patches",
+          "description": "Propose and implement scoped UI changes, responsive fixes, and hierarchy improvements.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "ui",
+            "module-surfaces"
+          ]
+        },
+        {
+          "id": "major-navigation-review",
+          "description": "Require approval for full redesigns, major navigation changes, or public/client-facing UX rewrites.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "ui",
+            "public-output",
+            "client-portal"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "uiux-iteration",
+          "source": ".codex/skills/uiux-iteration/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "ui-surface-only",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "large redesigns without explicit task scope",
+          "public/client-facing flow rewrite without approval"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:auth-permission-agent",
+      "agent_name": "urn:agent:personal-os:AuthPermissionAgent",
+      "label": "AuthPermissionAgent",
+      "description": "Protects route guards, service-layer authorization, module permissions, and auth boundaries.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "auth-permission",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "authorization-boundary-review",
+          "description": "Review requireUser(), route guards, ownership checks, permission flows, and client visibility filters.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "auth",
+            "permissions",
+            "client-portal",
+            "work"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "auth-permission-review",
+          "source": ".codex/skills/auth-permission-review/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+        "dataVisibilityLevel": "auth-boundary-metadata",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "relax auth",
+          "expose data without policy",
+          "bypass service-layer authorization"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:client-portal-agent",
+      "agent_name": "urn:agent:personal-os:ClientPortalAgent",
+      "label": "ClientPortalAgent",
+      "description": "Protects public sharing, client-visible filters, token strategy, and Client Portal boundaries.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "client-portal",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "public-boundary-review",
+          "description": "Review token lifecycle, public DTOs, visibility filters, and public page UX for data exposure risk.",
+          "riskLevel": "CRITICAL",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "client-portal",
+            "public-output",
+            "work"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "auth-permission-review",
+          "source": ".codex/skills/auth-permission-review/SKILL.md"
+        },
+        {
+          "id": "uiux-iteration",
+          "source": ".codex/skills/uiux-iteration/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+        "dataVisibilityLevel": "client-portal-boundary-metadata",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "expose internal notes",
+          "expose private project state",
+          "write public output without approval"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:life-agent",
+      "agent_name": "urn:agent:personal-os:LifeAgent",
+      "label": "LifeAgent",
+      "description": "Protects privacy-first life, health, energy, memory, and low-interference personal observations.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "life",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "life-observation-proposals",
+          "description": "Summarize life context as private low-interference proposals only.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "life"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "prd-to-task-planning",
+          "source": ".codex/skills/prd-to-task-planning/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+        "dataVisibilityLevel": "life-private-proposals",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "public or external sharing of life data",
+          "irreversible health or finance writes"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:finance-agent",
+      "agent_name": "urn:agent:personal-os:FinanceAgent",
+      "label": "FinanceAgent",
+      "description": "Keeps finance data draft-only, human-approved, auditable, and non-final by default.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "finance",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "finance-draft-proposals",
+          "description": "Detect finance drafts, suggest categories, and prepare reviewable reports.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "finance"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "auth-permission-review",
+          "source": ".codex/skills/auth-permission-review/SKILL.md"
+        },
+        {
+          "id": "db-contract-review",
+          "source": ".codex/skills/db-contract-review/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+        "dataVisibilityLevel": "finance-draft-proposals",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "finalize transactions",
+          "make irreversible financial decisions",
+          "publish finance reports"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:company-agent",
+      "agent_name": "urn:agent:personal-os:CompanyAgent",
+      "label": "CompanyAgent",
+      "description": "Preserves company strategy context, operating principles, and project alignment proposals.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "company",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "strategy-alignment-proposals",
+          "description": "Propose company strategy notes and project alignment without external sharing.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "company",
+            "work"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "prd-to-task-planning",
+          "source": ".codex/skills/prd-to-task-planning/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+        "dataVisibilityLevel": "company-strategy-proposals",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "share strategy externally without approval",
+          "publish company strategy",
+          "finalize high-risk company writes"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:chamber-agent",
+      "agent_name": "urn:agent:personal-os:ChamberAgent",
+      "label": "ChamberAgent",
+      "description": "Manages relationship context, referrals, opportunities, meeting prep, and privacy boundaries.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "chamber",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "relationship-context-proposals",
+          "description": "Propose contact notes, referral context, and meeting prep while preserving private relationship insight.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "chamber"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "prd-to-task-planning",
+          "source": ".codex/skills/prd-to-task-planning/SKILL.md"
+        },
+        {
+          "id": "uiux-iteration",
+          "source": ".codex/skills/uiux-iteration/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "HUMAN_APPROVAL_REQUIRED",
+        "dataVisibilityLevel": "relationship-context-proposals",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "expose private relationship insights without approval",
+          "share partner-visible relationship data without approval"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:qa-agent",
+      "agent_name": "urn:agent:personal-os:QAAgent",
+      "label": "QAAgent",
+      "description": "Verifies implementation, records residual risk, and prevents unverified regression claims.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "qa",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "verification-review",
+          "description": "Run meaningful verification, inspect edge cases, update test gaps, and record residual risks.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "qa",
+            "all-modules"
+          ]
+        },
+        {
+          "id": "release-risk-escalation",
+          "description": "Escalate known failures before release or launch claims.",
+          "riskLevel": "HIGH",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "qa",
+            "launch"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "closed-loop-sprint",
+          "source": ".codex/skills/closed-loop-sprint/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "repo-evidence-and-test-output",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "ignore failed commands",
+          "claim unverified behavior",
+          "release known failures without escalation"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    },
+    {
+      "id": "personal-os:devops-agent",
+      "agent_name": "urn:agent:personal-os:DevOpsAgent",
+      "label": "DevOpsAgent",
+      "description": "Keeps local/dev workflow, scripts, environment assumptions, build commands, and deployment notes stable.",
+      "version": "0.1.0",
+      "provider": {
+        "name": "Personal OS",
+        "url": null
+      },
+      "lifecycle": {
+        "status": "governance-only",
+        "ownerModule": "devops",
+        "sourceOfTruth": "docs/02_architecture-and-rules/ARC-020_internal-agents.md"
+      },
+      "endpoints": {
+        "internal": [],
+        "external": []
+      },
+      "protocols": [
+        "internal",
+        "docs-governance"
+      ],
+      "capabilities": [
+        {
+          "id": "dev-workflow-stability",
+          "description": "Review scripts, build commands, env assumptions, and deployment docs without mutating valuable infrastructure.",
+          "riskLevel": "MEDIUM",
+          "requiresHumanApproval": false,
+          "allowedTargetModules": [
+            "devops",
+            "launch",
+            "scripts"
+          ]
+        },
+        {
+          "id": "deployment-change-gate",
+          "description": "Require approval before deployment provider changes, secrets, or destructive operations.",
+          "riskLevel": "CRITICAL",
+          "requiresHumanApproval": true,
+          "allowedTargetModules": [
+            "deployment",
+            "environment"
+          ]
+        }
+      ],
+      "skills": [
+        {
+          "id": "codebase-audit",
+          "source": ".codex/skills/codebase-audit/SKILL.md"
+        },
+        {
+          "id": "closed-loop-sprint",
+          "source": ".codex/skills/closed-loop-sprint/SKILL.md"
+        }
+      ],
+      "auth": {
+        "methods": [],
+        "requiredScopes": []
+      },
+      "trust": {
+        "approvalLevel": "AUTO_PROPOSE",
+        "dataVisibilityLevel": "scripts-env-presence-deployment-docs",
+        "boundaryPolicy": "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
+        "blockedActions": [
+          "change production or deployment config casually",
+          "expose secrets",
+          "run destructive operations"
+        ],
+        "attestations": []
+      },
+      "observability": {
+        "evidenceReports": [],
+        "lastVerification": null,
+        "telemetryClaims": []
+      },
+      "registry": {
+        "internalDiscoverable": true,
+        "externalRegisterable": false,
+        "registrationStatus": "not-registered",
+        "registryTargets": []
+      }
+    }
+  ]
+}
