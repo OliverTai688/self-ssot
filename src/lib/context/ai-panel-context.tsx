@@ -20,8 +20,15 @@ export function AiPanelProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   React.useEffect(() => {
-    const stored = localStorage.getItem("ai-panel-open")
-    if (stored !== null) setIsOpen(stored === "true")
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (cancelled) return
+      const stored = localStorage.getItem("ai-panel-open")
+      if (stored !== null) setIsOpen(stored === "true")
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const toggle = React.useCallback(() => {

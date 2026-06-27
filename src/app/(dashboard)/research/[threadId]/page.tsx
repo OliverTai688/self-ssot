@@ -315,7 +315,7 @@ export default function ThreadDetailPage() {
                   ) : (
                     <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border/60">
                       {threadTargets.map((pt) => {
-                        const days = Math.ceil((new Date(pt.deadline).getTime() - Date.now()) / 86400000)
+                        const days = Math.ceil((new Date(pt.deadline).getTime() - new Date().getTime()) / 86400000)
                         return (
                           <div key={pt.id} className="p-3.5 flex items-start justify-between gap-4">
                             <div className="space-y-1">

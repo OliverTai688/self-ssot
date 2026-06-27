@@ -267,12 +267,27 @@ export function ModuleOperatingShell({
   const [localSettings, setLocalSettings] = React.useState<ModuleSettingRow[]>(settings ?? defaultSettings)
 
   React.useEffect(() => {
-    setLocalRecords(initialRecords)
-    setSelectedId(initialRecords[0]?.id ?? "")
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (cancelled) return
+      setLocalRecords(initialRecords)
+      setSelectedId(initialRecords[0]?.id ?? "")
+    })
+    return () => {
+      cancelled = true
+    }
   }, [initialRecords])
 
   React.useEffect(() => {
-    setProposalState(Object.fromEntries(proposals.map((proposal) => [proposal.id, "waiting"])))
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (!cancelled) {
+        setProposalState(Object.fromEntries(proposals.map((proposal) => [proposal.id, "waiting"])))
+      }
+    })
+    return () => {
+      cancelled = true
+    }
   }, [proposals])
 
   const filteredRecords = localRecords.filter((record) => {

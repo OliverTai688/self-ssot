@@ -31,17 +31,25 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
   const [priority, setPriority] = React.useState(initial?.priority ?? 100)
 
   React.useEffect(() => {
-    if (open && initial) {
-      setName(initial.name)
-      setFromAgent(initial.fromAgent)
-      setIntent(initial.intent)
-      setConditions(initial.conditions ?? "")
-      setToAgent(initial.toAgent)
-      setTargetIntent(initial.targetIntent)
-      setMode(initial.mode)
-      setRequiresApproval(initial.requiresApproval)
-      setPriority(initial.priority)
-    } else if (open && !initial) {
+    if (!open) return
+
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (cancelled) return
+
+      if (initial) {
+        setName(initial.name)
+        setFromAgent(initial.fromAgent)
+        setIntent(initial.intent)
+        setConditions(initial.conditions ?? "")
+        setToAgent(initial.toAgent)
+        setTargetIntent(initial.targetIntent)
+        setMode(initial.mode)
+        setRequiresApproval(initial.requiresApproval)
+        setPriority(initial.priority)
+        return
+      }
+
       setName("")
       setFromAgent("work")
       setIntent("task.create")
@@ -51,6 +59,10 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
       setMode("broadcast")
       setRequiresApproval(false)
       setPriority(100)
+    })
+
+    return () => {
+      cancelled = true
     }
   }, [open, initial])
 

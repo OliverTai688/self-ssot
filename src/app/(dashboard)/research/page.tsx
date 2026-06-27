@@ -77,6 +77,7 @@ function WorkspaceCard({ title, description, href, icon, stats, accentColor }: W
 
 export default function ResearchPage() {
   const { issues, ideasV2, sources, writingProjects, events, people, links, questions, concepts } = useResearch()
+  const nowMs = new Date().getTime()
 
   const upcomingEvents = events
     .filter((e) => e.submissionDeadline && new Date(e.submissionDeadline) > new Date())
@@ -89,7 +90,7 @@ export default function ResearchPage() {
   const inboxIdeas = ideasV2.filter((i) => i.status === "inbox").length
   const urgentCfps = events.filter((e) => {
     if (!e.submissionDeadline) return false
-    const days = Math.ceil((new Date(e.submissionDeadline).getTime() - Date.now()) / 86400000)
+    const days = Math.ceil((new Date(e.submissionDeadline).getTime() - nowMs) / 86400000)
     return days > 0 && days <= 14
   }).length
   const openIssues = issues.filter((i) => i.status === "exploring" || i.status === "active").length
@@ -332,7 +333,7 @@ export default function ResearchPage() {
                 {upcomingEvents.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-xl">暫無即將截止的 CFP</p>
                 ) : upcomingEvents.map((ev) => {
-                  const days = Math.ceil((new Date(ev.submissionDeadline!).getTime() - Date.now()) / 86400000)
+                  const days = Math.ceil((new Date(ev.submissionDeadline!).getTime() - nowMs) / 86400000)
                   return (
                     <Link
                       key={ev.id}

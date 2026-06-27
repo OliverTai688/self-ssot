@@ -32,11 +32,12 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const pct = project.tasksTotal === 0 ? 0 : Math.round((project.tasksDone / project.tasksTotal) * 100)
+  const nowMs = new Date().getTime()
 
   const isOverdue = project.dueAt && new Date(project.dueAt) < new Date()
 
   const daysLeft = project.dueAt
-    ? Math.ceil((new Date(project.dueAt).getTime() - Date.now()) / 86400000)
+    ? Math.ceil((new Date(project.dueAt).getTime() - nowMs) / 86400000)
     : null
 
   return (

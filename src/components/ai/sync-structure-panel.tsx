@@ -111,12 +111,13 @@ function DriveItemRow({
   const [expanded, setExpanded] = React.useState(depth === 0 && item.type === "folder" && item.isSelected)
   const isFolder = item.type === "folder"
   const hasChildren = isFolder && (item.children?.length ?? 0) > 0
-
-  const Icon = () => {
-    if (isFolder) return expanded ? <FolderOpenIcon className="size-3.5 text-amber-500" /> : <FolderIcon className="size-3.5 text-amber-500" />
-    if (item.type === "spreadsheet") return <FileSpreadsheetIcon className="size-3.5 text-emerald-500" />
-    return <FileTextIcon className="size-3.5 text-blue-400" />
-  }
+  const icon = isFolder
+    ? expanded
+      ? <FolderOpenIcon className="size-3.5 text-amber-500" />
+      : <FolderIcon className="size-3.5 text-amber-500" />
+    : item.type === "spreadsheet"
+      ? <FileSpreadsheetIcon className="size-3.5 text-emerald-500" />
+      : <FileTextIcon className="size-3.5 text-blue-400" />
 
   return (
     <div>
@@ -147,7 +148,7 @@ function DriveItemRow({
 
         {/* Icon */}
         <span className="mt-0.5 flex-shrink-0">
-          <Icon />
+          {icon}
         </span>
 
         {/* Name + meta */}

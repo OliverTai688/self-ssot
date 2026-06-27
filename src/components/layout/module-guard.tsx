@@ -16,7 +16,8 @@ export function ModuleGuard({ moduleKey, children }: ModuleGuardProps) {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    setMounted(true)
+    const frame = window.requestAnimationFrame(() => setMounted(true))
+    return () => window.cancelAnimationFrame(frame)
   }, [])
 
   if (!mounted) {

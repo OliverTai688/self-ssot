@@ -226,7 +226,7 @@ export function MaterialList({ threadId, materials, researchers }: MaterialListP
                     <div className="rounded-lg bg-purple-500/[0.02] border border-purple-500/10 p-2.5 space-y-1">
                       <p className="text-[9px] font-bold text-purple-500 leading-none">學者交往備忘錄 (僅 Owner 可見)</p>
                       <p className="text-[10px] text-muted-foreground leading-normal italic">
-                        "{r.relationNote}"
+                        &quot;{r.relationNote}&quot;
                       </p>
                     </div>
                   )}

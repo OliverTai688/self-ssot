@@ -82,7 +82,7 @@ export function PubTimeline({ targets }: PubTimelineProps) {
           <div className="p-4 space-y-3.5">
             {sortedTargets.map((target) => {
               const deadlineDate = new Date(target.deadline)
-              const daysLeft = Math.ceil((deadlineDate.getTime() - Date.now()) / 86400000)
+              const daysLeft = Math.ceil((deadlineDate.getTime() - new Date().getTime()) / 86400000)
               
               return (
                 <div

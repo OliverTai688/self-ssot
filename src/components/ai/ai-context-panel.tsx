@@ -79,13 +79,20 @@ export function AiContextPanel() {
   // Seed greeting when panel opens or route changes
   React.useEffect(() => {
     const greeting = getGreeting(pathname)
-    setMessages([
-      {
-        id: "greeting",
-        role: "ai",
-        text: greeting,
-      },
-    ])
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (cancelled) return
+      setMessages([
+        {
+          id: "greeting",
+          role: "ai",
+          text: greeting,
+        },
+      ])
+    })
+    return () => {
+      cancelled = true
+    }
   }, [pathname])
 
   React.useEffect(() => {

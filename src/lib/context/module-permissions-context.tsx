@@ -84,18 +84,26 @@ export function ModulePermissionsProvider({
   const [snapshot, setSnapshot] = React.useState<ModulePermissionSnapshot>(initialSnapshot)
 
   React.useEffect(() => {
-    const savedRole = localStorage.getItem("pos_role")
-    const savedModules = localStorage.getItem("pos_enabled_modules")
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (cancelled) return
 
-    if (isUserRole(savedRole)) {
-      setSnapshot((current) =>
-        toSnapshot(
-          current,
-          savedRole,
-          parseSavedModules(savedModules) ?? DEFAULT_ROLE_PERMISSIONS[savedRole],
-          "browser_override"
+      const savedRole = localStorage.getItem("pos_role")
+      const savedModules = localStorage.getItem("pos_enabled_modules")
+
+      if (isUserRole(savedRole)) {
+        setSnapshot((current) =>
+          toSnapshot(
+            current,
+            savedRole,
+            parseSavedModules(savedModules) ?? DEFAULT_ROLE_PERMISSIONS[savedRole],
+            "browser_override"
+          )
         )
-      )
+      }
+    })
+    return () => {
+      cancelled = true
     }
   }, [])
 

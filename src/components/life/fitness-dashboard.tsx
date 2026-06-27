@@ -110,7 +110,7 @@ function TodayTab() {
   // Streak: consecutive days with a log
   const sortedLogs = [...dailyLogs].sort((a, b) => b.date.localeCompare(a.date))
   let streak = 0
-  let d = new Date()
+  const d = new Date()
   d.setDate(d.getDate() - 1)  // start from yesterday
   for (const log of sortedLogs) {
     const yyyymmdd = d.toISOString().split("T")[0]

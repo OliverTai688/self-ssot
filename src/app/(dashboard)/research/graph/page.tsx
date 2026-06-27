@@ -12,7 +12,10 @@ export default function GraphPage() {
   const { issues, concepts, sources, ideasV2, writingProjects, events, people, links } = useResearch()
 
   const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
+  React.useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMounted(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

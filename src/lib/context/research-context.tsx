@@ -118,29 +118,37 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
   const [links, setLinks] = React.useState<ResearchLink[]>([])
 
   React.useEffect(() => {
-    const get = (key: string) => localStorage.getItem(key)
-    const parse = <T,>(raw: string | null, fallback: T[]): T[] =>
-      raw ? (JSON.parse(raw) as T[]) : fallback
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (cancelled) return
 
-    setThreads(parse(get("pos_res_threads"), mockResearchThreads))
-    setIdeas(parse(get("pos_res_ideas"), mockResearchIdeas))
-    setMaterials(parse(get("pos_res_materials"), mockResearchMaterials))
-    setResearchers(parse(get("pos_res_researchers"), mockResearchers))
-    setPublicationTargets(parse(get("pos_res_targets"), mockPublicationTargets))
-    setMilestones(parse(get("pos_res_milestones"), mockResearchMilestones))
-    setOutputs(parse(get("pos_res_outputs"), mockResearchOutputs))
+      const get = (key: string) => localStorage.getItem(key)
+      const parse = <T,>(raw: string | null, fallback: T[]): T[] =>
+        raw ? (JSON.parse(raw) as T[]) : fallback
 
-    setIssues(parse(get("pos_res_issues"), mockResearchIssues))
-    setQuestions(parse(get("pos_res_questions"), mockResearchQuestions))
-    setConcepts(parse(get("pos_res_concepts"), mockResearchConcepts))
-    setSources(parse(get("pos_res_sources"), mockResearchSources))
-    setIdeasV2(parse(get("pos_res_ideasv2"), mockResearchIdeasV2))
-    setWritingProjects(parse(get("pos_res_writing"), mockResearchWritingProjects))
-    setWritingSections(parse(get("pos_res_sections"), mockWritingSections))
-    setFeedbackRuns(parse(get("pos_res_feedback"), mockAIFeedbackRuns))
-    setEvents(parse(get("pos_res_events"), mockResearchEvents))
-    setPeople(parse(get("pos_res_people"), mockAcademicPeople))
-    setLinks(parse(get("pos_res_links"), mockResearchLinks))
+      setThreads(parse(get("pos_res_threads"), mockResearchThreads))
+      setIdeas(parse(get("pos_res_ideas"), mockResearchIdeas))
+      setMaterials(parse(get("pos_res_materials"), mockResearchMaterials))
+      setResearchers(parse(get("pos_res_researchers"), mockResearchers))
+      setPublicationTargets(parse(get("pos_res_targets"), mockPublicationTargets))
+      setMilestones(parse(get("pos_res_milestones"), mockResearchMilestones))
+      setOutputs(parse(get("pos_res_outputs"), mockResearchOutputs))
+
+      setIssues(parse(get("pos_res_issues"), mockResearchIssues))
+      setQuestions(parse(get("pos_res_questions"), mockResearchQuestions))
+      setConcepts(parse(get("pos_res_concepts"), mockResearchConcepts))
+      setSources(parse(get("pos_res_sources"), mockResearchSources))
+      setIdeasV2(parse(get("pos_res_ideasv2"), mockResearchIdeasV2))
+      setWritingProjects(parse(get("pos_res_writing"), mockResearchWritingProjects))
+      setWritingSections(parse(get("pos_res_sections"), mockWritingSections))
+      setFeedbackRuns(parse(get("pos_res_feedback"), mockAIFeedbackRuns))
+      setEvents(parse(get("pos_res_events"), mockResearchEvents))
+      setPeople(parse(get("pos_res_people"), mockAcademicPeople))
+      setLinks(parse(get("pos_res_links"), mockResearchLinks))
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const save = (key: string, data: unknown) => localStorage.setItem(key, JSON.stringify(data))

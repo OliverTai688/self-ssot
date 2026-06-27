@@ -21,9 +21,13 @@ function QuickCaptureModal({
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   React.useEffect(() => {
+    let focusTimer: number | undefined
+
     if (open) {
-      setValue("")
-      setTimeout(() => textareaRef.current?.focus(), 50)
+      focusTimer = window.setTimeout(() => {
+        setValue("")
+        textareaRef.current?.focus()
+      }, 50)
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -33,7 +37,10 @@ function QuickCaptureModal({
     }
 
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    return () => {
+      if (focusTimer !== undefined) window.clearTimeout(focusTimer)
+      window.removeEventListener("keydown", handleKeyDown)
+    }
   }, [open, onClose])
 
   function handleSubmit() {

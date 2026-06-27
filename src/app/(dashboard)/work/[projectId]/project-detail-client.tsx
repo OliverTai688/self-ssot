@@ -742,9 +742,10 @@ export default function ProjectDetailClient({
   const clientDeliverables = projectDeliverables.filter((d) => d.visibility === "client_visible")
 
   const [tab, setTab] = React.useState("pulse")
+  const nowMs = new Date().getTime()
 
   const daysLeft = project.dueAt
-    ? Math.ceil((new Date(project.dueAt).getTime() - Date.now()) / 86400000)
+    ? Math.ceil((new Date(project.dueAt).getTime() - nowMs) / 86400000)
     : null
 
   // Adapter for ProjectPulseSection which expects MockProject

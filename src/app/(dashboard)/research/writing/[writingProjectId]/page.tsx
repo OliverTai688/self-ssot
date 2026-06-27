@@ -53,7 +53,13 @@ export default function WritingDetailPage() {
   const currentSection = sections.find((s) => s.id === activeSection)
 
   React.useEffect(() => {
-    if (currentSection) setDraftText(currentSection.body)
+    let cancelled = false
+    window.queueMicrotask(() => {
+      if (!cancelled && currentSection) setDraftText(currentSection.body)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [currentSection])
 
   if (!project) {

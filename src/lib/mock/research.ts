@@ -161,7 +161,7 @@ export const mockPublicationTargets: PublicationTarget[] = [
     venueName: "ACM SIGCHI 2026 Sustainable Computing Track",
     venueType: "conference",
     deadline: "2026-06-15T23:59:59Z", // 投稿截止
-    status: "writing" as any, // 轉換為適合的狀態
+    status: "considering",
     notes: "學術界 HCI 永續運算頂會。計畫投稿關於碳排數據視覺化與儀表板實時審查的人機交互論文。",
   },
   {
