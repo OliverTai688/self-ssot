@@ -11,6 +11,7 @@ import { ResearchProvider } from "@/lib/context/research-context"
 import { WorkflowProvider } from "@/lib/context/workflow-context"
 import { LifeProvider } from "@/lib/context/life-context"
 import { MockDataModeProvider } from "@/lib/context/mock-data-mode-context"
+import { LibraryClassificationProvider } from "@/lib/context/library-classification-context"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AiContextPanel } from "@/components/ai/ai-context-panel"
 
@@ -42,13 +43,15 @@ export default async function DashboardLayout({
             <IngestionProvider>
               <AiPanelProvider>
                 <LifeProvider>
-                  <div className="flex h-screen overflow-hidden">
-                    <AppSidebar />
-                    <div className="flex flex-1 flex-col overflow-hidden">
-                      {children}
+                  <LibraryClassificationProvider>
+                    <div className="flex h-screen overflow-hidden">
+                      <AppSidebar />
+                      <div className="flex flex-1 flex-col overflow-hidden">
+                        {children}
+                      </div>
+                      <AiContextPanel />
                     </div>
-                    <AiContextPanel />
-                  </div>
+                  </LibraryClassificationProvider>
                 </LifeProvider>
               </AiPanelProvider>
             </IngestionProvider>

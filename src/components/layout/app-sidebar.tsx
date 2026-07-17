@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -17,6 +18,7 @@ import {
   SparklesIcon,
   UsersIcon,
   WalletIcon,
+  UserIcon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -38,6 +40,11 @@ export function AppSidebar() {
   const { isMockDataEnabled, toggleMockData } = useMockDataMode()
   const { isModuleEnabled } = useModulePermissions()
 
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const navItems: NavItem[] = [
     {
       label: "AI 匯入",
@@ -54,6 +61,11 @@ export function AppSidebar() {
       href: "/inbox",
       icon: <InboxIcon className="size-4" />,
       showBadge: true,
+    },
+    {
+      label: "自己",
+      href: "/self",
+      icon: <UserIcon className="size-4" />,
     },
     {
       label: "工作",
@@ -111,6 +123,7 @@ export function AppSidebar() {
     "/ai-input": "ai-input",
     "/dashboard": "dashboard",
     "/inbox": "inbox",
+    "/self": "self",
     "/work": "work",
     "/research": "research",
     "/chamber": "chamber",
@@ -169,14 +182,14 @@ export function AppSidebar() {
             onClick={toggleMockData}
             className={cn(
               "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors",
-              isMockDataEnabled
+              (!mounted || isMockDataEnabled)
                 ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
                 : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
             )}
-            title={isMockDataEnabled ? "關閉 mock data，切到正式模式" : "重新開啟 mock data demo"}
+            title={!mounted ? "關閉 mock data，切到正式模式" : isMockDataEnabled ? "關閉 mock data，切到正式模式" : "重新開啟 mock data demo"}
           >
             <DatabaseIcon className="size-3" />
-            {isMockDataEnabled ? "Mock" : "正式"}
+            {!mounted ? "Mock" : isMockDataEnabled ? "Mock" : "正式"}
           </button>
         </div>
       </div>

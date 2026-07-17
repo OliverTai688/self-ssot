@@ -142,6 +142,7 @@ interface IngestionContextValue {
 
   // Pipeline actions
   addManualCapture: (content: string) => void
+  addConversationCapture: (transcript: string, modeLabel: string, summary?: string) => void
   mockSyncLINE: () => void
   mockSyncGmail: () => void
   mockSyncRSS: () => void
@@ -461,6 +462,70 @@ export function IngestionProvider({ children }: { children: React.ReactNode }) {
     setEvidences((prev) => [ev, ...prev])
     setProposals((prev) => [proposal, ...prev])
     pushToast("已擷取為原始來源。AI 生成了 1 則審閱建議。")
+  }, [isMockDataEnabled, rejectMockWrite, pushToast])
+
+  const addConversationCapture = React.useCallback((transcript: string, modeLabel: string, summary?: string) => {
+    if (!isMockDataEnabled) {
+      rejectMockWrite("AI Input 對話匯入")
+      return
+    }
+    if (!transcript.trim()) return
+
+    const rsiId = makeId("rsi")
+    const ncId = makeId("nc")
+    const evId = makeId("ev")
+    const now = makeTimestamp()
+
+    const rsi = makeRawSourceItem({
+      id: rsiId,
+      sourceConnectionId: "sc-manual",
+      sourceType: "manual_message",
+      title: `AI 對話紀錄 (${modeLabel}) - ${now.slice(5, 16).replace("T", " ")}`,
+      rawText: transcript,
+      previewText: transcript.length > 60 ? transcript.slice(0, 57) + "…" : transcript,
+      capturedAt: now,
+      importedAt: now,
+      processingStatus: "processed",
+    })
+
+    const nc = makeNormalizedContent({
+      id: ncId,
+      rawSourceItemId: rsiId,
+      contentType: "message_text",
+      text: transcript,
+    })
+
+    const ev = makeEvidence({
+      id: evId,
+      rawSourceItemId: rsiId,
+      normalizedContentId: ncId,
+      excerpt: transcript.length > 80 ? transcript.slice(0, 77) + "…" : transcript,
+      reasonUsed: "AI 對話的完整上下文記錄作為分類依據",
+    })
+
+    const proposal = makeProposal(rsiId, evId, transcript)
+    
+    // Determine the target placement dynamically based on the mode label
+    let suggestedPlacement = "收件匣 → 待分類"
+    if (modeLabel.includes("反思")) suggestedPlacement = "自己 → 反思"
+    else if (modeLabel.includes("工作")) suggestedPlacement = "工作 → 專案任務"
+    else if (modeLabel.includes("研究")) suggestedPlacement = "研究 → 研究方向"
+    else if (modeLabel.includes("商會")) suggestedPlacement = "商會 → 商會資料"
+    else if (modeLabel.includes("財務")) suggestedPlacement = "財務 → 支出記錄"
+    else if (modeLabel.includes("生活")) suggestedPlacement = "生活 → 健康追蹤"
+    else if (modeLabel.includes("公司")) suggestedPlacement = "公司 → 公司策略"
+    else if (modeLabel.includes("報告")) suggestedPlacement = "收件匣 → 報告生成"
+
+    // Override proposal properties for better UX
+    proposal.detectedType = `${modeLabel}對話`
+    proposal.suggestedPlacement = suggestedPlacement
+    proposal.summary = summary || `與 AI 的對話紀錄 (${modeLabel})，共包含對話內容。`
+
+    setRawSourceItems((prev) => [rsi, ...prev])
+    setNormalizedContents((prev) => [nc, ...prev])
+    setEvidences((prev) => [ev, ...prev])
+    setProposals((prev) => [proposal, ...prev])
+    pushToast("對話紀錄已成功匯入來源分析區域！")
   }, [isMockDataEnabled, rejectMockWrite, pushToast])
 
   // ── Mock Sync LINE ────────────────────────────────────────────────────────
@@ -1214,6 +1279,7 @@ export function IngestionProvider({ children }: { children: React.ReactNode }) {
         toasts,
         dismissToast,
         addManualCapture,
+        addConversationCapture,
         mockSyncLINE,
         mockSyncGmail,
         mockSyncRSS,

@@ -168,7 +168,8 @@ Source naming rules:
 
 - `originalName` must never be overwritten.
 - `canonicalName` is an internal Personal OS semantic name for AI grouping, role inference, and UI organization.
-- `displayName` controls what the user sees.
+- `displayName` controls what the user sees; renameable manually or via an AI-suggested title.
+- `referenceCode` is a stable, ISO 9001-style (clause 7.5.2/7.5.3) AI-facing identifier — `{OBJECT_TYPE}-{ORIGIN}-{SEQUENCE:6}-{DATE:YYYYMMDD}` — assigned once at creation and never regenerated or reused, even across `displayName`/`canonicalName` changes. It is the string `AnalysisEvent`/`AgentBusMessage`/audit references should cite so a citation survives a later rename. See `RES-018` for the full design and rationale; `referenceCode` answers a different question from `canonicalName` (permanent per-instance citation key vs. semantic grouping label) and must not be conflated with it.
 - `canonicalName` does not rename external Google Drive files, repo files, local files, or chat attachments.
 - External file rename must be a separate explicit action with audit trail.
 
@@ -238,6 +239,7 @@ Fields to consider:
 - `id`
 - `ownerProfileId`
 - `title`
+- `referenceCode` (see §6 naming rules; ISO 9001-style, assign-once, AI-facing)
 - `assetKind`
 - `format`
 - `storageMode`

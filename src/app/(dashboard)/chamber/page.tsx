@@ -181,6 +181,7 @@ export default function ChamberPage() {
             auditRows={chamberAuditRows}
             settings={chamberSettings}
             privacyNote="聯絡人資料不對 Client Portal 或 Research 公開。外部共享前需明確標記。"
+            moduleKey="chamber"
           />
         </main>
       </div>

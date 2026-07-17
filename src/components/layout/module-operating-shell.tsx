@@ -8,6 +8,8 @@ import {
   ClockIcon,
   FileClockIcon,
   FilterIcon,
+  FolderIcon,
+  ImageIcon,
   LockIcon,
   PlusIcon,
   SearchIcon,
@@ -22,8 +24,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import type { ModuleKey } from "@/types/module-permission"
+import { FileLibraryPage } from "@/components/ai/file-library/file-library-page"
+import { MediaLibraryPage } from "@/components/ai/media-library/media-library-page"
 
-type ShellTab = "overview" | "operation" | "agent" | "records" | "settings"
+type ShellTab = "overview" | "operation" | "library" | "agent" | "records" | "settings"
 type RecordStatus = "active" | "review" | "blocked" | "done"
 type Tone = "good" | "warn" | "blocked" | "neutral"
 
@@ -81,16 +86,24 @@ interface ModuleOperatingShellProps {
   highRisk?: boolean
   highRiskNote?: string
   privacyNote?: string
+  /** RES-016 §6.1/ARC-012 §5A: when provided, adds a read-only 檔案庫/媒體庫 tab filtered to this module. */
+  moduleKey?: ModuleKey
   children?: React.ReactNode
 }
 
-const tabItems: { key: ShellTab; label: string; icon?: React.ElementType }[] = [
+const baseTabItems: { key: ShellTab; label: string; icon?: React.ElementType }[] = [
   { key: "overview", label: "總覽" },
   { key: "operation", label: "操作" },
   { key: "agent", label: "代理人", icon: BotIcon },
   { key: "records", label: "紀錄", icon: FileClockIcon },
   { key: "settings", label: "設定", icon: SlidersIcon },
 ]
+
+const libraryTabItem: { key: ShellTab; label: string; icon?: React.ElementType } = {
+  key: "library",
+  label: "檔案庫/媒體庫",
+  icon: FolderIcon,
+}
 
 const defaultAuditRows: ModuleAuditRow[] = [
   {
@@ -243,8 +256,14 @@ export function ModuleOperatingShell({
   highRisk,
   highRiskNote,
   privacyNote,
+  moduleKey,
   children,
 }: ModuleOperatingShellProps) {
+  const visibleTabItems = React.useMemo(() => {
+    if (!moduleKey) return baseTabItems
+    return [baseTabItems[0], baseTabItems[1], libraryTabItem, ...baseTabItems.slice(2)]
+  }, [moduleKey])
+  const [libraryKind, setLibraryKind] = React.useState<"file" | "media">("file")
   const initialRecords = React.useMemo(
     () => records ?? defaultRecords(operationLabel),
     [operationLabel, records]
@@ -428,7 +447,7 @@ export function ModuleOperatingShell({
       </section>
 
       <div className="flex flex-wrap items-center gap-1 border-b">
-        {tabItems.map(({ key, label, icon: TabIcon }) => (
+        {visibleTabItems.map(({ key, label, icon: TabIcon }) => (
           <button
             key={key}
             type="button"
@@ -582,6 +601,50 @@ export function ModuleOperatingShell({
             </div>
           </section>
         </div>
+      )}
+
+      {tab === "library" && moduleKey && (
+        <section className="rounded-lg border bg-background p-4">
+          <div className="mb-4 flex items-center gap-1 rounded-lg border bg-muted/30 p-1 w-fit">
+            <button
+              type="button"
+              onClick={() => setLibraryKind("file")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                libraryKind === "file" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FolderIcon className="size-3.5" />
+              檔案庫
+            </button>
+            <button
+              type="button"
+              onClick={() => setLibraryKind("media")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                libraryKind === "media" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <ImageIcon className="size-3.5" />
+              媒體庫
+            </button>
+          </div>
+          {libraryKind === "file" ? (
+            <FileLibraryPage
+              referencedTitles={new Set()}
+              onReferenceAsset={() => {}}
+              mode="module_readonly"
+              filterModuleKey={moduleKey}
+            />
+          ) : (
+            <MediaLibraryPage
+              referencedTitles={new Set()}
+              onReferenceAsset={() => {}}
+              mode="module_readonly"
+              filterModuleKey={moduleKey}
+            />
+          )}
+        </section>
       )}
 
       {tab === "agent" && (

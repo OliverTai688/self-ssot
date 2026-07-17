@@ -29,14 +29,51 @@ import {
   type ProjectInitResult,
 } from "@/lib/ai/project-init"
 import { createProject } from "@/app/actions/work"
+import { useLibraryClassification } from "@/lib/context/library-classification-context"
+import { generateReferenceCode } from "@/lib/naming/reference-code"
+import type { FileAsset } from "@/types/file-library"
 
 type Mode = "manual" | "ai"
 type AIStep = "upload" | "parsing" | "preview"
 
 const ACCEPTED_EXTS = /\.(pdf|doc|docx|txt)$/i
 
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+}
+
+let subModuleUploadCounter = 0
+
+function makeSubModuleAssetId(): string {
+  subModuleUploadCounter += 1
+  return `fa-work-upload-${Date.now()}-${subModuleUploadCounter}`
+}
+
+/** Builds a real `FileAsset` from a browser `File` (RES-019 §6/§8 `MODLIB-010`) — no more silently discarding upload content. */
+function toFileAsset(file: File): FileAsset {
+  const now = new Date().toISOString()
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
+  const id = makeSubModuleAssetId()
+  return {
+    id,
+    title: file.name,
+    referenceCode: generateReferenceCode("FILE", "WORK", now),
+    mimeType: file.type || MIME_BY_EXT[ext] || "application/octet-stream",
+    size: file.size,
+    status: "active",
+    snapshots: [{ id: `${id}-snap-1`, versionNumber: 1, createdAt: now, referenceCount: 0 }],
+    processing: { extractionStatus: "not_started", indexed: false },
+    references: { chats: 0, evidence: 0, observationUnits: 0, reports: 0, sprints: 0 },
+    createdAt: now,
+  }
+}
+
 export function AddProjectDialog() {
   const router = useRouter()
+  const { createFileAssetFromSubModuleUpload } = useLibraryClassification()
   const [open, setOpen] = React.useState(false)
   const [mode, setMode] = React.useState<Mode>("manual")
   const [submitted, setSubmitted] = React.useState(false)
@@ -109,6 +146,21 @@ export function AddProjectDialog() {
       if (!result.success) {
         setSubmitError(result.error)
         return
+      }
+
+      // RES-019 §6/§8 MODLIB-010: uploaded documents become real File Library
+      // assets tagged to `work`, with an origin backlink to this project —
+      // instead of being discarded once this dialog closes.
+      if (files.length > 0) {
+        const project = result.data
+        for (const file of files) {
+          createFileAssetFromSubModuleUpload(toFileAsset(file), "work", {
+            contextType: "project",
+            contextId: project.id,
+            contextLabel: `專案：${project.name}`,
+            href: `/work/${project.id}`,
+          })
+        }
       }
 
       setSubmitted(true)

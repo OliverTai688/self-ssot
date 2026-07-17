@@ -2,6 +2,7 @@ export type ModuleKey =
   | "ai-input"   // AI 匯入
   | "dashboard"  // 早安簡報
   | "inbox"      // 收件匣
+  | "self"       // 自己
   | "work"       // 工作
   | "research"   // 研究
   | "chamber"    // 商會
@@ -42,6 +43,7 @@ export const ALL_MODULES: ModuleMetadata[] = [
   { key: "ai-input", name: "AI 匯入", description: "多源資料同步、AI Ingestion、Capture Inbox", path: "/ai-input" },
   { key: "dashboard", name: "早安簡報", description: "AI 每日聚合簡報、行動引導與當日焦點", path: "/dashboard" },
   { key: "inbox", name: "收件匣", description: "擷取項目暫存與人工審核分流", path: "/inbox" },
+  { key: "self", name: "自己", description: "個人反思與自我整理專區", path: "/self" },
   { key: "work", name: "工作", description: "內外雙視角的專案與任務管理、工作記憶時間軸", path: "/work" },
   { key: "research", name: "研究", description: "想法、文獻材料、學術人脈、發表與轉化輸出", path: "/research" },
   { key: "chamber", name: "商會", description: "商會成員 CRM、雙向關係圖與引薦 DM 庫", path: "/chamber" },
@@ -52,7 +54,7 @@ export const ALL_MODULES: ModuleMetadata[] = [
 ];
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, ModuleKey[]> = {
-  owner: ["ai-input", "dashboard", "inbox", "work", "research", "chamber", "finance", "life", "company", "workflow"],
+  owner: ["ai-input", "dashboard", "inbox", "self", "work", "research", "chamber", "finance", "life", "company", "workflow"],
   partner: ["dashboard", "inbox", "chamber", "company"],
   client: ["work"], // 客戶主要對應 /client/[token] 安全頁面，在此模擬中預設僅能看工作
 };

@@ -5,13 +5,19 @@ import {
   AudioLinesIcon,
   AlertTriangleIcon,
   CheckCircle2Icon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   Clock3Icon,
+  CopyIcon,
   DatabaseIcon,
   FileTextIcon,
   FolderIcon,
+  FolderPlusIcon,
   HistoryIcon,
+  ImageIcon,
   ListChecksIcon,
   MessageSquareIcon,
+  MoreVerticalIcon,
   PenLineIcon,
   PlusIcon,
   RssIcon,
@@ -19,17 +25,42 @@ import {
   Settings2Icon,
   ShieldAlertIcon,
   SparklesIcon,
+  Trash2Icon,
   UploadIcon,
   LinkIcon,
+  InboxIcon,
+  ZapIcon,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { TriageProposalCard } from "@/components/ai/triage-proposal-card"
 import { useIngestion } from "@/lib/context/ingestion-context"
 import { useMockDataMode } from "@/lib/context/mock-data-mode-context"
 import { cn } from "@/lib/utils"
+import { generateReferenceCode } from "@/lib/naming/reference-code"
 import { AddLinkDialog } from "@/components/ai/add-link-dialog"
+import { FileLibraryPage } from "@/components/ai/file-library/file-library-page"
+import { MediaLibraryPage } from "@/components/ai/media-library/media-library-page"
+import { getAIResponse } from "./actions"
 import type {
   AIInputFormalReadinessContract,
   AIInputFormalReadinessRow,
@@ -42,41 +73,83 @@ import type {
 } from "@/types/ai-input-readiness"
 import type { MentionRef } from "@/types/sync-scope"
 import type { AITriageProposal, DecisionType, Evidence, RawSourceItem } from "@/types/ingestion"
+import type {
+  SourceSyncMode,
+  SourceAnalysisMode,
+  SourceRiskClassification,
+  SourceApprovalLevel,
+  SourceThinkingNodeDTO,
+  SourceProcessingPolicyDTO,
+} from "@/types/ai-input-settings"
+
 
 // ─── Chat Mode ────────────────────────────────────────────────────────────────
 
-type ChatMode = "capture" | "reflection" | "project" | "research" | "report"
+type ChatMode =
+  | "general"
+  | "report_gen"
+  | "reflection"
+  | "work"
+  | "research"
+  | "chamber"
+  | "finance"
+  | "life"
+  | "company"
 
 const CHAT_MODES: Record<ChatMode, { label: string; placeholder: string; hint: string; actions: string[] }> = {
-  capture: {
-    label: "Capture",
-    placeholder: "快速記錄任何想法、訊息或碎片…",
-    hint: "快速擷取，AI 負責分類",
+  general: {
+    label: "一般（自動分類）",
+    placeholder: "快速記錄任何想法、訊息或碎片，由 AI 自動進行分類分流…",
+    hint: "快速擷取，自動分類",
     actions: ["line", "googledoc", "link", "markdown", "image", "audio", "rss"],
   },
-  reflection: {
-    label: "Reflection",
-    placeholder: "整理當下的狀態或想法，AI 協助梳理…",
-    hint: "自我整理，識別情緒脈絡",
+  report_gen: {
+    label: "報告生成（自動分類）",
+    placeholder: "描述要生成的報告範圍或時段，AI 將從歷史記錄中彙整大綱與報告內容…",
+    hint: "報告彙整，自動生成",
     actions: [],
   },
-  project: {
-    label: "Project",
-    placeholder: "討論專案進度、問題或客戶情況…",
-    hint: "專案脈絡，AI 根據現有資料回應",
+  reflection: {
+    label: "反思",
+    placeholder: "整理當下的狀態、學習收穫、自我省思，AI 協助梳理思緒脈絡…",
+    hint: "個人反思，自我整理",
+    actions: [],
+  },
+  work: {
+    label: "工作",
+    placeholder: "輸入工作進度、待辦任務、專案問題或客戶反饋情況…",
+    hint: "專案規劃，工作記憶",
     actions: ["line", "googledoc", "markdown"],
   },
   research: {
-    label: "Research",
-    placeholder: "輸入文獻連結、研究想法或問題…",
-    hint: "文獻分析，AI 建議研究歸屬",
+    label: "研究",
+    placeholder: "輸入文獻連結、論文重點、研究方向想法或學術探討…",
+    hint: "知識分析，研究建議",
     actions: ["googledoc", "rss", "markdown"],
   },
-  report: {
-    label: "Report",
-    placeholder: "描述要生成的報告範圍或時段…",
-    hint: "報告生成，AI 從記錄中彙整敘事",
-    actions: [],
+  chamber: {
+    label: "商會",
+    placeholder: "記錄商會活動、成員引薦機會、拜訪線索或合作計畫…",
+    hint: "成員互動，人際關係",
+    actions: ["line", "googledoc", "markdown"],
+  },
+  finance: {
+    label: "財務",
+    placeholder: "記下收支明細，例如：『買午餐 150 元』或『收到專案款項』…",
+    hint: "記帳分析，收支管理",
+    actions: ["line", "markdown"],
+  },
+  life: {
+    label: "生活",
+    placeholder: "記錄日常健康狀態、運動、睡眠感受，或是重要的人生記憶…",
+    hint: "日常節律，健康追蹤",
+    actions: ["line", "markdown"],
+  },
+  company: {
+    label: "公司",
+    placeholder: "整理公司策略願景、核心發展指標，或中長期規劃方向…",
+    hint: "願景定版，戰略規畫",
+    actions: ["googledoc", "markdown"],
   },
 }
 
@@ -84,7 +157,7 @@ const CHAT_MODES: Record<ChatMode, { label: string; placeholder: string; hint: s
 
 type Sender = "user" | "ai"
 type WorkbenchTab = "today" | "review" | "environment" | "results" | "log"
-type AIInputSubpage = "chat" | "context" | "settings" | "workbench"
+type AIInputSubpage = "chat" | "context" | "settings" | "workbench" | "files" | "media"
 
 interface ChatMessage {
   id: string
@@ -154,6 +227,25 @@ interface SourceConnectorRow {
   missingPermissions: string | null
 }
 
+interface ExtendedSourceConnectorRow extends SourceConnectorRow {
+  syncMode: SourceSyncMode
+  syncSchedule: string | null
+  syncEnabled: boolean
+  analysisMode: SourceAnalysisMode
+  analysisSchedule: string | null
+  analysisEnabled: boolean
+  analyzeOnlyWhenPending: boolean
+  allowedTargetModules: string[]
+  riskClassification: SourceRiskClassification
+  approvalLevel: SourceApprovalLevel
+  includeInMorningBrief: boolean;
+  retentionDays: number
+  piiMaskingEnabled: boolean
+  uploadDirectory: string
+  thinkingNodes: SourceThinkingNodeDTO[]
+}
+
+
 interface SourceInputMatrixRow {
   id: string
   source: string
@@ -198,7 +290,7 @@ const COWORK_STARTERS: CoworkStarter[] = [
     icon: <FolderIcon className="size-4" />,
     label: "工作專案共作",
     description: "把客戶訊息、文件與下一步先丟進來，AI 先幫你整理脈絡。",
-    mode: "project",
+    mode: "work",
     prompt: "我想整理一個工作或客戶專案脈絡：",
     contextHint: "適合搭配 LINE、Google Doc、Markdown",
   },
@@ -216,7 +308,7 @@ const COWORK_STARTERS: CoworkStarter[] = [
     icon: <MessageSquareIcon className="size-4" />,
     label: "商會關係共作",
     description: "把對話、引薦線索與合作可能先放進共同工作脈絡。",
-    mode: "capture",
+    mode: "chamber",
     prompt: "我想整理一段商會或人際合作脈絡：",
     contextHint: "適合搭配 LINE 群組、聯絡人、會議紀錄",
   },
@@ -491,6 +583,58 @@ function makeClientId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2)}`
 }
 
+function generateAIResponse(text: string, mode: ChatMode): string {
+  const normalizedText = text.toLowerCase().trim()
+  
+  // 1. Greetings
+  if (["hi", "hello", "你好", "嗨", "哈囉", "greet"].some(g => normalizedText.includes(g))) {
+    return "您好！我是您的 Personal OS 助理。很高興與您交流，今天有什麼想記錄、討論或規劃的嗎？"
+  }
+  
+  // 2. Acknowledgements
+  if (["好的", "ok", "了解", "收到", "嗯嗯", "okay", "對", "好的！"].some(a => normalizedText === a)) {
+    return "好的！隨時可以告訴我您想討論或記錄的具體想法、待辦事項或專案進度。"
+  }
+  
+  // 3. Questions / Queries
+  if (["什麼", "如何", "怎麼", "哪裡", "嗎", "？", "?"].some(q => normalizedText.includes(q))) {
+    if (normalizedText.includes("專案") || normalizedText.includes("工作") || normalizedText.includes("任務")) {
+      return "關於專案與工作任務的規劃，我建議可以先釐清目標、里程碑和具體交付物。您可以跟我討論這些細節，對話完成後，我們可以將對話紀錄整筆匯入來源分析區域，AI 會自動幫您生成 Work 模組的任務建議。"
+    }
+    if (normalizedText.includes("研究") || normalizedText.includes("文獻")) {
+      return "關於學術或技術研究，我建議先建立一個 Research Object（研究對象）。您可以把想要分析的概念或論文丟進來，結束對話後整筆匯入 Ingestion 系統，我們會幫您自動對接 Research 知識圖譜。"
+    }
+    if (normalizedText.includes("財務") || normalizedText.includes("錢") || normalizedText.includes("支出")) {
+      return "管理財務與支出時，請記錄明細、金額和科目。雖然我不會直接寫入您的真實賬本，但您可以跟我說：『今天吃了午餐 150 元』，結束後整筆匯入來源分析，AI 就會生成財務記賬建議。"
+    }
+    return `這是一個好問題！關於「${text}」，我們可以從幾個層面來思考。首先，您可以記錄目前的現狀與面臨的挑戰，然後我們共同擬定下一步行動。這整段對話過程在匯入 Ingestion 後，會成為您 Personal OS 的長期記憶與上下文背景。`
+  }
+
+  // 4. Default / Context-Aware answers
+  switch (mode) {
+    case "general":
+      return `非常棒的靈感！對於「${text}」，我們可以進一步思考：這個想法最快可以用什麼方式驗證？您需要跟誰協作？您可以繼續補充您的細節，等討論告一段落，再將這整筆對話紀錄匯入 Ingestion 進行來源分析。`
+    case "report_gen":
+      return `收到報告草稿要點：「${text}」。我會在此基礎上幫您串接最近的 Ingestion 來源日誌。您可以繼續描述需要涵蓋的範圍或重要里程碑。`
+    case "reflection":
+      return `感謝您的自我整理。聽到您說「${text}」，我能感受到您正在釐清自己的思緒。這是一個很好的自我察覺。接下來，有什麼具體的行動或改變是您想要嘗試的嗎？`
+    case "work":
+      return `收到專案上下文：「${text}」。這與我們目前的任務進度密切相關。我會將此內容納入專案背景中。您有需要為此對話中的內容建立具體的 TODO 嗎？對話結束後整筆匯入將可以自動生成任務卡。`
+    case "research":
+      return `已將文獻或研究構想「${text}」列入參考。這將有助於您目前的研究寫作。您是否需要我幫您從已連結的 Drive 文件中搜尋相關的理論支持？`
+    case "chamber":
+      return `收到關於商會或人際合作的記錄：「${text}」。這對於拓展引薦網路和合作機會非常有價值。您需要我為這名聯絡人設定跟進行動嗎？`
+    case "finance":
+      return `已記錄您的財務收支內容：「${text}」。我會為此生成支出或收入草稿記錄，結束後匯入來源分析，即可正式生成對應的帳目建議。`
+    case "life":
+      return `收到生活健康感受或日常狀態：「${text}」。我已將本機暫存為健康及日常軌跡的分析依據。您本週是否有感覺能量狀況改善？`
+    case "company":
+      return `收到公司發展或策略方向調整：「${text}」。這與我們的核心願景和中長期規劃高度契合。需要我幫您關聯到現有的策略文件草稿嗎？`
+    default:
+      return `了解您提到的「${text}」。這是一個很好的起點。我們可以繼續深入探討，或者您也可以在結束對話時，點擊上方的「手動匯入」將這整筆對話打包匯入至來源分析區域，以生成下一步的系統建議。`
+  }
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AIInputClient({
@@ -501,6 +645,7 @@ export default function AIInputClient({
   const { isMockDataEnabled, toggleMockData } = useMockDataMode()
   const {
     addManualCapture,
+    addConversationCapture,
     mockSyncLINE,
     mockSyncRSS,
     mockImportGoogleDoc,
@@ -516,13 +661,160 @@ export default function AIInputClient({
     resourceNodes,
   } = useIngestion()
 
-  const [activeConvId, setActiveConvId] = React.useState<string | null>(null)
+  interface ChatThreadFolder {
+    id: string
+    label: string
+    collapsed: boolean
+  }
+
+  type ChatThreadKind = "personal" | "source_coworking" | "agent_task_link"
+
+  interface ChatThread {
+    id: string
+    title: string
+    messages: ChatMessage[]
+    mode: ChatMode
+    isImported: boolean
+    importType: "manual" | "auto" | null
+    mentions: MentionRef[]
+    isSourceThread?: boolean
+    sourceType?: string
+    folderId: string | null
+    threadKind: ChatThreadKind
+    referenceCode: string
+  }
+
+  const PERSONAL_FOLDER_ID = "folder-personal"
+  const SOURCE_FOLDER_ID = "folder-source-coworking"
+
+  const [folders, setFolders] = React.useState<ChatThreadFolder[]>([
+    { id: PERSONAL_FOLDER_ID, label: "個人對話", collapsed: false },
+    { id: SOURCE_FOLDER_ID, label: "來源協作", collapsed: false },
+  ])
+
+  const [threads, setThreads] = React.useState<ChatThread[]>([
+    {
+      id: "default",
+      title: "💬 個人 AI 對話 (Oliver)",
+      messages: [
+        {
+          id: "welcome",
+          sender: "ai",
+          type: "text",
+          content: "您好！我是您的 Personal OS 助理。您可以將任何資訊丟進這裡，我會幫您整理、分類並給予下一步建議。",
+          timestamp: new Date(),
+        }
+      ],
+      mode: "general",
+      isImported: false,
+      importType: null,
+      mentions: [],
+      folderId: PERSONAL_FOLDER_ID,
+      threadKind: "personal",
+      referenceCode: generateReferenceCode("THREAD", "AIINPUT"),
+    }
+  ])
+  const [activeConvId, setActiveConvId] = React.useState<string>("default")
+  const [renamingThreadId, setRenamingThreadId] = React.useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = React.useState("")
+  const [deleteCandidateId, setDeleteCandidateId] = React.useState<string | null>(null)
   const [workspaceView, setWorkspaceView] = React.useState<AIInputSubpage>("chat")
-  const [mode, setMode] = React.useState<ChatMode>("capture")
   const [workbenchTab, setWorkbenchTab] = React.useState<WorkbenchTab>("today")
-  const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [inputText, setInputText] = React.useState("")
-  const [mentions, setMentions] = React.useState<MentionRef[]>([])
+  const [isImportDropdownOpen, setIsImportDropdownOpen] = React.useState(false)
+
+  const [connectorsState, setConnectorsState] = React.useState<ExtendedSourceConnectorRow[]>(() => {
+    const DEFAULT_THINKING_NODES: SourceThinkingNodeDTO[] = [
+      { id: "node-1", nodeType: "source_context", order: 1, enabled: true, instruction: "判斷目前輸入來源的脈絡與時段。" },
+      { id: "node-2", nodeType: "classify_information", order: 2, enabled: true, instruction: "對資料進行主題分類，判斷適用的發布模組。" },
+      { id: "node-3", nodeType: "extract_entity", order: 3, enabled: true, instruction: "抽取出文中提及的人物姓名、公司名稱與聯繫方式。" },
+      { id: "node-4", nodeType: "extract_commitment", order: 4, enabled: false, instruction: "抽取出雙方的承諾事項與預期交付物。" },
+      { id: "node-5", nodeType: "detect_task_candidate", order: 5, enabled: true, instruction: "判斷是否需要建立待辦任務（Todo）。" },
+      { id: "node-6", nodeType: "detect_risk", order: 6, enabled: false, instruction: "識別潛在的執行風險或時間衝突。" },
+      { id: "node-7", nodeType: "draft_inbox_items", order: 7, enabled: true, instruction: "將分析結果起草為 Inbox Item 格式。" },
+    ]
+
+    return MOCK_SOURCE_CONNECTORS.map((connector) => {
+      const isMessaging = connector.provider === "LINE" || connector.provider === "Telegram" || connector.provider === "Gmail";
+      const isDriveOrDocs = connector.provider === "Drive" || connector.provider === "Google Docs" || connector.provider === "GitHub";
+      return {
+        ...connector,
+        syncMode: isMessaging ? "manual_and_scheduled" : "manual_only",
+        syncSchedule: isMessaging ? "0 8 * * *" : null,
+        syncEnabled: isMessaging,
+        analysisMode: isMessaging ? "manual_and_scheduled" : "manual_only",
+        analysisSchedule: isMessaging ? "0 9 * * *" : null,
+        analysisEnabled: isMessaging,
+        analyzeOnlyWhenPending: true,
+        allowedTargetModules: isMessaging ? ["chamber", "work"] : isDriveOrDocs ? ["research", "work"] : ["research"],
+        riskClassification: connector.riskPolicy === "高" ? "high" : connector.riskPolicy === "中" ? "medium" : "low",
+        approvalLevel: connector.riskPolicy === "高" ? "always_require" : "auto_execute_low_risk",
+        includeInMorningBrief: isMessaging,
+        retentionDays: isMessaging ? 90 : isDriveOrDocs ? 0 : 30,
+        piiMaskingEnabled: false,
+        uploadDirectory: isMessaging ? `/uploads/${connector.provider.toLowerCase()}` : "/uploads/general",
+        thinkingNodes: DEFAULT_THINKING_NODES.map((node) => ({ ...node })),
+      } as ExtendedSourceConnectorRow
+    })
+  })
+
+
+  const pushToast = React.useCallback((msg: string) => {
+    console.log(`[Toast]: ${msg}`)
+  }, [])
+
+  // Getters from active thread
+  const activeThread = threads.find((t) => t.id === activeConvId) || threads[0]
+  const messages = activeThread.messages
+  const mode = activeThread.mode
+  const isImported = activeThread.isImported
+  const importType = activeThread.importType
+  const mentions = activeThread.mentions
+  const referencedTitles = React.useMemo(() => new Set(mentions.map((m) => m.name)), [mentions])
+
+  // State wrappers/setters for backward compatibility
+  const setMessages = React.useCallback((newMessagesOrUpdater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    setThreads((prevThreads) => prevThreads.map((t) => {
+      if (t.id === activeConvId) {
+        const nextMessages = typeof newMessagesOrUpdater === "function"
+          ? newMessagesOrUpdater(t.messages)
+          : newMessagesOrUpdater
+        return { ...t, messages: nextMessages }
+      }
+      return t
+    }))
+  }, [activeConvId])
+
+  const setMode = React.useCallback((newModeOrUpdater: ChatMode | ((prev: ChatMode) => ChatMode)) => {
+    setThreads((prevThreads) => prevThreads.map((t) => {
+      if (t.id === activeConvId) {
+        const nextMode = typeof newModeOrUpdater === "function"
+          ? newModeOrUpdater(t.mode)
+          : newModeOrUpdater
+        return { ...t, mode: nextMode }
+      }
+      return t
+    }))
+  }, [activeConvId])
+
+  const setIsImported = React.useCallback((val: boolean) => {
+    setThreads((prev) => prev.map((t) => t.id === activeConvId ? { ...t, isImported: val } : t))
+  }, [activeConvId])
+
+  const setImportType = React.useCallback((val: "manual" | "auto" | null) => {
+    setThreads((prev) => prev.map((t) => t.id === activeConvId ? { ...t, importType: val } : t))
+  }, [activeConvId])
+
+  const setMentions = React.useCallback((val: MentionRef[] | ((prev: MentionRef[]) => MentionRef[])) => {
+    setThreads((prev) => prev.map((t) => {
+      if (t.id === activeConvId) {
+        const nextMentions = typeof val === "function" ? val(t.mentions) : val
+        return { ...t, mentions: nextMentions }
+      }
+      return t
+    }))
+  }, [activeConvId])
+
   const [atQuery, setAtQuery] = React.useState<string | null>(null)
   const [isTyping, setIsTyping] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -555,9 +847,8 @@ export default function AIInputClient({
     })
   }, [proposals, isTyping])
 
-  function startNewConversation(initialText?: string) {
+  function startNewConversation(initialText?: string, title?: string) {
     const id = makeClientId("new")
-    setActiveConvId(id)
     const welcome: ChatMessage = {
       id: makeClientId("welcome"),
       sender: "ai",
@@ -565,10 +856,80 @@ export default function AIInputClient({
       content: "您好！我是您的 Personal OS 助理。您可以將任何資訊丟進這裡，我會幫您整理、分類並給予下一步建議。",
       timestamp: new Date(),
     }
-    setMessages([welcome])
+    const newThread: ChatThread = {
+      id: id,
+      title: title || `💬 AI 對話 (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`,
+      messages: [welcome],
+      mode: "general",
+      isImported: false,
+      importType: null,
+      mentions: [],
+      folderId: PERSONAL_FOLDER_ID,
+      threadKind: "personal",
+      referenceCode: generateReferenceCode("THREAD", "AIINPUT"),
+    }
+    setThreads((prev) => [...prev, newThread])
+    setActiveConvId(id)
+    setIsImportDropdownOpen(false)
     if (initialText) {
       setTimeout(() => doSendText(initialText), 50)
     }
+  }
+
+  function handleCreateFolder() {
+    const label = window.prompt("資料夾名稱")?.trim()
+    if (!label) return
+    setFolders((prev) => [...prev, { id: makeClientId("folder"), label, collapsed: false }])
+  }
+
+  function handleToggleFolder(folderId: string) {
+    setFolders((prev) => prev.map((f) => f.id === folderId ? { ...f, collapsed: !f.collapsed } : f))
+  }
+
+  function handleMoveThreadToFolder(threadId: string, folderId: string | null) {
+    setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, folderId } : t))
+  }
+
+  function beginRenameThread(threadId: string, currentTitle: string) {
+    setRenamingThreadId(threadId)
+    setRenameDraft(currentTitle)
+  }
+
+  function commitRenameThread() {
+    const title = renameDraft.trim()
+    if (renamingThreadId && title) {
+      setThreads((prev) => prev.map((t) => t.id === renamingThreadId ? { ...t, title } : t))
+    }
+    setRenamingThreadId(null)
+    setRenameDraft("")
+  }
+
+  function cancelRenameThread() {
+    setRenamingThreadId(null)
+    setRenameDraft("")
+  }
+
+  function generateThreadTitle(thread: ChatThread): string {
+    const firstUserMessage = thread.messages.find((m) => m.sender === "user" && m.type === "text")
+    const source = firstUserMessage?.content?.trim() || thread.messages.find((m) => m.type === "text")?.content?.trim()
+    if (!source) return thread.title
+    const excerpt = source.replace(/\s+/g, " ").slice(0, 16)
+    return `💬 ${excerpt}${source.length > 16 ? "…" : ""}`
+  }
+
+  function handleAutoTitleThread(threadId: string) {
+    setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, title: generateThreadTitle(t) } : t))
+  }
+
+  function confirmDeleteThread() {
+    const id = deleteCandidateId
+    if (!id) return
+    const next = threads.filter((t) => t.id !== id)
+    setThreads(next)
+    if (activeConvId === id) {
+      setActiveConvId(next[0]?.id ?? "default")
+    }
+    setDeleteCandidateId(null)
   }
 
   function doSendText(text: string, currentMentions: MentionRef[] = []) {
@@ -578,14 +939,86 @@ export default function AIInputClient({
     const displayText = currentMentions.length > 0
       ? `${text}\n＠ ${currentMentions.map((m) => m.name).join("、")}`
       : text
-    setMessages((prev) => [
-      ...prev,
-      { id: makeClientId("msg"), sender: "user", type: "text", content: displayText, timestamp: new Date() },
-    ])
+
+    const newUserMsg = {
+      id: makeClientId("msg_" + Date.now()),
+      sender: "user" as const,
+      type: "text" as const,
+      content: displayText,
+      timestamp: new Date()
+    }
+
+    setMessages((prev) => [...prev, newUserMsg])
     setIsTyping(true)
-    addManualCapture(text + contextSuffix)
+    
+    // Simulate AI response after a short delay
+    setTimeout(async () => {
+      let aiReply = ""
+      try {
+        const historyContext = [...messages, newUserMsg]
+        aiReply = await getAIResponse(text, mode, historyContext)
+      } catch (err) {
+        aiReply = generateAIResponse(text, mode)
+      }
+
+      setIsTyping(false)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: makeClientId("ai_reply_" + Date.now()),
+          sender: "ai",
+          type: "text",
+          content: aiReply,
+          timestamp: new Date(),
+        },
+      ])
+    }, 800)
+
     setMentions([])
   }
+
+  const handleImportConversation = React.useCallback((type: "manual" | "auto") => {
+    if (messages.length <= 1) return // Welcome message only, nothing to import
+    
+    const transcript = messages
+      .filter((m) => m.type === "text")
+      .map((m) => {
+        const role = m.sender === "user" ? "使用者" : "AI"
+        const time = m.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        return `[${time}] ${role}：${m.content}`
+      })
+      .join("\n")
+
+    const modeLabel = CHAT_MODES[mode]?.label || "Capture"
+
+    // Construct dynamic topics list based on user inputs
+    const userMsgs = messages.filter((m) => m.sender === "user" && m.type === "text")
+    const topics = userMsgs.map((m) => m.content).join("；")
+    const customSummary = userMsgs.length > 0
+      ? `與 AI 的對話紀錄 (${modeLabel})。討論要點包括：${topics.length > 80 ? topics.slice(0, 77) + "..." : topics}`
+      : `與 AI 的對話紀錄 (${modeLabel})，共包含對話內容。`
+      
+    addConversationCapture(transcript, modeLabel, customSummary)
+    
+    setIsImported(true)
+    setImportType(type)
+    
+    // Add system message to the chat
+    const systemText = type === "manual"
+      ? "系統訊息：您已手動將此對話紀錄匯入來源分析區域。"
+      : "系統訊息：因閒置 24 小時，系統已自動將此對話紀錄匯入來源分析區域。"
+      
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: makeClientId("sys_" + Date.now()),
+        sender: "ai",
+        type: "system",
+        content: systemText,
+        timestamp: new Date(),
+      }
+    ])
+  }, [messages, mode, addConversationCapture])
 
   function handleSend() {
     if (!inputText.trim() && mentions.length === 0) return
@@ -619,7 +1052,6 @@ export default function AIInputClient({
   function handleQuickPrompt(prompt: string) {
     setWorkspaceView("chat")
     setInputText(prompt)
-    if (!activeConvId) startNewConversation()
   }
 
   function handleCoworkStarter(starter: CoworkStarter) {
@@ -628,26 +1060,282 @@ export default function AIInputClient({
     handleQuickPrompt(starter.prompt)
   }
 
-  function handleAction(name: string, action: () => void) {
-    if (!activeConvId) startNewConversation()
-    setMessages((prev) => [
-      ...prev,
-      { id: makeClientId("msg"), sender: "user", type: "text", content: `模擬匯入：${name}`, timestamp: new Date() },
-    ])
-    setIsTyping(true)
-    action()
-  }
+  const handleSourceSyncAction = React.useCallback((sourceId: string, label: string, callback: () => void) => {
+    // 1. Run sync callback
+    callback()
+
+    // 2. Generate coworking messages
+    const now = new Date()
+    let coworkMessages: ChatMessage[] = []
+
+    if (sourceId === "line") {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[LINE 採集代理]**: 偵測到社群『商會核心幹部群』有新訊息！已自動同步 34 則未處理對話，正啟動 Co-working 對話以進行分析分類...",
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: "🤖 **[系統智能]**: 收到 LINE 對話包！分析結果：內容主要涵蓋『商會幹部例會籌備』與『人際引薦線索』。建議分類至 **商會** 模組，並在此生成 Ingestion 提案供 Oliver 確認。",
+          timestamp: now,
+        },
+        {
+          id: "cw-3",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[LINE 採集代理]**: 分析合理，確認建立提案！已生成 Ingestion 審核卡，包含會議待辦及引薦卡草稿，請 Oliver 確認分類或進行後續優化處理。",
+          timestamp: now,
+        }
+      ]
+    } else if (sourceId === "rss") {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[RSS 採集代理]**: 已從訂閱源同步最新文章：『Next.js 16 新特性與記憶體優化指南』。正提取大綱與核心關鍵字並引導分流...",
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: "🤖 **[系統智能]**: 讀取完畢。該文深入探討 Webpack 編譯 Worker 與記憶體優化，屬於技術文獻。建議歸檔至 **研究** 模組，作為 Oliver 的知識庫參考。",
+          timestamp: now,
+        },
+        {
+          id: "cw-3",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[RSS 採集代理]**: 分類確認！已在此建立研究 Ingestion 審核提案，將其對接至知識圖譜中。",
+          timestamp: now,
+        }
+      ]
+    } else if (sourceId === "googledoc") {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[Google Doc 採集代理]**: 檢測到文件『CDR 破產與重組技術比較分析』有變更。正在提取文檔段落以對接 Personal OS 專案...",
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: "🤖 **[系統智能]**: 收到文件。內容提及破產程序法規及案例分析，這與當前 **工作** 模組的破產重組專案緊密關聯。建議將該文件歸類至 **工作** 分類。",
+          timestamp: now,
+        },
+        {
+          id: "cw-3",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[Google Doc 採集代理]**: 確認。已建立 Ingestion 工作卡提案，方便將下一步任務映射到時間軸中。",
+          timestamp: now,
+        }
+      ]
+    } else if (sourceId === "markdown") {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[Markdown 文件代理]**: 已讀取匯入的 Markdown 檔案『2026年個人目標與反思總結』。正在分析內容語調與反思深度...",
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: "🤖 **[系統智能]**: 該文件涉及個人的情緒感受、時間分配反思以及明年的心智決策模型。這顯然屬於 **自己 (Self)** 模組。建議建立反思日誌提案。",
+          timestamp: now,
+        },
+        {
+          id: "cw-3",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[Markdown 文件代理]**: 分類完畢。已在此生成個人反思 Ingestion 提案，請確認。",
+          timestamp: now,
+        }
+      ]
+    } else if (sourceId === "image") {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[圖片分析代理]**: 偵測到新圖片上傳！正在執行多模態 OCR 解析與結構描繪...",
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: "🤖 **[系統智能]**: 圖片包含一張『系統設計架構圖與時序流程』。這可作專案文檔背景。建議歸類至 **工作** 分類中的架構資產庫。",
+          timestamp: now,
+        },
+        {
+          id: "cw-3",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[圖片分析代理]**: 好的，已將圖片記錄包裝為 Ingestion 提案供審查。",
+          timestamp: now,
+        }
+      ]
+    } else if (sourceId === "audio") {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[語音轉錄代理]**: 已收到新語音錄音檔案。啟動 Whisper 音訊轉譯，正在生成逐字稿與結構摘要...",
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: "🤖 **[系統智能]**: 轉譯結果顯示這是一段與商會理事長的拜訪談話。主要提及未來引薦機會與人脈連結。建議分類至 **商會** CRM 歸檔。",
+          timestamp: now,
+        },
+        {
+          id: "cw-3",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[語音轉錄代理]**: 已生成引薦人脈的 Ingestion 審核提案，並包含 Whisper 摘要供 Oliver 參考。",
+          timestamp: now,
+        }
+      ]
+    } else if (sourceId === "link") {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[網頁連結解析代理]**: 正在解析匯入的外部連結。讀取 HTML 中並抓取標題、敘事與結構...",
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: "🤖 **[系統智能]**: 該網頁包含關於 Next.js 16 更新的官方部落格。建議歸類至 **研究** 知識庫以擴展研究視野。",
+          timestamp: now,
+        },
+        {
+          id: "cw-3",
+          sender: "ai",
+          type: "text",
+          content: "🔄 **[網頁連結解析代理]**: 好的，已在此生成 Ingestion 提案。",
+          timestamp: now,
+        }
+      ]
+    } else {
+      coworkMessages = [
+        {
+          id: "cw-1",
+          sender: "ai",
+          type: "text",
+          content: `🔄 **[${label} 採集代理]**: 偵測到新來源同步中...`,
+          timestamp: now,
+        },
+        {
+          id: "cw-2",
+          sender: "ai",
+          type: "text",
+          content: `🤖 **[系統智能]**: 收到來源。建議進行自動分類，並在此生成 Ingestion 提案。`,
+          timestamp: now,
+        }
+      ]
+    }
+
+    const threadId = "source-" + sourceId
+    setThreads((prev) => {
+      const exists = prev.some((t) => t.id === threadId)
+      if (exists) {
+        return prev.map((t) => t.id === threadId ? { ...t, messages: coworkMessages } : t)
+      }
+      const newThread: ChatThread = {
+        id: threadId,
+        title: `🔄 ${label} 來源處理對話`,
+        messages: coworkMessages,
+        mode: "general",
+        isImported: true,
+        importType: "auto",
+        mentions: [],
+        isSourceThread: true,
+        sourceType: sourceId,
+        folderId: SOURCE_FOLDER_ID,
+        threadKind: "source_coworking",
+        referenceCode: generateReferenceCode("THREAD", sourceId),
+      }
+      return [...prev, newThread]
+    })
+
+    setActiveConvId(threadId)
+    setWorkspaceView("chat")
+    pushToast(`已切換至「${label} 來源處理對話」進行協作確認！`)
+  }, [threads, pushToast])
+
+  const handleReferenceLibraryItem = React.useCallback((name: string, kind: "file" | "media") => {
+    setMentions((prev) => {
+      if (prev.some((m) => m.name === name)) {
+        pushToast("此項目已存在於本次對話的引用脈絡中。")
+        return prev
+      }
+      const newMention: MentionRef = {
+        kind: "source_asset",
+        id: "lib-ref-" + Date.now(),
+        name: name,
+        description: kind === "file" ? "自系統檔案庫引用" : "自系統媒體庫引用",
+      }
+      pushToast(`已成功引用「${name}」作為本次對話的參考脈絡！`)
+      return [...prev, newMention]
+    })
+  }, [pushToast])
 
   function handleAddLinks(urls: string[]) {
-    if (!activeConvId) startNewConversation()
-    setMessages((prev) => [
-      ...prev,
-      { id: makeClientId("msg"), sender: "user", type: "text", content: `匯入資源：\n${urls.map(u => `· ${u}`).join('\n')}`, timestamp: new Date() },
-    ])
-    setIsTyping(true)
     addUrlCapture(urls)
-    setWorkspaceView("context")
+    handleSourceSyncAction("link", "連結", () => {})
   }
+
+  const displayMessages = React.useMemo(() => {
+    const list = [...messages]
+    if (activeConvId.startsWith("source-")) {
+      const coworkProposals = proposals.filter((p) => {
+        if (p.status !== "pending") return false
+        if (activeConvId === "source-line") return p.detectedType?.includes("LINE") || p.summary?.includes("LINE")
+        if (activeConvId === "source-rss") return p.detectedType?.includes("RSS") || p.summary?.includes("RSS")
+        if (activeConvId === "source-googledoc") return p.detectedType?.includes("Google") || p.detectedType?.includes("Doc") || p.summary?.includes("Google")
+        if (activeConvId === "source-markdown") return p.detectedType?.includes("Markdown") || p.summary?.includes("Markdown")
+        if (activeConvId === "source-image") return p.detectedType?.includes("圖片") || p.summary?.includes("圖片")
+        if (activeConvId === "source-audio") return p.detectedType?.includes("語音") || p.summary?.includes("語音")
+        if (activeConvId === "source-link") return p.detectedType?.includes("連結") || p.summary?.includes("連結")
+        return false
+      })
+      
+      coworkProposals.forEach((p) => {
+        // Only append if it's not already added
+        if (!list.some((msg) => msg.proposalId === p.id)) {
+          list.push({
+            id: "msg-triage-" + p.id,
+            sender: "ai",
+            type: "triage",
+            content: "",
+            proposalId: p.id,
+            timestamp: new Date(),
+          })
+        }
+      })
+    }
+    return list
+  }, [messages, activeConvId, proposals])
 
   function handleModeChange(newMode: ChatMode) {
     if (newMode === mode) return
@@ -667,18 +1355,16 @@ export default function AIInputClient({
   }
 
   const allActions = [
-    { id: "line",      icon: <MessageSquareIcon />, label: "LINE",       onClick: () => handleAction("LINE 同步",   mockSyncLINE) },
-    { id: "googledoc", icon: <FileTextIcon />,      label: "Google Doc", onClick: () => handleAction("Google Doc",  mockImportGoogleDoc) },
+    { id: "line",      icon: <MessageSquareIcon />, label: "LINE",       onClick: () => handleSourceSyncAction("line", "LINE", mockSyncLINE) },
+    { id: "googledoc", icon: <FileTextIcon />,      label: "Google Doc", onClick: () => handleSourceSyncAction("googledoc", "Google Doc", mockImportGoogleDoc) },
     { id: "link",      icon: <LinkIcon />,          label: "連結",       onClick: () => {} }, // Dialog handled below
-    { id: "markdown",  icon: <FileTextIcon />,      label: "Markdown",   onClick: () => handleAction("Markdown",    mockUploadMarkdown) },
-    { id: "image",     icon: <UploadIcon />,         label: "圖片",       onClick: () => handleAction("圖片",        () => mockUploadMedia("image")) },
-    { id: "audio",     icon: <AudioLinesIcon />,     label: "語音",       onClick: () => handleAction("語音",        () => mockUploadMedia("audio")) },
-    { id: "rss",       icon: <RssIcon />,            label: "RSS",        onClick: () => handleAction("RSS 同步",    mockSyncRSS) },
+    { id: "markdown",  icon: <FileTextIcon />,      label: "Markdown",   onClick: () => handleSourceSyncAction("markdown", "Markdown", mockUploadMarkdown) },
+    { id: "image",     icon: <UploadIcon />,         label: "圖片",       onClick: () => handleSourceSyncAction("image", "圖片", () => mockUploadMedia("image")) },
+    { id: "audio",     icon: <AudioLinesIcon />,     label: "語音",       onClick: () => handleSourceSyncAction("audio", "語音", () => mockUploadMedia("audio")) },
+    { id: "rss",       icon: <RssIcon />,            label: "RSS",        onClick: () => handleSourceSyncAction("rss", "RSS", mockSyncRSS) },
   ]
 
-  const visibleActions = isMockDataEnabled && CHAT_MODES[mode].actions.length > 0
-    ? allActions.filter((a) => CHAT_MODES[mode].actions.includes(a.id))
-    : []
+  // All import actions are available regardless of the selected chat mode
 
   // Mentionable sources: LINE chats + Drive files (no folders)
   const MOCK_EXTENDED_MENTIONS: MentionRef[] = React.useMemo(() => isMockDataEnabled ? [
@@ -718,6 +1404,106 @@ export default function AIInputClient({
   const mockReviewCount = isMockDataEnabled ? MOCK_REVIEW_ITEMS.length : 0
   const reviewCount = mockReviewCount + pendingProposalCount
 
+  const ungroupedThreads = threads.filter((t) => !t.folderId)
+  const deleteCandidateThread = threads.find((t) => t.id === deleteCandidateId) || null
+
+  function renderThreadRow(t: ChatThread) {
+    const isActive = t.id === activeConvId
+    const isRenaming = renamingThreadId === t.id
+    return (
+      <div
+        key={t.id}
+        className={cn(
+          "group w-full flex items-center gap-1 rounded-lg text-left text-xs font-medium transition-all",
+          isActive
+            ? "bg-primary/10 text-primary font-semibold"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        )}
+      >
+        {isRenaming ? (
+          <input
+            autoFocus
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onBlur={commitRenameThread}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRenameThread()
+              if (e.key === "Escape") cancelRenameThread()
+            }}
+            onFocus={(e) => e.currentTarget.select()}
+            className="flex-1 min-w-0 mx-2.5 my-1.5 rounded border border-primary/40 bg-background px-1.5 py-1 text-xs outline-none"
+          />
+        ) : (
+          <button
+            onClick={() => setActiveConvId(t.id)}
+            onDoubleClick={() => beginRenameThread(t.id, t.title)}
+            className="flex-1 min-w-0 flex items-center gap-2 px-2.5 py-2 text-left"
+          >
+            <span className="truncate flex-1">{t.title}</span>
+            {t.isSourceThread && (
+              <span className="size-1.5 rounded-full bg-blue-500 shrink-0" />
+            )}
+          </button>
+        )}
+        {!isRenaming && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 mr-1 size-5 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-muted data-open:opacity-100"
+                />
+              }
+            >
+              <MoreVerticalIcon className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              <DropdownMenuItem
+                onClick={() => {
+                  navigator.clipboard.writeText(t.referenceCode)
+                  pushToast(`已複製 AI 參考代碼：${t.referenceCode}`)
+                }}
+              >
+                <CopyIcon className="size-3.5" />
+                <span className="font-mono text-[10px] truncate">{t.referenceCode}</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => beginRenameThread(t.id, t.title)}>
+                <PenLineIcon className="size-3.5" /> 重新命名
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleAutoTitleThread(t.id)}>
+                <SparklesIcon className="size-3.5" /> AI 命名
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <FolderIcon className="size-3.5" /> 移到資料夾
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {t.folderId !== null && (
+                    <DropdownMenuItem onClick={() => handleMoveThreadToFolder(t.id, null)}>
+                      未分類
+                    </DropdownMenuItem>
+                  )}
+                  {folders.map((f) => (
+                    f.id !== t.folderId && (
+                      <DropdownMenuItem key={f.id} onClick={() => handleMoveThreadToFolder(t.id, f.id)}>
+                        {f.label}
+                      </DropdownMenuItem>
+                    )
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => setDeleteCandidateId(t.id)}>
+                <Trash2Icon className="size-3.5" /> 刪除對話
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <AIInputSubpageNav
@@ -731,7 +1517,71 @@ export default function AIInputClient({
       />
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-        {workspaceView === "chat" && (activeConvId === null ? (
+        {workspaceView === "chat" && (
+          <div className="flex h-full w-full overflow-hidden">
+            {/* Left Thread List Sidebar */}
+            <div className="w-56 shrink-0 border-r border-border/50 bg-muted/15 flex flex-col overflow-hidden">
+              <div className="p-3 border-b border-border/50 flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">對話與來源處理</span>
+                <div className="flex items-center gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-5 rounded-md hover:bg-muted"
+                    title="新增資料夾"
+                    onClick={handleCreateFolder}
+                  >
+                    <FolderPlusIcon className="size-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-5 rounded-md hover:bg-muted"
+                    title="新增對話"
+                    onClick={() => startNewConversation(undefined, "💬 新增對話")}
+                  >
+                    <PlusIcon className="size-3" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
+                {ungroupedThreads.map(renderThreadRow)}
+
+                {folders.map((folder) => {
+                  const folderThreads = threads.filter((t) => t.folderId === folder.id)
+                  return (
+                    <div key={folder.id} className="pt-1">
+                      <button
+                        onClick={() => handleToggleFolder(folder.id)}
+                        className="w-full flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
+                      >
+                        {folder.collapsed ? (
+                          <ChevronRightIcon className="size-3" />
+                        ) : (
+                          <ChevronDownIcon className="size-3" />
+                        )}
+                        <FolderIcon className="size-3" />
+                        <span className="flex-1 text-left truncate">{folder.label}</span>
+                        <span className="text-muted-foreground/70">{folderThreads.length}</span>
+                      </button>
+                      {!folder.collapsed && (
+                        <div className="space-y-0.5">
+                          {folderThreads.length === 0 ? (
+                            <div className="px-3 py-1.5 text-[11px] text-muted-foreground/60">尚無對話</div>
+                          ) : (
+                            folderThreads.map(renderThreadRow)
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Right Chat Main Area */}
+            <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+              {activeConvId === "default" && messages.length <= 1 ? (
           /* Landing Screen */
           <div className="flex h-full flex-col items-center justify-start overflow-y-auto px-6 pb-16 pt-12 md:pt-16 xl:pt-20">
             <div className="w-full max-w-2xl space-y-8">
@@ -827,13 +1677,13 @@ export default function AIInputClient({
                 {isMockDataEnabled ? (
                   <>
                     <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-widest mr-1">快速匯入</span>
-                    <ActionButton icon={<MessageSquareIcon />} label="LINE" onClick={() => handleAction("LINE 同步", mockSyncLINE)} />
+                    <ActionButton icon={<MessageSquareIcon />} label="LINE" onClick={() => handleSourceSyncAction("line", "LINE", mockSyncLINE)} />
                     <AddLinkDialog onAdd={handleAddLinks} />
-                    <ActionButton icon={<FileTextIcon />} label="Google Doc" onClick={() => handleAction("Google Doc", mockImportGoogleDoc)} />
-                    <ActionButton icon={<FileTextIcon />} label="Markdown" onClick={() => handleAction("Markdown", mockUploadMarkdown)} />
-                    <ActionButton icon={<UploadIcon />} label="圖片" onClick={() => handleAction("圖片", () => mockUploadMedia("image"))} />
-                    <ActionButton icon={<AudioLinesIcon />} label="語音" onClick={() => handleAction("語音", () => mockUploadMedia("audio"))} />
-                    <ActionButton icon={<RssIcon />} label="RSS" onClick={() => handleAction("RSS 同步", mockSyncRSS)} />
+                    <ActionButton icon={<FileTextIcon />} label="Google Doc" onClick={() => handleSourceSyncAction("googledoc", "Google Doc", mockImportGoogleDoc)} />
+                    <ActionButton icon={<FileTextIcon />} label="Markdown" onClick={() => handleSourceSyncAction("markdown", "Markdown", mockUploadMarkdown)} />
+                    <ActionButton icon={<UploadIcon />} label="圖片" onClick={() => handleSourceSyncAction("image", "圖片", () => mockUploadMedia("image"))} />
+                    <ActionButton icon={<AudioLinesIcon />} label="語音" onClick={() => handleSourceSyncAction("audio", "語音", () => mockUploadMedia("audio"))} />
+                    <ActionButton icon={<RssIcon />} label="RSS" onClick={() => handleSourceSyncAction("rss", "RSS", mockSyncRSS)} />
                   </>
                 ) : (
                   <p className="text-center text-xs leading-relaxed text-muted-foreground">
@@ -846,10 +1696,77 @@ export default function AIInputClient({
         ) : (
           /* Active Chat */
           <div className="flex flex-col h-full overflow-hidden">
+            {/* Conversation Ingestion Control Banner */}
+            <div className="shrink-0 border-b border-border/40 bg-background/60 backdrop-blur-md px-6 py-3">
+              <div className="mx-auto max-w-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "size-2 rounded-full",
+                    isImported ? "bg-emerald-500 animate-pulse" : "bg-amber-500 animate-pulse"
+                  )} />
+                  <div className="text-xs">
+                    {!isImported ? (
+                      <>
+                        <span className="font-semibold text-foreground">對話狀態：保存在聊天視窗</span>
+                        <span className="text-muted-foreground ml-1.5">(尚未匯入來源分析)</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">對話狀態：已匯入來源分析</span>
+                        <span className="text-muted-foreground ml-1.5">
+                          (方式: {importType === "manual" ? "手動確認" : "閒置 24 小時自動匯入"})
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!isImported ? (
+                    <>
+                      <Button
+                        size="xs"
+                        variant="default"
+                        disabled={messages.length <= 1}
+                        onClick={() => handleImportConversation("manual")}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] h-7 px-2.5 rounded-lg transition-all active:scale-95 disabled:opacity-40 flex items-center gap-1"
+                      >
+                        <InboxIcon className="size-3.5" />
+                        <span>手動匯入來源分析</span>
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        disabled={messages.length <= 1}
+                        onClick={() => handleImportConversation("auto")}
+                        className="border-border/60 hover:bg-muted text-[11px] h-7 px-2.5 rounded-lg transition-all active:scale-95 disabled:opacity-40 flex items-center gap-1"
+                      >
+                        <ZapIcon className="size-3.5 text-amber-500 fill-amber-500/10" />
+                        <span>模擬閒置 24h</span>
+                      </Button>
+                      <span className="text-[10px] text-muted-foreground/60 hidden xl:inline-flex items-center gap-0.5">
+                        (<Clock3Icon className="size-3" />
+                        <span>24h 閒置自動匯入</span>)
+                      </span>
+                    </>
+                  ) : (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled
+                      className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-[11px] h-7 px-2.5 rounded-lg border border-emerald-200/50 dark:border-emerald-900/50 font-medium"
+                    >
+                      ✓ 已安全匯入 Ingestion
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-8 scroll-smooth">
               <div className="max-w-2xl mx-auto space-y-6">
                 <AnimatePresence initial={false}>
-                  {messages.map((msg) => (
+                  {displayMessages.map((msg) => (
                     <motion.div
                       key={msg.id}
                       initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -942,22 +1859,69 @@ export default function AIInputClient({
                   ))}
                 </div>
 
-                {/* Import action buttons (mode-filtered) */}
-                {visibleActions.length > 0 && (
-                  <div className="flex items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar">
+                {/* Import actions dropdown (unfiltered) */}
+                {isMockDataEnabled && (
+                  <div className="flex items-center gap-2 pb-0.5">
                     <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">匯入</span>
-                    {visibleActions.map((a) => (
-                      a.id === "link" ? (
-                        <AddLinkDialog key={a.id} onAdd={handleAddLinks} trigger={
-                          <Button variant="outline" size="sm" className="h-7 rounded-full border-border/50 bg-background/50 hover:bg-muted text-xs font-normal gap-1.5 px-2.5 whitespace-nowrap shadow-sm">
-                            <span className="size-3 text-muted-foreground">{a.icon}</span>
-                            {a.label}
-                          </Button>
-                        } />
-                      ) : (
-                        <ActionButton key={a.id} icon={a.icon} label={a.label} onClick={a.onClick} />
-                      )
-                    ))}
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-full border-border/50 bg-background/50 hover:bg-muted text-xs font-normal gap-1.5 px-3 whitespace-nowrap shadow-sm"
+                        onClick={() => setIsImportDropdownOpen(!isImportDropdownOpen)}
+                      >
+                        <PlusIcon className="size-3 text-muted-foreground" />
+                        <span>選擇匯入來源</span>
+                      </Button>
+
+                      <AnimatePresence>
+                        {isImportDropdownOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setIsImportDropdownOpen(false)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, y: 5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 5 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute bottom-full left-0 mb-2 w-44 rounded-xl border border-border/50 bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 flex flex-col gap-0.5"
+                            >
+                              {allActions.map((a) => (
+                                a.id === "link" ? (
+                                  <AddLinkDialog
+                                    key={a.id}
+                                    onAdd={handleAddLinks}
+                                    trigger={
+                                      <button
+                                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                                        onClick={() => setIsImportDropdownOpen(false)}
+                                      >
+                                        <span className="size-3 text-muted-foreground flex items-center justify-center [&>svg]:size-3">{a.icon}</span>
+                                        <span className="flex-1">{a.label}</span>
+                                      </button>
+                                    }
+                                  />
+                                ) : (
+                                  <button
+                                    key={a.id}
+                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                                    onClick={() => {
+                                      setIsImportDropdownOpen(false)
+                                      a.onClick()
+                                    }}
+                                  >
+                                    <span className="size-3 text-muted-foreground flex items-center justify-center [&>svg]:size-3">{a.icon}</span>
+                                    <span className="flex-1">{a.label}</span>
+                                  </button>
+                                )
+                              ))}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 )}
                 {!isMockDataEnabled && (
@@ -1025,7 +1989,11 @@ export default function AIInputClient({
               </div>
             </div>
           </div>
-        ))}
+        )
+      }
+    </div>
+  </div>
+)}
 
         {workspaceView === "context" && (
           <SubpageShell
@@ -1043,6 +2011,34 @@ export default function AIInputClient({
           </SubpageShell>
         )}
 
+        {workspaceView === "files" && (
+          <SubpageShell
+            description="管理系統所有的檔案資產：每份檔案可能同時具備 Google Drive 外部來源與 PersonalOS 已保存的 Snapshot。您可以直接在此上傳新檔案，或將其引用作為目前對話的背景參考。"
+            eyebrow="File Library"
+            title="系統檔案庫"
+            wide
+          >
+            <FileLibraryPage
+              referencedTitles={referencedTitles}
+              onReferenceAsset={(title) => handleReferenceLibraryItem(title, "file")}
+            />
+          </SubpageShell>
+        )}
+
+        {workspaceView === "media" && (
+          <SubpageShell
+            description="管理系統的所有媒體資產：圖片、影片與音樂。依分類瀏覽，上傳後可直接引用至當前 AI 對話進行多模態分析（圖片 OCR、影片畫面辨識、語音轉錄）。"
+            eyebrow="Media Library"
+            title="系統媒體庫"
+            wide
+          >
+            <MediaLibraryPage
+              referencedTitles={referencedTitles}
+              onReferenceAsset={(name) => handleReferenceLibraryItem(name, "media")}
+            />
+          </SubpageShell>
+        )}
+
         {workspaceView === "settings" && (
           <SubpageShell
             description="查看 LINE、Drive、Docs、RSS、Telegram、Gmail、GitHub 等外部來源的串接狀態、同步健康度、範圍與確認條件。這不是當前對話引用內容。"
@@ -1054,6 +2050,9 @@ export default function AIInputClient({
               formalReadiness={formalReadiness}
               isMockDataEnabled={isMockDataEnabled}
               resourceNodesCount={resourceNodes.length}
+              connectorsState={connectorsState}
+              setConnectorsState={setConnectorsState}
+              pushToast={pushToast}
             />
           </SubpageShell>
         )}
@@ -1078,6 +2077,21 @@ export default function AIInputClient({
           </SubpageShell>
         )}
       </div>
+
+      <Dialog open={deleteCandidateId !== null} onOpenChange={(open) => !open && setDeleteCandidateId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>刪除對話</DialogTitle>
+            <DialogDescription>
+              確定要刪除「{deleteCandidateThread?.title}」嗎？此對話的訊息紀錄將從本次工作階段移除，且無法復原。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCandidateId(null)}>取消</Button>
+            <Button variant="destructive" onClick={confirmDeleteThread}>刪除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1101,6 +2115,11 @@ function AIInputSubpageNav({
   onToggleMockData: () => void
   onChange: (view: AIInputSubpage) => void
 }) {
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const navItems: Array<{
     id: AIInputSubpage
     label: string
@@ -1118,21 +2137,33 @@ function AIInputSubpageNav({
       id: "context",
       label: "參考脈絡",
       description: "本次對話引用",
-      count: contextCount,
+      count: mounted ? contextCount : undefined,
       icon: <MessageSquareIcon className="size-4" />,
+    },
+    {
+      id: "files",
+      label: "檔案庫",
+      description: "系統資源檔案",
+      icon: <FileTextIcon className="size-4" />,
+    },
+    {
+      id: "media",
+      label: "媒體庫",
+      description: "圖片・影片・音樂",
+      icon: <ImageIcon className="size-4" />,
     },
     {
       id: "settings",
       label: "同步設定",
       description: "串接與狀態",
-      count: syncSourceCount,
+      count: mounted ? syncSourceCount : undefined,
       icon: <Settings2Icon className="size-4" />,
     },
     {
       id: "workbench",
       label: "AI 工作台",
       description: "workflow 表格",
-      count: reviewCount,
+      count: mounted ? reviewCount : undefined,
       icon: <ListChecksIcon className="size-4" />,
     },
   ]
@@ -1371,12 +2402,51 @@ function SourceStructurePanelContent({
   formalReadiness,
   isMockDataEnabled,
   resourceNodesCount,
+  connectorsState,
+  setConnectorsState,
+  pushToast,
 }: {
   formalReadiness: AIInputFormalReadinessContract
   isMockDataEnabled: boolean
   resourceNodesCount: number
+  connectorsState: ExtendedSourceConnectorRow[]
+  setConnectorsState: React.Dispatch<React.SetStateAction<ExtendedSourceConnectorRow[]>>
+  pushToast: (msg: string) => void
 }) {
-  const connectors = isMockDataEnabled ? MOCK_SOURCE_CONNECTORS : []
+  const [selectedConnectorId, setSelectedConnectorId] = React.useState<string | null>(null)
+  const [drawerTab, setDrawerTab] = React.useState<"sync" | "nodes" | "routing" | "approval" | "governance">("sync")
+  const selectedConnector = React.useMemo(() => {
+    if (!selectedConnectorId) return null
+    const mockMatch = connectorsState.find((c) => c.id === selectedConnectorId)
+    if (mockMatch) return mockMatch
+    const formalRow = formalReadiness.sourceControlMatrix.rows.find((r) => r.id === selectedConnectorId)
+    if (formalRow) {
+      const baseMock = connectorsState.find(m => m.provider === formalRow.provider) || connectorsState[0]
+      return {
+        ...baseMock,
+        id: formalRow.id,
+        source: formalRow.source,
+        provider: formalRow.provider,
+        connectorType: formalRow.connectorType,
+        connectionStatus: formalRow.connectionStatus,
+        syncStatus: formalRow.syncStatus,
+        riskPolicy: formalRow.riskLabel,
+        reviewRule: formalRow.reviewRule,
+      } as ExtendedSourceConnectorRow
+    }
+    return null
+  }, [selectedConnectorId, connectorsState, formalReadiness])
+  const [formData, setFormData] = React.useState<ExtendedSourceConnectorRow | null>(null)
+
+  React.useEffect(() => {
+    if (selectedConnector) {
+      setFormData(JSON.parse(JSON.stringify(selectedConnector))) // Deep copy to prevent side-effects on active row
+    } else {
+      setFormData(null)
+    }
+  }, [selectedConnectorId, selectedConnector])
+
+  const connectors = isMockDataEnabled ? connectorsState : []
   const sourceInputMatrixRows: SourceInputMatrixRow[] = isMockDataEnabled
     ? connectors.map((connector) => {
         const inputModeLabel: Record<AIInputSourceControlInputMode, string> = {
@@ -1416,133 +2486,185 @@ function SourceStructurePanelContent({
     : formalReadiness.sourceControlMatrix.summary.highRiskCount +
       formalReadiness.sourceControlMatrix.summary.missingPermissionCount
 
+  const unifiedRows = isMockDataEnabled
+    ? connectorsState.map((connector) => {
+        const riskColor =
+          connector.riskPolicy === "高"
+            ? "text-red-600 dark:text-red-400"
+            : connector.riskPolicy === "中"
+            ? "text-amber-600 dark:text-amber-400"
+            : "text-emerald-600 dark:text-emerald-400"
+        return {
+          id: connector.id,
+          source: connector.source,
+          provider: connector.provider,
+          connectorType: connector.connectorType,
+          riskLabel: connector.riskPolicy,
+          riskColor,
+          reviewRule: connector.reviewRule,
+          cadence: connector.cadence,
+          lastSync: connector.lastSync,
+          nextSync: connector.nextSync,
+          defaultModule: connector.defaultModule,
+          connectionStatus: connector.connectionStatus,
+          syncStatus: connector.syncStatus,
+          missingPermissions: connector.missingPermissions,
+        }
+      })
+    : formalReadiness.sourceControlMatrix.rows.map((row) => {
+        const riskColor =
+          row.riskLevel === "high"
+            ? "text-red-600 dark:text-red-400"
+            : row.riskLevel === "medium" || row.riskLevel === "variable"
+            ? "text-amber-600 dark:text-amber-400"
+            : "text-emerald-600 dark:text-emerald-400"
+        return {
+          id: row.id,
+          source: row.source,
+          provider: row.provider,
+          connectorType: row.connectorType,
+          riskLabel: row.riskLabel,
+          riskColor,
+          reviewRule: row.reviewRule,
+          cadence: row.cadence,
+          lastSync: row.lastSync,
+          nextSync: row.nextSync,
+          defaultModule: row.defaultModule,
+          connectionStatus: row.connectionStatus,
+          syncStatus: row.syncStatus,
+          missingPermissions: row.missingPermissions,
+        }
+      })
+
   return (
     <div className="space-y-6 pb-8">
-      <section className="grid gap-4 border-b border-border/60 pb-5 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.2fr)]">
+      {/* Simplified Compact Header with Boundaries Tooltip */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
         <div>
-          <p className="text-sm font-semibold text-foreground">同步設定是外部來源串接與同步狀態</p>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            這裡先回答哪些來源已經串接、哪些還需要設定、同步是否成功、上次與下次同步時間，以及同步結果是否需要你確認。
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {isMockDataEnabled
-              ? `目前為 UI-only mock 狀態總覽，不執行真實同步、不寫入資料庫。可納入設定的 Resource 節點：${resourceNodesCount}。`
-              : `正式模式已關閉 mock connector rows。AIINPUT-OPS-002 目前顯示 ${formalReadiness.sourceControlMatrix.summary.rowCount} 個 protected source-control matrix row，並維持 connector runtime 關閉。`}
-          </p>
-          <div className="mt-4 grid grid-cols-3 divide-x divide-border/60 rounded-lg border border-border/60 bg-muted/20">
-            <WorkflowStat label="已串接" value={connectedCount.toString()} />
-            <WorkflowStat label="待設定" value={setupCount.toString()} />
-            <WorkflowStat label="需確認" value={reviewCount.toString()} tone={reviewCount > 0 ? "warning" : "default"} />
-          </div>
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-1.5">
+            外部資料源同步設定
+            <span 
+              className="group relative cursor-help inline-flex items-center justify-center size-4 rounded-full bg-muted text-[10px] text-muted-foreground hover:bg-muted-hover hover:text-foreground font-semibold"
+              title="【管理邊界說明】&#10;• 這裡管理：外部來源串接狀態、授權範圍、同步頻率排程、健康度、風險與 AI 審批政策。&#10;• 這裡不執行：直接寫入資料庫或覆寫外部來源檔案。"
+            >
+              i
+            </span>
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">管理並監控 LINE、Google Drive、Docs、RSS、Telegram、Gmail、GitHub 等管道的串接排程與 AI 處理邊界。</p>
         </div>
-        <div className="overflow-hidden rounded-lg border border-border/60">
-          {SYNC_SETTING_BOUNDARIES.map((row) => (
-            <div key={row.label} className="grid gap-3 border-b border-border/60 px-3 py-2.5 text-xs last:border-b-0 md:grid-cols-[96px_1fr]">
-              <span className="font-semibold text-muted-foreground">{row.label}</span>
-              <span className="leading-relaxed text-foreground/80">{row.value}</span>
-            </div>
-          ))}
+        <div className="flex gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1 text-foreground/80 font-medium">
+            已串接 <strong className="text-foreground">{connectedCount}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1 text-foreground/80 font-medium">
+            待設定 <strong className="text-foreground">{setupCount}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200/50 bg-amber-50/20 px-2.5 py-1 text-amber-700 font-medium dark:text-amber-400">
+            需確認 <strong className="text-amber-600 dark:text-amber-500">{reviewCount}</strong>
+          </span>
         </div>
-      </section>
+      </div>
 
-      {!isMockDataEnabled && (
-        <>
-          <FormalReadinessContractPanel
-            contract={formalReadiness}
-            description="正式模式的 server-only readiness contract。它列出目前可以安全顯示的狀態、被刻意禁止的 runtime 行為，以及 DATTR-024 之前不能跨過的 persistence gate。"
-            title="正式資料 BFF readiness"
-          />
-          <FormalSourceWorkflowReadModelTable contract={formalReadiness} />
-          <FormalSourceWorkflowProofBootstrapPanel contract={formalReadiness} />
-          <FormalSourceWorkflowGateMatrixTable contract={formalReadiness} />
-        </>
-      )}
-
-      {/* Input Matrix — DATTR-012 */}
+      {/* Unified Settings & Sync Management Dashboard */}
       <WorkbenchTable
-        columns={["來源", "輸入模式", "風險", "狀態", "下一步行動", "缺少權限"]}
-        description={isMockDataEnabled
-          ? "快速掃描每個來源的輸入方式、風險等級與目前需要採取的行動。"
-          : `${formalReadiness.sourceControlMatrix.id} 顯示正式來源控制契約；不執行 provider 讀取、webhook、polling、file ingestion 或 DB 寫入。`}
-        gridClassName="grid-cols-[minmax(200px,1.4fr)_100px_72px_100px_minmax(180px,1.2fr)_minmax(200px,1.3fr)]"
-        title="來源輸入矩陣"
+        columns={["來源管道", "類型", "風險與審核", "頻率排程", "上次/下次同步", "目標模組", "狀態", "操作"]}
+        description="管理所有資料來源的串接狀態、同步頻率排程、AI 分析管道與人工審核邊界政策。"
+        gridClassName="grid-cols-[minmax(180px,1.2fr)_110px_120px_110px_140px_110px_100px_80px]"
+        title="來源設定與同步管理面板"
       >
-        {sourceInputMatrixRows.length > 0 ? (
-          sourceInputMatrixRows.map((row) => {
-            const riskColor =
-              row.riskLevel === "high"
-                ? "text-red-600 dark:text-red-400"
-                : row.riskLevel === "medium" || row.riskLevel === "variable"
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-emerald-600 dark:text-emerald-400"
+        {unifiedRows.length > 0 ? (
+          unifiedRows.map((row) => {
+            const translatedProviderType: Record<string, string> = {
+              "Manual · Upload": "手動匯入 · 上傳",
+              "LINE · Messaging": "LINE · 即時通訊",
+              "Google Docs · Document": "Google Docs · 文件",
+              "RSS · Feed": "RSS · 訂閱源",
+              "Gmail · Email": "Gmail · 電子郵件",
+              "GitHub · Repo files": "GitHub · 程式庫檔案",
+              "Telegram · Messaging": "Telegram · 即時通訊",
+              "Drive · Cloud files": "Drive · 雲端檔案",
+              "Drive · Folder files": "Drive · 資料夾檔案",
+            }
+            const key = `${row.provider} · ${row.connectorType}`
+            const typeLabel = translatedProviderType[key] || key
+
             return (
               <WorkflowTableRow
                 key={row.id}
+                onClick={() => setSelectedConnectorId(row.id)}
                 cells={[
-                  <span key="src" className="block min-w-0">
-                    <span className="block truncate font-medium text-foreground">{row.source}</span>
-                    <span className="block truncate text-[10px] text-muted-foreground">{row.provider}</span>
-                  </span>,
-                  <span key="mode" className="text-xs text-muted-foreground">{row.inputModeLabel}</span>,
-                  <span key="risk" className={cn("text-xs font-medium", riskColor)}>{row.riskLabel}</span>,
-                  <ConnectionStatusBadge key="conn" status={row.connectionStatus} />,
-                  <span key="action" className="block min-w-0">
-                    <span className="block truncate text-xs text-foreground/80">{row.nextAction}</span>
-                    {row.boundary && (
-                      <span className="block truncate text-[10px] text-muted-foreground">{row.boundary}</span>
+                  <span key="source" className="block min-w-0">
+                    <span className="block truncate font-semibold text-foreground">{row.source}</span>
+                    {row.missingPermissions && (
+                      <span 
+                        className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 mt-1 cursor-help"
+                        title={`缺少授權權限限制：\n${row.missingPermissions}`}
+                      >
+                        ⚠️ 缺少授權 (懸停查看)
+                      </span>
                     )}
                   </span>,
-                  row.missingPermissions ? (
-                    <span key="perm" className="block truncate text-[10px] text-amber-600 dark:text-amber-400">{row.missingPermissions}</span>
-                  ) : (
-                    <span key="perm" className="text-[10px] text-muted-foreground/50">—</span>
-                  ),
+                  <span key="type" className="text-xs text-muted-foreground">{typeLabel}</span>,
+                  <span 
+                    key="risk"
+                    className="inline-flex items-center gap-1.5 cursor-help" 
+                    title={`人工確認規則：\n${row.reviewRule}`}
+                  >
+                    <span className={cn("size-2 rounded-full", 
+                      row.riskLabel === "高" ? "bg-red-500" : row.riskLabel === "中" ? "bg-amber-500" : "bg-emerald-500"
+                    )} />
+                    <span className={cn("text-xs font-semibold", row.riskColor)}>{row.riskLabel}風險</span>
+                  </span>,
+                  <span key="cadence" className="text-xs text-foreground/80">{row.cadence}</span>,
+                  <span key="sync-time" className="block min-w-0">
+                    <span className="block text-xs text-foreground/85">上次：{row.lastSync}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">下次：{row.nextSync}</span>
+                  </span>,
+                  <span key="module" className="inline-flex items-center rounded bg-primary/5 border border-primary/10 px-2 py-0.5 text-xs text-primary font-medium">
+                    {row.defaultModule}
+                  </span>,
+                  <div key="status" className="flex flex-col gap-1 w-[84px]">
+                    <ConnectionStatusBadge status={row.connectionStatus} />
+                    <SourceSyncStatusBadge status={row.syncStatus} />
+                  </div>,
+                  <button
+                    key="manage"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedConnectorId(row.id)
+                    }}
+                    className="px-2.5 py-1 text-xs font-semibold rounded bg-primary text-primary-foreground hover:bg-primary/95 transition-colors shadow-sm"
+                  >
+                    設定
+                  </button>,
                 ]}
-                gridClassName="grid-cols-[minmax(200px,1.4fr)_100px_72px_100px_minmax(180px,1.2fr)_minmax(200px,1.3fr)]"
+                gridClassName="grid-cols-[minmax(180px,1.2fr)_110px_120px_110px_140px_110px_100px_80px]"
               />
             )
           })
         ) : (
-          <EmptyTableRow message="尚未有 source-control matrix row。需先建立 AIINPUT-OPS-002 契約。" />
+          <EmptyTableRow message="尚無外部來源連線資料。" />
         )}
       </WorkbenchTable>
 
-      <WorkbenchTable
-        columns={["外部來源", "串接", "同步", "同步範圍", "頻率", "上次 / 下次", "模組", "確認"]}
-        description="先看 connector 狀態與同步健康度，再看範圍、頻率與需要人工確認的原因。這裡是同步總覽，不是本次對話的 @參考脈絡。"
-        gridClassName="grid-cols-[minmax(220px,1.3fr)_110px_110px_minmax(220px,1.3fr)_116px_minmax(140px,1fr)_108px_minmax(150px,1fr)]"
-        title="外部串接與同步狀態"
-      >
-        {connectors.length > 0 ? (
-          connectors.map((connector) => (
-            <WorkflowTableRow
-              key={connector.id}
-              cells={[
-                <span key="source" className="block min-w-0">
-                  <span className="block truncate font-medium text-foreground">{connector.source}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">{connector.provider} · {connector.connectorType}</span>
-                </span>,
-                <ConnectionStatusBadge key="connection" status={connector.connectionStatus} />,
-                <SourceSyncStatusBadge key="sync" status={connector.syncStatus} />,
-                connector.scope,
-                connector.cadence,
-                <span key="sync-time" className="block min-w-0">
-                  <span className="block truncate">{connector.lastSync}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">{connector.nextSync}</span>
-                </span>,
-                connector.defaultModule,
-                <span key="review" className="block min-w-0">
-                  <span className="block truncate">{connector.reviewRule}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">風險：{connector.riskPolicy}</span>
-                </span>,
-              ]}
-              gridClassName="grid-cols-[minmax(220px,1.3fr)_110px_110px_minmax(220px,1.3fr)_116px_minmax(140px,1fr)_108px_minmax(150px,1fr)]"
+      {/* Collapsible Developer Readiness Panel for Formal Mode */}
+      {!isMockDataEnabled && (
+        <details className="border border-border/50 rounded-lg bg-muted/5 transition-all duration-200">
+          <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground select-none flex items-center gap-2">
+            <span>⚙️ 開發者準備度與系統邊界資訊 (BFF Readiness Details)</span>
+          </summary>
+          <div className="p-4 border-t border-border/50 space-y-6 bg-background">
+            <FormalReadinessContractPanel
+              contract={formalReadiness}
+              description="正式模式的 server-only readiness contract。它列出目前可以安全顯示的狀態、被刻意禁止的 runtime 行為，以及 DATTR-024 之前不能跨過的 persistence gate。"
+              title="正式資料 BFF readiness"
             />
-          ))
-        ) : (
-          <EmptyTableRow message="Mock connector 已關閉；尚未有 Supabase-backed SourceConnection / AIWorkflowRun 資料可顯示。" />
-        )}
-      </WorkbenchTable>
+            <FormalSourceWorkflowReadModelTable contract={formalReadiness} />
+            <FormalSourceWorkflowProofBootstrapPanel contract={formalReadiness} />
+            <FormalSourceWorkflowGateMatrixTable contract={formalReadiness} />
+          </div>
+        </details>
+      )}
 
       <WorkbenchTable
         columns={["條件", "處理方式", "原因"]}
@@ -1557,7 +2679,468 @@ function SourceStructurePanelContent({
             gridClassName="grid-cols-[minmax(180px,1fr)_minmax(240px,1.2fr)_minmax(300px,1.8fr)]"
           />
         ))}
-      </WorkbenchTable>
+       </WorkbenchTable>
+
+      {/* Settings Drawer */}
+      <AnimatePresence>
+        {selectedConnectorId && selectedConnector && formData && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedConnectorId(null)}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            />
+            {/* Drawer Container */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-xl flex-col border-l border-border bg-background shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-muted/30">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">{formData.source}</h3>
+                  <p className="text-xs text-muted-foreground">{formData.provider} · {formData.connectorType}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedConnectorId(null)}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <span className="text-xl font-light">&times;</span>
+                </button>
+              </div>
+
+              {/* Tabs Nav */}
+              <div className="flex border-b border-border/60 px-4 bg-muted/10 text-xs font-medium scrollbar-none overflow-x-auto">
+                {(["sync", "nodes", "routing", "approval", "governance"] as const).map((tab) => {
+                  const labels = {
+                    sync: "同步與分析",
+                    nodes: "思考節點",
+                    routing: "資料路由",
+                    approval: "風險審批",
+                    governance: "治理隱私"
+                  }
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setDrawerTab(tab)}
+                      className={cn(
+                        "px-4 py-3 border-b-2 transition-colors whitespace-nowrap",
+                        drawerTab === tab
+                          ? "border-primary text-foreground font-semibold"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {labels[tab]}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 scrollbar-thin">
+                {drawerTab === "sync" && (
+                  <div className="space-y-5">
+                    {/* Sync Section */}
+                    <div className="border border-border/60 rounded-lg p-4 bg-muted/10 space-y-4">
+                      <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <ZapIcon className="size-3.5 text-amber-500" />
+                        外部同步政策
+                      </h4>
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="text-muted-foreground">啟用排程自動同步</label>
+                        <input
+                          type="checkbox"
+                          checked={formData.syncEnabled}
+                          onChange={(e) => setFormData({ ...formData, syncEnabled: e.target.checked })}
+                          className="rounded border-border/60 text-primary focus:ring-primary size-4"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground block">同步觸發模式</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="syncMode"
+                              checked={formData.syncMode === "manual_only"}
+                              onChange={() => setFormData({ ...formData, syncMode: "manual_only", syncSchedule: null })}
+                            />
+                            僅限手動
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="syncMode"
+                              checked={formData.syncMode === "manual_and_scheduled"}
+                              onChange={() => setFormData({ ...formData, syncMode: "manual_and_scheduled", syncSchedule: "0 8 * * *" })}
+                            />
+                            手動與排程
+                          </label>
+                        </div>
+                      </div>
+                      {formData.syncMode === "manual_and_scheduled" && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground block">自動同步頻率 (Cron String)</label>
+                          <input
+                            type="text"
+                            value={formData.syncSchedule || ""}
+                            onChange={(e) => setFormData({ ...formData, syncSchedule: e.target.value })}
+                            className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-1.5 text-foreground focus:outline-none focus:border-border/80"
+                            placeholder="e.g. 0 8 * * *"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Analysis Section */}
+                    <div className="border border-border/60 rounded-lg p-4 bg-muted/10 space-y-4">
+                      <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <SparklesIcon className="size-3.5 text-indigo-500" />
+                        AI Ingestion 分析政策
+                      </h4>
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="text-muted-foreground">啟用自動 AI 分析</label>
+                        <input
+                          type="checkbox"
+                          checked={formData.analysisEnabled}
+                          onChange={(e) => setFormData({ ...formData, analysisEnabled: e.target.checked })}
+                          className="rounded border-border/60 text-primary focus:ring-primary size-4"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground block">分析觸發模式</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="analysisMode"
+                              checked={formData.analysisMode === "manual_only"}
+                              onChange={() => setFormData({ ...formData, analysisMode: "manual_only", analysisSchedule: null })}
+                            />
+                            僅限手動
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="analysisMode"
+                              checked={formData.analysisMode === "manual_and_scheduled"}
+                              onChange={() => setFormData({ ...formData, analysisMode: "manual_and_scheduled", analysisSchedule: "0 9 * * *" })}
+                            />
+                            手動與排程
+                          </label>
+                        </div>
+                      </div>
+                      {formData.analysisMode === "manual_and_scheduled" && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground block">自動分析頻率 (Cron String)</label>
+                          <input
+                            type="text"
+                            value={formData.analysisSchedule || ""}
+                            onChange={(e) => setFormData({ ...formData, analysisSchedule: e.target.value })}
+                            className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-1.5 text-foreground focus:outline-none focus:border-border/80"
+                            placeholder="e.g. 0 9 * * *"
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <label className="text-muted-foreground">僅在有未處理的 Sync Batch 時分析</label>
+                        <input
+                          type="checkbox"
+                          checked={formData.analyzeOnlyWhenPending}
+                          onChange={(e) => setFormData({ ...formData, analyzeOnlyWhenPending: e.target.checked })}
+                          className="rounded border-border/60 text-primary focus:ring-primary size-4"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {drawerTab === "nodes" && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center pb-2">
+                      <span className="text-xs text-muted-foreground">調整 Ingestion 代理人的分析思緒節點與自訂提示詞</span>
+                    </div>
+                    <div className="space-y-3">
+                      {formData.thinkingNodes
+                        ?.sort((a, b) => a.order - b.order)
+                        .map((node, index) => {
+                          const nodeLabel: Record<string, string> = {
+                            source_context: "來源脈絡判斷",
+                            classify_information: "資訊主題分類",
+                            extract_entity: "關係人與實體抽取",
+                            extract_commitment: "承諾事項與交付物",
+                            detect_task_candidate: "行動任務候選識別",
+                            detect_risk: "潛在執行風險識別",
+                            draft_inbox_items: "Inbox 提案封裝起草",
+                          }
+                          return (
+                            <div key={node.id} className="border border-border/60 rounded-lg p-3 bg-muted/5 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {/* Reordering buttons instead of complex drag */}
+                                  <div className="flex flex-col gap-0.5">
+                                    <button
+                                      disabled={index === 0}
+                                      onClick={() => {
+                                        if (!formData || !formData.thinkingNodes) return
+                                        const nodes = [...formData.thinkingNodes].sort((a,b)=>a.order-b.order)
+                                        const temp = nodes[index]
+                                        nodes[index] = nodes[index - 1]
+                                        nodes[index - 1] = temp
+                                        nodes.forEach((n, idx) => { n.order = idx + 1 })
+                                        setFormData({ ...formData, thinkingNodes: nodes })
+                                      }}
+                                      className="text-muted-foreground hover:text-foreground disabled:opacity-20 text-[9px] font-bold p-0.5"
+                                      title="上移"
+                                    >
+                                      ▲
+                                    </button>
+                                    <button
+                                      disabled={index === (formData.thinkingNodes?.length || 1) - 1}
+                                      onClick={() => {
+                                        if (!formData || !formData.thinkingNodes) return
+                                        const nodes = [...formData.thinkingNodes].sort((a,b)=>a.order-b.order)
+                                        const temp = nodes[index]
+                                        nodes[index] = nodes[index + 1]
+                                        nodes[index + 1] = temp
+                                        nodes.forEach((n, idx) => { n.order = idx + 1 })
+                                        setFormData({ ...formData, thinkingNodes: nodes })
+                                      }}
+                                      className="text-muted-foreground hover:text-foreground disabled:opacity-20 text-[9px] font-bold p-0.5"
+                                      title="下移"
+                                    >
+                                      ▼
+                                    </button>
+                                  </div>
+                                  <span className="text-xs font-semibold text-foreground/90">
+                                    {index + 1}. {nodeLabel[node.nodeType] || node.nodeType}
+                                  </span>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={node.enabled}
+                                  onChange={() => {
+                                    if (!formData || !formData.thinkingNodes) return
+                                    const nodes = formData.thinkingNodes.map(n => n.id === node.id ? { ...n, enabled: !n.enabled } : n)
+                                    setFormData({ ...formData, thinkingNodes: nodes })
+                                  }}
+                                  className="rounded border-border/60 text-primary focus:ring-primary size-3.5"
+                                />
+                              </div>
+                              {node.enabled && (
+                                <textarea
+                                  value={node.instruction || ""}
+                                  onChange={(e) => {
+                                    if (!formData || !formData.thinkingNodes) return
+                                    const nodes = formData.thinkingNodes.map(n => n.id === node.id ? { ...n, instruction: e.target.value } : n)
+                                    setFormData({ ...formData, thinkingNodes: nodes })
+                                  }}
+                                  rows={2}
+                                  className="w-full text-[11px] leading-relaxed bg-muted/40 border border-border/50 rounded p-2 text-foreground focus:outline-none focus:border-border/80"
+                                  placeholder="請輸入給此分析節點的客製化引導指令..."
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {drawerTab === "routing" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground block">預設發布模組 (Default Module)</label>
+                      <select
+                        value={formData.defaultModule}
+                        onChange={(e) => setFormData({ ...formData, defaultModule: e.target.value })}
+                        className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
+                      >
+                        <option value="工作">工作 (Work)</option>
+                        <option value="研究">研究 (Research)</option>
+                        <option value="商會">商會 (Chamber/CRM)</option>
+                        <option value="生活">生活 (Life)</option>
+                        <option value="財務">財務 (Finance)</option>
+                        <option value="公司">公司 (Company Strategy)</option>
+                        <option value="依 AI triage">依 AI 自動判斷 (Triage)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <label className="text-xs font-semibold text-foreground block">授權寫入目標模組 (Allowed Target Modules)</label>
+                      <div className="border border-border/60 rounded-lg p-3 bg-muted/10 space-y-2.5">
+                        {[
+                          { id: "work", label: "工作模組 (Work)" },
+                          { id: "research", label: "研究模組 (Research)" },
+                          { id: "chamber", label: "商會模組 (Chamber)" },
+                          { id: "life", label: "生活模組 (Life)" },
+                          { id: "finance", label: "財務模組 (Finance - 高風險)" },
+                          { id: "company", label: "公司策略模組 (Company - 高風險)" },
+                        ].map((mod) => {
+                          const isChecked = formData.allowedTargetModules?.includes(mod.id)
+                          return (
+                            <label key={mod.id} className="flex items-center justify-between text-xs text-foreground/80 cursor-pointer">
+                              <span>{mod.label}</span>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  let list = [...(formData.allowedTargetModules || [])]
+                                  if (isChecked) {
+                                    list = list.filter(item => item !== mod.id)
+                                  } else {
+                                    list.push(mod.id)
+                                  }
+                                  setFormData({ ...formData, allowedTargetModules: list })
+                                }}
+                                className="rounded border-border/60 text-primary focus:ring-primary size-4"
+                              />
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {drawerTab === "approval" && (
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground block">風險等級設定</label>
+                      <select
+                        value={formData.riskClassification}
+                        onChange={(e) => setFormData({ ...formData, riskClassification: e.target.value as SourceRiskClassification })}
+                        className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
+                      >
+                        <option value="low">低風險 (Low)</option>
+                        <option value="medium">中風險 (Medium)</option>
+                        <option value="high">高風險 (High)</option>
+                      </select>
+                      <span className="text-[10px] text-muted-foreground block">風險等級會影響 AI Ingestion 提案的預設審查優先級與去識別化觸發條件。</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground block">行動提案審批政策 (Approval Level)</label>
+                      <select
+                        value={formData.approvalLevel}
+                        onChange={(e) => setFormData({ ...formData, approvalLevel: e.target.value as SourceApprovalLevel })}
+                        className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
+                      >
+                        <option value="always_require">所有提案均需人工確認 (Always Require)</option>
+                        <option value="auto_execute_low_risk">低風險提案自動執行，中高風險需確認</option>
+                        <option value="full_automation">完全自動化執行 (Full Automation - 限極低風險)</option>
+                      </select>
+                    </div>
+
+                    <div className="border border-border/60 rounded-lg p-4 bg-muted/10 space-y-3">
+                      <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Settings2Icon className="size-3.5 text-muted-foreground" />
+                        早安簡報通知設定
+                      </h4>
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="text-muted-foreground">將同步異常與決策項目匯入早安簡報</label>
+                        <input
+                          type="checkbox"
+                          checked={formData.includeInMorningBrief}
+                          onChange={(e) => setFormData({ ...formData, includeInMorningBrief: e.target.checked })}
+                          className="rounded border-border/60 text-primary focus:ring-primary size-4"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {drawerTab === "governance" && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground block">資料保存期限 (Retention Policy)</label>
+                      <select
+                        value={formData.retentionDays}
+                        onChange={(e) => setFormData({ ...formData, retentionDays: parseInt(e.target.value) })}
+                        className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
+                      >
+                        <option value="30">保存 30 天後自動刪除/封存</option>
+                        <option value="90">保存 90 天後自動刪除/封存</option>
+                        <option value="0">永久保存 (Infinite)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs border border-border/60 rounded-lg p-4 bg-muted/10">
+                      <div>
+                        <label className="font-semibold text-foreground block">去識別化敏感資訊 (PII Masking)</label>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">自動遮蔽分析過程中的人名、電話、Email 等隱私資訊</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={formData.piiMaskingEnabled}
+                        onChange={(e) => setFormData({ ...formData, piiMaskingEnabled: e.target.checked })}
+                        className="rounded border-border/60 text-primary focus:ring-primary size-4"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground block">本機手動上傳預設目錄 (Upload Path)</label>
+                      <input
+                        type="text"
+                        value={formData.uploadDirectory}
+                        onChange={(e) => setFormData({ ...formData, uploadDirectory: e.target.value })}
+                        className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
+                        placeholder="e.g. /uploads/gmail"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="border-t border-border/60 px-6 py-4 flex gap-3 bg-muted/10">
+                <Button
+                  onClick={() => {
+                    setConnectorsState((prev) =>
+                      prev.map((c) =>
+                        c.id === formData.id
+                          ? {
+                              ...formData,
+                              defaultModule: formData.defaultModule,
+                              riskPolicy:
+                                formData.riskClassification === "high"
+                                  ? "高"
+                                  : formData.riskClassification === "medium"
+                                  ? "中"
+                                  : "低",
+                              reviewRule:
+                                formData.approvalLevel === "always_require"
+                                  ? "需人工審核"
+                                  : "低風險自執",
+                            }
+                          : c
+                      )
+                    )
+                    pushToast(`[儲存成功]: 已儲存 ${formData.source} 的同步與處理設定。`)
+                    setSelectedConnectorId(null)
+                  }}
+                  className="flex-1 bg-primary text-primary-foreground text-xs h-9 rounded-lg hover:bg-primary/95"
+                >
+                  儲存設定
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedConnectorId(null)}
+                  className="flex-1 border-border/60 text-foreground hover:bg-muted text-xs h-9 rounded-lg"
+                >
+                  取消
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -2263,12 +3846,24 @@ function WorkbenchTable({
 function WorkflowTableRow({
   cells,
   gridClassName,
+  onClick,
+  className,
 }: {
   cells: React.ReactNode[]
   gridClassName: string
+  onClick?: () => void
+  className?: string
 }) {
   return (
-    <div className={cn("grid min-w-[680px] items-center gap-3 px-3 py-2.5 text-xs text-foreground/80 hover:bg-muted/30", gridClassName)}>
+    <div 
+      onClick={onClick}
+      className={cn(
+        "grid min-w-[680px] items-center gap-3 px-3 py-2.5 text-xs text-foreground/80 hover:bg-muted/30", 
+        onClick && "cursor-pointer transition-colors duration-150 hover:bg-muted/50",
+        gridClassName,
+        className
+      )}
+    >
       {cells.map((cell, index) => (
         <div key={index} className="min-w-0 truncate">
           {cell}

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BriefcaseIcon, BotIcon, FileClockIcon, AlertTriangleIcon } from "lucide-react"
+import { BriefcaseIcon, BotIcon, FileClockIcon, FolderIcon, ImageIcon, AlertTriangleIcon } from "lucide-react"
 
 import { AppHeader } from "@/components/layout/app-header"
 import { ProjectCard } from "@/components/work/project/project-card"
@@ -11,10 +11,12 @@ import { AddProjectDialog } from "@/components/work/project/add-project-dialog"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type { Project, ProjectStatus } from "@/types/work"
+import { FileLibraryPage } from "@/components/ai/file-library/file-library-page"
+import { MediaLibraryPage } from "@/components/ai/media-library/media-library-page"
 
 type StatusFilter = ProjectStatus | "all"
 type SortKey = "updatedAt" | "dueAt" | "name"
-type WorkView = "projects" | "agent" | "records"
+type WorkView = "projects" | "library" | "agent" | "records"
 
 function sortProjects(projects: Project[], key: SortKey) {
   return [...projects].sort((a, b) => {
@@ -33,11 +35,60 @@ function sortProjects(projects: Project[], key: SortKey) {
 
 const MODULE_VIEWS: { key: WorkView; icon: React.ElementType; label: string; available: boolean }[] = [
   { key: "projects", icon: BriefcaseIcon, label: "專案", available: true },
+  { key: "library", icon: FolderIcon, label: "檔案庫/媒體庫", available: true },
   { key: "agent", icon: BotIcon, label: "代理人", available: false },
   { key: "records", icon: FileClockIcon, label: "紀錄", available: false },
 ]
 
 // ─── Stub views ───────────────────────────────────────────────────────────────
+
+/** RES-016 §6.1/ARC-012 §5A: read-only, filtered to assets classified to `work`. */
+function LibraryModuleView() {
+  const [kind, setKind] = React.useState<"file" | "media">("file")
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1 w-fit">
+        <button
+          type="button"
+          onClick={() => setKind("file")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+            kind === "file" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <FolderIcon className="size-3.5" />
+          檔案庫
+        </button>
+        <button
+          type="button"
+          onClick={() => setKind("media")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+            kind === "media" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <ImageIcon className="size-3.5" />
+          媒體庫
+        </button>
+      </div>
+      {kind === "file" ? (
+        <FileLibraryPage
+          referencedTitles={new Set()}
+          onReferenceAsset={() => {}}
+          mode="module_readonly"
+          filterModuleKey="work"
+        />
+      ) : (
+        <MediaLibraryPage
+          referencedTitles={new Set()}
+          onReferenceAsset={() => {}}
+          mode="module_readonly"
+          filterModuleKey="work"
+        />
+      )}
+    </div>
+  )
+}
 
 function AgentModuleView() {
   return (
@@ -163,6 +214,7 @@ export default function WorkClient({ initialProjects }: { initialProjects: Proje
           </div>
 
           {/* View content */}
+          {workView === "library" && <LibraryModuleView />}
           {workView === "agent" && <AgentModuleView />}
           {workView === "records" && <RecordsModuleView />}
 

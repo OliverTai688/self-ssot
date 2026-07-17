@@ -167,6 +167,57 @@ filterable table
 
 Avoid making records a decorative activity card wall.
 
+## 5A. Module-Scoped File/Media Library Subpage
+
+Added per `RES-016_module-scoped-file-and-media-library-tab-and-classification-routing-research.md` (owner-directed, decided 2026-07-16). Every module in scope (§5A.4) should eventually expose a read/export-only File Library and Media Library subpage, in addition to the primary operation, Agent, and Records subpages in §3–§5.
+
+```txt
+/{module}/library (or a "檔案庫"/"媒體庫" tab inside the module's existing tab surface)
+  read-only File Library — view, open, download/export only
+  read-only Media Library — view, open, download/export only
+```
+
+### 5A.1 Single Source of Truth, Not Single Capture Surface
+
+Amended per `RES-019_sub-module-upload-sync-and-origin-reference-research.md` (owner-directed, decided 2026-07-16). The invariant is **one canonical asset store**, not "only one UI may create an asset." AI Input (`/ai-input` 檔案庫/媒體庫) remains the default upload/classification entry point, and a module's own File/Media Library subpage (§5A) stays read/export-only — that does not change.
+
+What changes: a **sub-module** surface *inside* a module (a project, a task, a future discussion thread — a level below the module's own library tab) **may** expose an upload affordance, provided it funnels through the same shared asset-creation path the central library uses, so the upload becomes one row in the same store — never a module-local `File[]`/array held only in that component's own state and never written anywhere else. That local-only anti-pattern (uploaded content silently discarded once a dialog closes) is the exact failure `RES-019` found already shipped in `src/components/work/project/add-project-dialog.tsx`, and is the thing this rule forbids — not the existence of a sub-module upload button itself.
+
+A human-initiated sub-module upload creates a `human_confirmed` classification link immediately (§5A.3) — no additional gate, the same way AI Input's own upload already works, including inside high-risk modules, since the human is acting directly inside that module's own UI. Only an *AI-initiated* attach-on-behalf-of-the-owner inside a high-risk module still requires the `ai_suggested` pending gate.
+
+### 5A.2 Classification Model
+
+An asset (file or media) can belong to **one or more** modules at once (e.g. an ESG report relevant to both 工作 and 商會). This is modeled as link rows (`LibraryAssetModuleLink { assetId, assetKind, moduleKey, classificationSource: "ai_suggested" | "human_confirmed" }`) — many rows per asset, each row still naming a single `moduleKey` — rather than an array field, to stay consistent with this repo's pervasive singular-`targetModule` contract convention (`src/lib/contracts/*.ts`). Do not add a raw `moduleKey[]` array field to an asset type; derive the display set from link rows instead.
+
+### 5A.3 Risk Gate
+
+Low-risk modules (`work`, `research`, `chamber`, `self`) may show an AI-suggested classification (`ai_suggested`) directly, labeled with an "AI 分類" badge, editable by the owner. High-risk modules (`finance`, `life`, `company`, per `AGENTS.md` §11) must not surface an AI-suggested classification in their own library subpage until the owner confirms it (`human_confirmed`); until then it is visible only inside AI Input's own library with a pending badge.
+
+### 5A.4 Module Scope (Owner-Decided)
+
+In scope (seven modules): `work`, `research`, `chamber`, `finance`, `life`, `company`, `self`. Out of scope: `ai-input` (already the upload/classification source), `inbox`, `dashboard`, `workflow` (queue/automation-first, not resource-holding). See `RES-016` §0A for the decision record.
+
+### 5A.5 Reuse, Do Not Fork
+
+Module-scoped library subpages must reuse the existing `FileLibraryPage`/`MediaLibraryPage` components (`src/components/ai/file-library/`, `src/components/ai/media-library/`) via a `mode: "full" | "module_readonly"` prop, filtered by `moduleKey`, rather than a bespoke per-module component. `module_readonly` mode hides the upload button and every mutating action (rename, tags, archive/delete, move-workspace, create/update snapshot), keeping only reference/open/view-info/view-versions/view-references plus a `download`/`export` action.
+
+### 5A.6 Sub-Module Upload: Origin Context and Forward Contract
+
+Added per `RES-019`. When a sub-module surface creates an asset (§5A.1), it must attach an origin context so the central library can show where the asset came from and link back to it:
+
+```ts
+interface LibraryAssetOriginContext {
+  contextType: "project" | "task" | "deliverable" | "discussion_thread" | "chat_message" | "note"
+  contextId: string
+  contextLabel: string   // e.g. "專案：ESG 導入顧問案"
+  href: string           // e.g. "/work/proj-123"
+}
+```
+
+This is an additive, optional field on the existing `LibraryAssetModuleLink` row (§5A.2) — not a new table, not a `moduleKey[]`-style array, and not a "sync a copy to the central library" model. There is exactly one asset row; the origin context is metadata on its classification link describing which specific sub-module object captured it. AI Input's own library rows render this as a clickable "使用於" (used in) chip, distinct from and additive to the module-classification badges (§5A.2).
+
+**Forward contract for features that do not exist yet:** no task-attachment or discussion-thread-attachment feature is built as of this writing. Whoever builds one later must follow §5A.1 and this section: funnel the upload through the shared asset-creation path, attach an `originContext`, and create a `human_confirmed` link immediately. Do not build a parallel local attachment store for that feature.
+
 ## 6. Module-specific Structure Blueprint
 
 | Module | Primary operation surface | Agent subpage | Records subpage | Settings/boundary subpage | Notes |

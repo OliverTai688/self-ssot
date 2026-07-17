@@ -13,6 +13,28 @@
 - AGENTS.md and Codex skills support repeated closed-loop development.
 - Task backlog, sprint file, and completed log are maintained.
 
+## EVENTOPS-021 Human-AI Event Operating Model Research Acceptance
+
+- `docs/07_research-and-design/RES-011_human-ai-event-operating-model-research.md` exists because `RES-010` is already assigned.
+- `RES-011` is indexed in `docs/00_manual-and-index/MAN-001_document-index.md`.
+- The document clearly separates confirmed owner decisions from research recommendations.
+- The document clearly separates UI model, domain model, and runtime/execution model.
+- The document distinguishes `AnalysisEvent`, `AgentRun`, `InboxItem`, `Thread`, `Conversation`, `ActionPlan`, and `ExecutionRun`; it must not collapse all status into one object.
+- The document includes domain responsibilities, main fields, relationships, immutable record/current projection/mutable/event-only rules for the requested objects.
+- The document defines ResourceVersion/ResourceDiff strategy, last successfully analyzed version, expected version, conflict detection, reanalysis policy, and restore reference rules.
+- The document defines manual/cron/condition triggers, debounce/batch, duplicate suppression, timezone, pause/resume, missed/concurrent policy, cost budget, model selection, input scope, and diff scope.
+- The document defines Event Report Markdown front matter/body and explicitly states Markdown is not the sole source of truth.
+- The document defines Inbox/Thread, multi-agent invitation, shared context manifest, data exclusion list, Life default-deny, Research-to-Work sharing, and least-privilege invited-agent rules.
+- The document defines ActionPlan/ActionStep/RACI, keeping one Accountable per step and keeping Orchestrator distinct from business Accountable.
+- The document defines L0-L3 risk policy and maps owner-confirmed automation rules into an initial matrix without relying only on action type.
+- The document defines failure/retry/recovery boundaries, including timeout-as-unknown, idempotency, optimistic concurrency, transactional outbox, DLQ, saga, compensation, manual recovery, incident report, trace/span, and checkpoint resume.
+- The document distinguishes ActivityRecord, AuditEvent, Trace/Span, MemoryCandidate, AgentMemory, and ContextChangeEvent; it must not auto-promote raw history into memory.
+- The document includes the required diagrams/tables: end-to-end operating loop, domain/ER diagram, Analysis Event state machine, Agent Run state machine, Action Plan/Execution state machine, multi-agent invitation sequence, cross-module RACI example, permission/risk matrix, failure/recovery matrix, UI surface map, event report example, and first vertical slice sequence.
+- The document designs the Research document version update -> Work draft project first vertical slice and lists the requested happy path and failure/variation cases.
+- `PLN-060` contains non-conflicting follow-up rows `EVENTOPS-021..040`; `EVENTOPS-021` is marked DONE and no existing `EVENTOPS-001..020` rows are overwritten.
+- Verification records marker scans, targeted whitespace/diff checks, and loop-state JSON parse for the docs-only artifact.
+- `EVENTOPS-021` does not modify runtime code, formal database schema, migrations, route handlers, server actions, existing UI, provider calls, public output, autonomous final writes, external agent DB access, external collaboration, or external registration.
+
 ## Work Module Acceptance
 
 - No Work data write bypasses server actions/services.
@@ -203,6 +225,18 @@
 - Verification should include local Next.js 16 route/page/loading/streaming docs review, `pnpm exec tsc --noEmit --pretty false`, source marker smoke, `pnpm route:identity:check` for admin overview plus detail shell plus owner-evidence section, payload/table comparison proving shell no longer renders the 39-table full route, JSON parse, and `git diff --check`.
 - `ADMIN-009` does not add user management, permission write actions, admin mutations, route handlers, public API expansion, deployment API writes, production env editing, connector sync, audit persistence, Prisma schema changes, migrations, seed changes, external registration, or production DB mutations.
 - `ADMIN-009` must not claim `AUTH-005`, `WORK-009`, `WORK-007`, `DEPLOY-002`, L1, L3, or L4 from route split evidence.
+
+## DEPLOY-003 Vercel Build Memory And Command Pinning Acceptance
+
+- Vercel production build uses the repo-pinned `buildCommand` and `installCommand` from `vercel.json` instead of relying only on mutable project UI defaults.
+- Install skips package scripts with `pnpm install --frozen-lockfile --ignore-scripts` so Prisma generation is not run silently during install.
+- Build explicitly runs `pnpm prisma generate && pnpm build`.
+- `pnpm build` uses `next build --webpack`, while `build:turbopack` remains available as an explicit local comparison path.
+- `next.config.ts` enables Webpack build worker and Webpack memory optimizations for lower-memory production builds.
+- Local proof must include `pnpm exec tsc --noEmit --pretty false`, `pnpm prisma generate && pnpm build`, `vercel.json` JSON parse, and `git diff --check`.
+- The Vercel build repair may remove an OOM/build-command blocker, but it does not by itself claim `DEPLOY-002`; deployment marker proof and route smoke in the intended online environment remain owner/operator evidence.
+- `DEPLOY-003` does not mutate Vercel environment variables, auth provider state, database rows, Prisma schema/migrations, seed data, public output, protected route permissions, external agent registration, or launch level.
+- `DEPLOY-003` must not claim `AUTH-005`, `WORK-009`, `WORK-007`, `DEPLOY-002`, L1, L3, or L4 from local build proof or git push evidence.
 
 ## ENV-005 Local Route Identity Smoke Acceptance
 
@@ -902,6 +936,19 @@
 - `scripts/check-ai-input-source-control-matrix.mjs` exists and is exposed as `pnpm ai-input:source-control:check`.
 - `pnpm ai-input:source-control:check` validates the type contract, server-only readiness service, `/ai-input` page usage, protected admin/settings readiness markers, package script, task memory, and no-runtime guards.
 - `AIINPUT-OPS-002` does not add route handlers, server actions, Prisma schema changes, migrations, seed changes, DB reads, DB writes, OAuth runtime, webhook runtime, polling runtime, provider API calls, file ingestion, OCR, transcription, raw adapter payload exposure, public output expansion, high-risk module final writes, external collaboration, external agent database access, or external registration.
+
+## AIINPUT-CAPTURE-001 Quick Capture Multimodal Research Acceptance
+
+- `docs/07_research-and-design/RES-008_ai-input-quick-capture-multimodal-extension-research.md` exists and is indexed in `MAN-001`.
+- The research uses the owner's screenshot-backed centered quick-capture modal as the local UI problem statement and records why the modal is not the primary long-term pattern.
+- The selected pattern defines a collapsible capture dock/side sheet with collapsed rail, compact composer, expanded review, conversation processing, proposal review, and mobile bottom-sheet states.
+- The selected contract is `CaptureEnvelope`, covering text, image, audio, file, URL, clipboard, page-selection, and screenshot payloads across web dock, PWA share target, Chrome side panel/context menu, and standalone app adapters.
+- The research maps `CaptureEnvelope` into the existing AI Input Source Workflow path rather than creating a separate classifier pipeline.
+- The research defines future BFF operations for draft creation, payload attachment, envelope submission, conversation retrieval, classification, proposal conversion, and discard/delete behavior.
+- The extension/app path explicitly gates Chrome side panel, context menus, active-tab/user-gesture scripting, extension storage, PWA share target, and standalone app capture behind the same protected BFF and no-secret rules.
+- The NANDA gate maps the future capability to IngestionAgent `multimodal-capture-envelope-classification`, keeps `externalRegisterable=false`, and creates follow-up row `AIINPUT-CAPTURE-006` for AgentFacts-lite manifest remediation.
+- Backlog follow-ups `AIINPUT-CAPTURE-002..006` exist for the CaptureEnvelope contract, dock UI mock, real local preview inputs, platform adapter contract, and manifest update.
+- `AIINPUT-CAPTURE-001` does not add runtime UI, route handlers, server actions, Prisma schema changes, migrations, seed changes, DB reads, DB writes, Supabase Storage writes, OCR, transcription, provider calls, extension runtime, extension auth token storage, public output expansion, high-risk module final writes, external collaboration, external agent database access, or external registration.
 
 ## DATTR-024F-CONTRACT Service Authorization Acceptance
 
@@ -1689,3 +1736,12 @@
 - Single Source Recognition prepares safer AI-assisted naming and Composite DataUnit grouping.
 - Single Source Recognition supports Research evidence and citation but does not write module SSOT records.
 - `DATTR-017` must translate DATTR-013, DATTR-014, and DATTR-015 into schema proposal and migration impact before any Prisma migration.
+
+## MODLIB-001 Module-Scoped File/Media Library Contract Acceptance
+
+- `ARC-012` §5A defines a module-scoped File Library and Media Library subpage for seven owner-decided modules: `work`, `research`, `chamber`, `finance`, `life`, `company`, `self` (`RES-016` §0A).
+- `ai-input`, `inbox`, `dashboard`, and `workflow` are explicitly out of scope for a second, module-scoped library surface.
+- AI Input (`/ai-input` 檔案庫/媒體庫) remains the only upload/ingestion entry point; a module's own library subpage never exposes an upload affordance.
+- Classification is modeled as `LibraryAssetModuleLink` rows (many rows per asset, each row a single `moduleKey`), not a raw array field on the asset, to stay consistent with this repo's singular-`targetModule` contract convention.
+- Low-risk modules (`work`, `research`, `chamber`, `self`) may show AI-suggested classification directly with an "AI 分類" badge; high-risk modules (`finance`, `life`, `company`) require owner confirmation before a classification appears in that module's library subpage.
+- Module-scoped library subpages reuse `FileLibraryPage`/`MediaLibraryPage` via a `mode: "full" | "module_readonly"` prop rather than a bespoke per-module component; `module_readonly` hides upload and all mutating actions, keeping only reference/open/view-info/view-versions/view-references plus `download`/`export`.
