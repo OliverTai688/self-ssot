@@ -1,5 +1,8 @@
+"use client"
+
 import { QuoteIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { Evidence } from "@/types/ingestion"
 
 interface EvidenceListProps {
@@ -8,13 +11,18 @@ interface EvidenceListProps {
 }
 
 export function EvidenceList({ evidences, className }: EvidenceListProps) {
+  const { copy } = useProductLanguage()
+
   if (evidences.length === 0) return null
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <QuoteIcon className="size-3" />
-        AI 使用的原文依據（{evidences.length} 段）
+        {copy.inbox.proposalCard.evidenceTitleTemplate.replace(
+          "{count}",
+          String(evidences.length)
+        )}
       </div>
       <div className="flex flex-col gap-2">
         {evidences.map((ev) => (
@@ -23,7 +31,7 @@ export function EvidenceList({ evidences, className }: EvidenceListProps) {
               「{ev.excerpt}」
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              依據：{ev.reasonUsed}
+              {copy.inbox.proposalCard.evidenceReasonPrefix}{ev.reasonUsed}
             </p>
           </div>
         ))}

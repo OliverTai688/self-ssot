@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { SourceTypeBadge } from "@/components/ingestion/source-type-badge"
 import { ProcessingStatusBadge, AIStatusBadge } from "@/components/ingestion/processing-status-badge"
 import { DataLineagePipeline, type LineageStage } from "@/components/ingestion/data-lineage-pipeline"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { NormalizedContentPreview } from "@/components/ingestion/normalized-content-preview"
 import type { NormalizedContent, RawSourceItem, ProcessingStatus, AIStatus } from "@/types/ingestion"
 
@@ -19,23 +20,20 @@ function deriveLineageStage(processingStatus: ProcessingStatus, aiStatus: AIStat
   return "raw"
 }
 
-function deriveModuleHint(sourceType: RawSourceItem["sourceType"]): string | null {
-  const hints: Partial<Record<RawSourceItem["sourceType"], string>> = {
-    line_message: "Work / Research",
-    google_doc: "Work",
-    markdown_document: "Research",
-    url: "Research",
-    audio: "Research / Life",
-    image: "Research",
-    receipt: "Finance",
-    gmail_email: "Work",
-  }
-  return hints[sourceType] ?? null
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
 }
 
-function deriveRiskBadge(privacyLevel: RawSourceItem["privacyLevel"]): { label: string; className: string } | null {
-  if (privacyLevel === "private") return { label: "私人", className: "text-amber-600 dark:text-amber-400" }
-  if (privacyLevel === "public_safe") return { label: "公開安全", className: "text-emerald-600 dark:text-emerald-400" }
+function deriveRiskBadge(
+  privacyLevel: RawSourceItem["privacyLevel"],
+  labels: Readonly<Record<RawSourceItem["privacyLevel"], string>>
+): { label: string; className: string } | null {
+  if (privacyLevel === "private") return { label: labels.private, className: "text-amber-600 dark:text-amber-400" }
+  if (privacyLevel === "public_safe") return { label: labels.public_safe, className: "text-emerald-600 dark:text-emerald-400" }
+  if (privacyLevel === "shareable") return { label: labels.shareable, className: "text-blue-600 dark:text-blue-400" }
   return null
 }
 
@@ -55,14 +53,16 @@ export function SourceItemCard({
   className,
 }: SourceItemCardProps) {
   const [expanded, setExpanded] = React.useState(false)
+  const { locale, copy } = useProductLanguage()
+  const sourceCopy = copy.inbox.sourceCard
 
   const displayTitle =
     item.title ??
     item.previewText?.slice(0, 60) ??
     item.rawText?.slice(0, 60) ??
-    "未命名來源"
+    sourceCopy.unnamedSource
 
-  const capturedTime = new Date(item.capturedAt).toLocaleDateString("zh-TW", {
+  const capturedTime = new Date(item.capturedAt).toLocaleDateString(locale, {
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
@@ -74,8 +74,8 @@ export function SourceItemCard({
   const isProcessing = item.processingStatus === "processing"
 
   const lineageStage = deriveLineageStage(item.processingStatus, item.aiStatus)
-  const moduleHint = deriveModuleHint(item.sourceType)
-  const riskBadge = deriveRiskBadge(item.privacyLevel)
+  const moduleHint = sourceCopy.moduleHints[item.sourceType]
+  const riskBadge = deriveRiskBadge(item.privacyLevel, sourceCopy.privacyLabels)
 
   return (
     <div
@@ -119,10 +119,16 @@ export function SourceItemCard({
             )}
             <time>{capturedTime}</time>
             {normalizedContents.length > 0 && (
-              <span>{normalizedContents.length} 個標準化段落</span>
+              <span>
+                {formatCopy(sourceCopy.normalizedCountTemplate, {
+                  count: normalizedContents.length,
+                })}
+              </span>
             )}
             {proposalCount > 0 && (
-              <span className="text-primary">{proposalCount} 則 AI 建議</span>
+              <span className="text-primary">
+                {formatCopy(sourceCopy.proposalCountTemplate, { count: proposalCount })}
+              </span>
             )}
           </div>
         </div>
@@ -138,7 +144,7 @@ export function SourceItemCard({
               disabled={isProcessing}
             >
               <SparklesIcon className="size-3" />
-              {isProcessing ? "分析中…" : "執行 AI 分析"}
+              {isProcessing ? sourceCopy.analyzing : sourceCopy.runAnalysis}
             </Button>
           )}
           {normalizedContents.length > 0 && (
@@ -162,7 +168,7 @@ export function SourceItemCard({
       {expanded && normalizedContents.length > 0 && (
         <div className="border-t border-border/50 bg-muted/20 px-4 py-3">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            標準化內容
+            {sourceCopy.normalizedContentTitle}
           </p>
           <NormalizedContentPreview contents={normalizedContents} />
         </div>

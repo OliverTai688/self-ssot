@@ -208,7 +208,7 @@ const RESEARCH_OWNER_READ_ADAPTER_AUTHZ_DECISION_BASIS = {
     adapterAuthzEligibility: "blocked_owner_scope_missing",
     requiredOwnerIdentitySource: "requireUser().profileId",
     ownerScopeProofPath:
-      "Blocked until AcademicPerson separates public person metadata from owner-private relationship notes or receives an owner relation.",
+      "AcademicPerson.ownerId now exists in prisma/schema.prisma (TENANT-001, nullable pending TENANT-003 migration/backfill) — still blocked until that migration is applied and existing rows are backfilled; a schema-only addition does not enable runtime reads.",
     serviceAuthorizationRule:
       "Service must not expose relationship labels, private notes, or owner-specific relevance from a global person row.",
     mapperInputBoundary: "authorized_rows_or_explicit_unavailable_state",

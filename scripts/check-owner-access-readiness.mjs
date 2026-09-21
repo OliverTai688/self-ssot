@@ -39,6 +39,10 @@ const LOGIN_MARKERS = [
   "buildOwnerAccessReadinessContract",
   "getReadinessBadgeLabel",
   "hasSupabaseConfig",
+  "Email 六碼驗證",
+  "requestEmailOtp",
+  "verifyEmailOtp",
+  "autoComplete=\"one-time-code\"",
   "Magic link",
 ]
 

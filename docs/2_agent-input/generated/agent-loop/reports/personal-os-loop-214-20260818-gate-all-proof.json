@@ -1,0 +1,707 @@
+{
+  "id": "OWNEROS-GATE-001",
+  "generatedAt": "2026-08-20T04:35:22.546Z",
+  "gate": {
+    "key": "all",
+    "id": "OWNER_AI_WORK_DESKTOP_ALL_GATES",
+    "label": "Gate A/B/C",
+    "status": "NOT_ACHIEVED"
+  },
+  "targetEnvironment": "local",
+  "authMode": "unspecified",
+  "testedCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "deployedCommit": null,
+  "freshness": {
+    "status": "blocked",
+    "maxAgeHours": 72,
+    "staleCriterionIds": []
+  },
+  "mockFallbackUsed": false,
+  "runtimeEvidencePresent": false,
+  "ownerEvidencePresent": false,
+  "individualChecks": [
+    {
+      "id": "A1_REAL_GOOGLE_OWNER_AUTH",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A1_REAL_GOOGLE_OWNER_AUTH_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A3_R2_FILE_LIBRARY_MULTI_CONTEXT",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A3_R2_FILE_LIBRARY_MULTI_CONTEXT_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A5_INBOX_FREE_TEXT_RETURN_PATH",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A5_INBOX_FREE_TEXT_RETURN_PATH_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A6_AGENT_DIARY_AND_SKILL_CANDIDATE",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A6_AGENT_DIARY_AND_SKILL_CANDIDATE_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A7_LINE_DRIVE_GMAIL_OWNER_PROOF",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A7_LINE_DRIVE_GMAIL_OWNER_PROOF_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "B1_INVITED_MEMBER_ONBOARDING_AND_OFFBOARDING",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "B1_INVITED_MEMBER_ONBOARDING_AND_OFFBOARDING_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "B2_SHARED_WORK_ROLE_ENFORCEMENT",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "B2_SHARED_WORK_ROLE_ENFORCEMENT_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "B3_VISIBILITY_AND_CLEVEL_NEGATIVE_PROOF",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "B3_VISIBILITY_AND_CLEVEL_NEGATIVE_PROOF_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "B4_INTERNAL_AI_PUBLIC_SPACE",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "B4_INTERNAL_AI_PUBLIC_SPACE_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "B5_AUTHORIZED_MEMBER_AGENT_SUMMARIES",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "B5_AUTHORIZED_MEMBER_AGENT_SUMMARIES_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "B6_OWNER_PLUS_TWO_TO_THREE_MEMBER_PILOT",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "B6_OWNER_PLUS_TWO_TO_THREE_MEMBER_PILOT_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "C1_MIGRATION_AND_RECOVERY",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "C1_MIGRATION_AND_RECOVERY_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "C2_OPERATIONS_AND_PROVIDER_FAILURE",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "C2_OPERATIONS_AND_PROVIDER_FAILURE_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "C3_AUDIT_RETENTION_REVOCATION",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "C3_AUDIT_RETENTION_REVOCATION_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "C4_ADVERSARIAL_ISOLATION",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "C4_ADVERSARIAL_ISOLATION_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "C5_CORE_JOURNEY_UI_HARDENING",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "C5_CORE_JOURNEY_UI_HARDENING_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "C6_PILOT_FINDINGS_CLOSED",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "C6_PILOT_FINDINGS_CLOSED_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    }
+  ],
+  "blockingIds": [
+    "A1_REAL_GOOGLE_OWNER_AUTH_EVIDENCE_MISSING",
+    "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT_EVIDENCE_MISSING",
+    "A3_R2_FILE_LIBRARY_MULTI_CONTEXT_EVIDENCE_MISSING",
+    "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS_EVIDENCE_MISSING",
+    "A5_INBOX_FREE_TEXT_RETURN_PATH_EVIDENCE_MISSING",
+    "A6_AGENT_DIARY_AND_SKILL_CANDIDATE_EVIDENCE_MISSING",
+    "A7_LINE_DRIVE_GMAIL_OWNER_PROOF_EVIDENCE_MISSING",
+    "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF_EVIDENCE_MISSING",
+    "B1_INVITED_MEMBER_ONBOARDING_AND_OFFBOARDING_EVIDENCE_MISSING",
+    "B2_SHARED_WORK_ROLE_ENFORCEMENT_EVIDENCE_MISSING",
+    "B3_VISIBILITY_AND_CLEVEL_NEGATIVE_PROOF_EVIDENCE_MISSING",
+    "B4_INTERNAL_AI_PUBLIC_SPACE_EVIDENCE_MISSING",
+    "B5_AUTHORIZED_MEMBER_AGENT_SUMMARIES_EVIDENCE_MISSING",
+    "B6_OWNER_PLUS_TWO_TO_THREE_MEMBER_PILOT_EVIDENCE_MISSING",
+    "C1_MIGRATION_AND_RECOVERY_EVIDENCE_MISSING",
+    "C2_OPERATIONS_AND_PROVIDER_FAILURE_EVIDENCE_MISSING",
+    "C3_AUDIT_RETENTION_REVOCATION_EVIDENCE_MISSING",
+    "C4_ADVERSARIAL_ISOLATION_EVIDENCE_MISSING",
+    "C5_CORE_JOURNEY_UI_HARDENING_EVIDENCE_MISSING",
+    "C6_PILOT_FINDINGS_CLOSED_EVIDENCE_MISSING",
+    "COMPANY_TEAM_PILOT_READY_REPORT_PATH_MISSING",
+    "COMPANY_TEAM_PILOT_READY_STATE_NOT_ACHIEVED",
+    "GATE_A_DEPLOYED_COMMIT_ENV_MISSING",
+    "GATE_A_FORMAL_L1_NOT_RECORDED",
+    "HARDENED_INTERNAL_ROLLOUT_READY_REPORT_PATH_MISSING",
+    "HARDENED_INTERNAL_ROLLOUT_READY_STATE_NOT_ACHIEVED",
+    "OWNER_PRIVATE_AI_WORK_DESKTOP_READY_REPORT_PATH_MISSING",
+    "OWNER_PRIVATE_AI_WORK_DESKTOP_READY_STATE_NOT_ACHIEVED"
+  ],
+  "reportPath": null,
+  "reportSha256": null,
+  "gates": [
+    {
+      "id": "OWNEROS-GATE-001",
+      "generatedAt": "2026-08-20T04:35:22.546Z",
+      "gate": {
+        "key": "gateA",
+        "id": "OWNER_PRIVATE_AI_WORK_DESKTOP_READY",
+        "label": "Gate A",
+        "status": "NOT_ACHIEVED",
+        "stateStatus": "NOT_ACHIEVED"
+      },
+      "targetEnvironment": "local",
+      "authMode": "unspecified",
+      "testedCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+      "deployedCommit": null,
+      "freshness": {
+        "status": "blocked",
+        "maxAgeHours": 72,
+        "staleCriterionIds": []
+      },
+      "mockFallbackUsed": false,
+      "runtimeEvidencePresent": false,
+      "ownerEvidencePresent": false,
+      "individualChecks": [
+        {
+          "id": "A1_REAL_GOOGLE_OWNER_AUTH",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A1_REAL_GOOGLE_OWNER_AUTH_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "A3_R2_FILE_LIBRARY_MULTI_CONTEXT",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A3_R2_FILE_LIBRARY_MULTI_CONTEXT_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "A5_INBOX_FREE_TEXT_RETURN_PATH",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A5_INBOX_FREE_TEXT_RETURN_PATH_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "A6_AGENT_DIARY_AND_SKILL_CANDIDATE",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A6_AGENT_DIARY_AND_SKILL_CANDIDATE_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "A7_LINE_DRIVE_GMAIL_OWNER_PROOF",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A7_LINE_DRIVE_GMAIL_OWNER_PROOF_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        }
+      ],
+      "blockingIds": [
+        "A1_REAL_GOOGLE_OWNER_AUTH_EVIDENCE_MISSING",
+        "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT_EVIDENCE_MISSING",
+        "A3_R2_FILE_LIBRARY_MULTI_CONTEXT_EVIDENCE_MISSING",
+        "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS_EVIDENCE_MISSING",
+        "A5_INBOX_FREE_TEXT_RETURN_PATH_EVIDENCE_MISSING",
+        "A6_AGENT_DIARY_AND_SKILL_CANDIDATE_EVIDENCE_MISSING",
+        "A7_LINE_DRIVE_GMAIL_OWNER_PROOF_EVIDENCE_MISSING",
+        "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF_EVIDENCE_MISSING",
+        "GATE_A_DEPLOYED_COMMIT_ENV_MISSING",
+        "GATE_A_FORMAL_L1_NOT_RECORDED",
+        "OWNER_PRIVATE_AI_WORK_DESKTOP_READY_REPORT_PATH_MISSING",
+        "OWNER_PRIVATE_AI_WORK_DESKTOP_READY_STATE_NOT_ACHIEVED"
+      ],
+      "reportPath": null,
+      "reportSha256": null,
+      "documents": {
+        "gateState": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+        "loopState": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+        "prompt": "docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md",
+        "scenarioAudit": "docs/06_audits-and-reports/RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md",
+        "plan": "docs/05_execution-plans/PLN-067_owner-ai-work-desktop-and-company-sharing-contraction-plan.md",
+        "acceptance": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+        "contract": "src/lib/contracts/owner-ai-work-desktop-gate.contract.ts",
+        "contractSha256": "515f4de14172bb7bbd3298b7e7fd897a43f7f8ea81273f7d1fbf876224b4dabe"
+      },
+      "requiredProofFields": [
+        "gate.id",
+        "gate.status",
+        "targetEnvironment",
+        "authMode",
+        "testedCommit",
+        "deployedCommit",
+        "freshness",
+        "mockFallbackUsed",
+        "runtimeEvidencePresent",
+        "ownerEvidencePresent",
+        "individualChecks",
+        "blockingIds",
+        "reportPath",
+        "reportSha256"
+      ],
+      "safety": {
+        "printsSecrets": false,
+        "mutatesDatabase": false,
+        "mutatesProvider": false,
+        "sendsEmail": false,
+        "gmailSendAttempted": false,
+        "publicOutputEnabled": false,
+        "externalAgentDatabaseAccess": false,
+        "externalRegisterable": false
+      }
+    },
+    {
+      "id": "OWNEROS-GATE-001",
+      "generatedAt": "2026-08-20T04:35:22.546Z",
+      "gate": {
+        "key": "gateB",
+        "id": "COMPANY_TEAM_PILOT_READY",
+        "label": "Gate B",
+        "status": "NOT_ACHIEVED",
+        "stateStatus": "NOT_ACHIEVED"
+      },
+      "targetEnvironment": "local",
+      "authMode": "unspecified",
+      "testedCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+      "deployedCommit": null,
+      "freshness": {
+        "status": "blocked",
+        "maxAgeHours": 72,
+        "staleCriterionIds": []
+      },
+      "mockFallbackUsed": false,
+      "runtimeEvidencePresent": false,
+      "ownerEvidencePresent": false,
+      "individualChecks": [
+        {
+          "id": "B1_INVITED_MEMBER_ONBOARDING_AND_OFFBOARDING",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "B1_INVITED_MEMBER_ONBOARDING_AND_OFFBOARDING_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "B2_SHARED_WORK_ROLE_ENFORCEMENT",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "B2_SHARED_WORK_ROLE_ENFORCEMENT_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "B3_VISIBILITY_AND_CLEVEL_NEGATIVE_PROOF",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "B3_VISIBILITY_AND_CLEVEL_NEGATIVE_PROOF_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "B4_INTERNAL_AI_PUBLIC_SPACE",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "B4_INTERNAL_AI_PUBLIC_SPACE_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "B5_AUTHORIZED_MEMBER_AGENT_SUMMARIES",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "B5_AUTHORIZED_MEMBER_AGENT_SUMMARIES_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "B6_OWNER_PLUS_TWO_TO_THREE_MEMBER_PILOT",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "B6_OWNER_PLUS_TWO_TO_THREE_MEMBER_PILOT_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        }
+      ],
+      "blockingIds": [
+        "B1_INVITED_MEMBER_ONBOARDING_AND_OFFBOARDING_EVIDENCE_MISSING",
+        "B2_SHARED_WORK_ROLE_ENFORCEMENT_EVIDENCE_MISSING",
+        "B3_VISIBILITY_AND_CLEVEL_NEGATIVE_PROOF_EVIDENCE_MISSING",
+        "B4_INTERNAL_AI_PUBLIC_SPACE_EVIDENCE_MISSING",
+        "B5_AUTHORIZED_MEMBER_AGENT_SUMMARIES_EVIDENCE_MISSING",
+        "B6_OWNER_PLUS_TWO_TO_THREE_MEMBER_PILOT_EVIDENCE_MISSING",
+        "COMPANY_TEAM_PILOT_READY_REPORT_PATH_MISSING",
+        "COMPANY_TEAM_PILOT_READY_STATE_NOT_ACHIEVED"
+      ],
+      "reportPath": null,
+      "reportSha256": null,
+      "documents": {
+        "gateState": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+        "loopState": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+        "prompt": "docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md",
+        "scenarioAudit": "docs/06_audits-and-reports/RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md",
+        "plan": "docs/05_execution-plans/PLN-067_owner-ai-work-desktop-and-company-sharing-contraction-plan.md",
+        "acceptance": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+        "contract": "src/lib/contracts/owner-ai-work-desktop-gate.contract.ts",
+        "contractSha256": "515f4de14172bb7bbd3298b7e7fd897a43f7f8ea81273f7d1fbf876224b4dabe"
+      },
+      "requiredProofFields": [
+        "gate.id",
+        "gate.status",
+        "targetEnvironment",
+        "authMode",
+        "testedCommit",
+        "deployedCommit",
+        "freshness",
+        "mockFallbackUsed",
+        "runtimeEvidencePresent",
+        "ownerEvidencePresent",
+        "individualChecks",
+        "blockingIds",
+        "reportPath",
+        "reportSha256"
+      ],
+      "safety": {
+        "printsSecrets": false,
+        "mutatesDatabase": false,
+        "mutatesProvider": false,
+        "sendsEmail": false,
+        "gmailSendAttempted": false,
+        "publicOutputEnabled": false,
+        "externalAgentDatabaseAccess": false,
+        "externalRegisterable": false
+      }
+    },
+    {
+      "id": "OWNEROS-GATE-001",
+      "generatedAt": "2026-08-20T04:35:22.546Z",
+      "gate": {
+        "key": "gateC",
+        "id": "HARDENED_INTERNAL_ROLLOUT_READY",
+        "label": "Gate C",
+        "status": "NOT_ACHIEVED",
+        "stateStatus": "NOT_ACHIEVED"
+      },
+      "targetEnvironment": "local",
+      "authMode": "unspecified",
+      "testedCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+      "deployedCommit": null,
+      "freshness": {
+        "status": "blocked",
+        "maxAgeHours": 72,
+        "staleCriterionIds": []
+      },
+      "mockFallbackUsed": false,
+      "runtimeEvidencePresent": false,
+      "ownerEvidencePresent": false,
+      "individualChecks": [
+        {
+          "id": "C1_MIGRATION_AND_RECOVERY",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "C1_MIGRATION_AND_RECOVERY_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "C2_OPERATIONS_AND_PROVIDER_FAILURE",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "C2_OPERATIONS_AND_PROVIDER_FAILURE_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "C3_AUDIT_RETENTION_REVOCATION",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "C3_AUDIT_RETENTION_REVOCATION_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "C4_ADVERSARIAL_ISOLATION",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "C4_ADVERSARIAL_ISOLATION_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "C5_CORE_JOURNEY_UI_HARDENING",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "C5_CORE_JOURNEY_UI_HARDENING_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        },
+        {
+          "id": "C6_PILOT_FINDINGS_CLOSED",
+          "status": "BLOCKED",
+          "evidenceKind": "unknown",
+          "blockingIds": [
+            "C6_PILOT_FINDINGS_CLOSED_EVIDENCE_MISSING"
+          ],
+          "reportPath": null,
+          "reportSha256": null
+        }
+      ],
+      "blockingIds": [
+        "C1_MIGRATION_AND_RECOVERY_EVIDENCE_MISSING",
+        "C2_OPERATIONS_AND_PROVIDER_FAILURE_EVIDENCE_MISSING",
+        "C3_AUDIT_RETENTION_REVOCATION_EVIDENCE_MISSING",
+        "C4_ADVERSARIAL_ISOLATION_EVIDENCE_MISSING",
+        "C5_CORE_JOURNEY_UI_HARDENING_EVIDENCE_MISSING",
+        "C6_PILOT_FINDINGS_CLOSED_EVIDENCE_MISSING",
+        "HARDENED_INTERNAL_ROLLOUT_READY_REPORT_PATH_MISSING",
+        "HARDENED_INTERNAL_ROLLOUT_READY_STATE_NOT_ACHIEVED"
+      ],
+      "reportPath": null,
+      "reportSha256": null,
+      "documents": {
+        "gateState": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+        "loopState": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+        "prompt": "docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md",
+        "scenarioAudit": "docs/06_audits-and-reports/RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md",
+        "plan": "docs/05_execution-plans/PLN-067_owner-ai-work-desktop-and-company-sharing-contraction-plan.md",
+        "acceptance": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+        "contract": "src/lib/contracts/owner-ai-work-desktop-gate.contract.ts",
+        "contractSha256": "515f4de14172bb7bbd3298b7e7fd897a43f7f8ea81273f7d1fbf876224b4dabe"
+      },
+      "requiredProofFields": [
+        "gate.id",
+        "gate.status",
+        "targetEnvironment",
+        "authMode",
+        "testedCommit",
+        "deployedCommit",
+        "freshness",
+        "mockFallbackUsed",
+        "runtimeEvidencePresent",
+        "ownerEvidencePresent",
+        "individualChecks",
+        "blockingIds",
+        "reportPath",
+        "reportSha256"
+      ],
+      "safety": {
+        "printsSecrets": false,
+        "mutatesDatabase": false,
+        "mutatesProvider": false,
+        "sendsEmail": false,
+        "gmailSendAttempted": false,
+        "publicOutputEnabled": false,
+        "externalAgentDatabaseAccess": false,
+        "externalRegisterable": false
+      }
+    }
+  ],
+  "requiredProofFields": [
+    "gate.id",
+    "gate.status",
+    "targetEnvironment",
+    "authMode",
+    "testedCommit",
+    "deployedCommit",
+    "freshness",
+    "mockFallbackUsed",
+    "runtimeEvidencePresent",
+    "ownerEvidencePresent",
+    "individualChecks",
+    "blockingIds",
+    "reportPath",
+    "reportSha256"
+  ],
+  "safety": {
+    "printsSecrets": false,
+    "mutatesDatabase": false,
+    "mutatesProvider": false,
+    "sendsEmail": false,
+    "gmailSendAttempted": false,
+    "publicOutputEnabled": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  }
+}

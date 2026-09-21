@@ -1,0 +1,59 @@
+{
+  "id": "OWNEROS-UI-005",
+  "status": "PASS",
+  "generatedAt": "2026-08-22T19:32:43.756Z",
+  "route": "/research",
+  "researchPagePath": "src/app/(dashboard)/research/page.tsx",
+  "checkerCommand": "pnpm research:simplified:check",
+  "surface": {
+    "mode": "protected_owner_visible_prototype_research_module_surface",
+    "primaryJob": "Organize sources, questions, evidence, outputs, and Research AI proposals.",
+    "commandBarIncludes": [
+      "New research",
+      "Full Research list",
+      "Source Evidence",
+      "Readiness"
+    ],
+    "slots": [
+      "identity-mode-strip",
+      "attention-header",
+      "command-bar",
+      "resource-index",
+      "detail-pane",
+      "agent-proposal-pane",
+      "records-audit-timeline",
+      "settings-boundaries",
+      "manual-ops-handoff"
+    ]
+  },
+  "gateMapping": {
+    "gateA": "A4 Research owner path and A8 core no-mock usability prerequisite only",
+    "gateB": "B4 internal AI public-space/member pilot prerequisite only; no public output enabled",
+    "gateC": "C5 core journey UI hardening prerequisite only",
+    "gateAchieved": false
+  },
+  "nanda": {
+    "lifecycle": "protected_owner_visible_internal_agent_proposal_surface",
+    "protocols": [
+      "internal"
+    ],
+    "endpointChanged": false,
+    "providerRuntimeChanged": false,
+    "externalRegisterable": false,
+    "registrationStatus": "not_registered"
+  },
+  "safety": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "databaseReadAdded": false,
+    "databaseWriteAdded": false,
+    "providerCallAdded": false,
+    "publicOutputExpanded": false,
+    "companyPublicationRuntimeAdded": false,
+    "highRiskWriteAdded": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

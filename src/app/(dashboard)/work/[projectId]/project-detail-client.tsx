@@ -31,19 +31,21 @@ import { ShareLinkButton } from "@/components/work/share/share-link-button"
 
 import { Project, ProjectTask, ProjectNote, ProjectDeliverable, ProjectTimeline, PulseSourceMeta } from "@/types/work"
 import { useResearch } from "@/lib/context/research-context"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { MockProject, AICard, PublicOutput } from "@/types/ai"
 
-// ─── Phase labels ─────────────────────────────────────────────────────────────
-
-const phaseLabels: Record<string, string> = {
-  discovery: "探索", planning: "規劃", execution: "執行",
-  review: "審稿", maintenance: "維護",
+const healthConfig = {
+  good: { className: "border-emerald-300/60 text-emerald-700 dark:text-emerald-400" },
+  watch: { className: "border-amber-300/60 text-amber-700 dark:text-amber-400" },
+  risk: { className: "border-destructive/40 text-destructive" },
 }
 
-const healthConfig = {
-  good: { label: "健康", className: "border-emerald-300/60 text-emerald-700 dark:text-emerald-400" },
-  watch: { label: "需留意", className: "border-amber-300/60 text-amber-700 dark:text-amber-400" },
-  risk: { label: "風險", className: "border-destructive/40 text-destructive" },
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (formatted, [key, value]) =>
+      formatted.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
 }
 
 function WorkAdjunctPrototypeBoundary({
@@ -57,11 +59,13 @@ function WorkAdjunctPrototypeBoundary({
   hasPublicOutput: boolean
   hasSourceMeta: boolean
 }) {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
   const adjunctSignals = [
-    hasPulse ? "AI 脈搏" : null,
-    hasTimeline ? "階段時間軸" : null,
-    hasPublicOutput ? "客戶草稿" : null,
-    hasSourceMeta ? "來源摘要" : null,
+    hasPulse ? detailCopy.adjunct.signals.pulse : null,
+    hasTimeline ? detailCopy.adjunct.signals.timeline : null,
+    hasPublicOutput ? detailCopy.adjunct.signals.publicOutput : null,
+    hasSourceMeta ? detailCopy.adjunct.signals.sourceMeta : null,
   ].filter(Boolean)
 
   return (
@@ -71,13 +75,13 @@ function WorkAdjunctPrototypeBoundary({
     >
       <div className="flex flex-wrap items-center gap-2">
         <BotIcon className="size-4 shrink-0" />
-        <span className="text-sm font-semibold">AI 輔助層 · Prototype</span>
+        <span className="text-sm font-semibold">{detailCopy.adjunct.title}</span>
         <Badge variant="outline" className="border-amber-300/70 bg-background/70 text-[10px] text-amber-700 dark:border-amber-800 dark:text-amber-200">
-          非正式 Work 證據
+          {detailCopy.adjunct.badge}
         </Badge>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-amber-900/80 dark:text-amber-100/75">
-        正式 Work 資料以任務、紀錄與交付物為準；此區只呈現 AI 輔助判讀與提案草稿，不會自動寫入資料庫或代表持久化 proof。
+        {detailCopy.adjunct.body}
       </p>
       {adjunctSignals.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -93,6 +97,9 @@ function WorkAdjunctPrototypeBoundary({
 }
 
 function WorkFormalDataBoundary() {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
+
   return (
     <div
       data-work-boundary="WORK-015-FORMAL-CRUD-ONLY"
@@ -100,13 +107,13 @@ function WorkFormalDataBoundary() {
     >
       <div className="flex flex-wrap items-center gap-2">
         <ShieldCheckIcon className="size-4 shrink-0" />
-        <span className="text-sm font-semibold">正式 Work 資料</span>
+        <span className="text-sm font-semibold">{detailCopy.formal.title}</span>
         <Badge variant="outline" className="border-emerald-300/70 bg-background/70 text-[10px] text-emerald-700 dark:border-emerald-800 dark:text-emerald-200">
-          DB-backed
+          {detailCopy.formal.badge}
         </Badge>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-emerald-900/80 dark:text-emerald-100/75">
-        任務、紀錄與交付物走 Work action/service 授權路徑；AI 階段時間軸保留在脈搏層，不用來排序正式紀錄。
+        {detailCopy.formal.body}
       </p>
     </div>
   )
@@ -123,6 +130,8 @@ function ClientPortalPublishBoundary({
   clientDeliverableCount: number
   hasDraft: boolean
 }) {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
   const shareReady = project.visibility === "client_shared" && Boolean(project.clientToken)
 
   return (
@@ -132,27 +141,34 @@ function ClientPortalPublishBoundary({
     >
       <div className="flex flex-wrap items-center gap-2">
         <ShieldCheckIcon className="size-4 shrink-0" />
-        <span className="text-sm font-semibold">Client Portal 發布閘門</span>
+        <span className="text-sm font-semibold">{detailCopy.clientBoundary.title}</span>
         <Badge variant="outline" className="border-sky-300/70 bg-background/70 text-[10px] text-sky-700 dark:border-sky-800 dark:text-sky-200">
-          {shareReady ? "可複製入口" : "尚未發布"}
+          {shareReady ? detailCopy.clientBoundary.ready : detailCopy.clientBoundary.unpublished}
         </Badge>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-sky-900/80 dark:text-sky-100/75">
-        對外內容只以已標記 client_visible 的任務與交付物為準；AI 客戶更新草稿是提案，不會自動發布到 `/client/[token]`。
+        {detailCopy.clientBoundary.body}
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <Badge variant="outline" className="border-sky-300/60 bg-background/60 text-[10px] text-sky-700 dark:border-sky-800 dark:text-sky-200">
-          {project.visibility === "client_shared" ? "專案分享開啟" : "專案內部模式"}
+          {project.visibility === "client_shared"
+            ? detailCopy.clientBoundary.sharingOn
+            : detailCopy.clientBoundary.internalMode}
         </Badge>
         <Badge variant="outline" className="border-sky-300/60 bg-background/60 text-[10px] text-sky-700 dark:border-sky-800 dark:text-sky-200">
-          {project.clientToken ? "token 已存在" : "尚無 token"}
+          {project.clientToken
+            ? detailCopy.clientBoundary.tokenReady
+            : detailCopy.clientBoundary.tokenMissing}
         </Badge>
         <Badge variant="outline" className="border-sky-300/60 bg-background/60 text-[10px] text-sky-700 dark:border-sky-800 dark:text-sky-200">
-          {clientTaskCount} 任務 / {clientDeliverableCount} 交付物
+          {formatCopy(detailCopy.clientBoundary.contentCountTemplate, {
+            tasks: clientTaskCount,
+            deliverables: clientDeliverableCount,
+          })}
         </Badge>
         {hasDraft && (
           <Badge variant="outline" className="border-sky-300/60 bg-background/60 text-[10px] text-sky-700 dark:border-sky-800 dark:text-sky-200">
-            草稿需人工確認
+            {detailCopy.clientBoundary.draftNeedsReview}
           </Badge>
         )}
       </div>
@@ -215,6 +231,8 @@ function ClientShareReviewChecklist({
   clientDeliverableCount: number
   publicOutput: PublicOutput | null
 }) {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
   const shareReady = project.visibility === "client_shared" && Boolean(project.clientToken)
   const hasClientVisibleRecords = clientTaskCount + clientDeliverableCount > 0
   const hasConfirmedClientDraft = publicOutput?.status === "confirmed"
@@ -226,50 +244,67 @@ function ClientShareReviewChecklist({
     {
       id: "visibility",
       boundary: "WORK-017-CHECKLIST-ROW-VISIBILITY",
-      label: "專案可見性",
-      detail: project.visibility === "client_shared" ? "Client sharing 已開啟。" : "目前仍是內部模式。",
-      action: project.visibility === "client_shared" ? "保留分享狀態，繼續檢查 token 與內容。" : "先在受保護的 owner 流程確認分享意圖。",
+      label: detailCopy.clientReview.rows.visibility.label,
+      detail: project.visibility === "client_shared"
+        ? detailCopy.clientReview.rows.visibility.detailShared
+        : detailCopy.clientReview.rows.visibility.detailInternal,
+      action: project.visibility === "client_shared"
+        ? detailCopy.clientReview.rows.visibility.actionShared
+        : detailCopy.clientReview.rows.visibility.actionInternal,
       state: project.visibility === "client_shared" ? "pass" : "blocked",
     },
     {
       id: "token",
       boundary: "WORK-017-CHECKLIST-ROW-TOKEN",
-      label: "Token 狀態",
-      detail: project.clientToken ? "專案已有 Client Portal token。" : "尚未設定 Client Portal token。",
-      action: project.clientToken ? "可進入下一步；token rotate/revoke 仍屬後續高風險任務。" : "不要建立公開入口；等待 token lifecycle 任務或 owner setup。",
+      label: detailCopy.clientReview.rows.token.label,
+      detail: project.clientToken
+        ? detailCopy.clientReview.rows.token.detailReady
+        : detailCopy.clientReview.rows.token.detailMissing,
+      action: project.clientToken
+        ? detailCopy.clientReview.rows.token.actionReady
+        : detailCopy.clientReview.rows.token.actionMissing,
       state: project.clientToken ? "pass" : "blocked",
     },
     {
       id: "client-visible-records",
       boundary: "WORK-017-CHECKLIST-ROW-CLIENT-VISIBLE-RECORDS",
-      label: "客戶可見內容",
-      detail: `${clientTaskCount} 個任務、${clientDeliverableCount} 個交付物會進入 client-visible review。`,
-      action: hasClientVisibleRecords ? "逐項確認內容是否能對外。" : "先標記至少一個可分享的任務或交付物，或明確接受空白入口。",
+      label: detailCopy.clientReview.rows.records.label,
+      detail: formatCopy(detailCopy.clientReview.rows.records.detailTemplate, {
+        tasks: clientTaskCount,
+        deliverables: clientDeliverableCount,
+      }),
+      action: hasClientVisibleRecords
+        ? detailCopy.clientReview.rows.records.actionReady
+        : detailCopy.clientReview.rows.records.actionMissing,
       state: hasClientVisibleRecords ? "pass" : "warn",
     },
     {
       id: "ai-draft",
       boundary: "WORK-017-CHECKLIST-ROW-AI-DRAFT",
-      label: "AI 客戶草稿",
+      label: detailCopy.clientReview.rows.draft.label,
       detail: publicOutput
         ? hasConfirmedClientDraft
-          ? "有已確認草稿；仍不是自動公開內容。"
-          : "有待確認草稿；不可視為已發布。"
-        : "目前沒有 AI 客戶更新草稿。",
-      action: publicOutput ? "只作為人工審閱素材，不進入 token-only public output。" : "無草稿可審；以 client-visible 記錄為準。",
+          ? detailCopy.clientReview.rows.draft.detailConfirmed
+          : detailCopy.clientReview.rows.draft.detailPending
+        : detailCopy.clientReview.rows.draft.detailMissing,
+      action: publicOutput
+        ? detailCopy.clientReview.rows.draft.actionPresent
+        : detailCopy.clientReview.rows.draft.actionMissing,
       state: publicOutput ? "warn" : "pass",
     },
     {
       id: "next-action",
       boundary: "WORK-017-CHECKLIST-ROW-NEXT-ACTION",
-      label: "下一步",
-      detail: shareReady ? "分享入口條件成立，但仍需依本清單完成人工 review。" : "分享入口條件尚未成立。",
+      label: detailCopy.clientReview.rows.next.label,
+      detail: shareReady
+        ? detailCopy.clientReview.rows.next.detailReady
+        : detailCopy.clientReview.rows.next.detailBlocked,
       action:
         nextActionState === "pass"
-          ? "可複製連結並進行 owner-run visual check。"
+          ? detailCopy.clientReview.rows.next.actionPass
           : nextActionState === "warn"
-            ? "先處理 review 警示，再決定是否複製連結。"
-            : "不要複製或交付公開入口。",
+            ? detailCopy.clientReview.rows.next.actionWarn
+            : detailCopy.clientReview.rows.next.actionBlocked,
       state: nextActionState,
     },
   ]
@@ -281,9 +316,9 @@ function ClientShareReviewChecklist({
     >
       <div className="flex flex-wrap items-center gap-2">
         <FileClockIcon className="size-4 shrink-0 text-muted-foreground" />
-        <h3 className="text-sm font-semibold">發布前檢查</h3>
+        <h3 className="text-sm font-semibold">{detailCopy.clientReview.title}</h3>
         <Badge variant="outline" className="text-[10px]">
-          Protected owner review
+          {detailCopy.clientReview.badge}
         </Badge>
       </div>
       <div className="mt-3 grid gap-2">
@@ -365,6 +400,10 @@ function ClientTab({
   publicOutput: PublicOutput | null
   pulseCard: AICard | null
 }) {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
+  const taskCopy = copy.work.tasks
+  const deliverableCopy = copy.work.deliverables
   if (!project) return null
   const clientPortalShareReady = project.visibility === "client_shared" && Boolean(project.clientToken)
 
@@ -386,11 +425,15 @@ function ClientTab({
 
       {/* Share settings */}
       <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold">分享設定</h3>
+        <h3 className="text-sm font-semibold">{detailCopy.clientTab.shareSettings}</h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">可見性：</span>
+          <span className="text-xs text-muted-foreground">
+            {detailCopy.clientTab.visibilityLabel}
+          </span>
           <Badge variant="outline" className={project.visibility === "client_shared" ? "border-blue-300/60 text-blue-600 dark:text-blue-400" : ""}>
-            {project.visibility === "client_shared" ? "客戶分享" : "內部"}
+            {project.visibility === "client_shared"
+              ? detailCopy.clientTab.clientShared
+              : detailCopy.clientTab.internal}
           </Badge>
         </div>
         {clientPortalShareReady ? (
@@ -400,10 +443,12 @@ function ClientTab({
             data-work-boundary="WORK-016-SHARE-LINK-INTERNAL-GATE"
             className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
           >
-            token 已存在，但專案目前是內部模式；此處不提供複製入口，避免把尚未發布的 Client Portal 當成正式對外連結。
+            {detailCopy.clientTab.tokenInternalGate}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground/60">此專案未設定客戶分享連結</p>
+          <p className="text-xs text-muted-foreground/60">
+            {detailCopy.clientTab.noShareLink}
+          </p>
         )}
       </section>
 
@@ -411,12 +456,12 @@ function ClientTab({
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <EyeIcon className="size-3.5 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">客戶可見任務</h3>
+          <h3 className="text-sm font-semibold">{detailCopy.clientTab.clientTasks}</h3>
           <span className="text-xs text-muted-foreground">({clientTasks.length})</span>
         </div>
         {clientTasks.length === 0 ? (
           <p className="text-xs text-muted-foreground/60 rounded-lg border border-dashed border-border px-4 py-4 text-center">
-            目前沒有客戶可見的任務
+            {detailCopy.clientTab.noClientTasks}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -425,7 +470,7 @@ function ClientTab({
                 <CheckCircle2Icon className={cn("size-4 shrink-0", t.status === "done" ? "text-emerald-500" : "text-muted-foreground/40")} />
                 <span className={cn("text-sm flex-1", t.status === "done" && "line-through text-muted-foreground")}>{t.title}</span>
                 <Badge variant="outline" className="text-[10px]">
-                  {t.status === "done" ? "完成" : t.status === "in_progress" ? "進行中" : "待辦"}
+                  {taskCopy.statuses[t.status]}
                 </Badge>
               </div>
             ))}
@@ -437,12 +482,12 @@ function ClientTab({
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <PackageIcon className="size-3.5 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">客戶可見交付物</h3>
+          <h3 className="text-sm font-semibold">{detailCopy.clientTab.clientDeliverables}</h3>
           <span className="text-xs text-muted-foreground">({clientDeliverables.length})</span>
         </div>
         {clientDeliverables.length === 0 ? (
           <p className="text-xs text-muted-foreground/60 rounded-lg border border-dashed border-border px-4 py-4 text-center">
-            目前沒有客戶可見的交付物
+            {detailCopy.clientTab.noClientDeliverables}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -450,7 +495,7 @@ function ClientTab({
               <div key={d.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
                 <span className="text-sm flex-1">{d.title}</span>
                 <Badge variant="outline" className="text-[10px]">
-                  {d.status === "approved" ? "已核准" : d.status === "delivered" ? "已交付" : "草稿"}
+                  {deliverableCopy.statuses[d.status]}
                 </Badge>
               </div>
             ))}
@@ -460,12 +505,11 @@ function ClientTab({
 
       {/* Boundary notice */}
       <div className="rounded-lg bg-muted/40 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-        <p className="font-medium mb-1">以下內容對客戶不可見：</p>
+        <p className="font-medium mb-1">{detailCopy.clientTab.hiddenTitle}</p>
         <ul className="list-disc pl-4 flex flex-col gap-0.5">
-          <li>所有 internal 紀錄與 AI 分析</li>
-          <li>internal 任務與交付物</li>
-          <li>AI 內部判斷（internalInsight）</li>
-          <li>任何未明確標記為 client_visible 的內容</li>
+          {detailCopy.clientTab.hiddenItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
         </ul>
       </div>
 
@@ -473,17 +517,21 @@ function ClientTab({
       {publicOutput && pulseCard && (
         <section data-work-boundary="WORK-016-CLIENT-DRAFT-PROPOSAL-ONLY" className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold">客戶更新草稿</h3>
+            <h3 className="text-sm font-semibold">{detailCopy.clientTab.draftTitle}</h3>
             <Badge variant="outline" className="text-[10px]">
-              Proposal
+              {detailCopy.clientTab.proposal}
             </Badge>
             <Badge variant="outline" className="text-[10px]">
-              不會自動發布
+              {detailCopy.clientTab.noAutoPublish}
             </Badge>
           </div>
           <div className="rounded-lg bg-muted/30 border border-border px-3 py-2.5">
             <p className="mb-2 text-[11px] font-medium text-muted-foreground">
-              AI 草稿狀態：{publicOutput.status === "confirmed" ? "已確認草稿" : "待確認草稿"}；正式對外仍以 Client Portal visibility 與人工確認為準。
+              {formatCopy(detailCopy.clientTab.draftStatusTemplate, {
+                status: publicOutput.status === "confirmed"
+                  ? detailCopy.clientTab.draftConfirmed
+                  : detailCopy.clientTab.draftPending,
+              })}
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">{publicOutput.clientSafeContent}</p>
           </div>
@@ -498,21 +546,19 @@ function ClientTab({
 const MOCK_AGENT_PROPOSALS = [
   {
     id: "ap-1",
-    type: "任務建議",
-    content: "將「客戶簡報草稿」交付物狀態更新為「審核中」",
     confidence: 92,
     status: "pending",
   },
   {
     id: "ap-2",
-    type: "風險提示",
-    content: "距離截止日期僅剩 3 天，但仍有 2 個任務未完成",
     confidence: 88,
     status: "pending",
   },
 ]
 
 function AgentTab({ project }: { project: Project }) {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
   const [expandBoundary, setExpandBoundary] = React.useState(false)
 
   return (
@@ -521,8 +567,10 @@ function AgentTab({ project }: { project: Project }) {
       <div className="flex items-center gap-3 rounded-lg border border-border px-4 py-3">
         <div className="size-2 rounded-full bg-amber-400/80 shrink-0" />
         <div className="flex flex-col flex-1 min-w-0">
-          <span className="text-xs font-medium">WorkAgent · 模擬模式</span>
-          <span className="text-[11px] text-muted-foreground">需 Supabase 連線 + AUTH-001 完成後啟用</span>
+          <span className="text-xs font-medium">{detailCopy.agent.mockTitle}</span>
+          <span className="text-[11px] text-muted-foreground">
+            {detailCopy.agent.mockBody}
+          </span>
         </div>
         <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300/60 shrink-0">
           Mock
@@ -533,28 +581,40 @@ function AgentTab({ project }: { project: Project }) {
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <ListIcon className="size-3.5 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">審閱佇列</h3>
-          <span className="text-xs text-muted-foreground">({MOCK_AGENT_PROPOSALS.length} 項待審閱)</span>
+          <h3 className="text-sm font-semibold">{detailCopy.agent.queueTitle}</h3>
+          <span className="text-xs text-muted-foreground">
+            {formatCopy(detailCopy.agent.queueCountTemplate, {
+              count: MOCK_AGENT_PROPOSALS.length,
+            })}
+          </span>
         </div>
         <div className="flex flex-col gap-2">
-          {MOCK_AGENT_PROPOSALS.map((p) => (
+          {MOCK_AGENT_PROPOSALS.map((p, index) => {
+            const proposalCopy = detailCopy.agent.proposals[index]
+            return (
             <div key={p.id} className="rounded-lg border border-border px-3 py-2.5 flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[10px]">{p.type}</Badge>
-                <span className="text-[11px] text-muted-foreground ml-auto">信心度 {p.confidence}%</span>
+                <Badge variant="outline" className="text-[10px]">{proposalCopy.type}</Badge>
+                <span className="text-[11px] text-muted-foreground ml-auto">
+                  {formatCopy(detailCopy.agent.confidenceTemplate, {
+                    confidence: p.confidence,
+                  })}
+                </span>
               </div>
-              <p className="text-sm">{p.content}</p>
+              <p className="text-sm">{proposalCopy.content}</p>
               <div className="flex items-center gap-2 pt-1">
                 <button className="text-[11px] px-2.5 py-1 rounded-md bg-foreground text-background font-medium transition-opacity opacity-60 cursor-not-allowed" disabled>
-                  接受
+                  {detailCopy.agent.accept}
                 </button>
                 <button className="text-[11px] px-2.5 py-1 rounded-md border border-border text-muted-foreground transition-opacity opacity-60 cursor-not-allowed" disabled>
-                  拒絕
+                  {detailCopy.agent.reject}
                 </button>
-                <span className="text-[10px] text-muted-foreground/50 ml-1">· 需真實 Agent 上線後操作</span>
+                <span className="text-[10px] text-muted-foreground/50 ml-1">
+                  {detailCopy.agent.disabledHint}
+                </span>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       </section>
 
@@ -562,12 +622,16 @@ function AgentTab({ project }: { project: Project }) {
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <FileClockIcon className="size-3.5 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">執行記錄</h3>
+          <h3 className="text-sm font-semibold">{detailCopy.agent.runLogTitle}</h3>
         </div>
         <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center flex flex-col gap-1">
           <BotIcon className="size-5 text-muted-foreground/30 mx-auto" />
-          <p className="text-xs text-muted-foreground/60">尚無 Agent 執行記錄</p>
-          <p className="text-[11px] text-muted-foreground/40">WorkAgent 啟用後，所有分析與建議操作將記錄於此</p>
+          <p className="text-xs text-muted-foreground/60">
+            {detailCopy.agent.emptyRunLogTitle}
+          </p>
+          <p className="text-[11px] text-muted-foreground/40">
+            {detailCopy.agent.emptyRunLogBody}
+          </p>
         </div>
       </section>
 
@@ -578,29 +642,29 @@ function AgentTab({ project }: { project: Project }) {
           onClick={() => setExpandBoundary((v) => !v)}
         >
           <ShieldCheckIcon className="size-3.5 text-muted-foreground" />
-          <span>Agent 邊界設定</span>
+          <span>{detailCopy.agent.boundaryTitle}</span>
           <span className="text-xs text-muted-foreground font-normal ml-auto">
-            {expandBoundary ? "收合" : "展開"}
+            {expandBoundary ? detailCopy.agent.collapse : detailCopy.agent.expand}
           </span>
         </button>
         {expandBoundary && (
           <div className="rounded-lg bg-muted/40 px-4 py-3 text-xs text-muted-foreground leading-relaxed flex flex-col gap-2">
             <div>
-              <p className="font-medium mb-1">Agent 可執行：</p>
+              <p className="font-medium mb-1">{detailCopy.agent.canDoTitle}</p>
               <ul className="list-disc pl-4 flex flex-col gap-0.5">
-                <li>讀取本專案所有 internal 任務、紀錄、交付物</li>
-                <li>根據資料生成分析摘要與建議</li>
-                <li>草擬任務狀態更新提案（需人工確認）</li>
-                <li>識別風險項目並發出提示</li>
+                {detailCopy.agent.canDo.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </div>
             <div>
-              <p className="font-medium mb-1 text-destructive/70">Agent 不可執行：</p>
+              <p className="font-medium mb-1 text-destructive/70">
+                {detailCopy.agent.cannotDoTitle}
+              </p>
               <ul className="list-disc pl-4 flex flex-col gap-0.5">
-                <li>直接寫入 DB（所有寫入需人工審閱確認）</li>
-                <li>讀取 Finance、Life、Company 模組資料</li>
-                <li>對外部系統發出任何請求</li>
-                <li>修改客戶可見性設定</li>
+                {detailCopy.agent.cannotDo.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -617,6 +681,8 @@ type RecordFilter = "all" | "user" | "agent" | "system"
 const MOCK_RECORDS: { id: string; type: RecordFilter; actor: string; action: string; ts: string }[] = []
 
 function RecordsTab() {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
   const [filter, setFilter] = React.useState<RecordFilter>("all")
 
   const filtered = filter === "all" ? MOCK_RECORDS : MOCK_RECORDS.filter((r) => r.type === filter)
@@ -626,12 +692,6 @@ function RecordsTab() {
       {/* Filter tabs */}
       <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-0.5 w-fit">
         {(["all", "user", "agent", "system"] as RecordFilter[]).map((f) => {
-          const labels: Record<RecordFilter, string> = {
-            all: "全部",
-            user: "使用者操作",
-            agent: "Agent 提案",
-            system: "系統事件",
-          }
           return (
             <button
               key={f}
@@ -643,7 +703,7 @@ function RecordsTab() {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {labels[f]}
+              {detailCopy.records.filters[f]}
             </button>
           )
         })}
@@ -653,9 +713,11 @@ function RecordsTab() {
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-10 flex flex-col items-center gap-2">
           <FileClockIcon className="size-6 text-muted-foreground/25" />
-          <p className="text-sm text-muted-foreground/60">此專案尚無操作記錄</p>
+          <p className="text-sm text-muted-foreground/60">
+            {detailCopy.records.emptyTitle}
+          </p>
           <p className="text-[11px] text-muted-foreground/40">
-            任務新增、紀錄建立、Agent 建議確認等事件將自動記錄於此
+            {detailCopy.records.emptyBody}
           </p>
         </div>
       ) : (
@@ -663,10 +725,10 @@ function RecordsTab() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">時間</th>
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">執行者</th>
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">操作</th>
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">類型</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">{detailCopy.records.columns.time}</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">{detailCopy.records.columns.actor}</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">{detailCopy.records.columns.action}</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">{detailCopy.records.columns.type}</th>
               </tr>
             </thead>
             <tbody>
@@ -709,6 +771,8 @@ export default function ProjectDetailClient({
   pulseMeta: PulseSourceMeta | null
   timeline: ProjectTimeline | null
 }) {
+  const { copy } = useProductLanguage()
+  const detailCopy = copy.work.projectDetail
   const projectId = project.id
 
   const { ideas } = useResearch()
@@ -721,7 +785,10 @@ export default function ProjectDetailClient({
     .map((idea) => ({
       id: idea.id,
       projectId: idea.linkedProjectId!,
-      title: `✦ 學術靈感 [${idea.ideaType.toUpperCase()}]: ${idea.title}`,
+      title: formatCopy(detailCopy.page.linkedIdeaTitleTemplate, {
+        type: idea.ideaType.toUpperCase(),
+        title: idea.title,
+      }),
       body: idea.body,
       source: "internal",
       visibility: "internal",
@@ -762,6 +829,9 @@ export default function ProjectDetailClient({
   }
 
   const health = healthConfig[project.health]
+  const phaseLabel =
+    detailCopy.phases[project.phase as keyof typeof detailCopy.phases] ?? project.phase
+  const healthLabel = detailCopy.health[project.health]
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -774,11 +844,11 @@ export default function ProjectDetailClient({
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="text-xs">
-                {phaseLabels[project.phase]}
+                {phaseLabel}
               </Badge>
               <Badge variant="outline" className={cn("text-xs", health.className)}>
                 {project.health === "risk" && <AlertTriangleIcon className="size-3 mr-1" />}
-                {health.label}
+                {healthLabel}
               </Badge>
               {daysLeft !== null && (
                 <span className={cn(
@@ -786,7 +856,15 @@ export default function ProjectDetailClient({
                   daysLeft < 0 ? "text-destructive" : daysLeft <= 3 ? "text-amber-600" : "text-muted-foreground"
                 )}>
                   <ClockIcon className="size-3" />
-                  {daysLeft < 0 ? `逾期 ${Math.abs(daysLeft)} 天` : daysLeft === 0 ? "今天截止" : `${daysLeft} 天後截止`}
+                  {daysLeft < 0
+                    ? formatCopy(detailCopy.page.dueOverdueTemplate, {
+                        count: Math.abs(daysLeft),
+                      })
+                    : daysLeft === 0
+                      ? detailCopy.page.dueToday
+                      : formatCopy(detailCopy.page.dueInTemplate, {
+                          count: daysLeft,
+                        })}
                 </span>
               )}
             </div>
@@ -796,21 +874,21 @@ export default function ProjectDetailClient({
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList variant="line" className="w-full justify-start">
               <TabsTrigger value="pulse" className="text-sm gap-1.5">
-                ✦ 脈搏
+                {detailCopy.page.tabs.pulse}
               </TabsTrigger>
               <TabsTrigger value="work" className="text-sm">
-                工作
+                {detailCopy.page.tabs.work}
               </TabsTrigger>
               <TabsTrigger value="client" className="text-sm">
-                客戶
+                {detailCopy.page.tabs.client}
               </TabsTrigger>
               <TabsTrigger value="agent" className="text-sm gap-1">
                 <BotIcon className="size-3.5" />
-                代理人
+                {detailCopy.page.tabs.agent}
               </TabsTrigger>
               <TabsTrigger value="records" className="text-sm gap-1">
                 <FileClockIcon className="size-3.5" />
-                紀錄
+                {detailCopy.page.tabs.records}
               </TabsTrigger>
             </TabsList>
 
@@ -837,26 +915,34 @@ export default function ProjectDetailClient({
               <div className="grid grid-cols-4 gap-2">
                 <QuickStat
                   icon={CheckCircle2Icon}
-                  label="任務"
+                  label={detailCopy.page.stats.tasks}
                   value={`${project.tasksDone}/${project.tasksTotal}`}
                   onClick={() => setTab("work")}
                 />
                 <QuickStat
                   icon={StickyNoteIcon}
-                  label="紀錄"
+                  label={detailCopy.page.stats.notes}
                   value={projectNotes.length}
                   onClick={() => setTab("work")}
                 />
                 <QuickStat
                   icon={PackageIcon}
-                  label="交付物"
+                  label={detailCopy.page.stats.deliverables}
                   value={projectDeliverables.length}
                   onClick={() => setTab("work")}
                 />
                 <QuickStat
                   icon={ClockIcon}
-                  label="剩餘天數"
-                  value={daysLeft !== null ? (daysLeft < 0 ? "逾期" : `${daysLeft}天`) : "—"}
+                  label={detailCopy.page.stats.daysLeft}
+                  value={
+                    daysLeft !== null
+                      ? daysLeft < 0
+                        ? detailCopy.page.stats.overdue
+                        : formatCopy(detailCopy.page.stats.daysTemplate, {
+                            count: daysLeft,
+                          })
+                      : "—"
+                  }
                 />
               </div>
             </TabsContent>
@@ -866,21 +952,27 @@ export default function ProjectDetailClient({
               <WorkFormalDataBoundary />
 
               <section className="flex flex-col gap-3">
-                <h3 className="text-sm font-semibold text-muted-foreground">任務</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  {detailCopy.page.sections.tasks}
+                </h3>
                 <TaskList initialTasks={projectTasks} projectId={projectId} />
               </section>
 
               <div className="border-t" />
 
               <section className="flex flex-col gap-3">
-                <h3 className="text-sm font-semibold text-muted-foreground">紀錄</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  {detailCopy.page.sections.notes}
+                </h3>
                 <NoteTimeline initialNotes={projectNotes} projectId={projectId} />
               </section>
 
               <div className="border-t" />
 
               <section className="flex flex-col gap-3">
-                <h3 className="text-sm font-semibold text-muted-foreground">交付物</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  {detailCopy.page.sections.deliverables}
+                </h3>
                 <DeliverableTree initialDeliverables={projectDeliverables} projectId={projectId} />
               </section>
             </TabsContent>

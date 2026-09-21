@@ -21,8 +21,16 @@ import type { FileAsset } from "@/types/file-library"
 import { mockFileAssets } from "@/lib/mock/ai-input/mock-file-assets"
 import type { MediaAsset } from "@/types/media-library"
 import { mockMediaAssets } from "@/lib/mock/ai-input/mock-media-assets"
+import { useMockDataMode } from "@/lib/context/mock-data-mode-context"
+import type {
+  FormalLibraryAssetIndex,
+  FormalLibraryDataStatus,
+} from "@/types/library-asset-index"
 
 interface LibraryClassificationContextType {
+  dataMode: "mock" | "formal"
+  formalDataStatus: FormalLibraryDataStatus
+  formalDataMessage?: string
   links: LibraryAssetModuleLink[]
   getModuleKeysForAsset: (assetId: string) => ModuleKey[]
   getVisibleModuleKeysForModulePage: (assetId: string) => ModuleKey[]
@@ -61,10 +69,68 @@ interface LibraryClassificationContextType {
 
 const LibraryClassificationContext = createContext<LibraryClassificationContextType | null>(null)
 
-export function LibraryClassificationProvider({ children }: { children: ReactNode }) {
-  const [links, setLinks] = useState<LibraryAssetModuleLink[]>(mockLibraryAssetModuleLinks)
-  const [fileAssets, setFileAssets] = useState<FileAsset[]>(mockFileAssets)
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>(mockMediaAssets)
+const EMPTY_FORMAL_LIBRARY: FormalLibraryAssetIndex = {
+  status: "ready",
+  fileAssets: [],
+  mediaAssets: [],
+  hiddenMockFallback: true,
+  ownerScoped: true,
+}
+
+export function LibraryClassificationProvider({
+  children,
+  initialFormalLibrary = EMPTY_FORMAL_LIBRARY,
+}: {
+  children: ReactNode
+  initialFormalLibrary?: FormalLibraryAssetIndex
+}) {
+  const { isMockDataEnabled } = useMockDataMode()
+  const [mockLinks, setMockLinks] = useState<LibraryAssetModuleLink[]>(mockLibraryAssetModuleLinks)
+  const [formalLinks, setFormalLinks] = useState<LibraryAssetModuleLink[]>([])
+  const [mockFileAssetsState, setMockFileAssetsState] = useState<FileAsset[]>(mockFileAssets)
+  const [formalFileAssets, setFormalFileAssets] = useState<FileAsset[]>(initialFormalLibrary.fileAssets)
+  const [mockMediaAssetsState, setMockMediaAssetsState] = useState<MediaAsset[]>(mockMediaAssets)
+  const [formalMediaAssets, setFormalMediaAssets] = useState<MediaAsset[]>(initialFormalLibrary.mediaAssets)
+  const [formalDataStatus, setFormalDataStatus] = useState<FormalLibraryDataStatus>(initialFormalLibrary.status)
+  const [formalDataMessage, setFormalDataMessage] = useState<string | undefined>(initialFormalLibrary.message)
+
+  const links = isMockDataEnabled ? mockLinks : formalLinks
+  const fileAssets = isMockDataEnabled ? mockFileAssetsState : formalFileAssets
+  const mediaAssets = isMockDataEnabled ? mockMediaAssetsState : formalMediaAssets
+
+  const setLinks = useCallback<React.Dispatch<React.SetStateAction<LibraryAssetModuleLink[]>>>(
+    (next) => {
+      if (isMockDataEnabled) setMockLinks(next)
+      else setFormalLinks(next)
+    },
+    [isMockDataEnabled]
+  )
+
+  const setFileAssets = useCallback<React.Dispatch<React.SetStateAction<FileAsset[]>>>(
+    (next) => {
+      if (isMockDataEnabled) {
+        setMockFileAssetsState(next)
+      } else {
+        setFormalFileAssets(next)
+        setFormalDataStatus("ready")
+        setFormalDataMessage(undefined)
+      }
+    },
+    [isMockDataEnabled]
+  )
+
+  const setMediaAssets = useCallback<React.Dispatch<React.SetStateAction<MediaAsset[]>>>(
+    (next) => {
+      if (isMockDataEnabled) {
+        setMockMediaAssetsState(next)
+      } else {
+        setFormalMediaAssets(next)
+        setFormalDataStatus("ready")
+        setFormalDataMessage(undefined)
+      }
+    },
+    [isMockDataEnabled]
+  )
 
   const getModuleKeysForAsset = useCallback(
     (assetId: string) => getAllModuleKeysForAsset(links, assetId),
@@ -85,7 +151,7 @@ export function LibraryClassificationProvider({ children }: { children: ReactNod
     (assetId: string, assetKind: LibraryAssetKind, moduleKeys: ModuleKey[], source: ClassificationSource = "human_confirmed") => {
       setLinks((prev) => replaceAssetModuleLinks(prev, assetId, assetKind, moduleKeys, source))
     },
-    []
+    [setLinks]
   )
 
   const getOriginContext = useCallback(
@@ -97,7 +163,7 @@ export function LibraryClassificationProvider({ children }: { children: ReactNod
     (assetId: string, assetKind: LibraryAssetKind, moduleKey: ModuleKey, originContext: LibraryAssetOriginContext) => {
       setLinks((prev) => addAssetModuleLinkWithOrigin(prev, assetId, assetKind, moduleKey, originContext))
     },
-    []
+    [setLinks]
   )
 
   const createFileAssetFromSubModuleUpload = useCallback(
@@ -105,12 +171,15 @@ export function LibraryClassificationProvider({ children }: { children: ReactNod
       setFileAssets((prev) => [asset, ...prev])
       setLinks((prev) => addAssetModuleLinkWithOrigin(prev, asset.id, "file", moduleKey, originContext))
     },
-    []
+    [setFileAssets, setLinks]
   )
 
   return (
     <LibraryClassificationContext.Provider
       value={{
+        dataMode: isMockDataEnabled ? "mock" : "formal",
+        formalDataStatus,
+        formalDataMessage,
         links,
         getModuleKeysForAsset,
         getVisibleModuleKeysForModulePage: getVisibleForModulePage,

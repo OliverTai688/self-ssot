@@ -1,5 +1,591 @@
 # Completed Log
 
+## 2026-09-15
+
+### YZLIVE-001 — 圓展帳號管理與六碼登入上線規劃
+
+- 按使用者指定三帳號與最新 Email 六碼 OTP 指示，完成 PLN-071／AUT-009；登入不用 Magic Link／Google。提出「我的帳號」與「公司管理」界面、身份／公司會員分離、正式持久化与分期驗收；戴宇星額外公司管理權限保持待確認。
+- 檢查既有 OTP request／verify、混合登入入口、email-only Profile mapping、v5 fixture actor、settings 本機成員／角色清單與 workspace status 檢查缺口；研究官方 OTP、SMTP、rate limits、session revocation 與 server-only user provisioning。
+- YZLIVE-002..008 具體列為 PROPOSED，並同步 PRD-006／AUT-002／D11／ACC-002／backlog／sprint／tasks／MAN-001。未改 runtime／schema／env／automation，未寄信、建 Auth User 或部署。
+- Verification：本地文件連結與 task/source 查核、scoped `git diff --check`；實際結果見 [本次證據](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260915-yuanzhan-account-launch-plan.md)。typecheck／build／DB／實際 OTP 測試 NOT_RUN（本次僅規劃）。
+
+## 2026-09-13
+
+### YZUI-011 — 指定 v5 介面忠實實作
+
+- D10 指定 v5 作為 UI-088 唯一視覺基準；移植 8 工作區／30 分頁、原始深色 tokens、尺寸、圖表、大綱、抽屜與 modal。React 管理隔離 DOM 工作台；開發時將 220 事件模板編譯成閉包，無 iframe／runtime eval。
+- 保留雙空間、作者正文／負責人進度／成員留言、表格公式、文件固定版本、Evidence 凍結、showcase／empty。修正原型空資料、錯誤分頁跳轉、鍵盤／召喚及工時假推估；驗證長抽屜捲動與團隊反向連結。
+- Verification：`pnpm ui:yuanzhan:check` PASS（原契約 17＋v5 factory）；`pnpm ui:yuanzhan:verify` PASS 21＋18 群組／60 子頁；`pnpm ui:yuanzhan:v5:compare` PASS 31 區域；`pnpm exec tsc --noEmit --pretty false`、targeted eslint PASS；`node scripts/build-yuanzhan-ui.mjs --cached-fonts --reuse <disposable-build-directory>` PASS（完整 app，已快取字型，未證明 Google 可用性）。
+- UI-088 保持 PROTOTYPE／COMPLETED。資料只在本頁記憶體，重整重置；沒有業務 DB、auth、provider、部署、automation 或正式 launch claim 變更。原檔保留且 source hash 相同。
+- [YZUI-011 證據](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260913-yuanzhan-v5-fidelity.md)；[v5 操作與預覽](../03_feature-reference/REF-004_yuanzhan-operating-interface/v5-preview-guide.md)。下一階段為另行選定正式多人 BFF／服務授權與持久化，不自動擴張本期。
+
+
+### YZUI-002..010 — 圓展全 UI 階段
+
+- 使用者 D09 授權整階段自主實作；完成 UI-088 `/company/operating` 的九個工作面、12 個情境與 server-only showcase/empty；正文作者、進度負責人、成員留言，私人／公司分區。
+- 重用 shadcn/Base UI 與自建 ThemeProvider，加入 Tiptap／React Aria；財務保留基本公式、文件／Evidence 指定版本、承諾事件與人工 log、容量／流量指標。全部留在 UI 記憶體，重新整理重置。
+- Verification：`pnpm ui:yuanzhan:check` PASS 17；`node scripts/verify-yuanzhan-ui.cjs` PASS 31；`node scripts/verify-yuanzhan-ui-edges.cjs` PASS 12；全域 tsc 與 targeted eslint PASS。完整 source snapshot production build 使用本機字型快取 PASS；直接 Google font 下載曾 ECONNRESET，未宣稱網路恢復。
+- 更新 PRD-006／ARC-040／RES-030／PLN-070／ACC-008、UI registry、MAN-001、backlog／sprint／tasks／ACC-002。原17份來源 byte-copy 保留；未動 DB、auth、.env.local、automation 或正式 launch claim。
+- [本次實作證據](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260913-yuanzhan-ui-runtime.md)；[操作與重跑指南](../03_feature-reference/REF-004_yuanzhan-operating-interface/ui-preview-guide.md)。
+- Next：另定正式團隊 BFF／持久化與服務授權階段；本期保持 PROTOTYPE，沒有正式多人上線聲明。
+
+
+### YZUI-001 — 圓展 UI 階段來源歸檔與開發文件
+
+- 依使用者指示，歸檔 7 份原始 HTML／DOCX 及整合提案包 10 份檔案，原位置保留；另存情境、已確認決定與 SHA-256 manifest。
+- 新增 PRD-006／ARC-040／REF-004／RES-029／PLN-070／ACC-008；同步 MAN-001、backlog、sprint、tasks 與 ACC-002。
+- 開發方向：個人／公司雙空間分離，公司直接記錄工作日誌；UI 以書寫、情境分頁、表格與時間線為主。完整模組與 12 個情境都有雙模式驗收。
+- env 契約：`PERSONAL_OS_UI_DATA_MODE=showcase|empty`，server-only；空白是所有業務集合為空但可開始操作；兩種模式共用 UI 與 CRUD。`.env.example` 僅新增 planned 註解，reader／app 接線尚待 YZUI-002。
+- 交付為文件基線；沒有 runtime、auth、DB、schema、provider、部署、automation 或正式 launch claim 變更。
+- Verification: `python3 docs/2_agent-input/generated/yuanzhan-ui-docs/verify-docs.py` PASS（17 hash、65 新連結）；`validate-proposal-pack.mjs` PASS（兩包共 8 頁）；`browser-smoke.cjs` PASS（14 HTML 載入、0 pageerror、工作記錄／空間／390px 操作）；scoped `git diff --check` PASS。實際命令與輸出見 [本次證據報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260913-yuanzhan-ui-docs.md)。正式 app／env runtime 測試未執行。
+- Next: [PLN-070](../05_execution-plans/PLN-070_yuanzhan-team-ui-implementation-plan.md) 的 YZUI-002，接著實作公司工作日誌。
+
+## 2026-09-02
+
+### AUTH-013-MODULE-ISOLATION — Prototype Module Content Gated To Demo Account Only
+
+- Same-day follow-up after the owner reviewed the `AUTH-013` handoff note and asked to (1) delete the discovered orphaned `admin@example.com` demo data and (2) evaluate scope then isolate every remaining prototype module.
+- Cleanup: verified zero other model references to `admin@example.com` (all relevant relations are `onDelete: Cascade` except `Workspace.createdBy`, which is `Restrict`), then ran a one-off transactional delete against the configured database in the correct order (5 Projects → Workspace → Profile). Confirmed the email no longer resolves afterward.
+- Scope evaluation: Research/Workflow/Life hold real interactive client state (`src/lib/context/*-context.tsx`); Chamber/Finance/Company are static illustrative arrays with no persistence at all, defined directly in their `page.tsx`; AI Input/ingestion/library-classification already fully gate every branch behind an existing `useMockDataMode()` toggle that simply defaulted to `true` for everyone.
+- Implementation: computed `isDemoAccount` once, server-side, in `src/app/(dashboard)/layout.tsx` (already calls `resolveCurrentUser()`) by comparing the signed-in email to the live `PERSONAL_OS_DEMO_LOGIN_EMAIL`. Added `DemoAccountProvider`/`useIsDemoAccount()` (new, `src/lib/context/demo-account-context.tsx`) so deeply nested client pages can read the flag; threaded `allowMockSeed`/`defaultEnabled` props into `ResearchProvider`, `WorkflowProvider`, `LifeProvider`, `MockDataModeProvider`; gated the static arrays in `chamber/page.tsx`, `finance/page.tsx`, `company/page.tsx`, `life/page.tsx`, and `workflow/page.tsx` directly via `useIsDemoAccount()`.
+- Research additionally got per-account localStorage key namespacing (`scopeId` = signed-in email) across all 17 persisted lists, since it was the only one of these modules with real cross-session persistence — closing the "two real accounts share a browser and see each other's edits" risk, not just the "first paint shows fake content" risk.
+- Company's `page.tsx` needed a small structural fix beyond the mechanical gate: `primaryRecord = companyRecords[0]` was read unconditionally in JSX; wrapped its render block in `{primaryRecord && (...)}` since it is now `undefined` for a non-demo account with an empty `companyRecords`.
+- Left unconditional (judged not to be "demo data"): module `settings` rows (real configurable toggles, not example content) and Company's `readinessRows`/`boundaryRows` (accurate statements about the module's actual implementation/safety status).
+- Verification: `pnpm exec tsc --noEmit --pretty false`, `pnpm exec eslint` on every touched file, `pnpm db:validate`, and a full `pnpm build` (production build, all routes compiled and generated) all passed.
+- Explicitly not claimed as closed: `Life`'s single-object `MonthlyPlan` (not list-shaped, no safe blank value without a type change); `src/components/research/pub-timeline.tsx`, `idea-inbox.tsx`, `src/lib/services/mock-ai.service.ts` still import `src/lib/mock/work` directly; no real DB-backed persistence was added to any of these 7 modules. No Prisma schema/migration change, no new secret, no service-role key.
+
+### AUTH-013 — Fixed-Code Demo Account Login
+
+- Owner requested a test/demo account (`test@yzedtech.com`, fixed six-digit code `123456`) that owns the seeded demo data, with every other account starting blank, ahead of production launch.
+- Added `src/lib/auth/demo-login.ts` (config getter, credential check, cookie encode/decode that re-validates against live env on every read), wired into `verifyEmailOtp`/`signOut` (`src/app/actions/auth.ts`), `resolveDemoLoginCurrentUser()` in `auth.service.ts`'s resolution chain, and a pass-through in `src/proxy.ts`. Deliberately built as a separate mechanism from `src/lib/auth/dev-otp.ts` rather than loosening that bridge's `NODE_ENV !== "production"` guard, since that guard is a documented, load-bearing invariant (`AUTH-011`) other code/docs assume holds unconditionally.
+- Added a "示範帳號" form on `/login`, rendered only when both env vars are configured; the code is never pre-filled or sent to the client (unlike the dev-otp box), since a public demo credential should be handed out deliberately rather than self-service-discoverable.
+- Repointed `prisma/seed.ts`'s `DEMO_PROFILE_EMAIL` from `admin@example.com` to `test@yzedtech.com` and ran `pnpm db:seed` against the configured database: created `test@yzedtech.com` (OWNER) with 5 projects / 17 tasks / 12 notes / 15 deliverables.
+- Fixed a latent bug hit while doing this: `prisma/seed.ts` used bare `import "dotenv/config"` (loads `.env` only); this repo's real `DATABASE_URL` lives in `.env.local`, so `pnpm db:seed` could not connect until switched to the same `scripts/load-local-env` loader `scripts/provision-team-profiles.ts` already used.
+- Discovered, and explicitly did not delete: a pre-existing, separate `admin@example.com` Profile already owned 5 projects with matching mock names but random (pre-deterministic-id) ids, so the id-based seed upsert did not touch it — it is now a harmless, unreachable-in-production duplicate. Surfaced to the owner for a delete/keep decision rather than removed unilaterally, since this task did not create that data.
+- Flagged to the owner: per `AGENTS.md` Section 8, Research/AI Input/Workflow/Life/Finance/Chamber/Company are still static `src/lib/mock/*` prototype pages, not per-Profile DB-backed data — every signed-in account (including the new demo account) currently sees the same fixed placeholder content there. "Other accounts start blank" is accurate for Work only; it is not yet true product-wide.
+- Verification: `pnpm exec tsc --noEmit --pretty false`, `pnpm exec eslint` on every touched file, `pnpm db:validate` (all pass); no Prisma schema/migration change, no service-role key, no public output.
+- Also noted mid-task: this repo had 2-3 concurrent Claude Code sessions editing the same working tree at once (visible as the `AUTH-012` Google OAuth kickoff being reworked from a Server Action to a Route Handler by another session while this one was in progress). The two tasks did not collide destructively, but running multiple agent sessions against one live repo/production database at the same time is a real risk the owner should be aware of going forward.
+
+### AUTH-012 — Google OAuth Allowlisted Sign-In
+
+- Owner explicitly requested Google sign-in restricted to `team.yzedtech@gmail.com`, `taioliver688@gmail.com`, and `lilyzuo405@gmail.com`, each getting an independent Personal OS; owner clarified that Profile-level role should be OWNER for all three (per-project team-role distinctions live separately in `WorkspaceMemberRole`).
+- Added `signInWithGoogle` as a Server Action (`src/app/actions/auth.ts`) using `supabase.auth.signInWithOAuth` through the existing cookie-backed SSR client, and a "使用 Google 登入" button on `/login`. Owner localhost testing then showed this round-tripping to `/login?status=invalid-callback`; replaced it with a Route Handler (`src/app/auth/google/route.ts`) — the pattern Supabase's own Next.js SSR OAuth guide uses, so the PKCE code-verifier cookie write and the 302 to Google happen on one plain HTTP response instead of a Server Action's external redirect — and pointed the login button at it via a plain `<Link>`. Also added debug logging (query error params, `exchangeCodeForSession` error code/status/name) to `/auth/callback`'s failure paths.
+- Added the fail-closed allowlist gate in `src/app/auth/callback/route.ts`: it detects a Google-provider session via `user.app_metadata`, checks the verified email against `PERSONAL_OS_TEAM_PROFILES`, signs out and redirects to `google_not_allowed` on a miss, and calls the new `ensureGoogleAllowlistedProfile()` (`src/lib/services/auth.service.ts`) on a hit — which creates the Profile (using the env entry's role) only if one does not already exist.
+- Extracted the `PERSONAL_OS_TEAM_PROFILES` parser into `src/lib/auth/team-profiles.ts` so `scripts/provision-team-profiles.ts` and the new runtime gate share one source of truth instead of duplicated parsing logic.
+- Updated `.env.local`/`.env.example` and ran `pnpm profiles:provision-team` against the configured Supabase database: `lilyzuo405@gmail.com` role changed `PARTNER` → `OWNER`, `team.yzedtech@gmail.com` Profile created with role `OWNER`, `taioliver688@gmail.com` unchanged (`OWNER`).
+- Updated `AUT-002` (new AUTH-012 section, provider-setup steps, rejected alternatives) and `ACC-002` (new acceptance section).
+- Verification: `pnpm exec tsc --noEmit --pretty false` (pass), `pnpm db:validate` (pass, no schema/migration changes), `pnpm exec eslint` on every touched file (pass), `pnpm profiles:provision-team` (pass, evidence above).
+- Remaining owner-run manual steps (outside application code): Google Cloud Console OAuth 2.0 Client (Web application, redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`, recommend adding the 3 emails as OAuth consent screen test users while in Testing status), and Supabase Dashboard → Authentication → Providers → Google (paste Client ID/Secret, enable). `PERSONAL_OS_TEAM_PROFILES` must also be set on the deployed (e.g. Vercel) environment, not only `.env.local`. No migration, deploy, service-role key, public output, or launch-level claim was made.
+
+## 2026-08-31
+
+### OWNEROS-AUTO-003 — Approved Ten-Minute Gate Loop Activation
+
+- Product Owner explicitly authorized opening the Gate A → B → C loop after the release preflight.
+- Prepared the release worktree dependency runtime with an ignored symlink to the existing main-workspace `node_modules`; no dependency or lockfile changed.
+- Reverified Gmail profile connectivity without storing the address or sending a test message. Gate A notification remains `NOT_TRIGGERED` and requires another immediate pre-send verification.
+- Updated the existing automation in place to `ACTIVE` at 10 minutes; no duplicate automation was created.
+- Added `scripts/check-owner-ai-work-desktop-activation.mjs` and `pnpm gate:activation:check`; the clean release check passed 10/10 at `b12edba9e9dba0606332ce9783ddaa385a2ae45c`.
+- NANDA lifecycle changed only from paused to internal protected runtime. Identity, capabilities, endpoints, auth/trust and registry exposure did not expand; `externalRegisterable: false`.
+- Gate A/B/C remain `NOT_ACHIEVED`; Active UI remains `NONE`; initial run lease is `IDLE`. No email, deploy, migration, DB/provider write, public output, terminal purge, external agent database access, external registration, push, or main-worktree reset occurred.
+
+### OWNEROS-AUTO-002 — Gate Loop Release Baseline Preflight
+
+- Product Owner approved one release-baseline preflight without activating the heartbeat.
+- Created local branch `codex/gate-loop-release-baseline-20260831` and worktree `/Users/pzps0964713/Documents/github/self-stucture-v1-gate-release`; checkpoint `900620e1f4b324e1e817edb24415f25f634f2301` faithfully preserves the prior dirty main tree. Nothing was pushed.
+- Promoted OD-01 through OD-07 into the Gate audit/plan/prompt/state: Gate B now covers the Owner plus every active company member with at least one invited non-owner; Gate C uses 180 active days then indefinite database/R2 archive and forbids automated terminal purge.
+- Updated the existing automation in place to target the release worktree/branch while retaining the 10-minute cadence and `PAUSED` status. Added `pnpm gate:preflight:check` for fail-closed release path, branch, ancestry, clean-state, automation, Gate, freshness, Gmail, pilot, UI Registry, and internal-only agent checks.
+- Gate A/B/C remain `NOT_ACHIEVED`; Gmail connection evidence is stale and must be reverified before any allowed send. No email, deploy, migration, DB/provider write, public output, terminal purge, external registration, or scheduled run occurred.
+
+### UIREG-001 — Unique UI Screen Registry
+
+- Product Owner explicitly approved establishing the sole Personal OS UI Registry.
+- Created `docs/03_feature-reference/REF-003_ui-screen-registry.md` and registered all 40 current `src/app/**/page.tsx` routes exactly once with stable `UI-XXX` IDs.
+- Separated runtime truth from the `saas-ui-refactor-director` lifecycle; Active UI remains `NONE` and every screen begins at `NOT_REVIEWED`.
+- Preserved existing `OWNEROS-UI-*`, `UICLEAN-*`, and similar IDs as task/implementation references rather than competing Screen IDs.
+- Recorded the confirmed global decisions that operational product pages do not contain rule manuals and that future operational UI remains BFF-first.
+- Updated the working owner decision packet to record the approved complete-company pilot threshold and indefinite DB/R2 archive until explicit Owner-authorized terminal purge.
+- Verification: route/source completeness, unique ID/source checks, JSON parse, and touched-file whitespace checks passed. No UI/runtime code, BFF contract, DB/provider/deployment/automation mutation, Gate claim, or launch-level change.
+
+## 2026-08-23
+
+### PLN-069 - UI-L4 SaaS Interface Convergence Completion
+
+- Completed the PLN-069 UI-L4 local protected interface convergence pass.
+- Normal owner-facing pages now use product language instead of raw `Gate A`, `externalRegisterable=false`, `AUTH-*`, `WORK-*`, `DEPLOY-*`, `Manual Ops`, `Mock data`, `Mock 開`, `OWNEROS-*`, or `DATTR-*` labels.
+- Admin/proof routes intentionally retain operator evidence and task IDs.
+- Added `RPT-065_pln-069-saas-ui-convergence-completion-report.md` with the owner-requested three chapters: PersonalOS product explanation, RBAC route/API inventory, and next development recommendations.
+- Added `requireUser()` to the `/ai-input` AI provider server action before provider access. No DB write, public output, external registration, autonomous execution, schema change, production mutation, Gmail send, or Gate A/B/C claim was added.
+- Verification: `pnpm exec tsc --noEmit --pretty false`, targeted `git diff --check`, and browser audit across `/dashboard`, `/ai-input`, `/inbox`, `/work`, `/research`, `/company`, `/agents`, `/workflow`, `/settings`, `/settings/language`, `/settings/members`, `/settings/roles`, and `/settings/ai-sharing` passed for the target marker sweep.
+
+### OWNEROS-002B — OwnerConversation Runtime Contract For Durable Chat And Inbox Return Path
+
+- Completed the loop 227 short launch review in `RPT-064_loop-227-short-launch-review-and-owner-conversation-routing.md`.
+- Confirmed formal launch remains `L0_LOCAL_PROTOTYPE`, Manual Ops remains `M1_MANUAL_OPS_READY`, conditional product maturity remains `C3_ARCHITECTURE_GATE_READY`, and Gate A/B/C remain `NOT_ACHIEVED`.
+- Added `src/lib/contracts/owner-ai-work-desktop-conversation-runtime.contract.ts` to define the OwnerConversation BFF/runtime contract for `A2_DURABLE_AUTHORIZED_CHAT_CONTEXT` and `A5_INBOX_FREE_TEXT_RETURN_PATH`.
+- Added `scripts/check-owner-ai-work-desktop-conversation-runtime.mjs` and `pnpm owner:conversation-runtime:check` to verify OwnerConversation DTOs, ContextPackage linkage, Inbox return path, Personal Private scope, `requireUser()`/origin/audit/cross-owner checks, disabled runtime flags, and `externalRegisterable: false`.
+- Status: `OWNEROS-002B` is `DONE` at contract/checker scope; the next shortest slices are `OWNEROS-002C` schema/migration draft, `OWNEROS-002D` protected loader/service, and `OWNEROS-004A` Inbox free-text return UI.
+- Safety: Gate A remains NOT_ACHIEVED. No route handler, Server Action, schema/migration, DB read/write, provider call, Inbox reply runtime, email, public output, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim was added.
+
+### OWNEROS-UI-006 — Simplified Agent Command Center Runtime Surface
+
+- Completed the `OWNEROS-UI-006` runtime UI pass. `/agents` now renders `OWNEROS-UI-006-AGENTS-SURFACE` at the first viewport with one `Agent Command Center` job: `Choose a dry-run operation, inspect proof, prepare proposal, and keep audit boundaries visible.`
+- Moved the operator path ahead of the readiness matrix: the first screen now foregrounds protected owner-only state, `dry_run only`, `proposal only`, `externalRegisterable=false`, operation selection, owner instruction/detail pane, proposal packet, protected dry-run proof, dry-run parity, audit/readiness, and safety boundaries.
+- Preserved the existing AGENT-010 command catalog, AGENT-011 task bus, AGENT-014 protected dry-run API, AGENT-015 proof panel, and AGENT-016 per-module readiness matrix; the matrix is now a lower drilldown instead of the primary first-viewport surface.
+- Updated `scripts/check-agent-command-center.mjs` so `pnpm agent:command-center:check` verifies the simplified SaaS slots and continues enforcing one same-origin dry-run fetch, no DB/provider/env reads in the command center, and `externalRegisterable=false`.
+- Status: `OWNEROS-UI-006` is `IMPLEMENTED_PENDING_BROWSER_SMOKE`.
+- Safety: No execute mode, route handler, Server Action, schema/migration, DB write, provider call, public output, external collaboration runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim was added.
+
+### OWNEROS-UI-005 — Company-First Simplified Module Runtime Surface
+
+- Completed the final `OWNEROS-UI-005` module pass. `/company` now renders `OWNEROS-UI-005-COMPANY-SURFACE` at the first viewport with one `Company Operating Desk` job: `Separate private thinking, formal knowledge, policies, contracts, and Company AI proposals.`
+- Added a compact state strip (`High-risk strategy module`, `Prototype state`, `Formal knowledge pending`, `externalRegisterable=false`), command bar, `Company Lanes`, `Company Readiness`, `Company AI Proposal`, `Records / Audit`, `Settings / Boundary`, and Manual Ops proof handoff for `AUTH-005`, `COMPANY-BFF`, and `DEPLOY-002`.
+- Separated `Owner private thinking`, `Formal shared knowledge`, Policy, and Contract lanes so private strategy cannot silently become Company-readable formal knowledge.
+- Added `scripts/check-owneros-company-simplified-surface.mjs` and `pnpm company:simplified:check`.
+- Status: `OWNEROS-UI-005` is implemented at Work/Research/Company runtime UI/checker scope; browser smoke remains deferred by owner instruction.
+- Safety: No route handler, Server Action, schema/migration, live Company DB read, database write, provider call, public output expansion, Company publication runtime, high-risk write, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim was added.
+
+### OWNEROS-UI-005 — Research-First Simplified Module Runtime Surface
+
+- Advanced `OWNEROS-UI-005` with the Research-first partial after the Work-first pass. `/research` now renders `OWNEROS-UI-005-RESEARCH-SURFACE` at the first viewport with one `Research Operating Desk` job: `Organize sources, questions, evidence, outputs, and Research AI proposals.`
+- Added a compact state strip (`Prototype state`, `Formal persistence pending`, owner protected shell, `externalRegisterable=false`), command bar, `Research Queue`, `Research Readiness`, `Source Evidence`, `Research AI Proposal`, `Records / Audit`, `Settings / Boundary`, and Manual Ops proof handoff for `AUTH-005`, `RESEARCH-BFF`, and `DEPLOY-002`.
+- Preserved the existing Research prototype path through `useResearch()` localStorage/mock fallback and did not enable live Research DB reads or writes.
+- Added `scripts/check-owneros-research-simplified-surface.mjs` and `pnpm research:simplified:check`.
+- Status: `OWNEROS-UI-005` remains `IN_PROGRESS_WORK_RESEARCH_PASS` because the Company module pass is not done.
+- Safety: No route handler, Server Action, schema/migration, live Research DB read, database write, provider call, public output expansion, Company publication runtime, high-risk write, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim was added.
+
+## 2026-08-22
+
+### OWNEROS-UI-005 — Work-First Simplified Module Runtime Surface
+
+- Advanced `OWNEROS-UI-005` with the Work-first partial. `/work` now renders `OWNEROS-UI-005-WORK-SURFACE` at the first viewport with one `Work Operating Desk` job: `Open projects, tasks, client boundaries, and Work AI proposals.`
+- Added a compact state strip (`DB-backed owner path`, protected Work, workspace mode, `Formal proof pending`), command bar, `Project Queue`, `Project Readiness`, `Delivery Queue`, `Client Boundary`, `Work AI Proposal`, `Records / Audit`, `Settings / Boundary`, and Manual Ops proof handoff for `AUTH-005`, `WORK-009`, and `DEPLOY-002`.
+- Preserved the existing BFF-first loader boundary in `/work`: `requireUser`, `getWorkspaceProjectIndexForProfile`, `getTeamWorkspaceCreateReadinessForProfile`, and `getTeamWorkspaceInvitationIndexForProfile`.
+- Added `scripts/check-owneros-work-simplified-surface.mjs` and `pnpm work:simplified:check`.
+- Status: `OWNEROS-UI-005` remains `IN_PROGRESS_WORK_FIRST_PASS` because Research and Company module passes are not done.
+- Safety: No route handler, Server Action, schema/migration, provider call, public output expansion, Company publication runtime, high-risk write, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim was added.
+
+### OWNEROS-UI-004 — Simplified Admin Control Plane Runtime Surface
+
+- Implemented a proof-light `/admin` runtime UI slice.
+- Added `OWNEROS-UI-004-ADMIN-SURFACE` with one `Admin Control Plane` job: `Inspect launch blockers, audit proof, system readiness, and Manual Ops`.
+- Added Blockers/Proof/System/Audit/Manual Ops commands.
+- Added indexed operator rows for `Blocker Queue`, `Proof Queue`, `System Readiness`, and `Audit / Records`.
+- Added proof handoff for `AUTH-005`, `WORK-009`, and `DEPLOY-002` while preserving no-write boundaries.
+- Added `scripts/check-owneros-admin-simplified-surface.mjs` and `pnpm admin:simplified:check`.
+- Preserved the default lightweight `getAdminLaunchOverview()` route shape and the deep `/admin/detail` evidence route.
+- No admin mutation, route handler, Server Action, schema/migration, DB write, env edit, deployment API write, provider runtime, public output, external registration, Gmail send, or launch-level claim was added.
+
+## 2026-08-22
+
+### OWNEROS-UI-003 — Simplified Settings Control Plane Runtime Surface
+
+- Reworked `/settings` first viewport as the owner/member/profile/env/manual-ops control plane under the existing protected Server Component loader.
+- Added `OWNEROS-UI-003-SETTINGS-SURFACE` with one `Settings Control Plane` job: `Control identity, workspace, sources, modules, agents, env, and Manual Ops`.
+- Added compact command links for `Identity`, `Workspace`, `Sources`, `Modules`, `Agents`, and `Manual Ops`.
+- Added settings resource-index rows for identity/profile, owner/member workspace, source connections, module permissions, agent boundaries, and environment/manual ops.
+- Added a detail/boundary pane and Manual Ops handoff with visible `Gate A not achieved`, `externalRegisterable=false`, `No permission write`, `No env mutation`, and `No provider runtime` boundaries.
+- Added `scripts/check-owneros-settings-simplified-surface.mjs` and `pnpm settings:simplified:check`.
+- This is implementation-first/proof-light per owner instruction: static checker and TypeScript proof are required; browser smoke is deferred. Gate A/B/C remain `NOT_ACHIEVED`; no route handler, Server Action, schema/migration, permission write, retention deletion/export runtime, env mutation, provider call, public output, external runtime, external registration, or external agent database access changed.
+
+### OWNEROS-AIINPUT-UI-001 — Simplified AI Input Work Desktop Runtime Surface
+
+- Reworked `/ai-input` as the Gate A core work desk surface under the existing protected Server Component loader.
+- Added `OWNEROS-AIINPUT-UI-001-SURFACE` with one `AI Work Desktop` job: `Capture, review, route`.
+- Added a compact command bar for `Capture`, `Review`, `Sources`, `Context`, and `Manual Ops`.
+- Added source/conversation index, proposal detail pane, settings/boundary rows, audit/Manual Ops handoff, and visible `externalRegisterable=false`, `No provider runtime`, `No DB write`, and `No public output` boundaries.
+- Added `scripts/check-owneros-ai-input-simplified-surface.mjs` and `pnpm ai-input:simplified:check`.
+- This is implementation-first/proof-light per owner instruction: static checker and TypeScript proof are required; browser smoke is deferred. Gate A/B/C remain `NOT_ACHIEVED`; no route handler, Server Action, schema/migration, DB write, provider call, OAuth/webhook/polling runtime, public output, external runtime, external registration, or external agent database access changed.
+
+## 2026-08-21
+
+### LOOP-219-LAUNCH-LEVEL-AND-NEXT-PHASE-REVIEW — Launch Review And UI/BFF Routing
+
+- Added `RPT-063_loop-219-launch-level-review-and-next-phase-routing.md` as the formal loop 219 launch-level review.
+- Generated fresh loop 219 launch/auth/Work/manual-ops/preemption/owner-plan/freshness/Gate A incomplete proof packets.
+- Confirmed formal launch remains `L0_LOCAL_PROTOTYPE`, Manual Ops remains `M1_MANUAL_OPS_READY`, conditional product maturity remains `C3_ARCHITECTURE_GATE_READY`, and Gate A/B/C remain `NOT_ACHIEVED`.
+- Recorded the no-upgrade reasons: Gate A A1-A8 evidence missing, signed-in owner auth status evidence missing, Work proof target/write confirmations missing, and deployment marker proof missing.
+- Routed the next phase to `OWNEROS-AIINPUT-UI-001` unless owner auth evidence appears and preempts with `AUTH-005`.
+- No runtime source, route handler, Server Action, Prisma schema, migration, DB write, provider call, Gmail send, public output, external agent database access, external registration, or launch-level upgrade was added.
+
+### OWNEROS-BFF-001 — Core Surface BFF View Model Contract
+
+- Added `ARC-037_owneros-core-surface-bff-view-model-contract.md` as the shared BFF/view-model contract for `/dashboard`, `/ai-input`, `/settings`, and `/admin`.
+- Added `src/lib/contracts/owneros-core-surface-bff.contract.ts` with shared `OwnerOsSurfaceFrame`, command bar, resource index, detail pane, agent proposal pane, records/audit, boundary panel, surface matrix, BFF invariants, source refs, and runtime-disabled flags.
+- Added `scripts/check-owneros-core-surface-bff-contract.mjs` and `pnpm owneros:surface-bff:check`.
+- Recorded `OWNEROS-AIINPUT-UI-001` as the next page-level runtime simplification task before the existing `OWNEROS-UI-003` `/settings` runtime simplification and `OWNEROS-UI-004` `/admin` runtime simplification.
+- Dirty `/ai-input`, `/settings`, and `/admin` runtime files were not touched. Gate A/B/C remain `NOT_ACHIEVED`; no route handler, Server Action, schema/migration, DB read/write, provider call, public output, external runtime, external registration, or external agent database access changed.
+
+### OWNEROS-UI-002 — Simplified Owner Dashboard Runtime Surface
+
+- Reworked `/dashboard` as the first runtime application of `ARC-036`: owner identity/status strip, one primary job, compact command bar, resource/index queue, primary detail/proposal pane, and proof/Manual Ops handoff.
+- Put `AI Work Desktop` first in the command bar and preserved the existing protected `getDailyCommandCenter()` Server Component loader.
+- Added `OWNEROS-UI-002-DASHBOARD-SURFACE` and `data-owneros-slot` markers for identity/mode, command bar, resource index, detail/proposal, records/audit, and Manual Ops handoff.
+- Added `scripts/check-owner-dashboard-simplified-surface.mjs` and `pnpm dashboard:simplified:check`.
+- Dirty `/ai-input` runtime files were not touched. Gate A/B/C remain `NOT_ACHIEVED`; no route handler, Server Action, schema/migration, DB write, provider call, public output, external runtime, external registration, or external agent database access changed.
+
+### OWNEROS-UI-001 — Simplified SaaS Operating Surface Design Pattern
+
+- Added `ARC-036_simplified-saas-operating-surface-design-pattern.md` as the Gate A/B/C UI simplification and consistency rule set.
+- Scored the cross-page requirement 92/100 and completed three research rounds: local product/code fit, official SaaS/admin operating patterns, and risk/launch/agent boundary review.
+- Added `src/lib/contracts/simplified-saas-operating-surface.contract.ts` with one-primary-job, index-detail, command-bar, agent-proposal, honest-state, audit/settings, copy-budget, surface-target, source-ref, blocked-pattern, and runtime-disabled safety contracts.
+- Added `scripts/check-simplified-saas-operating-surface.mjs` and `pnpm ui:simplified-saas:check` to validate contract/doc/backlog/tasks/acceptance/index/completed-log markers and forbidden side-effect patterns.
+- Gate A/B/C remain `NOT_ACHIEVED`; this is a design-pattern/checker prerequisite only. No route, Server Action, Prisma schema, migration, database read/write, provider call, public output, external runtime, external registration, or external agent database access changed.
+
+## 2026-08-20
+
+### OWNEROS-002A — Durable Chat And Authorized ContextPackage Contract
+
+- Added `ARC-035_owner-ai-work-desktop-chat-context-package-contract.md` as the research-to-task prerequisite for `OWNEROS-002`.
+- Scored the page/workflow requirement 88/100 and completed three research rounds: local PRD/code fit, BFF/data/auth boundary, and NANDA/MCP/audit acceptance.
+- Added `src/lib/contracts/owner-ai-work-desktop-chat-context.contract.ts` with conversation, message, context package, context reference, resolution check, manifest, source type, visibility, authz, retention, runtime flag, stop-condition, and NANDA posture contracts.
+- Added `scripts/check-owner-ai-work-desktop-chat-context.mjs` and `pnpm owner:chat-context:check` to validate contract/doc/backlog/tasks/acceptance/index markers and forbidden side-effect patterns.
+- Gate A remains `NOT_ACHIEVED`; this is contract proof only. No route, Server Action, Prisma schema, migration, database read/write, provider call, Gmail, public output, external runtime, external registration, or external agent database access changed.
+
+## 2026-08-18
+
+### OWNEROS-GATE-001 — Aggregate Gate A/B/C Proof Checker Contracts
+
+- Added `src/lib/contracts/owner-ai-work-desktop-gate.contract.ts` with Gate A/B/C IDs, criteria, no-secret packet fields, prohibited evidence classes, and safety flags.
+- Added `scripts/check-owner-ai-work-desktop-gates.mjs` and package commands `pnpm gate:a:check`, `pnpm gate:b:check`, `pnpm gate:c:check`, and `pnpm gate:all:check`.
+- The checker emits no-secret JSON with Gate id/status, target environment, auth mode, tested/deployed commit, freshness, mock fallback use, runtime and owner evidence flags, individual checks, blocker IDs, report path, SHA-256, documents, and safety posture.
+- The checker fails closed for missing evidence, mock/static/proposal/conditional/stale/manual-review/single-happy-path evidence, commit mismatch, missing runtime evidence, missing owner evidence, missing negative evidence, missing report path/SHA, missing deployed commit, and unrecorded formal L1 for Gate A.
+- `--allow-incomplete` exists only to capture current blocked proof packets during loop evidence; normal commands exit 0 only when the selected Gate is genuinely achieved.
+- Gate A/B/C remain `NOT_ACHIEVED`; no Gmail, DB/provider mutation, deployment, public output, launch-level upgrade, or external registration occurred.
+
+### OWNEROS-AUTO-001 — Ten-Minute Gate A/B/C Multi-Agent Automation
+
+- Updated the existing same-task heartbeat `personal-os-20m-aggressive-launch-loop` instead of creating a competing automation; it is active every 10 minutes under the name `Personal OS 10m Gate A/B/C multi-agent loop`.
+- Added an authoritative prompt defining startup/read requirements, one-slice task selection, issue/research escalation, bounded sub-agent roles, high-risk stops, per-loop Markdown/JSON evidence, and Gate A/B/C binary acceptance.
+- Added machine-readable gate state with all Gates initially `NOT_ACHIEVED`, Gmail notification `NOT_TRIGGERED`, connected `to: me` recipient policy, MIME Markdown attachment capability, and `externalRegisterable: false`.
+- Added run lease, dirty-path/hash overlap protection, primary-agent-only shared state/Gmail sending, and a three-repeat owner-input pause rule.
+- Added deterministic Gate A `notificationId`, report SHA-256, Sent-mail reconciliation, retryable attachment failure, and no-body-only fallback. No email was sent during configuration.
+- Used two read-only sub-agents to review Gate evidence mapping and automation/email safety; incorporated their runtime-evidence, dirty-worktree, overlap, idempotency, attachment, and owner-input recommendations.
+- Updated root `AGENTS.md`, formal automation/contraction plans, active strategy/loop state, backlog, sprint, tasks, acceptance, completed log, and evidence.
+- Verification: automation view/TOML confirms `ACTIVE` and `FREQ=MINUTELY;INTERVAL=10`; Gmail profile read succeeded; JSON parse and `git diff --check` pass.
+
+Formal delivery status remains Gate A/B/C `NOT_ACHIEVED`, launch `L0_LOCAL_PROTOTYPE`, Manual Ops `M1`, and conditional maturity `C3`.
+
+### OWNEROS-001 — Scenario-System Contraction And Company Sharing Plan
+
+- Recorded the owner-confirmed v1 product as a durable AI Work Desktop rather than an all-module launch.
+- Added `RPT-062`, preserving the requested three chapters: main/supporting scenarios, scenario-system development status, and remaining company-internal sharing gaps.
+- Added `PLN-067` with staged delivery and `OWNEROS-001..007` task shape covering durable chat/context, visibility/C-level, Inbox text reply, agent diaries/Rule-Skill candidates, internal AI Public Space, and an owner plus 2–3 member pilot.
+- Kept Finance/Life/Chamber collapsed mock/unavailable, Client Portal deferred, external agents denied direct DB access, and all five proposed v1 agents `externalRegisterable: false`.
+- Recorded four owner decisions required before the related high-risk runtime work: C-level grant authority, Company knowledge publication authority, Public Space triggers, and retention/offboarding.
+- Updated the primary PRD, document index, backlog, sprint, acceptance criteria, tasks memory, and evidence report.
+- Documentation only: no runtime, schema, migration, OAuth/provider, DB, deployment, public-output, or launch-level change.
+
+## 2026-07-27
+
+### INTERFACE-003 — Interface Smoke Checker Semantic Tab Reconciliation
+
+- Result: `scripts/check-interface-operability.mjs` now validates `ModuleOperatingShell` tabs semantically instead of matching the obsolete exact five-tab `ShellTab` union string.
+- Scope: required core tabs remain `overview`, `operation`, `agent`, `records`, and `settings`; the legitimate optional `libraryTabItem` is explicitly accepted.
+- Safety: forbidden placeholder/import checks, route-file checks, module operating-surface markers, docs/task memory markers, and Client Portal fail-closed checks remain active.
+- Verification: `node --check scripts/check-interface-operability.mjs`, `pnpm interface:smoke:check`, `pnpm l3:interface:check`, `pnpm db:validate`, `pnpm exec tsc --noEmit --pretty false`, and diff checks pass.
+- Boundary: no runtime UI, route handler, server action, schema/migration, DB read/write, provider call, public output, launch-level claim, or external registration changed.
+
+### TEAMCOLLAB-006 — Existing-Profile Invitation Lifecycle And Configured Activation
+
+- Result: `/work` now has a DB-backed TEAM members/invitations surface, OWNER/ADMIN create/revoke, OWNER-only OWNER grant, optional same-workspace project roles, and exact-email acceptance that switches into the accepted team.
+- Delivery/security: fresh raw tokens appear once in a manual Email link and only their SHA-256 digest is stored; replay never recovers the secret. The UI explicitly says `尚未寄出`, offers copy/mail draft, and makes no provider claim.
+- Authz: creation requires an existing Profile; acceptance requires an authenticated Profile plus exact verified Email. ACTIVE membership blocks reinvite, inactive membership routes to management, GUEST inherits no projects, and cross-workspace/project/role-escalation paths fail closed.
+- Audit: `MIG-008` expands only the reviewed invitation catalog while preserving hash/no-secret/append-only invariants. Wrong Email, expired, revoked/reused, and inactive cases are redacted/idempotent; same-name weakened catalog fails closed.
+- Disposable proof: actual service passed exact Email, reinvite rotation, accepted/wrong-Email/revoke replay, expiry, denial matrix, one explicit project grant, 11 no-secret audit rows, UPDATE/DELETE SQLSTATE `55000`, zero feedback/version/memory/provider/configured-target side effects, and full cluster/temp cleanup.
+- Configured activation: recovery packet plus rollback rehearsal passed before `prisma migrate deploy`; postcheck reports validated new catalog, current ledger, 0 TEAM/invitations/audits, current migration status, and zero schema diff.
+- Verification: invitation checker 27/27, create-team regression 32/32, configured activation 12/12, Prisma validate/generate, targeted ESLint, whole TypeScript, production build, and diff check pass.
+- Remaining: no test team/recipient was created. Signed-in owner team create plus a second existing Profile invite/accept smoke is review-required; automatic provider/new-user onboarding, member suspend/remove, transfer, feedback, AI memory, RLS, public output, and external agents remain separate.
+
+### LOOP-211 — Launch-Level Review
+
+- Result: formal launch remains `L0_LOCAL_PROTOTYPE`; Manual Ops remains `M1_MANUAL_OPS_READY`; conditional maturity remains `C3_ARCHITECTURE_GATE_READY`.
+- Fresh proof routing: loop-211 launch, auth, Work-target, preemption, and owner-plan packets were generated without secrets; `pnpm launch:freshness:check -- --loop 211` reports `ready_for_fresh_proof_routing`.
+- Blockers: `AUTH-005` still lacks signed-in owner `/auth/status?proof=1` evidence; `WORK-009` lacks a named disposable target and explicit write confirmations; `DEPLOY-002` lacks intended-environment deployment/route proof.
+- Last-five pattern: loop 206 review/research; 207 runtime plus disposable proof; 208 user-visible multistep UI plus browser proof; 209 configured collaboration activation; 210 protected BFF/contract plus build proof. No documentation-only repetition was found.
+- Product routing: `AIINPUT-CONN-005` is the immediate owner-directed safe slice; `INTERFACE-003` records a separate checker-only drift fix. Owner Auth/Work proof may preempt either.
+- Checks: L3 interface/scenario/architecture, backend operation catalog, module index/real-data matrix, protected agent API/command catalog, AI Input manifest, and internal agent registry pass. Interface smoke alone fails because its obsolete exact union omits the legitimate optional `library` tab; no runtime interface failure is claimed.
+- Safety: no runtime source change, provider call, secret write, DB connection/write, schema edit, migration/RLS apply, public output, final module write, or external registration was performed.
+
+### AIINPUT-CONN-004 — Typed Source Connection Manifest And Protected BFF Catalog
+
+- Result: added the contract-first source-connection catalog between the protected `/ai-input` Server Component and the existing six-step wizard.
+- Subagents: contract/API owned typed DTOs, six-provider manifests, validator, server-only loader, and page handoff; UI converted provider/step/account/scope behavior to consume the catalog; QA added the executable security and wiring checker.
+- BFF boundary: `loadAIInputSourceConnectionCatalog()` calls `requireUser()` and returns only UI-safe, redacted, static metadata. Invalid manifests return an unavailable catalog with zero providers and no formal-mode mock fallback.
+- Contract coverage: provider/account/scope/step manifests, redacted list/detail/setup-session/scope-preview/test/revoke-impact DTOs, seven-operation catalog, hash-only duplicate strategy, authz/audit refs, stop conditions, runtime flags, and NANDA internal-only posture.
+- Runtime posture: only protected static manifest read is allowed. Account/scope persistence, provider discovery/test, revoke-impact read, activation, OAuth, callbacks, webhooks, polling, secrets, provider API calls, DB reads/writes, public output, final module writes, and external registration remain disabled.
+- Verification: `pnpm ai-input:connection-manifest:check`, `pnpm ai-input:connection-wizard:check`, `pnpm ai-input:connector-boundary:check`, `pnpm agent:registry:check`, whole TypeScript, owned-file ESLint, production build, and diff checks.
+- NANDA: capability is protected-owner-visible contract-only, internal runtime remains disabled, no manifest identity/endpoint/auth changes were needed, and `externalRegisterable=false`.
+
+### TEAMCOLLAB-005B2 — Configured DB-Push Team Workspace Activation
+
+- Result: formally activated the configured database after the owner ran `db push`/`prisma generate`; `/work` now has the persisted prerequisites required to enable 建立團隊 for either platform OWNER.
+- Preflight: confirmed 3 Profiles, 10 null-scoped Projects, 0 workspaces/memberships, complete Prisma-created collaboration tables, and missing data backfill, custom constraints, partial index, append-only trigger, and collaboration migration-ledger rows.
+- Recovery and safety: created a permission-restricted focused recovery packet, rehearsed the exact combined repair/hardening transaction against the configured target with final `ROLLBACK`, then applied the same advisory-locked shape with hard postconditions.
+- Data result: created 3 deterministic active PERSONAL workspaces and 3 ACTIVE OWNER memberships, backfilled only 10 null Project workspace IDs, and created 0 TEAM/invitation/grant/feedback/version/memory/audit rows.
+- Integrity/history: restored 7 validated CHECKs, exact active-PERSONAL and audit-idempotency indexes, and exact append-only trigger/function; individually marked both already-materialized collaboration migrations applied. `prisma migrate status` is current and configured schema diff is zero.
+- Verification: configured activation checker passed 12/12; postcheck and eligibility query passed; 2 platform OWNERs are create-team eligible. No test TEAM was auto-created.
+- Browser boundary: a fresh local dev server returned `/work` as a protected 307 to `/login?next=%2Fwork`; the login page loaded the six-digit OTP/Magic Link owner entry with zero console warnings/errors. The Codex browser had no owner session, so it performed no create write.
+- Boundary: the signed-in owner must refresh `/work` and complete one named create/select/audit interaction to close review. Invitation/email provider, transfer, grants, feedback, AI memory, RLS, public output, and external agents remain off; launch stays L0/M1/C3.
+
+### AIINPUT-CONN-003 — AI Input multistep and multi-account prototype
+
+- Result: added an accessible six-step mock setup dialog for LINE, Google Drive, RSS, Gmail, GitHub, and Telegram and wired it into `/ai-input` source settings.
+- Subagents: UI owned the provider-aware wizard and mock account/scope state; integration owned Drive normalization, formal fail-closed, and draft-to-table mapping; QA owned accessibility/security review and the executable checker. Mainline integrated and ran the final proof.
+- Interaction delta: supports redacted multi-account selection, provider-specific topology, Drive multi-folder-to-multi-draft creation, RSS no-account flow, sync/analysis, routing/governance, review/test/success, exact duplicate blocking, and inline dependency/revoke/reauthorize impact preview.
+- Naming/contract delta: completed `AIINPUT-CONN-002` within the selected `AIINPUT-CONN-003` loop; mock/formal matrices now use Google Drive folders, and Docs/Sheets/Slides remain file subtype provenance rather than a standalone provider.
+- Formal safety: formal mode disables and closes the mock wizard; formal row management is unavailable and no longer derives detail policy from mock rows.
+- Verification: `pnpm ai-input:connection-wizard:check`, `pnpm ai-input:source-control:check`, `pnpm ai-input:connector-boundary:check`, `pnpm agent:registry:check`, targeted ESLint, whole TypeScript, production build, targeted diff, and isolated responsive browser checks.
+- Safety: no OAuth callback, provider call, token/secret input, route/action, webhook, polling, localStorage, DB/schema/migration, public output, final module write, or external registration was added.
+
+### TEAMCOLLAB-005B1 — Audit-Backed Team Workspace Creation Runtime And Disposable Proof
+
+- Result: implemented the first safe owner create-team vertical slice: TEAM workspace, creator ACTIVE OWNER membership, and a fixed no-secret `workspace.created` audit event commit in one transaction and the returned workspace becomes the `/work` selection target.
+- Auth/BFF: Server Action reruns `requireUser()` and input validation; the service independently verifies platform OWNER, exactly one active PERSONAL/OWNER membership, zero unscoped owner Projects, exact audit-catalog artifacts, and defensive name/UUID boundaries.
+- Idempotency/integrity: request keys are profile/action-bound SHA-256 refs; sequential and concurrent same-key calls converge on one workspace; exact trigger/function/CHECK/index definitions reject missing, partial, disabled, or same-name weakened audit storage.
+- UI: `/work` includes the server-readiness-gated 建立團隊 dialog with pending lock, one UUID per logical attempt, safe errors, returned-workspace navigation, and explicit no-invite/no-transfer/no-feedback/no-AI scope. The configured legacy target correctly remains disabled.
+- Proof: the self-created loopback PostgreSQL run passed eligible/distinct/concurrent/invalid/denial, five missing plus five same-name weakened catalog cases, forced audit rollback, no-secret audit, append-only UPDATE/DELETE SQLSTATE `55000`, zero invitation/grant/feedback/memory writes, and full pool/cluster/temp cleanup.
+- Verification: create checker 31/31, reconciliation checker 25/25, project-index checker 24/24, capability fixtures 45/45, Prisma validate/generate, targeted ESLint, whole TypeScript, production build, and diff checks passed.
+- Boundary: configured/live database access and mutation were zero. `TEAMCOLLAB-005B2` still requires explicit target-named `MIG-005` reconciliation/history review, `MIG-006` apply, and signed-in browser/audit proof. No invitation/provider/transfer/feedback/AI/RLS/public/external-agent expansion occurred; launch stays L0/M1/C3.
+
+### AIINPUT-CONN-001 — External source connection multistep and multi-account research
+
+- Result: completed `RES-027` and corrected the source-settings product model from a separate Google Docs connector to Google Drive folder connections with native Google Workspace documents preserved as file subtypes/provenance.
+- Requirement research: scored the page at 78/100 Medium, completed four same-issue rounds across local product/code fit, comparable account management, provider topology, and BFF/auth/security, then reached 93/100 High.
+- Interaction model: defined a six-step provider-aware `新增連線` modal, a separate connection-management drawer, and an account manager with multiple accounts, multiple connections, account/connection health separation, duplicate prevention, impact preview, reconnect, and revoke.
+- Provider research: recorded official Google Drive/Gmail, GitHub App, LINE Messaging API, Telegram Bot API, and RSS/Atom constraints, plus selected Zapier/Notion management patterns and rejected one-row-per-provider, one generic form, browser-held tokens, and all-provider rollout.
+- Architecture/NANDA: separated `ProviderAccount`, credential reference, `SourceConnection`, versioned scope, policy, cursor, and run evidence; proposed BFF/auth/audit boundaries; kept all capabilities protected/internal and `externalRegisterable: false`.
+- Task memory: added Phase 20 `AIINPUT-CONN-001..011`; the next safe UI-only slice is `AIINPUT-CONN-002`, followed by `AIINPUT-CONN-003`. Runtime pilots remain staged and approval-gated.
+- Safety: no runtime UI, OAuth callback, provider authorization, secret write, provider API call, webhook, polling, database/schema mutation, public output, final module write, or external registration was performed.
+
+### TEAMCOLLAB-005A - Team Workspace Migration History Reconciliation
+
+- Result: converted the reviewed collaboration SQL into canonical migration `20260727150000_team_workspace_collaboration` and added a separate read-only preflight plus transactional/advisory-locked repair packet for the configured database's known drift shape.
+- Diagnosis: configured read-only evidence showed collaboration tables outside Prisma history, 0 workspaces, 0 memberships, 10/10 Projects with null workspace scope, and no active-PERSONAL partial unique index. Creating a TEAM first would disable zero-membership compatibility and hide the legacy Projects.
+- Subagents: BFF produced canonical/repair artifacts, QA produced the dry-run-first dual disposable proof, and UI/checker produced the 21/21 static reconciliation gate. Mainline integrated the safety sequence, docs, automation/task memory, and verification.
+- Proof: clean-history canonical deploy and known-drift repair both produced one active PERSONAL workspace plus creator OWNER membership per Profile, zero orphan Projects, the exact unique partial index, stable Project id/owner/visibility/clientToken snapshots, zero TEAM/invitation/grant/feedback/version/memory rows, honest migration ledgers, and complete local cluster cleanup.
+- Verification: migration draft/reconciliation/project-index/capability checks, three-gate disposable proof, Prisma validate/generate, targeted ESLint, whole TypeScript, production build, in-app browser legacy-mode smoke, and diff checks passed.
+- Boundary: no configured/live repair, `migrate resolve`, TEAM creation, invitation/provider, transfer, feedback/AI-memory write, RLS, public output, external agent access, or launch upgrade occurred. `TEAMCOLLAB-005B` remains blocked until target-named reconciliation and persisted collaboration audit review.
+
+### TEAMCOLLAB-005 - Protected Work Workspace Switcher And Project Index Reads
+
+- Result: `/work` now renders a real, protected, server-loaded personal/team workspace project index. The query-string workspace ID is a selection preference only and cannot act as authorization.
+- Used three continuing subagents with non-overlapping BFF, UI, and QA/checker scopes. Mainline integrated the Server Component call, package command, Work loading state, full verification, disposable browser proof, and task memory.
+- BFF: added token-safe `WorkspaceProjectIndexDto`, workspace/project mappers, and `getWorkspaceProjectIndexForProfile()`. It loads only active memberships/workspaces, evaluates every project with the `TEAMCOLLAB-003` resolver, returns only `project.read`, and exposes read-only capability snapshots without membership IDs, emails, invitation tokens, Client Portal tokens, or Prisma payloads.
+- Fail-closed behavior: stale/guessed workspace IDs fall back only to an authorized workspace without existence disclosure. Auth Profile reads project only `id/email/role`, so the pending `auth_user_id` column cannot block compatibility. `P2021` or exactly zero memberships may use an explicitly labelled legacy exact-owner personal path; other DB failures return unavailable with no mock fallback, and invalid persisted memberships do not fall back to legacy.
+- UI: added personal/team query-link tabs, selected state, workspace type/role/member/project counts, Work loading, empty/filter-empty, unavailable, forbidden, and safe-fallback notices. TEAM cards are read-only `<article>` elements with no detail link even when legacy owner IDs match; `AddProjectDialog` appears only in legacy personal compatibility.
+- Verification: `pnpm teamcollab:project-index:check` passed 24/24, `pnpm teamcollab:capability:check` passed 45 fixtures, targeted ESLint passed, `pnpm db:validate`/`pnpm db:generate` passed, whole TypeScript passed, and the Next.js 16.2.4 production build passed.
+- Browser/DB proof: the current configured database, which does not yet have the collaboration draft, returned `/work` 200 in labelled legacy exact-owner mode without writes. Separately, a self-created loopback PostgreSQL database received deployable history plus the review-only collaboration draft and disposable fixtures; browser smoke confirmed personal/team switching, a visible TEAM project rendered as non-link, no TEAM add action, guessed-workspace safe fallback to personal, no TEAM project leakage, and zero browser console errors. Both dev servers stopped; the disposable database stopped and its temporary directory was removed.
+- Boundary: no live/Supabase schema apply, invitation/member write, transfer/access write, feedback/AI-memory write, RLS claim, provider call, public/Client Portal expansion, external agent access, or launch upgrade was added. WorkAgent remains internal/protected and `externalRegisterable: false`.
+
+### R2STORE-009 - Formal File/Media Library Real-Data Cutover
+
+- Result: formal mode no longer inherits File Library, Media Library, or classification-link mock arrays. It loads only persisted, owner-scoped `FileAsset` / `MediaAsset` rows; zero rows stay zero and render upload-first empty states.
+- Added a server-only library index service and UI mappers, loaded from the protected dashboard layout after user resolution. DB failure returns an explicit unavailable state with empty arrays and never falls back to mock content.
+- `LibraryClassificationProvider` now keeps separate Mock and Formal stores. File/Media uploads are blocked in Mock mode; successful Formal uploads use the persisted DTO returned by the server action and are reconstructed by the server loader after reload.
+- Live read-only DB proof returned 3 profiles, 0 file assets, and 0 media assets, confirming the current formal state should be empty instead of the seven demo rows in the reported screenshot.
+- Verification: `pnpm library:formal:check` PASSED (21/21), targeted ESLint PASSED, `pnpm exec tsc --noEmit --pretty false` PASSED, `pnpm db:validate` PASSED, and `pnpm build` PASSED.
+- Browser boundary: production browser smoke confirmed `/ai-input` remains protected and redirects to `/login?next=%2Fai-input`. The automation session did not have the owner's Supabase login, so the final upload → reload → download round trip remains one explicit owner-run check.
+- Research/NANDA: `RES-022` §10 records the 94/100 High page score and three completed rounds. No agent capability/endpoint/registry field changed; `externalRegisterable: false` remains unchanged.
+- No schema/migration, DB write during verification, Client Portal/public output, cross-owner exposure, or launch-level upgrade was added.
+
+### TEAMCOLLAB-004 - Additive Collaboration Schema And Disposable Migration Proof
+
+- Result: completed the additive Prisma schema, nondeployable migration/backfill draft, seed update, static gate, and self-created local disposable PostgreSQL proof. No live/Supabase database was used or changed.
+- Used three continuing subagent roles: schema implementation, native disposable proof/environment design, and migration/schema consistency review. Mainline integrated the SQL, seed, proof runner, safety gates, docs, and verification.
+- Schema: added seven collaboration models and 11 enums; kept `Project.ownerId`; added nullable `Profile.authUserId` and `Project.workspaceId`; persisted direct-grant status; made memory candidates reference exact feedback versions; selected explicit `RESTRICT` for invitation/project and memory-candidate/project lineage.
+- Migration: added a review-only SQL draft under `prisma/migration-drafts`, not `prisma/migrations`; the draft excludes unrelated pending timeline models, destructive SQL, RLS claims, provider calls, public output, and Client Portal column changes.
+- Backfill/seed: created one active personal workspace and owner membership per Profile, filled every null Project workspace from its legacy owner, preserved Project ID/owner/visibility/client token, and made the demo seed compatible with both migration-created and deterministic fresh workspaces.
+- Disposable proof: current deployable history and the review draft applied to a fresh loopback PostgreSQL 16 cluster; zero orphan projects, exact personal owner invariants, stable seed×2 counts, persisted-context cross-workspace read/write denial, no mutation after denial, Client Portal snapshot preservation, exact feedback-version lineage, restricted project deletion, and cleanup all passed.
+- Verification commands: `pnpm teamcollab:migration-draft:check`, `pnpm teamcollab:proof:local -- --dry-run`, gated `pnpm teamcollab:proof:local -- --run`, `pnpm db:validate`, `pnpm db:generate`, `pnpm teamcollab:capability:check`, TypeScript, build, targeted lint, and diff checks.
+- Boundary: proof is app-layer contract plus persisted disposable context, not JWT-aware RLS or privileged Prisma isolation. No deployable/live migration, Auth cutover, team service/UI/write runtime, email delivery, project transfer, feedback UI, AI provider/fine-tuning, external agent, public output, or launch upgrade was enabled.
+
+### TEAMCOLLAB-003 - Workspace And Project Capability Resolver Contract
+
+- Result: started team-collaboration implementation with a server-only, pure TypeScript capability resolver and executable fixture checker; no database or UI runtime was enabled.
+- Used three subagents with non-overlapping responsibilities: core resolver implementation, Work interface/scenario integration review, and security/fixture-matrix review. Mainline integration added the checker, operation policies, acceptance/task memory, and verification.
+- Added `src/lib/contracts/team-workspace-capability.contract.ts`, `scripts/check-team-workspace-capability.ts`, and `pnpm teamcollab:capability:check`.
+- Resolver: active identity/workspace/membership is mandatory; workspace owner/admin maps to project manager; active direct grants exactly override inherited roles; only members inherit on workspace-visible projects; guests never inherit; private, inactive, malformed, and cross-workspace cases fail closed.
+- Interface/BFF readiness: added separate workspace/project capability maps, redacted decision DTOs, and operation policies for the future Work-scoped switcher/project index, members/invitations, transfer/access, feedback moderation, and AI-memory review. Browser/localStorage prototype state is explicitly not authorization.
+- Coverage: 20 built-in plus 25 extended executable fixtures; exact role maps; all 13 `AUT-008` negative scenarios recorded as resolver fixture, BFF policy, or declared follow-up boundary without runtime-proof overclaim.
+- NANDA: WorkAgent remains internal/protected/proposal-only, project-scoped, and `externalRegisterable: false`; no AI runtime or external-agent access was enabled.
+- Verification: `pnpm teamcollab:capability:check`, targeted ESLint, `pnpm exec tsc --noEmit --pretty false`, and `pnpm db:validate` passed. Final JSON/docs/diff checks are recorded in loop 201 evidence.
+- Boundary: no Prisma/schema/migration/seed, DB read/write, service, route, Server Action, UI, provider invitation, project transfer write, feedback persistence, AI provider/runtime, public output, Client Portal change, RLS claim, or launch upgrade.
+
+### TEAMCOLLAB-001 / TEAMCOLLAB-002 - Team Workspace, Shared Projects, And AI Feedback Memory Research
+
+- Result: completed owner-directed research and planning for team tabs/workspaces, multi-team membership, email invitation, personal-to-team project transfer, project roles, protected external feedback, and governed AI knowledge/memory.
+- Created `RES-026`, `SCH-006`, `AUT-008`, and `PLN-066`.
+- Reconciled history: `RES-020` remains the current exact-owner isolation audit, but its one-Profile/one-Tenant/no-shared-workspace product decision is superseded; `SCH-004` is marked superseded; `ARC-033` records the safe future capability-resolver cutover.
+- Research gate: scored the page/flow 89/100 High and completed three rounds across local code/PRD fit, Linear/Notion/Google Drive/GitHub collaboration patterns, and Supabase/NIST auth/data-lineage/AI boundaries.
+- Selected model: one personal plus multiple team workspaces; workspace governance role separate from project capability role; active members inherit at least the configured viewer access for workspace-visible projects; guests require explicit grants; project transfer changes the ownership container without copying records.
+- AI boundary: feedback becomes attributed/versioned project data and may produce source-linked summaries/actions/`MemoryCandidate` proposals. No automatic provider fine-tuning, global memory, final Work write, cross-workspace reuse, or external-agent access.
+- NANDA: future WorkAgent feedback capabilities remain internal/protected/proposal-only with `externalRegisterable: false`.
+- Task memory: added Phase 19 `TEAMCOLLAB-001..010`; next safe slice is `TEAMCOLLAB-003` capability resolver contract/fixture proof.
+- No runtime code, Prisma schema edit, migration, DB write, provider invite, public output, AI provider call, automatic memory promotion, or launch-level upgrade was added.
+- Verification: `pnpm launch:check`, `pnpm launch:manual-ops`, `pnpm owner:access:check`, `pnpm agent:registry:check`, `pnpm agent:devteam:check`, `pnpm l3:architecture:check`, `pnpm db:validate`, and `pnpm exec tsc --noEmit --pretty false` passed. Work proof target remains `needs_operator_input` as expected. Loop-state JSON parse, new-doc/reference scan, and `git diff --check` passed. `pnpm interface:smoke:check` remains red because its existing exact `ModuleOperatingShell` marker is absent from current runtime source; this pre-existing checker/source drift was not changed by the docs-only task.
+
+### AUTH-010 - Six-Digit Email OTP Login (Application Runtime Complete, Provider Review Required)
+
+- Result: Added an owner-requested two-step Email OTP path to `/login` while retaining the existing Magic Link option.
+- `src/app/actions/auth.ts` now exposes `requestEmailOtp` and `verifyEmailOtp`. The request keeps `shouldCreateUser: false`; verification accepts exactly six digits, calls `verifyOtp({ email, token, type: "email" })`, writes the Supabase SSR session through the existing cookie-backed server client, and redirects only to a normalized internal `next` path.
+- `src/app/(auth)/login/page.tsx` now renders send-code, enter-code, invalid/expired, resend, and Magic Link states. `src/components/auth/auth-submit-button.tsx` adds pending/disabled feedback through React 19 `useFormStatus`.
+- Updated the owner-access readiness contract, `AUT-002`, `ACC-002`, backlog, sprint, and task memory. Added `pnpm auth:email-otp:check` as a no-secret static boundary check.
+- Research gate: 93/100 High; completed the required three same-issue lenses across local auth/redirect fit, official Supabase OTP/template behavior, and risk/acceptance/verification boundaries.
+- Verification: `pnpm auth:email-otp:check` PASSED, `pnpm owner:access:check` PASSED, targeted ESLint PASSED, `pnpm exec tsc --noEmit --pretty false` PASSED, `pnpm db:validate` PASSED, the final `pnpm build` PASSED after the pending-button refinement, and in-app browser smoke confirmed request/verification UI, exactly-one OTP input, numeric/one-time-code/six-digit attributes, Magic Link retention, normalized protected next path, and no login-page console error.
+- Remaining provider review: the hosted Supabase `Magic Link or OTP` template could not be inspected through the available dashboard session. Confirm that it contains `{{ .Token }}` and keeps `{{ .ConfirmationURL }}`, then complete one real inbox/OTP login round trip. Until that proof exists the backlog row remains `REVIEW_REQUIRED`; no provider-level completion or launch upgrade is claimed.
+- Safety: no service-role key, user/Profile provisioning, Prisma import, application DB write, schema/migration, public private-data output, permission bypass, or launch-level upgrade was added.
+
+## 2026-07-24
+
+### AIDEVTEAM-002 - AI Development Team OS Domain and Adapter Contract
+
+- Result: Owner approved the implementation plan to codify the domain and adapter architecture contracts.
+- Implemented `docs/02_architecture-and-rules/ARC-034_ai-development-team-os-contract.md` mapping the 20 core domain and adapter objects and invariants (SharedAgentTrustPlane, ConversationConsentContext, DevelopmentExecutionContext, IndependentAIDevelopmentTeamInterface, CrossContextAccessRequest, ContextPackageManifest, DecisionRuleScope, AuditEvidenceEnvelope, ExternalRegistrationGate, RuntimeApprovalGate, DevTeamTask, DevAgentRole, DevAgentAssignment, DevContextRequest, DevWorktreeSession, CodingAgentAdapterPolicy, DevRunEvidence, DevReviewDecision, DevExperienceMemory, and DevSkillCandidate).
+- Implemented `src/lib/contracts/ai-development-team-os.contract.ts` declaring types, constants, and Zeroth Trust safety boundaries (all endpoints, database write access, and external registration blocked).
+- Implemented static checker script `scripts/check-ai-development-team-os-contract.mjs` verifying contract presence, safety markers, forbidden patterns, and documentation linkage.
+- Registered script validation as `pnpm agent:devteam:check` in `package.json`.
+- Verification: `pnpm agent:devteam:check` PASSED, `pnpm db:validate` PASSED, `pnpm exec tsc --noEmit --pretty false` PASSED (after generating updated Prisma Client), and `git diff --check` PASSED.
+
+## 2026-07-22 (continued, even later)
+
+### R2STORE-005 / R2STORE-006 - Wire Media Library And Work Upload Dialog To Real R2
+
+- Result: Owner said to continue implementing. Finished the remaining two upload surfaces from `PLN-064` Stage 4.
+- `R2STORE-005`: `src/components/ai/media-library/media-library-page.tsx` — replaced `MOCK_UPLOADS`/`pickUploadKind` with a real file picker (`accept="image/*,video/*,audio/*"`), kind derived from MIME type, presigned-PUT upload via `requestMediaUpload`. Added `objectKey?: string` to `src/types/media-library.ts`'s `MediaAsset` (this type had no storage-reference field yet, unlike `FileAssetSnapshot` which already had one from earlier `RES-016`/`RES-019` design work). Wired download in both places it appears: the previously-literal-no-op (`onClick={() => {}}`) readonly "下載" button, and a new download icon button added to the full-mode action row (there wasn't one before), both via a new `requestMediaDownloadByObjectKey` action.
+- `R2STORE-006`: `src/components/work/project/add-project-dialog.tsx` — `toFileAsset()` changed from sync to async; now calls `requestFileUpload` and PUTs the real file to R2 before building the `FileAsset` object, so the snapshot's `objectKey` is populated. These assets flow into the same shared `LibraryClassificationProvider` context as the File Library, so they become downloadable there via the `R2STORE-004` wiring with no extra code. On a failed upload, falls back to the previous metadata-only behavior instead of throwing, so one bad file doesn't block project creation. Left `parseProjectDocuments` (the AI content-parsing discard bug, a document-understanding gap) untouched — out of scope for the storage line.
+- Verification: `pnpm exec tsc --noEmit --pretty false` PASSED (whole project) after each change, `pnpm exec eslint` PASSED on every touched file, dev server (owner's own, already running) smoke-checked: `/ai-input` and `/work` both still correctly 307-redirect to `/login`, no crash.
+- Backlog: `PLN-060` `R2STORE-005`/`R2STORE-006` marked `DONE (owner browser click-through still pending)` — same verification boundary as `R2STORE-004`: no browser automation tool in this environment, so the actual click-through (upload real image/video/audio, and upload real files while creating a project) still needs the owner to run manually.
+- Remaining: `R2STORE-007` (Client Portal exposure) stays `BLOCKED` pending explicit separate owner approval and the full `AUT-004` checklist, unchanged from before. `R2STORE-008` (backup/retention) remains `DEFERRED`, not MVP.
+
+## 2026-07-22 (continued, later still)
+
+### R2STORE-004 - Wire AI Input File Library To Real R2 Upload/Download
+
+- Result: Continued the same-session R2 implementation after `R2STORE-001`'s migration landed. Wired the first real upload surface per `PLN-064` Stage 3.
+- `src/components/ai/file-library/file-library-page.tsx`: replaced `handleUpload()`'s random mock-name generator with a real hidden `<input type="file">`, triggered by the existing "上傳新檔案" button. On file selection: calls `requestFileUpload` (server action) to create a real `FileAsset` row and get a presigned PUT URL, then `fetch`-PUTs the actual file bytes directly to R2, then adds the file to the existing rich mock UI list with `source.provider = "r2"` and the snapshot's pre-existing (previously unused) `objectKey` field populated with the real R2 object key — this field already existed in `src/types/file-library.ts` from earlier `RES-016`/`RES-019` design work, so no new UI type was needed.
+- Download wiring: `handleAction`'s `"download"` case now checks the asset's latest snapshot for a real `objectKey`; if present, calls a new `requestFileDownloadByObjectKey` action (added to `src/app/actions/storage.ts`, backed by a new `getFileAssetByObjectKeyForProfile` in `src/lib/services/storage.service.ts`, owner-scoped) and opens the resulting presigned URL. Assets without a real `objectKey` (all pre-existing seed/mock rows) keep the original "not connected" toast — no regression for demo data. Added the same `objectKey`-based lookup/action pair for `MediaAsset` for parity, ready for `R2STORE-005`.
+- Verification: `pnpm exec tsc --noEmit --pretty false` PASSED (whole project), `pnpm exec eslint` on all touched files PASSED. Found the user's own `pnpm dev` already running on port 3000; smoke-checked `GET /ai-input` still correctly 307-redirects to `/login` (auth guard intact, no server-side crash from the change) and `GET /` returns 200.
+- **Verification boundary, stated plainly:** no actual authenticated browser click-through was performed — this environment has no browser automation tool. The owner should manually sign in, go to AI Input → 檔案庫, upload a real file, reload, and download it back to confirm the full round trip. Recorded as the exact pending check in `PLN-060`'s `R2STORE-004` row per `AGENTS.md`'s Owner-Run Evidence Handoff guidance.
+- Backlog: `PLN-060` `R2STORE-004` marked `DONE (owner browser click-through still pending)`.
+- Remaining risk: none new — the upload/download authorization path reuses the already-tested `R2STORE-002`/`R2STORE-003` primitives; only the UI wiring and the new `objectKey` lookup path are unverified by a live click.
+
+## 2026-07-22 (continued, later)
+
+### AIDEVTEAM-011 - GitHub Reference Repositories For AI Development Team OS Research
+
+- Result: Owner asked whether any GitHub repositories can inform the current AI development team direction and asked for web research plus related research documents.
+- Wrote `docs/07_research-and-design/RES-025_github-reference-repositories-for-ai-development-team-os-research.md`: ranks current GitHub/project references by independent interface, worktree/session, adapter runtime, review/evidence, governance, protocol, maintenance, and license fit.
+- Wrote `docs/2_agent-input/generated/agent-loop/github-reference-repositories-for-ai-development-team-os.zh.md`: Chinese discussion companion for owner review.
+- Main finding: Personal OS should not clone one external "AI team" product. It should keep its own Shared Team OS Trust Plane and independent AI Development Team interface, while borrowing patterns from Agent Canvas/Paperclip/Pane/Superset for interface/worktree, OpenHands/OpenCode/Goose/Plandex/Aider/Open SWE/SWE-agent for adapters, PR-Agent/Zeroshot for review/evidence, ACP for protocol boundaries, and Agyn only as research concept because its repo is archived/license-unclear.
+- Updated `MAN-001`, `PLN-060`, `PLN-061`, `PLN-065`, `tasks.md`, `loop-state.json`, and generated loop evidence. Added `AIDEVTEAM-011` as DONE and clarified `AIDEVTEAM-002`/`003`/`006`/`007`.
+- Verification: `pnpm agent:registry:check` PASSED, `pnpm agent:bus:check` PASSED, loop-state JSON parse PASSED, `git diff --check` PASSED.
+- Remaining risks: `AIDEVTEAM-002` still needs a formal `ARC-*` contract before any interface/runtime implementation. License strategy remains mandatory before adopting `NOASSERTION`, archived, GPL, or AGPL projects as dependencies. No route/UI implementation, runtime execution, DB/schema migration, provider call, public endpoint, external registration, external agent access, or automatic merge was added.
+
+### R2STORE-001 Applied - Live Migration, With Disclosure Of An Unintended Side Effect
+
+- Result: Owner gave explicit go-ahead to migrate `FileAsset`/`MediaAsset` onto the live Supabase database (no disposable DB available — Docker unavailable in this environment). Ran `pnpm exec prisma migrate dev --name add_file_media_assets`.
+- **Unintended scope expansion, disclosed immediately:** `prisma migrate dev` diffs the *entire* `schema.prisma` against the live DB, not a targeted subset. `schema.prisma` already had other pending, deliberately-unapplied changes sitting in it from prior sessions — 7 AI Input Source Workflow tables (`SourceConnection`, `SourceAsset`, `AIWorkflowRun`, `AIWorkItem`, `SourceNamingProfile`, `DataUnitProposal`, `ModuleWriteIntent`, drafted by `DATTR-024H-MIGRATION-DRAFT`/`MIG-003`, which explicitly says "migration apply remains blocked") and the nullable `AcademicPerson.ownerId` column (`TENANT-001`, explicitly logged as "schema-only, no migration applied"). All of it was applied in the same migration, without being asked about first.
+- Assessed and disclosed the actual impact to the owner: every change is additive only (new tables, one nullable column, no drops/alters of existing data-bearing columns), and no application code reads or writes any of the 7 AI Input tables yet (`ai-input-source-workflow.service.ts` still hardcodes `runtimeDbReadEnabled=false`/`runtimeDbWriteEnabled=false`; RLS/connector-runtime/cutover gates `DATTR-024K/L/M` are unaffected since they gate on code/env, not table existence) — so nothing in the running app changed behavior. Owner reviewed and explicitly chose to keep the tables rather than run a further live `DROP TABLE` migration to roll back.
+- Corrected the record rather than leaving stale "not yet applied" claims: added a 2026-07-22 addendum to `MIG-003` distinguishing schema *existence* (now true) from schema *usage* (still correctly blocked); updated `PLN-060`'s `DATTR-024H-MIGRATION-DRAFT` and `TENANT-001` row notes with the same disclosure; updated `R2STORE-001`'s own row to `DONE`.
+- Verification: `prisma migrate dev` output confirmed a clean apply (`Your database is now in sync with your schema`); reviewed the generated `migration.sql` line by line to confirm every statement was `CREATE TYPE`/`CREATE TABLE`/`CREATE INDEX`/`ADD COLUMN` (nullable)/`ADD CONSTRAINT` — no `DROP`, no `ALTER COLUMN` on an existing column, no data-affecting statement.
+- Remaining risk / lesson for future loops: `prisma migrate dev` (and `db push`) always diff the full schema file against the live database — before running either against a live target, first diff `git diff prisma/schema.prisma` (or review the generated SQL) to confirm scope matches what the owner actually approved, not just the change being worked on in that loop.
+
+## 2026-07-22 (continued)
+
+### AIDEVTEAM-010 - Shared Team OS Trust Plane and Independent AI Development Team Interface Research
+
+- Result: Owner asked to generate the related research document after choosing the Shared Team OS Trust Plane direction and clarifying that AI Development Team OS should be a brand-new independent protected interface.
+- Wrote `docs/07_research-and-design/RES-024_shared-team-os-trust-plane-and-independent-ai-development-team-interface-research.md`: defines the shared trust plane, `RES-015` Conversation/Consent context, AI Development Team Development/Execution context, independent interface boundary, cross-context access flow, BFF-first implications, page-understanding score, NANDA gate, rejected alternatives, and backlog implications.
+- Wrote `docs/2_agent-input/generated/agent-loop/shared-team-os-trust-plane-independent-interface-research.zh.md`: Chinese discussion companion for owner review.
+- Updated `MAN-001`, `PLN-060`, `PLN-061`, `PLN-065`, `tasks.md`, `loop-state.json`, and generated loop evidence. Added `AIDEVTEAM-010` as DONE and clarified `AIDEVTEAM-002`/`AIDEVTEAM-006`.
+- Verification: `pnpm agent:registry:check` PASSED, `pnpm agent:bus:check` PASSED, loop-state JSON parse PASSED, `git diff --check` PASSED.
+- Remaining risks: `AIDEVTEAM-002` still needs to turn `RES-024` into a formal `ARC-*` contract before any new AI Development Team interface or runtime work. No route/UI implementation, DB/schema migration, provider call, public endpoint, external registration, or automatic merge was added.
+
+### AIDEVTEAM-001 - AI Development Team OS Structural Research and Research Plan
+
+- Result: Owner asked for structured research and a research plan for evolving Personal OS into an AI Development Team OS, with the plan described through an evolution of `RES-015`'s architecture-diagram perspective.
+- Research grounding: read the required loop docs plus `RES-015`, `RES-010`, `RES-011`, `ARC-023`, `ARC-028`, `ARC-032`, and inspected the existing internal bus/dry-run contracts and protected `/agents` surface. Reviewed the owner-supplied OSS index through GitHub/official sources: LangGraph, Deep Agents, Paperclip, OpenHands, OpenHands Agent Canvas, Pane, OpenCode, Goose, Plandex, Superset, Letta, Graphiti, Neo4j, Temporal, NATS, Ollama, vLLM, Podman/Moby, PostgreSQL, Redis, OpenTelemetry Collector, Grafana/Loki, MinIO, and Garage.
+- Wrote `docs/07_research-and-design/RES-023_ai-development-team-os-structural-research.md`: evolves the `RES-015` Requester Agent / Custodian Agent / Owner Inbox / Rule Memory pattern into a development-team flow with Team Command Surface, Coordinator Agent, context requests, deadlock escalation, durable workflow, isolated worktree sandbox, evidence/review, and memory/skill promotion. Tooling is assessed by layer and adoption posture rather than imported wholesale.
+- Wrote `docs/05_execution-plans/PLN-065_ai-development-team-os-research-plan.md`: adds the research plan for `AIDEVTEAM-001..009`, covering domain/adapter architecture, worktree/session contract, durable workflow state machine, memory/versioning and skill promotion, protected readiness UI, coding-agent adapter permission profiles, observability/artifacts, and a blocked controlled sandbox pilot.
+- Owner follow-up decision: proceed toward a **Shared Team OS Trust Plane** and treat AI Development Team OS as a brand-new independent protected interface, not a tab, section, or extension of any existing interface (`/agents`, `/ai-input`, `/admin`, `/settings`, `/work`, or module pages). `AIDEVTEAM-006` was re-scoped accordingly; existing protected surfaces are technical reference patterns only.
+- Backlog & index registration: registered `RES-023` and `PLN-065` in `MAN-001_document-index.md`; added `PLN-060` Phase 18 (`AIDEVTEAM-001..009`); updated `PLN-061_current-sprint.md`, `tasks.md`, `loop-state.json`, and generated evidence.
+- NANDA boundary: applies. Current artifact is governance/research only; `externalRegisterable: false`; no internal runtime, public endpoint, external registration, direct DB/secrets access, provider call, schema migration, automatic code merge, or high-risk module final write was added.
+- Verification: `pnpm agent:registry:check` PASSED, `pnpm agent:bus:check` PASSED, `pnpm exec tsc --noEmit --pretty false` PASSED, `git diff --check` PASSED.
+- Remaining risks: `AIDEVTEAM-002..008` must land before any coding-agent sandbox pilot. License strategy must be reviewed before adopting `NOASSERTION`, GPL, or AGPL dependencies. Formal launch remains blocked by owner/operator evidence for `AUTH-005`, `WORK-009`, and `DEPLOY-002`.
+
+### R2STORE-000 Verified - Real R2 Round-Trip Smoke Test
+
+- Result: Owner provided real Cloudflare R2 credentials in `.env.local` and asked to continue. Confirmed the four required env var names were present (checked key names only via `grep -o '^[A-Z_]*='`, never read the actual secret values into this conversation).
+- Added `scripts/r2-storage-smoke-test.ts` (`pnpm storage:r2:smoke-test`): generates a real presigned PUT URL, uploads a small known text payload, generates a real presigned GET URL, downloads and verifies the content matches, then deletes the test object. Logs bucket name and a random test object key only — never the presigned URLs (bearer tokens) or credential values, per `AUT-005`'s no-secret-in-logs convention.
+- Hit and fixed a latent, pre-existing environment gap: the `server-only` npm package was never actually installed (20+ existing service files already had `import "server-only"` at the top, silently relying on Next.js's webpack build to alias it — this worked inside the Next.js app but breaks any standalone script, like this smoke test, that imports those files directly). Installed the real `server-only` package (the standard, Next.js-recommended fix). This then surfaced a second issue: the real package's `exports` map throws unless the `react-server` condition is active (which Next.js sets internally, but plain `tsx`/`node` do not) — fixed by adding `NODE_OPTIONS=--conditions=react-server` to the `storage:r2:smoke-test` script command, so it's reproducible without manual env-var prefixing.
+- `pnpm storage:r2:smoke-test` **PASSED end-to-end** against the real bucket: upload, download, content match, and cleanup all succeeded.
+- Backlog: `PLN-060` Phase 17 `R2STORE-000` marked `DONE`; `R2STORE-002`/`R2STORE-003` notes updated to record the real smoke-test verification (previously only typechecked).
+- Verification: `pnpm exec tsc --noEmit --pretty false` PASSED, `pnpm exec eslint scripts/r2-storage-smoke-test.ts` PASSED, `pnpm storage:r2:smoke-test` PASSED (twice, to confirm the baked-in flag works standalone).
+- Remaining risk: `FileAsset`/`MediaAsset` tables still do not exist in any database (schema-only, `R2STORE-001`) — the next gate is whether to run `prisma migrate dev` against the live Supabase target, which needs a separate explicit owner go-ahead per `AGENTS.md` §11 before any UI wiring (`R2STORE-004`) can actually persist a row.
+
+### R2STORE-001..003 - R2 Storage Schema, Client, and Presigned-URL BFF Implementation
+
+- Result: Owner said to start implementing the R2 line now and asked what environment parameters were needed. Told the owner the four required env vars (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`) and how to obtain them from the Cloudflare dashboard (private bucket, bucket-scoped API token with Object Read & Write) — this is `PLN-064` Stage 0, an owner action this repo cannot perform.
+- Implemented `PLN-064` Stage 1 (schema): added `FileAsset`/`MediaAsset` Prisma models plus `StorageProvider`/`FileScanStatus`/`LibraryAssetVisibility` enums to `prisma/schema.prisma`, per `SCH-005`'s proposal — scope trimmed to just these two models for this pass (`ProjectDeliverableFile` deferred until `R2STORE-006`/`R2STORE-007` actually need it, keeping the change minimal). Both models are `ownerId`-scoped to `Profile` per `ARC-033`. **Schema-only** — no migration file created, no live-DB migration run, since Docker is unavailable in this environment (no disposable DB) and the only configured `DATABASE_URL` points at the live Supabase target; live migration requires a separate explicit owner go-ahead per `AGENTS.md` §11.
+- Implemented `PLN-064` Stage 2 (R2 client + presigned-URL BFF): `src/lib/storage/r2-client.ts` (server-only `S3Client` factory reading env vars), `src/lib/storage/object-key.ts` (server-generated object keys, never client-supplied), `src/lib/storage/presigned-url.ts` (`createUploadUrl`/`createDownloadUrl`, 15-min/5-min TTLs per `AUT-004`), `src/lib/services/storage.service.ts` (ownership-checked CRUD for both asset types, mirroring `project.service.ts`'s `assertCanAccessProject` pattern), `src/app/actions/storage.ts` (`"use server"` actions `requestFileUpload`/`requestFileDownload`/`requestMediaUpload`/`requestMediaDownload`, `requireUser()` + ownership check before every signed-URL mint, zod-validated input, matching `work.ts`'s `ActionResult` pattern).
+- Dependency install hit an unrelated environment blocker first: this project's `node_modules` was linked against a different pnpm store format than the active `pnpm 10.28.0`, so `pnpm add` failed non-interactively. Asked the owner how to proceed; owner approved a forced `pnpm install` (`CI=true pnpm install`), which relinked dependencies cleanly with no other changes. Then installed `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`.
+- `.env.example` updated with the four R2 placeholder vars and a pointer to `PLN-064` Stage 0.
+- Backlog: `PLN-060` Phase 17 rows `R2STORE-001` marked `IN_PROGRESS` (schema authored/validated, migration pending), `R2STORE-002`/`R2STORE-003` marked `DONE`; `PLN-061` updated.
+- Verification: `pnpm db:validate` PASSED, `pnpm db:generate` PASSED, `pnpm exec tsc --noEmit --pretty false` PASSED (whole project), `pnpm exec eslint` on all five new files PASSED.
+- Remaining risks: no real R2 credentials exist yet, so the presigned-URL round trip is typechecked but not smoke-tested end-to-end. No migration has been applied to any database. `R2STORE-004` (first real upload surface) is blocked on the owner completing Stage 0.
+
+### RES-022 / SCH-005 / PLN-064 - Cloudflare R2 File/Media Storage Integration Research and Multi-Stage Plan
+
+- Result: Owner asked, in a same-session follow-up to `RES-021`, that file upload and media upload connect to Cloudflare R2, and asked for a research document plus a multi-stage implementation plan.
+- Research grounding: a dedicated code audit found **no working storage backend anywhere in `src/`** — Work's "新增專案" dropzone captures real `File[]` but discards the bytes on submit (only name/type/size copied into a mock row); AI Input's File Library and Media Library upload buttons are not wired to any file picker and fabricate random mock rows. No `FileAsset`, `MediaAsset`, or `ProjectDeliverableFile` Prisma model exists. This resolves an open decision already sitting unimplemented in `AUT-004_client-portal-public-storage-policy.md` ("Remaining Decisions: whether the first implementation should use Supabase Storage only or keep a provider abstraction for future R2") — R2 is now the chosen provider, per direct owner instruction.
+- External research: fetched official Cloudflare R2 docs (`developers.cloudflare.com/r2/api/s3/presigned-urls/`, `/r2/buckets/public-buckets/`, `/r2/buckets/cors/`). Confirmed R2 is S3-compatible (standard AWS SDK v3 works from a normal Next.js server route, no Workers runtime needed), presigned URLs support 1 second to 7 day expiry via `getSignedUrl`, and — the key architecture-determining fact — **public buckets expose the entire bucket with no per-object privacy**. This independently confirms `ARC-001` §12.1's already-sketched (Chinese, unimplemented) design: private bucket + backend-proxy presigned-URL pattern, matching `AUT-004`'s existing storage rules (short-TTL server-generated signed URLs, no persisted raw URLs, authorization before signing).
+- Wrote `docs/07_research-and-design/RES-022_cloudflare-r2-file-media-storage-integration-gap-research.md` (gap research + recommended architecture + risk classification), `docs/02_architecture-and-rules/SCH-005_cloudflare-r2-storage-schema-proposal.md` (proposal-only `FileAsset`/`MediaAsset` Prisma models, `ownerId`-scoped per `ARC-033`, adopting `AUT-004`'s existing `ProjectDeliverableFile` shape as-is; includes `DBS-001` migration-impact note), and `docs/05_execution-plans/PLN-064_cloudflare-r2-storage-multi-stage-implementation-plan.md` (Stage 0 owner-only Cloudflare account/bucket/token setup -> Stage 1 schema -> Stage 2 R2 client + presigned PUT/GET BFF routes with `requireUser()`+ownership checks -> Stage 3 first real surface, AI Input File Library, chosen per `ARC-012` §5A.1's "one canonical asset store" -> Stage 4 remaining surfaces (Media Library, Work upload dialog) -> Stage 5 Client Portal file exposure, explicitly `BLOCKED` pending a fresh explicit owner approval per `AGENTS.md` §11 -> Stage 6 backup/retention, deferred).
+- Backlog & index registration: added `PLN-060` Phase 17 (`R2STORE-000..008`, full acceptance/verification/notes per row); registered `RES-022`, `SCH-005`, `PLN-064` in `MAN-001_document-index.md`; updated `PLN-061_current-sprint.md` Current Status.
+- Verification: documentation/planning-only task; no schema migration, credential, dependency install, or runtime code changed. `R2STORE-000` (real Cloudflare account/bucket/API token) is explicitly an owner action this repo cannot perform.
+- Remaining risks: Stage 1 (live schema migration) and Stage 5 (Client Portal exposure) both require explicit owner go-ahead per `AGENTS.md` §11 before implementation, independent of this planning pass. No real R2 credentials exist yet, so Stage 2's route logic can only be typechecked, not smoke-tested end-to-end, until Stage 0 is complete.
+
+### RES-021 - Work Portfolio Import, Phase/Progress Tracking, Staffing Calendar, and Work Diary Gap Research
+
+- Result: Owner asked to import all currently-running work projects (source: a named Google Drive folder), manually declare project count, fully map each project's phase/progress rhythm start-to-end, show staffing-aware busy/milestone dates for one or multiple people, produce a goal-based document plus a calendar to track project rhythm, and add a per-project free-text work-diary field to capture qualitative status rather than only data-inferred progress.
+- Blocker found first: the `claude.ai Google Drive` MCP connector is not authorized in this non-interactive session, so the named Drive folder could not be listed or read. No project content was fabricated or inferred; the research is scoped entirely to current system capability.
+- Research grounding: read `PRD-001`, `PRD-004`, `PRD-005`, `ACC-001`, `ACC-002`, `PLN-012`, `PLN-060`, `PLN-061`, `RES-001`, `RES-002`, `ARC-012`, and inspected `src/types/work.ts`, `src/app/(dashboard)/work/work-client.tsx`, `src/lib/mock/work/*`, `src/app/actions/work.ts`, `src/lib/actions/work.ts`, `prisma/schema.prisma` (`Project`/`ProjectTask`/`ProjectNote`/`ProjectDeliverable`). Key findings: a `ProjectPhaseNode`/`ProjectMilestone` timeline type already exists but is mock-only, not persisted, and not portfolio-wide; no staffing/assignee concept exists anywhere, and the just-hardened `ARC-033` single-owner isolation invariant means any multi-person staffing view must be a deliberate, scoped decision, not a default expansion; no calendar model/view exists; `ProjectNote` is the closest existing free-text capture mechanism but is a general/AI-mixed note stream, not a structured diary entry.
+- Wrote `docs/07_research-and-design/RES-021_work-portfolio-import-phase-staffing-calendar-and-diary-gap-research.md`: gap-analysis table across the five owner asks, a Page Requirement Understanding Score of 30/100 (Low, per `AGENTS.md`'s gate), and open questions for the owner presented via `AskUserQuestion`.
+- Owner answered: manual project entry now (Drive import deferred to a future authorized turn); single-person staffing scope only (no near-term multi-person need); work diary = simple date + free text; first priority = persist the phase/milestone timeline into the database before the calendar view. Logged as `RES-021` §10 addendum, raising `WORKPM-001`'s effective understanding score to ~Medium (60/100).
+- Backlog & index registration: registered `RES-021` in `MAN-001_document-index.md` (both the canonical-entry-points table and the `07 Research And Design` section); added `PLN-060` Phase 16 (`WORKPM-001` persist milestones P1/TODO, `WORKPM-002` portfolio calendar P2/TODO depends on `WORKPM-001`, `WORKPM-003` work-diary entry P2/TODO, `WORKPM-004` staffing view `DEFERRED` pending a real collaborator need); updated `PLN-061_current-sprint.md` Current Status with this session's decisions.
+- Verification: documentation-only task; no schema, service, or UI code changed; no `tsc`/`db:validate`/build run (not applicable, no runtime source touched).
+- Remaining risks: Google Drive import remains fully blocked until the owner authorizes the connector outside this session. `WORKPM-001` is scoped but not yet implemented — still needs the actual Prisma model, migration-impact/seed-impact/rollback note (`DBS-001`), and acceptance criteria before schema changes. The "goal-based document" shape (RES-021 §7 Q5) remains open.
+
+## 2026-07-17 (continued)
+
+### TENANT-001 - Document and Audit the Tenant/Owner Isolation Invariant
+
+- Result: Following owner confirmation that the multi-tenant use case is fully independent (no sharing of existing projects with `lilyzuo405@gmail.com`), implemented `TENANT-001` from `RES-020`'s Phase 1.
+- Wrote `docs/02_architecture-and-rules/ARC-033_tenant-owner-isolation-invariant.md`: formalizes the rule that every DB-backed service must scope reads/writes by `ownerId` (direct or parent-chain) with no role-based bypass, and audits every current DB-backed service against it. `project.service.ts`, `client-portal.service.ts` (correctly token-scoped instead, not a violation), `module-permission.service.ts`, and `admin-readiness.service.ts` all confirmed compliant, with file/line-level evidence. Research and AI Input services noted as not-yet-applicable since they are not DB-backed yet.
+- Closed a real gap found during the `RES-020` audit: `AcademicPerson` had no `ownerId`/tenant field at all. Discovered this was already independently flagged in two existing contract files (`research-owner-read-adapter-authz.contract.ts`, `research-owner-read-query-plan.contract.ts`, both pre-dating this session) as a reason the Research `people` family could not become runtime-eligible. Added `AcademicPerson.ownerId` (nullable, `Profile?` relation) to `prisma/schema.prisma` — schema-only, no migration applied to the live database, zero runtime effect since Research remains mock/state. Updated both contract files' `people`-family entries to reflect the new schema state accurately (schema exists, still blocked pending `TENANT-003`'s migration/backfill) rather than overclaiming readiness.
+- Backlog & index registration: `TENANT-001` marked `DONE` in `PLN-060` Phase 15; `ARC-033` registered in `MAN-001_document-index.md`.
+- Verification: `pnpm db:validate` and `pnpm db:generate` both passed (schema is valid, Prisma Client regenerated with the new field). `pnpm exec tsc --noEmit --pretty false` passed. `pnpm research:read-adapter-authz:check` and `pnpm research:read-query-plan:check` both passed after the wording updates (no hardcoded-string coupling broke). No migration, RLS policy, route handler, server action, or runtime behavior change.
+
+## 2026-07-17
+
+### TEAM-PROFILE-001 - Provision Real Team Profile Rows for Magic-Link Login
+
+- Result: Owner asked to keep Supabase magic-link login working for `taioliver688@gmail.com` and `lilyzuo405@gmail.com`. Added `scripts/provision-team-profiles.ts` and a small `scripts/load-local-env.ts` side-effect loader (needed because ES module import evaluation order meant `dotenv`'s `config()` call was running *after* `src/lib/db.ts` had already read `process.env.DATABASE_URL` at import time — fixed by loading env vars from a separate module imported first, matching the pattern already used by other `scripts/*.mjs` checkers).
+- Introduced the `PERSONAL_OS_TEAM_PROFILES` env convention (comma-separated `email:ROLE:Full Name` entries) instead of hardcoding real emails into a git-tracked file, added `pnpm profiles:provision-team`, and documented the convention in `.env.example`.
+- Ran `pnpm profiles:provision-team` against the live Supabase-targeted database (the `DATABASE_URL` already configured in `.env.local`): upserted `taioliver688@gmail.com` as `OWNER` and `lilyzuo405@gmail.com` as `PARTNER`.
+- Remaining owner action: Profile rows alone do not grant login — `signInWithOtp` is called with `shouldCreateUser: false` (`src/app/actions/auth.ts`), so each email must also exist as a Supabase Auth user. The owner still needs to invite `lilyzuo405@gmail.com` from the Supabase Dashboard (Authentication -> Users -> Invite user).
+- Verification: `pnpm exec tsc --noEmit --pretty false` passed. `pnpm profiles:provision-team` output confirmed both rows upserted with correct roles and generated ids (not recorded in this log per `AUT-005`'s no-secret/no-real-value convention).
+
+### TENANT-002 / RES-020 - Multi-Tenant Team Workspace Isolation Research
+
+- Result: Owner asked to plan the system into multi-tenant, one isolated instance per team member. A clarifying question established the owner wants **fully independent tenants**, not a shared team workspace or a hybrid model.
+- Research grounding: Read `AUT-002`, `AUT-005`, `DBS-001`, and `AGENTS.md` §8's module boundary table, then read `src/lib/services/project.service.ts` in full. Key finding: `assertCanAccessProject` already enforces strict `ownerId === profileId` isolation with **no role-based bypass** — grepped the full `src/` tree for any `role === "OWNER"`-style cross-profile bypass and found none. This means per-person Work data isolation already exists today, informally, via the existing `ownerId` FK chain from every data-bearing model back to `Profile` — provisioning `lilyzuo405@gmail.com` as a second real Profile did not create a data leak.
+- One latent gap found: `AcademicPerson` (research reference data) has no `ownerId`/`tenantId` field at all — would leak across every profile once Research becomes DB-backed (`DBS-003`), if not fixed first.
+- Wrote `docs/07_research-and-design/RES-020_multi-tenant-team-workspace-isolation-research.md`: rejects a heavy day-one migration (denormalized `tenantId` on all 23 models + RLS + invite flow in one pass) in favor of a 4-phase plan — (1) document/audit the existing isolation invariant + fix `AcademicPerson`, (2) add an explicit `Tenant` model with `Profile.tenantId` (one tenant per profile, no `TenantMembership` many-to-many — no stated need for cross-tenant collaboration yet), (3) Postgres RLS as defense-in-depth, (4) a formal owner-only invite flow replacing the manual script. Also rejects separate per-person deployments and a shared-team-workspace model (owner's own explicit choice).
+- Companion artifact: `docs/02_architecture-and-rules/SCH-004_tenant-workspace-schema-proposal.md` — concrete `Tenant` model + `Profile.tenantId` proposal with migration-impact, seed-impact, and rollback notes, per `DBS-001`'s gate. Proposal only, not migrated.
+- Backlog & index registration: Registered `RES-020` and `SCH-004` in `MAN-001_document-index.md`; added `TEAM-PROFILE-001` and `TENANT-001..005` under a new Phase 15 in `PLN-060_task-backlog.md`.
+- Verification: Docs review; `pnpm exec tsc --noEmit --pretty false` passed (unaffected by this doc-only task). No schema migration, RLS policy, or runtime code was changed. `TENANT-003` (the real production migration) explicitly requires a separate owner go-ahead before proceeding, per `AGENTS.md` §11's Auth/Permission human-approval rule.
+
 ## 2026-07-16
 
 ### MODLIB-008..012 - Sub-Module Upload Sync and Origin-Reference
@@ -3473,3 +4059,35 @@ Remaining risks:
 - DB-006 later ran baseline migrate plus `pnpm db:seed` twice on a disposable local DB and verified row counts on 2026-06-03.
 - Pre-DB-003 random-ID duplicate demo rows, if they exist in a local DB, are not cleaned automatically because they have no explicit safe demo marker.
 - The seed does not initialize Research, Workflow, Ingestion, Life, Finance, Chamber, Company, Client Portal, or runtime Agent Team OS records.
+
+### UICLEAN-001 - Remove mock-data-mode toggle UI and fabricated audit seed data
+
+Status: `DONE`
+
+Completed:
+
+- Read `ui-audit-and-fixes.md` and produced `ui-cleanup-repair-plan.md` (repo root) scoping four categories of leaked developer-facing small text: governance flags/badges, dev-environment strings, duplicate titles/unclamped long text, and site-wide demo-data mode exposure.
+- Removed the sidebar footer's 示範/正式 toggle button (`src/components/layout/app-sidebar.tsx`), including its now-unused `mounted` state and `DatabaseIcon` import. Left the newly-added sidebar collapse/member-card feature (added concurrently by the loop) untouched.
+- Removed `/settings`'s "資料模式邊界" card (`settings-client.tsx`), and its "寫入邊界" governance explanation block ("現在允許 / 此頁未實作 / 下一個後端步驟"). Simplified the "來源連接" card's description to drop "adapter + BFF" jargon while keeping the feature itself (it creates a real local pending record).
+- Removed `/ai-input`'s standalone "示範資料模式" pill (`MockModeInlineNotice`) and the duplicated governance badge wall inside its detail drawer (`ownerPrivate`, `mockReadiness`/`formalReadiness`, `gateAIncomplete`, `externalRegistrationOff`).
+- Replaced `/admin`'s audit-trail seed data (`audit-panel.tsx`) — four fabricated log rows with recent-looking timestamps — with an empty array, and added a distinct "尚無事件紀錄" empty state (previously the empty state text implied a search filter, which would have been misleading with zero real rows).
+- Added `src/components/owneros/planned-tag.tsx`, a single-word `PlannedTag` component for future "規劃中" placeholders, replacing ad hoc "Coming soon" sentences.
+- Audited `ai-governance-panel.tsx`, `owner-evidence-client.tsx`, `agent-command-center-client.tsx` (governance/task-id literal exposure) and `/settings/roles`, `/settings/members` (Badge usage) — concluded these already collapse technical detail into drawers or are legitimate functional badges (role/member status), consistent with the project's existing rule that `/admin` and `/agents` may retain technical detail. No changes made there.
+- Confirmed via clarifying question with the owner that `/ai-input`'s LINE/Gmail/Drive sync, source connections, and AI-proposal UI are mock-only with no real backend; owner chose to hide these as a single-word placeholder (tracked as `UICLEAN-002`, `TODO`) rather than force formal mode (which would have broken all of them outright).
+
+Verification:
+
+```bash
+./node_modules/.bin/tsc --noEmit --pretty false
+```
+
+Result:
+
+- Passed with no output, both immediately after the edits and again after all four files were committed back.
+- No `pnpm build` or `pnpm lint` run (not required by this change; no schema/runtime-data-shape change).
+
+Remaining risks:
+
+- `/ai-input`'s deeper mock-backed sync/proposal UI (`UICLEAN-002`) is unresolved; `isMockDataEnabled` still threads through ~40 call sites in that one file and needs local dev-server verification before conversion, not a blind text edit.
+- No live browser walkthrough was done this pass (no confirmed running `pnpm dev` instance in this session); the changes are type-safe but have not been visually re-screenshotted the way `ui-audit-and-fixes.md`'s original pass was.
+- This session's edits were made concurrently with the repo's own 10-minute Codex automation loop, which independently shipped an unrelated sidebar collapse/member-card feature during the same window; files were re-staged immediately before each edit to avoid clobbering it, but a full `git diff` review before the next loop cycle is still worth doing.

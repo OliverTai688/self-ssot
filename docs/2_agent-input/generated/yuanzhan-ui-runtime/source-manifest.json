@@ -1,0 +1,105 @@
+{
+  "scope": "UI-088 source snapshot",
+  "files": [
+    {
+      "path": "src/components/yuanzhan/desktop.tsx",
+      "sha256": "d8323d23080ae31b9ecf8e9ad6c63bdac9c580c9034bec08adc9f41ec78538d6"
+    },
+    {
+      "path": "src/components/yuanzhan/primitives.tsx",
+      "sha256": "724e8e087c711c7186017212a38be9b6f64778b2eb92ad7e830980a45efd0991"
+    },
+    {
+      "path": "src/components/yuanzhan/files.tsx",
+      "sha256": "6e9604fd8590be3aaab0ea7a1e653d8d24d758c93aaea697d995d07e533df7a3"
+    },
+    {
+      "path": "src/components/yuanzhan/operating.css",
+      "sha256": "50352710d85a49ffe8c9cfbaad951e702a8757d62227c88160b79f6e91140572"
+    },
+    {
+      "path": "src/components/yuanzhan/commitments.tsx",
+      "sha256": "06e54a16f000174b2e42a5f47e4cdc3cd1fcaf287d2efa462365ddd856ece4e2"
+    },
+    {
+      "path": "src/components/yuanzhan/journal.tsx",
+      "sha256": "067acf0d31a7ab79bc9cbe061c3c4577448ac8e8e72087502498e5f4cc9c6abb"
+    },
+    {
+      "path": "src/components/yuanzhan/work-views.tsx",
+      "sha256": "8117402e15eceb5fd7e42a62a4a40f2c63e2b29fec9c8daa3654237948f699e8"
+    },
+    {
+      "path": "src/components/yuanzhan/finance.tsx",
+      "sha256": "edd1a80681415bcba41cdee32af1bc702b421ba28105febdceb3b4a84140f9ee"
+    },
+    {
+      "path": "src/components/yuanzhan/record-drawer.tsx",
+      "sha256": "20b320d79cfbe5ebe6b7660e336a60b4c3b6f19d3c1ac152cb6e8bc7e76bfde2"
+    },
+    {
+      "path": "src/lib/ui-data/yuanzhan/fixtures.ts",
+      "sha256": "1be1e393f5d1413e2b0bffca50a7109a323ed909f1154ff521ed09d5d0ee8a37"
+    },
+    {
+      "path": "src/lib/ui-data/yuanzhan/commands.ts",
+      "sha256": "1d727a1dac7f277908e2534c4bbd572676f4178ac472cd2facb3ef3e715c8171"
+    },
+    {
+      "path": "src/lib/ui-data/yuanzhan/mode.ts",
+      "sha256": "2b85a740e86094f28a80418bcb300b756b4c0e1fa5b40885c3940d7a2552fb54"
+    },
+    {
+      "path": "src/lib/ui-data/yuanzhan/metrics.ts",
+      "sha256": "4a2eaa5c63fffc52158cb09aa20c3a1c3378bd2933700c33c79e7aaee999906a"
+    },
+    {
+      "path": "src/lib/ui-data/yuanzhan/formulas.ts",
+      "sha256": "0da3f62a463fb685cae54e88d541b8bd308f76ba629cc94abc5dbcf527c0abc8"
+    },
+    {
+      "path": "src/app/(operating)/company/operating/error.tsx",
+      "sha256": "67c046020a0e2238270ac00e47482396f519a30b7cc9b64375bd9498f603ece1"
+    },
+    {
+      "path": "src/app/(operating)/company/operating/loading.tsx",
+      "sha256": "167211bc93e45350362233af6046f38397e0b35fbbbf2910c75bc9679849377d"
+    },
+    {
+      "path": "src/app/(operating)/company/operating/page.tsx",
+      "sha256": "c1ad57a4c0906be5f81fda024980cbeeb2469a7e1c01bbeac4e305b7a17a166c"
+    },
+    {
+      "path": "src/types/yuanzhan-ui.ts",
+      "sha256": "ba2eec7aab5c6f91a17e78e661f24da34def9f12c42262bd17a9d514704c705f"
+    },
+    {
+      "path": "src/lib/config/ui-data-mode.ts",
+      "sha256": "2e95682ef7b7ba2757e53a7be0b1be4b3dc84400b90989964be6f39ad70d58ed"
+    },
+    {
+      "path": "src/lib/context/yuanzhan-ui-context.tsx",
+      "sha256": "2eb78c1c0e7884ba6b545d75bbc34f27abf7fd609e5154b882aadf5f9ee88f67"
+    },
+    {
+      "path": "scripts/check-yuanzhan-ui.ts",
+      "sha256": "1542edcbfc6e215fb1dc0194d906103cd2ff4f702186686ee3b1651d511c2361"
+    },
+    {
+      "path": "scripts/verify-yuanzhan-ui.cjs",
+      "sha256": "bb5bf3749c48cae47ffef151bc919ffe2481ecea22598f6660d349d462a48f74"
+    },
+    {
+      "path": "scripts/verify-yuanzhan-ui-edges.cjs",
+      "sha256": "de1fa3577020b020b5b2457095c5c266bc352109335e5a188f623bb212c8434b"
+    },
+    {
+      "path": "scripts/build-yuanzhan-ui.mjs",
+      "sha256": "a5c1ff986b4fbd2c71c0fb02ea1021affd196f9a984f2d04dea1d8a6de23baf6"
+    },
+    {
+      "path": "scripts/start-yuanzhan-ui-preview.mjs",
+      "sha256": "efa96597db1ede87d4b526eaa81563bf4219c2799ad8ac9dd944639e7d1f2f1c"
+    }
+  ]
+}

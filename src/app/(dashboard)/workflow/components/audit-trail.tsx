@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { cn } from "@/lib/utils"
 import { AGENT_MAP } from "@/lib/workflow/agents"
-import { INTENT_LABELS } from "@/lib/workflow/types"
 import { groupByTrace } from "@/lib/workflow/mock-data"
 import type { AgentMessage, AgentId, TraceGroup } from "@/lib/workflow/types"
 
@@ -15,23 +15,28 @@ const STATUS_STYLE: Record<string, string> = {
   rejected: "bg-red-500/15 text-red-500",
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  completed: "完成",
-  pending: "處理中",
-  accepted: "已接受",
-  rejected: "已拒絕",
-}
-
-function formatTime(iso: string) {
+function formatTime(iso: string, locale: string) {
   const d = new Date(iso)
-  return d.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 }
 
-function formatRelative(iso: string) {
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
+
+function formatRelative(
+  iso: string,
+  labels: ReturnType<typeof useProductLanguage>["copy"]["workflow"]["audit"]
+) {
   const diff = (Date.now() - new Date(iso).getTime()) / 60_000
-  if (diff < 1) return "剛才"
-  if (diff < 60) return `${Math.floor(diff)} 分鐘前`
-  return `${Math.floor(diff / 60)} 小時前`
+  if (diff < 1) return labels.justNow
+  if (diff < 60) {
+    return formatCopy(labels.minutesAgoTemplate, { count: Math.floor(diff) })
+  }
+  return formatCopy(labels.hoursAgoTemplate, { count: Math.floor(diff / 60) })
 }
 
 interface AuditTrailProps {
@@ -40,6 +45,8 @@ interface AuditTrailProps {
 }
 
 export function AuditTrail({ messages, filterAgent }: AuditTrailProps) {
+  const { locale, copy } = useProductLanguage()
+  const workflowCopy = copy.workflow
   const [expandedTraces, setExpandedTraces] = React.useState<Set<string>>(new Set(["trace-d"]))
 
   const groups = React.useMemo(() => {
@@ -60,7 +67,9 @@ export function AuditTrail({ messages, filterAgent }: AuditTrailProps) {
   return (
     <div className="flex flex-col gap-1">
       {groups.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">尚無訊息記錄</p>
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          {workflowCopy.audit.noMessages}
+        </p>
       ) : (
         groups.map((group) => (
           <TraceRow
@@ -68,6 +77,8 @@ export function AuditTrail({ messages, filterAgent }: AuditTrailProps) {
             group={group}
             expanded={expandedTraces.has(group.traceId)}
             onToggle={() => toggleTrace(group.traceId)}
+            labels={workflowCopy}
+            locale={locale}
           />
         ))
       )}
@@ -79,17 +90,19 @@ function TraceRow({
   group,
   expanded,
   onToggle,
+  labels,
+  locale,
 }: {
   group: TraceGroup
   expanded: boolean
   onToggle: () => void
+  labels: ReturnType<typeof useProductLanguage>["copy"]["workflow"]
+  locale: string
 }) {
   const latestStatus = group.messages[group.messages.length - 1]?.status ?? "pending"
-  const hasChildren = group.messages.filter((m) => m.fromAgent !== "user").length > 0
 
   return (
     <div className="rounded-xl border border-border/40 overflow-hidden">
-      {/* Trace header */}
       <button
         onClick={onToggle}
         className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors text-left"
@@ -102,30 +115,31 @@ function TraceRow({
           )}
         </span>
         <span className="text-[11px] font-mono text-muted-foreground/50 shrink-0">
-          {formatTime(group.startedAt)}
+          {formatTime(group.startedAt, locale)}
         </span>
         <span className="text-sm font-medium flex-1 truncate">{group.inputSummary}</span>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-muted-foreground">{group.messages.length} 則</span>
+          <span className="text-[11px] text-muted-foreground">
+            {formatCopy(labels.audit.messageCountTemplate, { count: group.messages.length })}
+          </span>
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-[11px] font-medium",
               STATUS_STYLE[latestStatus]
             )}
           >
-            {STATUS_LABEL[latestStatus]}
+            {labels.audit.status[latestStatus]}
           </span>
           <span className="text-[11px] text-muted-foreground/50">
-            {formatRelative(group.startedAt)}
+            {formatRelative(group.startedAt, labels.audit)}
           </span>
         </div>
       </button>
 
-      {/* Messages */}
       {expanded && (
         <div className="border-t border-border/30 px-3 py-2 flex flex-col gap-1.5 bg-muted/10">
           {group.messages.map((msg) => (
-            <MessageRow key={msg.id} msg={msg} />
+            <MessageRow key={msg.id} msg={msg} labels={labels} locale={locale} />
           ))}
         </div>
       )}
@@ -133,10 +147,21 @@ function TraceRow({
   )
 }
 
-function MessageRow({ msg }: { msg: AgentMessage }) {
+function MessageRow({
+  msg,
+  labels,
+  locale,
+}: {
+  msg: AgentMessage
+  labels: ReturnType<typeof useProductLanguage>["copy"]["workflow"]
+  locale: string
+}) {
   const fromAgent = msg.fromAgent !== "user" ? AGENT_MAP[msg.fromAgent as AgentId] : null
   const toAgent = AGENT_MAP[msg.toAgent as AgentId]
   const isChild = !!msg.parentMessageId
+  const fromAgentLabel =
+    msg.fromAgent !== "user" ? labels.agents[msg.fromAgent as AgentId] : labels.audit.user
+  const toAgentLabel = labels.agents[msg.toAgent as AgentId]
 
   return (
     <div
@@ -146,37 +171,35 @@ function MessageRow({ msg }: { msg: AgentMessage }) {
       )}
     >
       <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 mt-0.5 w-14 text-right">
-        {formatTime(msg.createdAt)}
+        {formatTime(msg.createdAt, locale)}
       </span>
 
-      {/* from */}
       {fromAgent ? (
         <span
           className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium"
           style={{ background: fromAgent.color + "15", color: fromAgent.color }}
         >
-          {fromAgent.displayName}
+          {fromAgentLabel}
         </span>
       ) : (
         <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground">
-          使用者
+          {labels.audit.user}
         </span>
       )}
 
       <span className="text-muted-foreground/40 text-[11px] shrink-0">→</span>
 
-      {/* to */}
       {toAgent && (
         <span
           className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium"
           style={{ background: toAgent.color + "15", color: toAgent.color }}
         >
-          {toAgent.displayName}
+          {toAgentLabel}
         </span>
       )}
 
       <span className="text-[11px] text-muted-foreground shrink-0">
-        {INTENT_LABELS[msg.intent]}
+        {labels.intents[msg.intent]}
       </span>
 
       <span className="flex-1 text-[11px] text-muted-foreground/70 truncate min-w-0">
@@ -189,7 +212,7 @@ function MessageRow({ msg }: { msg: AgentMessage }) {
           STATUS_STYLE[msg.status]
         )}
       >
-        {STATUS_LABEL[msg.status]}
+        {labels.audit.status[msg.status]}
       </span>
     </div>
   )

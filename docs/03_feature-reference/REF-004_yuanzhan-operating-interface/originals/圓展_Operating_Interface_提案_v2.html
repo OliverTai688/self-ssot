@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圓展 Operating Interface v2</title>
+<style>
+:root{
+  --bg:#0b0d10; --panel:#14171c; --panel2:#1a1e25; --panel3:#1f242c; --line:#262b33; --line2:#343b45;
+  --tx:#e7eaf0; --tx2:#a3abb8; --tx3:#6b7480;
+  --ac:#7cc4ff; --gr:#6ee7a8; --am:#f5c26b; --rd:#f28b82; --pu:#c4a2f5; --tl:#5fd3c4;
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1140px;margin:0 auto;padding:0 20px;padding-block:56px}
+h1,h2,h3,h4{line-height:1.32;font-weight:650;letter-spacing:-.01em}
+h1{font-size:clamp(28px,5vw,42px);margin:0 0 12px}
+h2{font-size:clamp(21px,3.4vw,28px);margin:76px 0 8px;padding-top:28px;border-top:1px solid var(--line)}
+h3{font-size:19px;margin:44px 0 10px}
+h4{font-size:15px;margin:24px 0 8px;color:var(--tx2)}
+p{margin:0 0 14px;color:var(--tx2)}
+strong{color:var(--tx);font-weight:600}
+em{color:var(--tx2);font-style:normal;border-bottom:1px dotted var(--tx3)}
+code{font-family:var(--mono);font-size:.86em;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--tl)}
+a{color:var(--ac);text-decoration:none;border-bottom:1px solid #2b4f6b}
+.lead{font-size:17px;color:var(--tx2);max-width:76ch}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);margin:0 0 10px}
+.meta{font-family:var(--mono);font-size:12px;color:var(--tx3);border-top:1px solid var(--line);padding-top:16px;margin-top:28px;line-height:1.9}
+.sect-n{font-family:var(--mono);font-size:12px;color:var(--ac);letter-spacing:.1em}
+
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:20px 0}
+.box.ac{border-left:3px solid var(--ac)}
+.box.am{border-left:3px solid var(--am)}
+.box.gr{border-left:3px solid var(--gr)}
+.box.pu{border-left:3px solid var(--pu)}
+.box p:last-child{margin-bottom:0}
+.box h4{margin-top:0;color:var(--tx)}
+
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:20px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card .n{font-family:var(--mono);font-size:11px;color:var(--tx3);letter-spacing:.12em}
+.card h4{margin:6px 0 8px;color:var(--tx);font-size:15px}
+.card p{font-size:13.5px;margin:0;color:var(--tx2)}
+
+.tw{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--panel2);color:var(--tx2);font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.id{font-family:var(--mono);color:var(--tx3);white-space:nowrap}
+.src{font-size:12px;color:var(--tx3);font-family:var(--mono)}
+
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;padding:2px 7px;border-radius:4px;white-space:nowrap;border:1px solid}
+.t-p0{color:#0b0d10;background:var(--rd);border-color:var(--rd);font-weight:700}
+.t-p1{color:#0b0d10;background:var(--am);border-color:var(--am);font-weight:700}
+.t-p2{color:var(--tx3);border-color:var(--line2);background:transparent}
+
+.wf{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:var(--panel);margin:18px 0 6px}
+.wf-bar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:#0f1216;border-bottom:1px solid var(--line)}
+.dot{width:9px;height:9px;border-radius:50%;background:#343b45}
+.wf-url{font-family:var(--mono);font-size:11px;color:var(--tx3);margin-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wf-nav{display:flex;gap:0;background:#0f1216;border-bottom:1px solid var(--line);padding:0 10px;overflow-x:auto}
+.wf-nav span{font-size:12px;padding:7px 12px;color:var(--tx3);white-space:nowrap;border-bottom:2px solid transparent}
+.wf-nav span.on{color:var(--tx);border-bottom-color:var(--ac)}
+.wf-body{padding:16px;display:grid;gap:12px}
+.cap{font-size:12.5px;color:var(--tx3);margin:0 0 8px;line-height:1.8}
+.cap b{color:var(--tx2);font-weight:600}
+
+.row{display:grid;gap:12px}
+.c2{grid-template-columns:1fr 1fr}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c4{grid-template-columns:repeat(4,1fr)}
+.c21{grid-template-columns:2fr 1fr}
+.c12{grid-template-columns:1fr 2fr}
+.c31{grid-template-columns:3fr 1fr}
+@media(max-width:760px){.c2,.c3,.c4,.c21,.c12,.c31{grid-template-columns:1fr}}
+
+.pane{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.pane.hl{border-color:#2f5c7d;background:#111b23}
+.pane-h{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pane-h span.r{color:var(--tx3);letter-spacing:0;text-transform:none;font-family:var(--sans)}
+.li{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px dashed #21262e;font-size:13px;color:var(--tx2)}
+.li:last-child{border-bottom:none}
+.li .b{color:var(--tx);flex:1}
+.li .s{font-family:var(--mono);font-size:10.5px;color:var(--tx3);white-space:nowrap}
+.pill{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px;white-space:nowrap}
+.p-dev{background:#12222e;color:var(--ac)}
+.p-doc{background:#1d1828;color:var(--pu)}
+.p-bp{background:#0f2422;color:var(--tl)}
+.p-ing{background:#2a1a17;color:var(--rd)}
+.p-adm{background:#261f12;color:var(--am)}
+.p-ok{background:#12251c;color:var(--gr)}
+.p-warn{background:#2a1a17;color:var(--rd)}
+.bar{height:6px;border-radius:3px;background:#22272f;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;border-radius:3px}
+.kpi{font-family:var(--mono);font-size:21px;color:var(--tx);letter-spacing:-.02em}
+.kpi small{display:block;font-family:var(--sans);font-size:11.5px;color:var(--tx3);letter-spacing:0;margin-top:2px;line-height:1.5}
+.btn{display:inline-block;font-size:12px;padding:4px 11px;border-radius:6px;border:1px solid var(--line2);color:var(--tx2);background:#1e232b}
+.btn.pri{background:#1b3549;border-color:#2f5c7d;color:var(--ac)}
+.ghost{border:1px dashed var(--line2);border-radius:6px;padding:10px 12px;color:var(--tx3);font-size:12.5px;text-align:center}
+.mono{font-family:var(--mono);font-size:12px;color:var(--tx2)}
+.tree{font-family:var(--mono);font-size:12.5px;color:var(--tx2);line-height:1.95;white-space:pre-wrap}
+.tree b{color:var(--tx);font-weight:500}
+.tree .k{color:var(--ac)}
+.tree .g{color:var(--gr)}
+.tree .m{color:var(--tx3)}
+
+/* spreadsheet */
+.sheet{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table.gridt{min-width:420px;font-family:var(--mono);font-size:11.5px}
+table.gridt th{padding:6px 9px;background:#0f1216;text-transform:none;letter-spacing:0;font-size:11px}
+table.gridt td{padding:5px 9px;border-bottom:1px solid #1e232b;white-space:nowrap}
+table.gridt tr:hover td{background:#1b2028}
+table.gridt td.sel{background:#11222e;box-shadow:inset 0 0 0 1px #2f5c7d}
+.num{text-align:right;color:var(--tx)}
+
+/* drawer illustration */
+.stage{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:12px 14px;min-height:120px;overflow:hidden}
+.drawer{position:absolute;right:0;top:0;bottom:0;width:56%;background:#1f242c;border-left:1px solid #3d4653;padding:12px 14px;box-shadow:-18px 0 30px rgba(0,0,0,.45)}
+@media(max-width:700px){.drawer{position:static;width:auto;border-left:none;border-top:1px solid #3d4653;margin-top:10px;box-shadow:none}}
+
+ul.cl{margin:10px 0;padding-left:18px;color:var(--tx2);font-size:14px}
+ul.cl li{margin-bottom:7px}
+ol.cl{margin:10px 0;padding-left:20px;color:var(--tx2);font-size:14px}
+ol.cl li{margin-bottom:7px}
+svg{max-width:100%;height:auto;display:block}
+.figure{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;margin:20px 0;overflow-x:auto}
+.figcap{font-size:12.5px;color:var(--tx3);margin:10px 0 0;font-family:var(--mono)}
+.srcs{font-size:13px;color:var(--tx3)}
+.srcs li{margin-bottom:6px}
+.scn{font-family:var(--mono);font-size:12px;color:var(--am);letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="eyebrow">圓展教育科技 · Operating Interface Proposal</p>
+<h1>v2：從卡片盤點，改成情境系統</h1>
+<p class="lead">v1 回答了「缺哪些介面」，答案是一張卡片清單。但公司運轉時的思考不是「我要開哪個模組」，而是「我現在處在什麼情境」。v2 把整個系統重新組織成 <strong>7 個情境工作台</strong>，定義一套統一的導航契約（大概念 → 分頁 → 單一主操作面 + 抽屜子操作），並把日誌變成整個系統的輸入端口。</p>
+<p class="meta">v2 · 2026-09-12 · 依據：Company Handbook v0.1｜Lily 部分工時勞動契約草稿 v1｜self-stucture-v1 現有路由｜外部研究（流量指標、typed-block 模型、漸進揭露、承諾登記簿、台灣會計憑證鏈）</p>
+
+<!-- ==================== 0 ==================== -->
+<h2><span class="sect-n">00</span>　v1 錯在哪裡</h2>
+
+<div class="grid3">
+<div class="card"><div class="n">問題一</div><h4>模組導向，不是情境導向</h4><p>v1 列了 24 個介面，但沒有回答「我早上打開電腦第一個看到什麼」。使用者不會先想「我要用 Evidence 模組」，他會想「這個案子該收尾了」。</p></div>
+<div class="card"><div class="n">問題二</div><h4>卡片海</h4><p>每個畫面都是一堆並列卡片。並列的意思是「你自己決定看哪個」，等於把認知成本丟回給人。專注一件事需要的是<strong>一個主操作面</strong>。</p></div>
+<div class="card"><div class="n">問題三</div><h4>Evidence 被當成欄位</h4><p>v1 把 Evidence 做成 Issue 上的附件列表。但專案收尾是一個<strong>整理與敘事的過程</strong>——像 GitHub repo 那樣有結構、有 README、有版本演化，不是一堆連結。</p></div>
+</div>
+
+<div class="box ac">
+<h4>v2 的三個改動</h4>
+<ol class="cl" style="margin-bottom:0">
+<li><strong>導航契約統一。</strong>全系統只有一種結構：一個大概念 → 分頁子概念 → 一個主操作面 + 抽屜／彈窗子操作。任何畫面都不出現三張以上的並列卡片。</li>
+<li><strong>日誌升級為輸入端口。</strong>日誌裡的每一個 bullet 都可以被「賦型」成 component（Standup、Issue、Todo、Decision、Expense…），欄位自動長出來。你在寫字，系統在建物件。</li>
+<li><strong>Evidence 升級為 Repo。</strong>專案不是被「標記完成」，是被<strong>收攏成一個可版本化、可審核的資料夾</strong>，有 README、有結構、有 tag。</li>
+</ol>
+</div>
+
+<!-- ==================== 1 ==================== -->
+<h2><span class="sect-n">01</span>　導航契約</h2>
+<p>這一節是整份提案最重要的部分。它不是視覺規範，是<strong>一條所有畫面都必須遵守的結構規則</strong>——有了它，你才能「一次專注一件事，同時很好地穿梭在多階層概念之間」。</p>
+
+<div class="figure">
+<svg viewBox="0 0 880 330" role="img" aria-label="導航契約：大概念、分頁、主操作面、抽屜">
+<defs>
+<marker id="a2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4a5462"/></marker>
+<style>
+.t1{font:600 13px "Noto Sans TC",sans-serif;fill:#e7eaf0}
+.t2{font:11px "SF Mono",monospace;fill:#8b93a1}
+.t3{font:11px "SF Mono",monospace;fill:#6b7480;letter-spacing:1.2px}
+</style>
+</defs>
+
+<rect x="20" y="30" width="150" height="270" rx="8" fill="#1a1e25" stroke="#343b45"/>
+<text x="36" y="54" class="t3">LEVEL 1</text>
+<text x="36" y="76" class="t1">大概念</text>
+<text x="36" y="94" class="t2">左側 7 個工作台</text>
+<text x="36" y="112" class="t2">= 7 種情境</text>
+<text x="36" y="142" class="t2" fill="#7cc4ff">日誌</text>
+<text x="36" y="162" class="t2" fill="#7cc4ff">時間線</text>
+<text x="36" y="182" class="t2" fill="#7cc4ff">工作台</text>
+<text x="36" y="202" class="t2" fill="#7cc4ff">專案</text>
+<text x="36" y="222" class="t2" fill="#7cc4ff">金流</text>
+<text x="36" y="242" class="t2" fill="#7cc4ff">容量</text>
+<text x="36" y="262" class="t2" fill="#7cc4ff">承諾</text>
+
+<rect x="200" y="30" width="270" height="270" rx="8" fill="#1a1e25" stroke="#343b45"/>
+<text x="216" y="54" class="t3">LEVEL 2</text>
+<text x="216" y="76" class="t1">分頁子概念</text>
+<text x="216" y="94" class="t2">頂部 tab · 每個工作台 2–5 個</text>
+<rect x="216" y="112" width="72" height="26" rx="5" fill="#1b3549" stroke="#2f5c7d"/><text x="230" y="129" class="t2" fill="#7cc4ff">帳本</text>
+<rect x="296" y="112" width="72" height="26" rx="5" fill="#22272f" stroke="#343b45"/><text x="310" y="129" class="t2">報帳</text>
+<rect x="376" y="112" width="72" height="26" rx="5" fill="#22272f" stroke="#343b45"/><text x="390" y="129" class="t2">人事</text>
+<rect x="216" y="146" width="110" height="26" rx="5" fill="#22272f" stroke="#343b45"/><text x="230" y="163" class="t2">專案預算</text>
+<text x="216" y="200" class="t2">分頁之間不共用畫面，</text>
+<text x="216" y="218" class="t2">切換 = 換一件事做。</text>
+<text x="216" y="248" class="t2" fill="#f5c26b">規則：同一分頁內</text>
+<text x="216" y="266" class="t2" fill="#f5c26b">只能有一個主操作面。</text>
+
+<rect x="500" y="30" width="360" height="270" rx="8" fill="#1a1e25" stroke="#343b45"/>
+<text x="516" y="54" class="t3">LEVEL 3</text>
+<text x="516" y="76" class="t1">主操作面 ＋ 抽屜</text>
+<rect x="516" y="96" width="190" height="180" rx="6" fill="#14171c" stroke="#262b33"/>
+<text x="530" y="118" class="t2">主操作面</text>
+<text x="530" y="138" class="t2" fill="#6b7480">表格 / 時間線 / 大綱</text>
+<text x="530" y="156" class="t2" fill="#6b7480">/ 文件 / 看板</text>
+<text x="530" y="182" class="t2" fill="#6b7480">永遠只有一個。</text>
+<text x="530" y="200" class="t2" fill="#6b7480">它就是這個分頁</text>
+<text x="530" y="218" class="t2" fill="#6b7480">的「那件事」。</text>
+<rect x="690" y="96" width="155" height="180" rx="6" fill="#1f242c" stroke="#3d4653"/>
+<text x="704" y="118" class="t2" fill="#c4a2f5">抽屜 / 彈窗</text>
+<text x="704" y="140" class="t2" fill="#6b7480">編輯一列</text>
+<text x="704" y="158" class="t2" fill="#6b7480">看憑證影像</text>
+<text x="704" y="176" class="t2" fill="#6b7480">填 component</text>
+<text x="704" y="194" class="t2" fill="#6b7480">確認閘門</text>
+<text x="704" y="222" class="t2" fill="#6b7480">從右側滑出，</text>
+<text x="704" y="240" class="t2" fill="#6b7480">主面不消失，</text>
+<text x="704" y="258" class="t2" fill="#6b7480">Esc 收回。</text>
+
+<line x1="170" y1="165" x2="196" y2="165" stroke="#4a5462" stroke-width="1.2" marker-end="url(#a2)"/>
+<line x1="470" y1="165" x2="496" y2="165" stroke="#4a5462" stroke-width="1.2" marker-end="url(#a2)"/>
+</svg>
+<p class="figcap">fig 1　三層導航契約。層級只有三層——研究顯示企業級介面的漸進揭露以三層為安全上限：常駐功能／一次互動可達／專屬區域。</p>
+</div>
+
+<h3>三個導航動作，涵蓋所有穿梭需求</h3>
+<div class="tw">
+<table>
+<thead><tr><th>動作</th><th>操作</th><th>發生什麼</th><th>用在哪</th></tr></thead>
+<tbody>
+<tr><td><strong>下鑽 Drill</strong></td><td>點擊主面上的一列</td><td>右側抽屜滑出該物件詳情，主面保留在原位、原捲動位置</td><td>表格點一筆交易、時間線點一個事件、大綱點一個 block</td></tr>
+<tr><td><strong>旁移 Peek</strong></td><td>在抽屜裡點另一個物件的連結</td><td>抽屜內容替換，可用麵包屑退回；不新開視窗、不離開主面</td><td>交易 → 專案 → 該專案的獎金確認單</td></tr>
+<tr><td><strong>跳躍 Jump</strong></td><td><code>⌘K</code> 命令面板</td><td>跨全系統模糊搜尋任何物件與任何動作，直接落地到該處</td><td>「柏翰」「LAND-012」「記一筆支出」「本月工時」</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box am">
+<h4>反卡片三條硬規則</h4>
+<ul class="cl" style="margin-bottom:0">
+<li><strong>一個分頁只有一個主操作面。</strong>需要第二個主面，就是需要第二個分頁。</li>
+<li><strong>並列區塊上限三個，且必須是同一物件的不同面向</strong>（例如專案的「進度／成本／承諾」），不能是不相干的模組摘要。</li>
+<li><strong>資訊密度優先於展開。</strong>列表一行就顯示完整 metadata（狀態、負責人、專案、金額、時間），不要做「點開卡片才看得到」。要看更多才開抽屜。</li>
+</ul>
+</div>
+
+<div class="box">
+<h4>固定選項，不做設定</h4>
+<p>兩人公司最貴的不是功能不足，是設定過多。狀態集合、專案類型、成本類別、Size 刻度<strong>全部寫死在程式裡</strong>，不做設定頁。當某個寫死的值真的不夠用，那是一次 commit，不是一個給使用者的下拉選單。</p>
+</div>
+
+<!-- ==================== 2 ==================== -->
+<h2><span class="sect-n">02</span>　核心原語：Component Block</h2>
+<p>你說的「日記可以叫出 component 進行填寫更新，也可以建立 Issue、Todo」——這在技術上是一個很明確的模型：<strong>把大綱裡的每一個 bullet 當成一個可被賦型的節點</strong>。純文字 bullet 就是純文字；打上型別，欄位就長出來，它同時變成一個可被全系統查詢的物件。</p>
+
+<div class="figure">
+<svg viewBox="0 0 880 250" role="img" aria-label="Component Block 賦型流程">
+<defs><marker id="a3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4a5462"/></marker>
+<style>.u1{font:600 13px "Noto Sans TC",sans-serif;fill:#e7eaf0}.u2{font:11.5px "SF Mono",monospace;fill:#8b93a1}.u3{font:10.5px "SF Mono",monospace;fill:#6b7480;letter-spacing:1.2px}</style></defs>
+
+<text x="20" y="26" class="u3">① 你在日誌裡打字</text>
+<rect x="20" y="38" width="240" height="60" rx="6" fill="#1a1e25" stroke="#343b45"/>
+<text x="34" y="62" class="u2">· 地政士介面要 refactor</text>
+<text x="34" y="82" class="u2" fill="#6b7480">純文字 bullet</text>
+
+<line x1="262" y1="68" x2="296" y2="68" stroke="#4a5462" stroke-width="1.2" marker-end="url(#a3)"/>
+
+<text x="306" y="26" class="u3">② 打 / 或 # 賦型</text>
+<rect x="306" y="38" width="200" height="60" rx="6" fill="#1b3549" stroke="#2f5c7d"/>
+<text x="320" y="62" class="u2" fill="#7cc4ff">/issue</text>
+<text x="320" y="82" class="u2" fill="#6b7480">選型別</text>
+
+<line x1="508" y1="68" x2="542" y2="68" stroke="#4a5462" stroke-width="1.2" marker-end="url(#a3)"/>
+
+<text x="552" y="26" class="u3">③ 欄位自動長出</text>
+<rect x="552" y="38" width="300" height="150" rx="6" fill="#1a1e25" stroke="#343b45"/>
+<text x="566" y="62" class="u2" fill="#e7eaf0">· 地政士介面要 refactor　<tspan fill="#7cc4ff">#issue</tspan></text>
+<text x="580" y="82" class="u2">Owner　　宇星</text>
+<text x="580" y="100" class="u2">Project　<tspan fill="#7cc4ff">@AI-landoffice</tspan></text>
+<text x="580" y="118" class="u2">Size　　　M</text>
+<text x="580" y="136" class="u2">Status　　Doing</text>
+<text x="580" y="154" class="u2">Started　 09/12</text>
+<text x="566" y="176" class="u2" fill="#6ee7a8">→ 同時出現在專案、時間線、容量統計</text>
+
+<text x="20" y="140" class="u3">同一套機制的其他型別</text>
+<rect x="20" y="152" width="110" height="34" rx="5" fill="#22272f" stroke="#343b45"/><text x="34" y="174" class="u2">/standup</text>
+<rect x="140" y="152" width="110" height="34" rx="5" fill="#22272f" stroke="#343b45"/><text x="154" y="174" class="u2">/todo</text>
+<rect x="260" y="152" width="110" height="34" rx="5" fill="#22272f" stroke="#343b45"/><text x="274" y="174" class="u2">/decision</text>
+<rect x="20" y="196" width="110" height="34" rx="5" fill="#22272f" stroke="#343b45"/><text x="34" y="218" class="u2">/expense</text>
+<rect x="140" y="196" width="110" height="34" rx="5" fill="#22272f" stroke="#343b45"/><text x="154" y="218" class="u2">/evidence</text>
+<rect x="260" y="196" width="110" height="34" rx="5" fill="#22272f" stroke="#343b45"/><text x="274" y="218" class="u2">/meeting</text>
+<rect x="380" y="196" width="126" height="34" rx="5" fill="#22272f" stroke="#343b45"/><text x="394" y="218" class="u2">/commitment</text>
+</svg>
+<p class="figcap">fig 2　一個 bullet 的生命週期。這個模型在 Tana 稱為 supertag：標籤不只是分類，而是「這個節點屬於哪一個資料庫」，套上去之後預設欄位自動浮現。</p>
+</div>
+
+<div class="box pu">
+<h4>三條讓它不會失控的規則</h4>
+<ul class="cl" style="margin-bottom:0">
+<li><strong>賦型是明確動作，不是自動偵測。</strong>AI 可以建議「這句話看起來像 Issue」，但一定要你按下去才成立。否則日誌會變成第二份待辦清單，兩邊都不準。這也正是 Handbook 04.1 說的「不要為了餵 AI 而維護第二套資料」。</li>
+<li><strong>型別最多 8 種，寫死。</strong>超過 8 種你會記不住斜線指令，這個機制就死了。</li>
+<li><strong>物件有唯一家。</strong>Issue 的家在專案，Expense 的家在帳本，日誌只是它<em>誕生的地方</em>。日誌顯示的是連結與即時狀態，不是副本。</li>
+</ul>
+</div>
+
+<!-- ==================== 3 ==================== -->
+<h2><span class="sect-n">03</span>　七個情境工作台</h2>
+
+<div class="tw">
+<table>
+<thead><tr><th>#</th><th>情境（你腦中的句子）</th><th>工作台</th><th>分頁</th><th>主操作面</th></tr></thead>
+<tbody>
+<tr><td class="id">WB1</td><td class="scn">我開始一天了</td><td><strong>日誌</strong></td><td>今天 / 回顧 / 標籤流</td><td>大綱編輯器</td></tr>
+<tr><td class="id">WB2</td><td class="scn">這陣子有沒有關鍵時間</td><td><strong>時間線</strong></td><td>專案層 / 日常層 / 行政層</td><td>可 CRUD 的時間軸</td></tr>
+<tr><td class="id">WB3</td><td class="scn">我現在該做什麼，對得上目標嗎</td><td><strong>工作台</strong></td><td>過去–現在–未來 / 目標對齊</td><td>三段式時序欄</td></tr>
+<tr><td class="id">WB4</td><td class="scn">這個案子怎麼推、怎麼收尾</td><td><strong>專案</strong></td><td>總覽 / 工作 / 對話 / Evidence Repo</td><td>依分頁而異</td></tr>
+<tr><td class="id">WB5</td><td class="scn">這筆錢是什麼、對得起來嗎</td><td><strong>金流</strong></td><td>帳本 / 報帳 / 人事 / 專案預算</td><td>試算表格</td></tr>
+<tr><td class="id">WB6</td><td class="scn">我們吃得下嗎、什麼時候會做完</td><td><strong>容量</strong></td><td>週配置 / 流量指標 / 預測</td><td>配置表 + 分布圖</td></tr>
+<tr><td class="id">WB7</td><td class="scn">我們說到的做到了嗎</td><td><strong>承諾</strong></td><td>內部承諾 / 外部承諾</td><td>文件 ↔ 數據雙欄</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- WB1 -->
+<h3>WB1 · 日誌 — 系統的輸入端口</h3>
+<div class="wf" id="wf1">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/journal/20260912</span></div>
+<div class="wf-nav"><span class="on">今天</span><span>回顧</span><span>標籤流</span></div>
+<div class="wf-body">
+  <div class="stage">
+    <div class="tree" style="width:44%"><b>20260912</b> <span class="m">週六</span>
+
+<span class="m">·</span> <span class="k">/standup</span> <span class="m">← 斜線指令叫出 component</span>
+  <b>Yesterday</b>  介面收斂草稿
+  <b>Today</b>     refactor + tenant test
+  <b>Blocker</b>   測試資料未備齊
+  <b>Decision</b>  週四帶不帶價格表
+
+<span class="m">·</span> 地政士這邊的推論…
+  <span class="m">·</span> 介面收斂完了，需要 refactor
+    <span class="m">·</span> <span class="k">#issue</span> develop interface and tenant test
+       <span class="g">→ LAND-012 · Doing · M</span>
+    <span class="m">·</span> <span class="k">#todo</span> 準備三個租戶測資
+<span class="m">·</span> <span class="k">@會計SSOT</span> 週四會面
+  <span class="m">·</span> <span class="k">#expense</span> 咖啡 NT$260 <span class="g">→ 已入帳本</span>
+    </div>
+    <div class="drawer">
+      <div class="pane-h">Issue · LAND-012 <span class="r"><span class="btn">開啟專案 ↗</span></span></div>
+      <div class="li"><span class="s">Project</span><span class="b">AI landoffice SSOT</span></div>
+      <div class="li"><span class="s">Owner</span><span class="b">宇星</span></div>
+      <div class="li"><span class="s">Size</span><span class="b">M　<span class="src">P85 = 4.2 天</span></span></div>
+      <div class="li"><span class="s">Status</span><span class="b"><span class="pill p-ing">Doing</span></span></div>
+      <div class="li"><span class="s">Started</span><span class="b">09/12</span></div>
+      <div class="li"><span class="s">Age</span><span class="b">0 天<span class="src"> · 領先指標</span></span></div>
+      <p style="font-size:12px;margin:12px 0 0;color:var(--tx3)">在日誌裡改欄位 = 改專案裡的那個 Issue。沒有副本。</p>
+    </div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>主操作面：</b>大綱編輯器，跟你現在的日記截圖一模一樣的手感。<b>抽屜：</b>點任何已賦型的 block，右側滑出該物件的完整欄位。<b>「回顧」分頁</b>把過去 N 天的日誌串成一條連續敘事（不是日曆格），這是你說的「以時間序幫助個人工作者推論」。<b>「標籤流」分頁</b>依 tag 橫切，看某個專案在時間軸上的所有提及。</p>
+
+<!-- WB2 -->
+<h3>WB2 · 時間線 — 三層行事曆</h3>
+<div class="wf" id="wf2">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/timeline?range=Q4</span></div>
+<div class="wf-nav"><span class="on">全部</span><span>專案層</span><span>日常層</span><span>行政層</span></div>
+<div class="wf-body">
+  <div class="stage">
+   <div style="width:44%">
+    <div class="pane-h">2026 Q4 <span class="r"><span class="btn">+ 新增</span></span></div>
+    <div class="li"><span class="s">09/16</span><span class="b">★ 會計 SSOT 會面</span><span class="pill p-bp">專案</span></div>
+    <div class="li"><span class="s">09/18</span><span class="b">月營運會議</span><span class="pill p-adm">日常</span></div>
+    <div class="li"><span class="s">09/28</span><span class="b">★ 柏翰案驗收到期</span><span class="pill p-warn">專案</span></div>
+    <div class="li"><span class="s">10/01</span><span class="b">★ 發薪日</span><span class="pill p-adm">行政</span></div>
+    <div class="li"><span class="s">10/01</span><span class="b">Lily 到職</span><span class="pill p-adm">行政</span></div>
+    <div class="li"><span class="s">10/15</span><span class="b">勞健保繳費</span><span class="pill p-adm">行政</span></div>
+    <div class="li"><span class="s">10/20</span><span class="b">公司學習日</span><span class="pill p-doc">日常</span></div>
+    <div class="li"><span class="s">10/30</span><span class="b">★ 30 日階段對話</span><span class="pill p-adm">行政</span></div>
+    <div class="li"><span class="s">每週一三</span><span class="b">現場 cowork ×2</span><span class="pill p-ok">日常</span></div>
+   </div>
+   <div class="drawer">
+     <div class="pane-h">編輯事件 <span class="r"><span class="btn">刪除</span> <span class="btn pri">儲存</span></span></div>
+     <div class="li"><span class="s">標題</span><span class="b">柏翰案驗收到期</span></div>
+     <div class="li"><span class="s">層級</span><span class="b">專案層 · <span class="pill p-bp">柏翰 GWS</span></span></div>
+     <div class="li"><span class="s">重要</span><span class="b" style="color:var(--am)">★ 已標星</span></div>
+     <div class="li"><span class="s">日期</span><span class="b">2026/09/28　全天</span></div>
+     <div class="li"><span class="s">來源</span><span class="b">契約 §13.2 自動推導<span class="src"> · 不可刪除，只能標記已履行</span></span></div>
+     <div class="li"><span class="s">連結</span><span class="b">獎金單 BS-2026-09-003</span></div>
+     <div class="li"><span class="s">提醒</span><span class="b">前 7 / 3 / 1 日</span></div>
+   </div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>三層：</b>專案層（交付、驗收、里程碑）／日常層（cowork、會議、學習日、活動）／行政層（發薪、勞健保、報稅、契約檢核）。<b>★ 星標</b>= 這件事錯過會痛，會被 WB3 的「未來」欄優先撈出來。<b>完整 CRUD</b>，但有一個例外：由合約條文自動推導出來的事件（發薪日、驗收到期、30/60/90 日對話）<strong>不可刪除，只能標記「已履行」或「已協議變更」並附理由</strong>——這是承諾與安排的分界線。</p>
+
+<!-- WB3 -->
+<h3>WB3 · 工作台 — 過去、現在、未來 × 目標對齊</h3>
+<div class="wf" id="wf3">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/desk</span></div>
+<div class="wf-nav"><span class="on">時序</span><span>目標對齊</span></div>
+<div class="wf-body">
+  <div class="row c3">
+    <div class="pane">
+      <div class="pane-h">過去 <span class="r">前一週 + 昨天</span></div>
+      <div class="li"><span class="s">上週</span><span class="b">完成 5 項（3M 2S）</span><span class="pill p-ok">done</span></div>
+      <div class="li"><span class="s">上週</span><span class="b">BNI 一對一 ×5</span><span class="pill p-ok">done</span></div>
+      <div class="li"><span class="s">昨天</span><span class="b">介面收斂草稿</span><span class="pill p-ok">done</span></div>
+      <div class="li"><span class="s">昨天</span><span class="b">海報整理</span><span class="pill p-warn">未完</span></div>
+      <p style="font-size:12px;margin:10px 0 0;color:var(--tx3)">未完的自動浮到「現在」欄頂端</p>
+    </div>
+    <div class="pane hl">
+      <div class="pane-h">現在 <span class="r">今天預計 · WIP 3/3</span></div>
+      <div class="li"><span class="pill p-ing">Doing</span><span class="b">develop interface and tenant test</span><span class="s">age 0d</span></div>
+      <div class="li"><span class="pill p-ing">Doing</span><span class="b">10月發表簡報海報</span><span class="s">age 3d</span></div>
+      <div class="li"><span class="pill p-warn">Doing</span><span class="b">邀請函模組</span><span class="s">age 11d ⚠</span></div>
+      <div class="ghost" style="margin-top:8px;border-color:#5a4a2a;color:var(--am)">WIP 已滿 · 新增須先移出一項</div>
+    </div>
+    <div class="pane">
+      <div class="pane-h">未來 <span class="r">記得要做</span></div>
+      <div class="li"><span class="s">★ 09/16</span><span class="b">會計 SSOT 會面</span></div>
+      <div class="li"><span class="s">★ 09/28</span><span class="b">柏翰驗收到期</span></div>
+      <div class="li"><span class="s">Q4</span><span class="b">里程碑項目未指定</span><span class="pill p-adm">承諾</span></div>
+      <div class="li"><span class="s">—</span><span class="b">品質會員模組</span><span class="pill p-doc">Todo</span></div>
+      <div class="li"><span class="s">—</span><span class="b">nuva 網站文字</span><span class="pill p-doc">Todo</span></div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="pane-h">目標對齊 <span class="r">行動層 ↔ 目標層</span></div>
+    <div class="row c3">
+      <div>
+        <div class="mono" style="color:var(--tx)">公司目標　AI-SSOT 可對外交付</div>
+        <div class="bar"><i style="width:62%;background:var(--ac)"></i></div>
+        <p style="font-size:12px;margin:6px 0 0">本週行動 3 項 · 佔今日 WIP 的 2/3</p>
+      </div>
+      <div>
+        <div class="mono" style="color:var(--tx)">公司目標　建立可重複交付方法</div>
+        <div class="bar"><i style="width:18%;background:var(--pu)"></i></div>
+        <p style="font-size:12px;margin:6px 0 0">本週行動 0 項 <span style="color:var(--am)">⚠ 連續 3 週未投入</span></p>
+      </div>
+      <div>
+        <div class="mono" style="color:var(--tx)">公司目標　Q4 新客 3 家</div>
+        <div class="bar"><i style="width:33%;background:var(--tl)"></i></div>
+        <p style="font-size:12px;margin:6px 0 0">本週行動 2 項 · BNI 引薦 5 筆</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>這頁回答一句話：我今天做的事，有沒有推到我說要去的地方。</b>「連續 3 週未投入」這種訊號才是有價值的——它把「行動層 vs 目標層的落差」變成可見。目標對齊分頁同時也是月營運會議的開場畫面。</p>
+
+<!-- WB4 -->
+<h3>WB4 · 專案 — 含 Evidence Repo</h3>
+<div class="wf" id="wf4">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/p/PRJ-2026-004/evidence</span></div>
+<div class="wf-nav"><span>總覽</span><span>工作</span><span>對話</span><span class="on">Evidence Repo</span><span>財務</span><span>承諾</span></div>
+<div class="wf-body">
+  <div class="row c31">
+    <div class="pane">
+      <div class="pane-h">PRJ-2026-004　柏翰 · Google Workspace 導入 <span class="r"><span class="pill p-adm">v0.9 整理中</span></span></div>
+      <div class="tree"><b>README.md</b> <span class="m">← 專案敘事：為什麼做、交付了什麼、學到什麼</span>
+<b>CHANGELOG.md</b>
+<span class="k">01_contract/</span>
+   報價單_v2.pdf
+   專案獎金確認單.pdf <span class="g">✓ 雙方簽署</span>
+<span class="k">02_discovery/</span>
+   訪談_0812.md
+   需求清單_v3.xlsx
+<span class="k">03_delivery/</span>
+   帳號架構圖.png
+   教育訓練簡報.pdf
+   設定文件.md
+<span class="k">04_evidence/</span>
+   驗收單_已簽.pdf <span class="g">✓</span>
+   客戶回饋_0905.md
+   導入前後數據.xlsx
+<span class="k">05_finance/</span>
+   成本明細.xlsx
+   可分配毛利表.pdf <span class="g">✓ 已提供乙方</span>
+<span class="k">06_retro/</span>
+   結案回顧.md
+   <span class="m">可重用資產 → GWS導入SOP_v1</span>
+      </div>
+    </div>
+    <div class="pane">
+      <div class="pane-h">版本演化</div>
+      <div class="li"><span class="s">v1.1</span><span class="b" style="color:var(--tx3)">續約（預留）</span></div>
+      <div class="li"><span class="s">v1.0</span><span class="b" style="color:var(--tx3)">驗收通過 · 凍結</span></div>
+      <div class="li"><span class="s">v0.9</span><span class="b">整理中 <span class="pill p-ing">now</span></span></div>
+      <div class="li"><span class="s">v0.5</span><span class="b" style="color:var(--tx3)">交付完成 09/05</span></div>
+      <div class="li"><span class="s">v0.1</span><span class="b" style="color:var(--tx3)">Kickoff 08/04</span></div>
+      <div class="pane-h" style="margin-top:16px">結案檢查</div>
+      <div class="li"><span class="pill p-ok">✓</span><span class="b">README 已寫</span></div>
+      <div class="li"><span class="pill p-ok">✓</span><span class="b">驗收證據存在</span></div>
+      <div class="li"><span class="pill p-ok">✓</span><span class="b">成本明細已提供</span></div>
+      <div class="li"><span class="pill p-warn">✗</span><span class="b">結案回顧未寫</span></div>
+      <div class="li"><span class="pill p-warn">✗</span><span class="b">可重用資產未登錄</span></div>
+      <div class="ghost" style="margin-top:8px">2 項未完成<br><span class="src">不可標記 v1.0</span></div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="pane-h">把散落的檔案收進來 <span class="r">從對話、日誌、金流拉檔</span></div>
+    <div class="row c3">
+      <div class="ghost">Thread「介面 refactor」<br><span class="src">3 個檔案未歸檔 →</span></div>
+      <div class="ghost">帳本 6 筆已歸屬交易<br><span class="src">→ 05_finance/ 自動生成</span></div>
+      <div class="ghost">日誌 09/05 的交付紀錄<br><span class="src">→ 04_evidence/</span></div>
+    </div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>這是 v2 最大的結構改動。</b>Evidence 不是欄位，是一個有資料夾結構、有 README、有版本 tag 的 repo。專案不是「被標記完成」，是<strong>被整理成一份三個月後還讀得懂的東西</strong>。v1.0 打上去之後該版本凍結（內容雜湊入稽核軌跡），之後的修改只能產生 v1.1。<b>結案檢查清單擋住 v1.0</b>——這是把 Handbook 03「Done 應指向 observable outcome」變成系統行為而不是期許。</p>
+
+<!-- WB5 -->
+<h3>WB5 · 金流 — 四個分頁</h3>
+
+<h4>5-a　帳本：表格 ↔ 憑證庫 ↔ 洞察，三層雙向</h4>
+<div class="wf" id="wf5a">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/money/ledger?m=2026-09</span></div>
+<div class="wf-nav"><span class="on">帳本</span><span>報帳</span><span>人事</span><span>專案預算</span></div>
+<div class="wf-body">
+  <div class="row" style="grid-template-columns:auto 1fr;align-items:center">
+    <div class="mono" style="color:var(--tx3)">視圖</div>
+    <div><span class="btn pri">表格</span> <span class="btn">憑證庫</span> <span class="btn">洞察</span></div>
+  </div>
+  <div class="stage" style="padding:0">
+   <div style="width:44%;padding:12px 14px">
+    <div class="sheet">
+    <table class="gridt">
+      <thead><tr><th>日期</th><th>摘要</th><th>專案</th><th class="num">金額</th><th>代收付</th><th>憑證</th></tr></thead>
+      <tbody>
+      <tr><td>09/02</td><td>雲端主機</td><td>AI-land</td><td class="num">4,200</td><td>—</td><td>1</td></tr>
+      <tr class="sel"><td class="sel">09/05</td><td class="sel">外包 UI 設計</td><td class="sel">柏翰</td><td class="num sel">28,000</td><td class="sel">—</td><td class="sel">3</td></tr>
+      <tr><td>09/08</td><td>柏翰 服務收入</td><td>柏翰</td><td class="num">120,000</td><td>—</td><td>1</td></tr>
+      <tr><td>09/08</td><td>Meta 廣告</td><td>柏翰</td><td class="num">60,000</td><td style="color:#f5c26b">是</td><td>1</td></tr>
+      <tr><td>09/09</td><td>cowork 咖啡</td><td>公司</td><td class="num">260</td><td>—</td><td style="color:#f28b82">缺</td></tr>
+      <tr><td>09/11</td><td>金流手續費</td><td>柏翰</td><td class="num">1,800</td><td>—</td><td>1</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="font-size:12px;margin:10px 0 0;color:var(--tx3)">可直接編輯、貼上、拖曳填滿、公式欄位。這是主操作面。</p>
+   </div>
+   <div class="drawer">
+     <div class="pane-h">09/05 · 外包 UI 設計 <span class="r"><span class="btn">跳到專案 ↗</span></span></div>
+     <div class="row c3" style="gap:6px">
+       <div class="ghost" style="padding:16px 6px">發票影像<br><span class="src">JPG</span></div>
+       <div class="ghost" style="padding:16px 6px">合約<br><span class="src">PDF</span></div>
+       <div class="ghost" style="padding:16px 6px">匯款單<br><span class="src">PNG</span></div>
+     </div>
+     <div class="li" style="margin-top:8px"><span class="s">OCR</span><span class="b">統編 24xxxxxx · 未稅 28,000</span></div>
+     <div class="li"><span class="s">歸屬</span><span class="b">PRJ-2026-004 柏翰</span></div>
+     <div class="li"><span class="s">影響</span><span class="b">可分配毛利 −28,000</span></div>
+     <div class="li"><span class="s">連動</span><span class="b">獎金單 BS-2026-09-003</span></div>
+     <div class="ghost" style="margin-top:8px">＋ 拖曳檔案加入憑證</div>
+   </div>
+  </div>
+  <div class="pane">
+    <div class="pane-h">洞察視圖 <span class="r">每張圖對應一個要回答的問題</span></div>
+    <div class="row c3">
+      <div><div class="mono" style="color:var(--tx)">Q：我們真的有賺嗎？</div><div class="bar" style="height:28px"><i style="width:47%;background:var(--gr)"></i></div><p style="font-size:12px;margin:6px 0 0">9 月可分配毛利率 47%。比 8 月低 9pt，主因外包比重上升——這是 <em>刻意</em> 的：柏翰案為了搶時程外包了 UI。</p></div>
+      <div><div class="mono" style="color:var(--tx)">Q：現金撐得到何時？</div><div class="bar" style="height:28px"><i style="width:68%;background:var(--ac)"></i></div><p style="font-size:12px;margin:6px 0 0">以 9 月固定支出推算 runway 6.8 個月。10 月起加上 Lily 30K，降至 4.9 個月。</p></div>
+      <div><div class="mono" style="color:var(--tx)">Q：錢卡在哪？</div><div class="bar" style="height:28px"><i style="width:22%;background:var(--am)"></i></div><p style="font-size:12px;margin:6px 0 0">應收未收 NT$88,000，其中 1 筆逾期 21 天。獎金閘門①因此卡住。</p></div>
+    </div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>三個視圖同一份資料，雙向可達。</b>表格點一列 → 抽屜顯示該列所有憑證影像；憑證庫點一張發票 → 跳回表格並高亮該列。<b>每張圖表都必須配一段質化說明</b>——圖回答「是多少」，文字回答「為什麼、所以呢」。這對應台灣會計的憑證鏈：原始憑證（發票影像）必須附隨於記帳憑證（傳票／這裡的帳本列），否則那筆分錄沒有依據。</p>
+
+<h4>5-b　報帳　5-c　人事　5-d　專案預算</h4>
+<div class="wf" id="wf5b">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/money/payroll</span></div>
+<div class="wf-nav"><span>帳本</span><span>報帳</span><span class="on">人事</span><span>專案預算</span></div>
+<div class="wf-body">
+  <div class="row c2">
+    <div class="pane">
+      <div class="pane-h">2026-10 薪資 <span class="r">發放日 10/01</span></div>
+      <div class="sheet">
+      <table class="gridt">
+        <thead><tr><th>人員</th><th class="num">固定</th><th class="num">加班</th><th class="num">專案獎金</th><th class="num">里程碑</th><th class="num">應付</th></tr></thead>
+        <tbody>
+        <tr><td>戴宇星</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">負責人報酬另計</td></tr>
+        <tr><td>Lily</td><td class="num">30,000</td><td class="num">1,846</td><td class="num">13,600</td><td class="num">5,000</td><td class="num" style="color:#6ee7a8">50,446</td></tr>
+        <tr><td colspan="6" style="color:#6b7480">時薪基準 NT$230.77 ＝ 30,000 ÷ 130h（§4.2）· 高於法定 196</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div class="pane">
+      <div class="pane-h">獎金閘門 <span class="r">§13.1 五項</span></div>
+      <div class="li"><span class="pill p-ok">✓</span><span class="b">① 客戶款項收訖</span><span class="s">09/08</span></div>
+      <div class="li"><span class="pill p-ok">✓</span><span class="b">② 交付完成</span><span class="s">09/05</span></div>
+      <div class="li"><span class="pill p-warn">…</span><span class="b">③ 驗收 14 日</span><span class="s">剩 7 日</span></div>
+      <div class="li"><span class="pill p-ok">✓</span><span class="b">④ 無退款爭議</span><span class="s">—</span></div>
+      <div class="li"><span class="pill p-ok">✓</span><span class="b">⑤ 成本可確定</span><span class="s">6 筆</span></div>
+      <div class="li" style="margin-top:6px"><span class="s">上限</span><span class="b">里程碑月 5,000 / 8,000</span></div>
+      <div class="li"><span class="s">明細</span><span class="b">已提供乙方 <span class="pill p-ok">§9.6 ✓</span></span></div>
+    </div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>報帳分頁</b>：報帳表格（可編輯）＋「發布報帳連結」（產生一個外部 token 頁，對方上傳收據與填欄位，不需帳號）＋報帳紀錄（狀態機：待送 → 已送 → 已核 → 已付）。<b>人事分頁</b>：上表。<b>專案預算分頁</b>：每個專案一列，預算 vs 實際並排，超支的成本類別直接標紅，點進去是該專案在帳本裡的所有交易。三者共用帳本的同一份交易資料，只是不同的<em>提問角度</em>。</p>
+
+<!-- WB6 -->
+<h3>WB6 · 容量 — 從配置到預測</h3>
+<p>你給的概念鏈 <code>Capacity → Size → WIP → Throughput → Cycle Time → Milestone Forecast</code> 正是流量指標（flow metrics）的標準模型。研究確認了三件事，值得寫進設計：</p>
+<ul class="cl">
+<li><strong>Little's Law</strong>：<code>平均 WIP = 平均 Throughput × 平均 Cycle Time</code>。三個數字不是獨立指標，是同一個系統的三個面。所以介面要把它們放在一起看，不是三張分開的圖。</li>
+<li><strong>百分位需要樣本</strong>：一般建議至少 <strong>30 個已完成項目</strong>才開始談 P50/P85。兩人公司每週完成約 5 項，代表<strong>大約 6–8 週後</strong>這些數字才有意義。在那之前介面要誠實顯示「樣本不足」。</li>
+<li><strong>Work Item Age 是唯一的領先指標</strong>。Cycle Time 與 Throughput 都是落後指標，只能事後檢討；只有「這件事已經開始幾天了」能在當下救火。<strong>所以 Age 應該出現在 WB3 的「現在」欄，而不是埋在容量頁裡。</strong></li>
+</ul>
+
+<div class="wf" id="wf6">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/capacity</span></div>
+<div class="wf-nav"><span class="on">週配置</span><span>流量指標</span><span>預測</span></div>
+<div class="wf-body">
+  <div class="row c2">
+    <div class="pane">
+      <div class="pane-h">Weekly Capacity · 戴宇星</div>
+      <div class="li"><span class="b">Client Delivery</span><span class="s">30%</span></div><div class="bar"><i style="width:30%;background:var(--ac)"></i></div>
+      <div class="li" style="margin-top:6px"><span class="b">Product</span><span class="s">30%</span></div><div class="bar"><i style="width:30%;background:var(--pu)"></i></div>
+      <div class="li" style="margin-top:6px"><span class="b">Research</span><span class="s">20%</span></div><div class="bar"><i style="width:20%;background:var(--tl)"></i></div>
+      <div class="li" style="margin-top:6px"><span class="b">Management</span><span class="s">10%</span></div><div class="bar"><i style="width:10%;background:var(--am)"></i></div>
+      <div class="li" style="margin-top:6px"><span class="b">Buffer</span><span class="s">10%</span></div><div class="bar"><i style="width:10%;background:#3a4250"></i></div>
+    </div>
+    <div class="pane">
+      <div class="pane-h">Weekly Capacity · Lily <span class="r">對照契約 §2.4</span></div>
+      <div class="li"><span class="b">Client Delivery</span><span class="s">60% <span style="color:var(--tx3)">/ 約定 70%</span></span></div><div class="bar"><i style="width:60%;background:var(--ac)"></i></div>
+      <div class="li" style="margin-top:6px"><span class="b">Marketing 方法資產</span><span class="s">20% <span style="color:var(--tx3)">/ 20%</span></span></div><div class="bar"><i style="width:20%;background:var(--pu)"></i></div>
+      <div class="li" style="margin-top:6px"><span class="b">Internal 試驗</span><span class="s">10% <span style="color:var(--tx3)">/ 10%</span></span></div><div class="bar"><i style="width:10%;background:var(--tl)"></i></div>
+      <div class="li" style="margin-top:6px"><span class="b">Buffer</span><span class="s">10%</span></div><div class="bar"><i style="width:10%;background:#3a4250"></i></div>
+      <div class="ghost" style="margin-top:10px">月工時 86.5 / 130 h　·　WIP 3/3</div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="pane-h">工作項目只要六欄 <span class="r">不填 Estimate，不填 Actual</span></div>
+    <div class="sheet">
+    <table class="gridt">
+      <thead><tr><th>Task</th><th>Project</th><th>Size</th><th>Status</th><th>Started</th><th>Done</th><th>Age</th></tr></thead>
+      <tbody>
+      <tr><td>建立企業 QA Landing Page</td><td>企業 QA</td><td>M</td><td>Doing</td><td>09/12</td><td>—</td><td>0d</td></tr>
+      <tr><td>邀請函模組</td><td>AI-BA</td><td>M</td><td>Doing</td><td>09/01</td><td>—</td><td style="color:#f28b82">11d ⚠</td></tr>
+      <tr><td>訪談逐字稿整理</td><td>柏翰</td><td>S</td><td>Done</td><td>09/03</td><td>09/04</td><td>1d</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div class="row c3">
+    <div class="pane"><div class="pane-h">Throughput</div><div class="kpi">3M + 2S<small>每週平均 · 近 8 週</small></div></div>
+    <div class="pane"><div class="pane-h">Cycle Time · M</div><div class="kpi">P50 2.1d<small>P85 4.2d · n=34 ✓</small></div></div>
+    <div class="pane"><div class="pane-h">Cycle Time · L</div><div class="kpi" style="color:var(--tx3)">n=6<small>樣本不足，尚不顯示百分位</small></div></div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>不填工時估計與實際。</b>只要有 Started 與 Done 兩個日期，系統就能自己算出所有東西。跑 4–8 週之後你會擁有一個「圓展自己的 Capacity Model」，而不是抄別人的估算法。<b>預測分頁</b>用 Monte Carlo 對歷史 throughput 重抽樣，回答「這 12 個 Issue 在 10/31 前做完的機率是多少」——輸出一個機率，不是一個日期。</p>
+
+<!-- WB7 -->
+<h3>WB7 · 承諾 — 說到有沒有做到</h3>
+<div class="wf" id="wf7">
+<div class="wf-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="wf-url">yz.app/commitments/labor-contract-lily</span></div>
+<div class="wf-nav"><span class="on">內部承諾</span><span>外部承諾</span></div>
+<div class="wf-body">
+  <div class="row" style="grid-template-columns:150px 1fr 1fr">
+    <div class="pane" style="padding:10px 12px">
+      <div class="pane-h">文件</div>
+      <div class="li"><span class="b" style="color:var(--ac)">Lily 勞動契約</span></div>
+      <div class="li"><span class="b">Company Handbook</span></div>
+      <div class="li"><span class="b">職位說明書</span></div>
+      <div class="li"><span class="b">年度營運文件</span></div>
+      <div class="li"><span class="b" style="color:var(--tx3)">— 外部 —</span></div>
+      <div class="li"><span class="b">柏翰 Proposal</span></div>
+      <div class="li"><span class="b">會計 SSOT 報價</span></div>
+    </div>
+    <div class="pane">
+      <div class="pane-h">文件內容 <span class="r">可標記條文</span></div>
+      <p style="font-size:12.5px;margin:0 0 10px"><span style="background:#2a2416;padding:2px 4px;border-radius:3px">第二十二條　甲方之支持義務<br>…甲方應提供<strong>每月一次 1:1 檢核</strong>，並於本契約生效後之第三十日、第六十日、第九十日進行階段對話。</span></p>
+      <p style="font-size:12.5px;margin:0 0 10px;color:var(--tx3)">第四條　工作時間…每月正常工作時間為 130 小時…</p>
+      <p style="font-size:12.5px;margin:0;color:var(--tx3)">第十六條　乙方因執行工作所需之公司核准軟體、AI 工具…由甲方提供或依甲方核准程序報支。</p>
+      <div class="ghost" style="margin-top:10px">選取一段文字 → 建立承諾紀錄</div>
+    </div>
+    <div class="pane">
+      <div class="pane-h">承諾 C-007 <span class="r"><span class="pill p-ok">履行中</span></span></div>
+      <div class="li"><span class="s">方向</span><span class="b">內部 · 甲方 → 乙方</span></div>
+      <div class="li"><span class="s">來源</span><span class="b">契約 §22.3（一）</span></div>
+      <div class="li"><span class="s">Owner</span><span class="b">戴宇星</span></div>
+      <div class="li"><span class="s">節奏</span><span class="b">每月一次</span></div>
+      <div class="pane-h" style="margin-top:14px">可觀測紀錄 <span class="r">自動 + 手動</span></div>
+      <div class="li"><span class="s">09/05</span><span class="b">1:1 已進行 <span class="src">自動：行事曆</span></span><span class="pill p-ok">✓</span></div>
+      <div class="li"><span class="s">08/07</span><span class="b">1:1 已進行 <span class="src">自動</span></span><span class="pill p-ok">✓</span></div>
+      <div class="li"><span class="s">10/30</span><span class="b">30 日階段對話 <span class="src">待辦</span></span><span class="pill p-adm">排定</span></div>
+      <div class="ghost" style="margin-top:8px;color:var(--am)">＋ 月度回顧手動補 log<br><span class="src">有些承諾無法自動觀測</span></div>
+    </div>
+  </div>
+</div>
+</div>
+<p class="cap"><b>左：文件原文。中：可被標記的條文。右：那一條的履行證據。</b>承諾紀錄的欄位參考承諾登記簿（commitment register）的標準結構：唯一編號、承諾日、內容、方向、Owner、狀態、期限、受影響對象、履行證據。<b>內部承諾</b>＝對員工、對自己（Handbook 裡的工作方式承諾）；<b>外部承諾</b>＝對客戶（Proposal 裡的交付標準）、對主管機關。<b>月度回顧手動補 log</b> 是必要設計：不是每一條承諾都能被系統自動觀測，該讓人補的就讓人補，並留下誰補的、何時補的。</p>
+
+<!-- ==================== 4 ==================== -->
+<h2><span class="sect-n">04</span>　資料模型骨架</h2>
+<p>七個工作台共用一組物件。介面是視角，這張表才是系統。</p>
+<div class="tw">
+<table>
+<thead><tr><th>物件</th><th>關鍵欄位</th><th>誕生於</th><th>出現在</th></tr></thead>
+<tbody>
+<tr><td><code>Block</code></td><td>id, parent, text, type?, created_at</td><td>日誌</td><td>WB1</td></tr>
+<tr><td><code>Goal</code></td><td>id, title, period, progress</td><td>年度營運文件</td><td>WB3 WB2</td></tr>
+<tr><td><code>Project</code></td><td>id, goal_id, type（行銷型/產品型/混合）, owner, 交付標準, repo_version</td><td>專案</td><td>WB2 WB4 WB5 WB6</td></tr>
+<tr><td><code>Issue</code></td><td>id, project_id, owner, <strong>size</strong>, status, <strong>started_at, done_at</strong>, blocker</td><td>日誌 / 對話 / 專案</td><td>WB1 WB3 WB4 WB6</td></tr>
+<tr><td><code>Thread</code></td><td>id, project_id, close_summary, decisions[], files[]</td><td>專案</td><td>WB4</td></tr>
+<tr><td><code>Decision</code></td><td>id, context, evidence, owner, date, <strong>supersedes</strong></td><td>對話 / 日誌</td><td>WB4</td></tr>
+<tr><td><code>EvidenceRepo</code></td><td>project_id, tree, readme, version, frozen_hash</td><td>專案</td><td>WB4</td></tr>
+<tr><td><code>Txn</code></td><td>id, date, <strong>project_id</strong>, category, amount, <strong>is_pass_through</strong>, vouchers[]</td><td>日誌 / 帳本 / 報帳</td><td>WB5</td></tr>
+<tr><td><code>Voucher</code></td><td>id, txn_id, image, ocr_text, type（發票/收據/合約/匯款單）</td><td>憑證庫</td><td>WB5</td></tr>
+<tr><td><code>BonusSheet</code></td><td>project_id, 類型, 主要執行者, 加成, 五道閘門, 毛利, 應付</td><td>專案啟動前</td><td>WB5</td></tr>
+<tr><td><code>CapacityPlan</code></td><td>person_id, week, buckets[]（%）</td><td>容量</td><td>WB6</td></tr>
+<tr><td><code>Commitment</code></td><td>id, doc_id, clause_ref, <strong>direction（內/外）</strong>, owner, status, deadline, logs[]</td><td>承諾</td><td>WB7 WB2</td></tr>
+<tr><td><code>TimelineEvent</code></td><td>id, layer（專案/日常/行政）, <strong>starred</strong>, <strong>derived_from</strong>（合約條款→不可刪）</td><td>時間線 / 自動推導</td><td>WB2 WB3</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box gr">
+<h4>三個欄位決定整個系統成不成立</h4>
+<p><code>Txn.project_id</code> 與 <code>Txn.is_pass_through</code> — 沒有這兩欄就算不出可分配毛利，算不出毛利就發不出獎金（契約 §9、§10）。<br>
+<code>Issue.started_at / done_at</code> — 沒有這兩個日期就沒有任何流量指標，Capacity Model 永遠建不起來。<br>
+<code>TimelineEvent.derived_from</code> — 沒有它就分不出「安排」與「承諾」，承諾會被當成一般行程刪掉。</p>
+</div>
+
+<!-- ==================== 5 ==================== -->
+<h2><span class="sect-n">05</span>　落地順序</h2>
+<div class="tw">
+<table>
+<thead><tr><th>階段</th><th>內容</th><th>完成判準</th></tr></thead>
+<tbody>
+<tr><td><span class="tag t-p0">S1</span><br><span class="src">10/01 前</span></td><td><strong>導航殼層 + WB1 日誌 + WB4 專案（總覽/工作）+ WB2 時間線</strong><br>Block 的 5 種型別：standup / issue / todo / decision / expense。⌘K 命令面板。三層導航契約。</td><td>Lily 到職第一天，所有工作都能在系統裡發生，不需要另開 Notion 或 Sheet</td></tr>
+<tr><td><span class="tag t-p0">S2</span><br><span class="src">10 月內</span></td><td><strong>WB5 帳本（表格 + 憑證抽屜）+ WB3 工作台</strong><br>Txn 三個必填欄位到位。Issue 的 started/done 開始累積。</td><td>10 月底能算出第一個專案的可分配毛利，且金額經得起 §9.6 的明細檢視</td></tr>
+<tr><td><span class="tag t-p1">S3</span><br><span class="src">Q4</span></td><td><strong>WB4 Evidence Repo + WB5 人事/報帳/預算 + WB7 承諾</strong><br>第一個專案走完完整結案流程。獎金五道閘門自動化。</td><td>柏翰案能產出一份第三方看得懂的 v1.0 Evidence Repo；11/01 的獎金由系統算出而非人工</td></tr>
+<tr><td><span class="tag t-p1">S4</span><br><span class="src">Q1 2027</span></td><td><strong>WB6 容量（流量指標 + 預測）</strong><br>此時 Issue 樣本已累積 8–12 週。</td><td>M 尺寸的 Cycle Time P85 有 30+ 樣本，可對客戶承諾交期</td></tr>
+<tr><td><span class="tag t-p2">S5</span></td><td>洞察視圖的質化說明、Monte Carlo 預測、AI Signal</td><td>月營運會議可以直接開這個系統，不用另做簡報</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box am">
+<h4>順序的理由</h4>
+<p>WB6 容量排在最後，<strong>不是因為不重要，是因為它需要時間累積資料</strong>。流量指標在樣本不足時給出的數字比沒有數字更危險。但 <code>Issue.started_at / done_at</code> 必須在 S1 就存在——資料要從第一天開始收，介面可以晚半年再做。這是整份路線圖裡唯一一個「欄位先行、介面後補」的例外。</p>
+</div>
+
+<!-- ==================== 6 ==================== -->
+<h2><span class="sect-n">06</span>　外部研究依據</h2>
+<ul class="cl srcs">
+<li><strong>流量指標與百分位</strong>：WIP／Cycle Time／Throughput／Work Item Age 的定義、Little's Law（平均 WIP ＝ 平均 Throughput × 平均 Cycle Time）、建議至少 30 筆完成項目才談百分位、P85 作為服務水準預期的起點、Work Item Age 為唯一領先指標 — <a href="https://kollabe.com/posts/flow-metrics-for-scrum-teams">Kollabe, Flow Metrics for Scrum Teams</a>；<a href="https://prokanban.org/scrum-flow-metrics">ProKanban, Flow Metrics for Scrum Teams</a>；<a href="https://www.55degrees.se/blog/post/agile-forecasting-monte-carlo-simulations-and-flow-metrics">55 Degrees, Agile Forecasting with Monte Carlo</a></li>
+<li><strong>typed block / supertag 模型</strong>：標籤即「此節點屬於哪個資料庫」、套用後預設欄位自動浮現、supertag 可繼承、日節點作為擷取入口、任何大綱項目都能被賦型成可查詢的物件 — <a href="https://www.unlocktana.com/blog/tana-vs-logseq">Tana vs Logseq 機制比較</a></li>
+<li><strong>漸進揭露與企業級導航</strong>：三層揭露（常駐／一次互動可達／專屬區域）、modal 用於離散動作而 full page 用於需大量互動的流程、對重複執行相同任務的專家使用者，常駐可見優於漸進揭露 — <a href="https://medium.com/@theuxarchitect/progressive-disclosure-in-enterprise-design-less-is-more-until-it-isnt-01c8c6b57da9">Progressive Disclosure in Enterprise Design</a>；<a href="https://www.nngroup.com/videos/progressive-disclosure/">NN/g, Progressive Disclosure</a></li>
+<li><strong>反配置、鍵盤優先、高資訊密度</strong>：⌘K 作為通用入口、固定狀態集而非可配置流程、列表一行顯示完整 metadata 而非卡片展開 — <a href="https://www.spyglassci.com/blog/why-linear-won-project-management">Why Linear Won the Developer PM Market</a></li>
+<li><strong>承諾登記簿</strong>：唯一編號／承諾日／內容／類型／Owner／狀態／受影響對象、四階段生命週期、「結案時必須附上履行證據並告知受影響者」、逾期／未結案的即時檢視 — <a href="https://www.tractivity.co.uk/blog/stakeholder-commitment-tracking">Tractivity, Stakeholder Commitment Tracking</a>；<a href="https://humentum.org/free-resources/guide/commitments-register-example">Humentum, Commitments Register Example</a></li>
+<li><strong>容量模型</strong>：有效容量＝合約工時減去非交付時間（40h 實際約 30h）、承諾工作／機率加權管線／非計費時間三分類、75–85% 計費利用率健康帶、週／月／季三層檢視節奏 — <a href="https://www.teamwork.com/blog/capacity-model/">Teamwork, Capacity Model Guide</a>；<a href="https://productive.io/blog/capacity-planning-guide/">Productive, Capacity Planning Guide</a></li>
+<li><strong>台灣會計憑證鏈</strong>：原始憑證 → 記帳憑證（傳票）→ 分錄 → 帳簿；原始憑證必須附隨於傳票，否則該分錄缺乏入帳依據；傳票須記載製表人與審核主管 — <a href="https://www.lovemore-account.tw/18-entry/">會計蔘活，分錄與會計憑證</a>；<a href="https://law-out.mof.gov.tw/LawContent.aspx?id=FL041411">財政部，電子發票實施作業要點</a></li>
+<li><strong>專案結案文件包</strong>：結案報告、驗收證明、最終交付清單、經驗學習紀錄構成可審核的結案包 — <a href="https://monday.com/blog/project-management/project-closeout/">Monday, Project Closeout Process</a>；<a href="https://productive.io/blog/project-closure/">Productive, Project Closure</a></li>
+</ul>
+
+<h2><span class="sect-n">07</span>　一句話</h2>
+<p class="lead">v1 給了你一張清單，v2 給你一條規則：<strong>一個大概念 → 分頁 → 一個主操作面 + 抽屜</strong>，七個情境各佔一個大概念，全系統共用一組被賦型的 block。你在日誌裡寫字，系統在建物件；你在專案裡收尾，系統在封存證據；你在帳本裡打一列，系統在算獎金。介面不是模組的入口，是情境的形狀。</p>
+
+<p class="meta">內部依據：Company Handbook v0.1（00–07 章、附錄 B）｜圓展教育科技 × Lily 部分工時勞動契約暨專案績效獎金約定書草稿 v1（§2、§4、§5、§7、§8–§16、§18–§22）｜self-stucture-v1 現有路由｜個人日誌 20260910<br>外部依據：見第 06 節</p>
+
+</div>
+</body>
+</html>

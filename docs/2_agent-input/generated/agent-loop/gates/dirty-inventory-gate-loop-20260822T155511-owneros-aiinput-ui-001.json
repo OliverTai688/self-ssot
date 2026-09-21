@@ -1,0 +1,70 @@
+{
+  "runId": "gate-loop-20260822T155511-owneros-aiinput-ui-001",
+  "createdAt": "2026-08-22T15:55:11+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "selectedTask": "OWNEROS-AIINPUT-UI-001",
+  "dirtyOverlapDecision": "OWNED_WITH_REVIEW",
+  "notes": [
+    "The repository already had many unrelated modified, deleted, and untracked files before this loop.",
+    "This run only owns the AI Input runtime surface, the task-specific checker, package script entry, loop/gate state, and related task/evidence docs.",
+    "PRD-004_next-stage-development-plan.md is missing in the pre-existing dirty worktree and is recorded as a risk; this run does not restore it."
+  ],
+  "ownedPaths": [
+    {
+      "path": "src/app/(dashboard)/ai-input/page.tsx",
+      "statusAtStart": "modified",
+      "sha256AtStart": "8cfb0e88667f2d316167b1863ed0762146b4b365ba2d9281358443a464b3e91c"
+    },
+    {
+      "path": "src/app/(dashboard)/ai-input/ai-input-client.tsx",
+      "statusAtStart": "modified",
+      "sha256AtStart": "1609746149807c3ebb494e56c5ff7e7b3affd05d04b3e604e7f77572045227aa"
+    },
+    {
+      "path": "scripts/check-owneros-ai-input-simplified-surface.mjs",
+      "statusAtStart": "untracked-new-this-run",
+      "sha256AtStart": null
+    },
+    {
+      "path": "package.json",
+      "statusAtStart": "modified",
+      "sha256AtStart": "627186fc28483d648a4eb5ca081daa21b5d119a4f602990c00fad37cf522400c"
+    },
+    {
+      "path": "tasks.md",
+      "statusAtStart": "modified",
+      "sha256AtStart": "181aa8755c38adde2317ebabf8f8393023747be98ce89d535836bf4d67b9c3ae"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "statusAtStart": "modified",
+      "sha256AtStart": "0e1f8bada13b79b396dd34bc7f2fce702174c40d7c19f32581fb389318cead6b"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "statusAtStart": "modified",
+      "sha256AtStart": "a954cbdf46bdae69f467010f27741774999a0f82acba348bda8c23c89dc571fd"
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "statusAtStart": "modified",
+      "sha256AtStart": "e40290d9cb7fb5b09ee9bbac520ac225261226fd170371288463e3aab00728a8"
+    },
+    {
+      "path": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "statusAtStart": "modified",
+      "sha256AtStart": "01e285542cbc68efa3727a89c2d69624610bc11ce59054a11d6cfa39c39fdc3c"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "statusAtStart": "modified",
+      "sha256AtStart": "e8b39eab04d4e37d43018cb4d3a77780be435ca7a3e37983c8333de4769fd78a"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+      "statusAtStart": "modified",
+      "sha256AtStart": "5d33bb819e70673890019c901a5ecf5913865857c2155975d868cd364e4559c3"
+    }
+  ],
+  "unownedDirtyPolicy": "Do not edit, revert, stage, commit, push, or normalize unrelated dirty paths."
+}

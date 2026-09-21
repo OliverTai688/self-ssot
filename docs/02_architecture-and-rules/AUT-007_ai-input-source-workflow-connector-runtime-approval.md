@@ -1,7 +1,7 @@
 # AUT-007 AI Input Source Workflow Connector Runtime Approval
 
 **Document ID:** `AUT-007`  
-**Task:** `DATTR-024L-CONNECTOR-RUNTIME`  
+**Task:** `DATTR-024L-CONNECTOR-RUNTIME`, `AIINPUT-CONN-004`
 **Date:** 2026-06-23  
 **Status:** Approval gate ready; no connector runtime activation
 
@@ -10,6 +10,8 @@
 `DATTR-024L-CONNECTOR-RUNTIME` converts the earlier connector consent/revoke/provider-event boundary into an executable approval package for future OAuth, webhook, polling, provider API, file ingestion, OCR/transcription, and adapter runtime work.
 
 This is an approval and safety gate, not a runtime implementation.
+
+`AIINPUT-CONN-004` now consumes this gate through a protected, no-secret provider-step catalog. It does not change the approval state: the catalog permits only static manifest reads and explicitly blocks provider accounts, persisted setup sessions, discovery/preview, tests, impact reads, and activation until the existing gates pass.
 
 Current state:
 
@@ -39,6 +41,9 @@ Local sources:
 - `src/lib/services/ai-input-source-workflow.service.ts`
 - `src/lib/contracts/operating-audit-storage-review.contract.ts`
 - `scripts/check-ai-input-source-workflow-connector-runtime-approval.mjs`
+- `src/lib/contracts/ai-input-source-connection-catalog.contract.ts`
+- `src/lib/services/ai-input-source-connection-catalog.service.ts`
+- `scripts/check-ai-input-connection-manifest-bff.mjs`
 
 Primary/official sources:
 
@@ -85,6 +90,8 @@ Provider families covered by the approval package:
 - NANDA/external-agent boundary with `externalRegisterable=false`.
 
 ## Runtime Stop Boundary
+
+The `AIINPUT-CONN-004` catalog makes the stop boundary machine-checkable in the setup UI contract: all OAuth, secret, callback, webhook, polling, provider API, DB, route/action, module-write, public-output, external-agent-access, and external-registration flags are literal `false`; malformed or runtime-enabled provider manifests return an unavailable zero-provider catalog.
 
 This task does not create:
 

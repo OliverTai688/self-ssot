@@ -1,0 +1,45 @@
+
+> self-stucture-v1@0.1.0 ui:yuanzhan:verify /Users/pzps0964713/Documents/github/self-stucture-v1
+> node scripts/verify-yuanzhan-v5.cjs && node scripts/verify-yuanzhan-v5-details.cjs
+
+showcase v5 shell metrics / no inline handlers
+showcase 30 subpages rendered, no NaN or Infinity
+showcase long drawer scrolls; shared Issue backlink opens other author journal read-only
+showcase journal typing shared immediately, author guard, member comment
+showcase personal/team and personal actor isolation
+showcase project/Issue CRUD and four views, object comments
+showcase event creation / date / layer / star and calendar
+showcase formula preserved, inline edit and atomic TSV paste
+showcase file bytes and immutable versions with apostrophe-safe handlers
+showcase command jump and 390px daily collaboration layout
+showcase reload resets UI-memory to env seed
+empty v5 shell metrics / no inline handlers
+empty 30 subpages rendered, no NaN or Infinity
+empty journal typing shared immediately, author guard, member comment
+empty personal/team and personal actor isolation
+empty project/Issue CRUD and four views, object comments
+empty event creation / date / layer / star and calendar
+empty formula preserved, inline edit and atomic TSV paste
+empty file bytes and immutable versions with apostrophe-safe handlers
+empty command jump and 390px daily collaboration layout
+empty reload resets UI-memory to env seed
+PASS 21 groups; 60 tab captures; 0 runtime errors; 0 business mutation requests
+empty Standup summon, composition guard and indentation
+empty Thread creation / send / five-field Close card
+empty Evidence required checks, fixed file version, freeze and new-version isolation
+empty Three-column reconciliation, exact amount match / unmatch
+empty Source document / clause / commitment / monthly log
+empty Weekly capacity totals 100%
+empty Minute-level attendance, author confirmation, no fabricated estimation
+empty Payroll member read-only scope
+empty Mobile project conversation stays inside viewport
+showcase Standup summon, composition guard and indentation
+showcase Thread creation / send / five-field Close card
+showcase Evidence required checks, fixed file version, freeze and new-version isolation
+showcase Three-column reconciliation, exact amount match / unmatch
+showcase Source document / clause / commitment / monthly log
+showcase Weekly capacity totals 100%
+showcase Minute-level attendance, author confirmation, no fabricated estimation
+showcase Payroll member read-only scope
+showcase Mobile project conversation stays inside viewport
+PASS 18 detail groups

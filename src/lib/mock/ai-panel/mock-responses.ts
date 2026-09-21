@@ -115,9 +115,9 @@ export const routeResponses: Record<string, KeywordResponse[]> = {
     {
       keywords: ["今天", "今日", "早安", "簡報"],
       response: {
-        text: "今天早安簡報顯示 3 件事需要注意：Allen 提案截止、Lisa 的 LINE 未回、Banner 後天送印。建議從最緊迫的 Allen 開始。",
+        text: "今日摘要顯示 3 件事需要注意：Allen 提案截止、Lisa 的 LINE 未回、Banner 後天送印。建議從最緊迫的 Allen 開始。",
         navSuggestions: [
-          { label: "查看早安簡報", href: "/dashboard", type: "page" },
+          { label: "查看今日", href: "/dashboard", type: "page" },
           { label: "Allen NGO Proposal", href: "/work/p2", type: "project" },
         ],
       },
@@ -149,7 +149,7 @@ export const defaultResponse: MockAiMessage = {
 // ─── Greeting messages per route ─────────────────────────────────────────────
 
 export const routeGreetings: Record<string, string> = {
-  "/dashboard": "今天的早安簡報已整理好。有 3 件事需要你的注意。需要我幫你決定從哪裡開始嗎？",
+  "/dashboard": "今天的重點已整理好。有 3 件事需要你的注意。需要我幫你決定從哪裡開始嗎？",
   "/work": "工作模組目前有 3 個進行中的專案。Allen 的提案進度最緊迫，需要優先處理。",
   "/work/p1": "Lisa Q2 Dashboard 整體進度 60%，客戶分層色彩問題是目前的主要阻礙。需要我幫你查什麼嗎？",
   "/work/p2": "Allen NGO Proposal 進度落後（25%），財務數據尚未收到。今天最重要的事是聯絡 Allen 確認。",

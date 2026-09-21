@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-23T06:47:56.165Z",
+  "generatedAt": "2026-08-21T14:37:40.685Z",
   "taskId": "MANUAL-OPS-001",
   "status": "manual_ops_ready",
   "formalLaunchLevel": {
@@ -14,32 +14,12 @@
     "meaning": "Product/runtime baselines are far enough along that remaining launch blockers can be handled as owner/operator Manual Ops, without claiming formal L1."
   },
   "noUpgradeReasons": [
-    "Supabase public URL",
-    "Supabase publishable key",
     "Deployment marker",
     "Auth status evidence",
     "Work proof target",
     "Docker disposable Work proof"
   ],
   "manualOpsRows": [
-    {
-      "id": "manual.supabase-public-env",
-      "area": "Auth",
-      "blocks": [
-        "AUTH-005",
-        "L1_PRIVATE_ONLINE_WORK_OS"
-      ],
-      "status": "owner_action_required",
-      "ownerAction": "Configure Supabase public URL and publishable key in the intended launch environment, then rerun launch proof.",
-      "command": "pnpm launch:proof -- --out docs/2_agent-input/generated/agent-loop/reports/owner-launch-proof.json",
-      "evidenceTarget": "docs/2_agent-input/generated/agent-loop/reports/owner-launch-proof.json",
-      "passSignal": "blockedLabels no longer include Supabase public URL or Supabase publishable key.",
-      "failSignal": "blockedLabels still include Supabase public URL or Supabase publishable key.",
-      "risk": "medium",
-      "writesDatabase": false,
-      "requiresApproval": false,
-      "printsSecrets": false
-    },
     {
       "id": "manual.signed-in-auth-status",
       "area": "Auth",
@@ -116,24 +96,21 @@
     }
   ],
   "manualOpsSummary": {
-    "rowCount": 5,
-    "ownerActionCount": 3,
+    "rowCount": 4,
+    "ownerActionCount": 2,
     "operatorActionCount": 2,
     "highRiskCount": 2,
     "writesDatabaseCount": 1,
     "approvalRequiredCount": 1,
-    "primaryManualOp": "manual.supabase-public-env",
-    "nextAction": "Configure Supabase public URL and publishable key in the intended launch environment, then rerun launch proof."
+    "primaryManualOp": "manual.signed-in-auth-status",
+    "nextAction": "Sign in through /login, open /auth/status in the same browser session, save sanitized JSON, and run auth proof."
   },
   "sourceChecks": {
     "launchReadiness": {
       "ok": true,
       "exitCode": 0,
-      "overallStatus": "blocked",
-      "blockedLabels": [
-        "Supabase public URL",
-        "Supabase publishable key"
-      ],
+      "overallStatus": "warn",
+      "blockedLabels": [],
       "warnLabels": [
         "Deployment marker"
       ]

@@ -3,6 +3,7 @@
 import { HeartIcon } from "lucide-react"
 import { AppHeader } from "@/components/layout/app-header"
 import { ModuleGuard } from "@/components/layout/module-guard"
+import { useIsDemoAccount } from "@/lib/context/demo-account-context"
 import {
   ModuleOperatingShell,
   type ModuleAgentProposal,
@@ -12,7 +13,7 @@ import {
 } from "@/components/layout/module-operating-shell"
 import { FitnessDashboard } from "@/components/life/fitness-dashboard"
 
-const lifeRecords: ModuleOperatingRecord[] = [
+const exampleLifeRecords: ModuleOperatingRecord[] = [
   {
     id: "life-001",
     title: "今日能量與睡眠檢查",
@@ -91,7 +92,7 @@ const lifeRecords: ModuleOperatingRecord[] = [
   },
 ]
 
-const lifeProposals: ModuleAgentProposal[] = [
+const exampleLifeProposals: ModuleAgentProposal[] = [
   {
     id: "life-proposal-001",
     title: "今天先降低認知負荷",
@@ -112,7 +113,7 @@ const lifeProposals: ModuleAgentProposal[] = [
   },
 ]
 
-const lifeAuditRows: ModuleAuditRow[] = [
+const exampleLifeAuditRows: ModuleAuditRow[] = [
   {
     id: "life-audit-001",
     time: "今天 08:10",
@@ -169,6 +170,13 @@ const lifeSettings: ModuleSettingRow[] = [
 ]
 
 export default function LifePage() {
+  // AUTH-013: the illustrative daily-log/memory rows above are demo-account-
+  // only content. Every other signed-in account starts blank.
+  const isDemoAccount = useIsDemoAccount()
+  const lifeRecords = isDemoAccount ? exampleLifeRecords : []
+  const lifeProposals = isDemoAccount ? exampleLifeProposals : []
+  const lifeAuditRows = isDemoAccount ? exampleLifeAuditRows : []
+
   return (
     <ModuleGuard moduleKey="life">
       <div className="flex h-full flex-col overflow-hidden bg-background">
@@ -179,11 +187,15 @@ export default function LifePage() {
             icon={HeartIcon}
             operationLabel="生活節律"
             operationDescription="每日能量、健康追蹤、節律回顧與個人記憶邊界"
-            overviewItems={[
-              { label: "今日能量", placeholder: "目前以 3/5 作為 rehearsal 狀態；可新增本機草稿更新。" },
-              { label: "今日焦點", placeholder: "把 Work / Life 交界壓成一件最重要的事，避免過載。" },
-              { label: "本週回顧", placeholder: "體重、飲食、睡眠與情緒筆記分開處理，預設 owner-only。" },
-            ]}
+            overviewItems={
+              isDemoAccount
+                ? [
+                    { label: "今日能量", placeholder: "目前以 3/5 作為 rehearsal 狀態；可新增本機草稿更新。" },
+                    { label: "今日焦點", placeholder: "把 Work / Life 交界壓成一件最重要的事，避免過載。" },
+                    { label: "本週回顧", placeholder: "體重、飲食、睡眠與情緒筆記分開處理，預設 owner-only。" },
+                  ]
+                : []
+            }
             operationPlaceholder="介面已可操作每日 check-in、健康週回顧、個人記憶、LifeAgent 提案與隱私邊界。"
             records={lifeRecords}
             agentProposals={lifeProposals}
@@ -192,6 +204,8 @@ export default function LifePage() {
             highRisk
             highRiskNote="生活、健康與個人記憶屬於高隱私資料。Agent 只能提案，不可自動同步、匯出或寫入其他模組。"
             privacyNote="生活模組為私人資料。健康、節律與個人記憶資料不對 Client Portal、Research、Work 或任何外部系統公開。"
+            moduleKey="life"
+            agentLabel="生活AI"
           >
             <section className="rounded-lg border bg-background">
               <div className="border-b px-4 py-3">

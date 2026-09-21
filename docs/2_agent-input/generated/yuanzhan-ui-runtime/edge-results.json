@@ -1,0 +1,22 @@
+{
+  "result": "PASS",
+  "checks": 12,
+  "details": [
+    "empty / empty last record deletion and undo",
+    "empty / drawer restores focus; unsent replies survive navigation and stay actor-scoped",
+    "empty / composing input does not open slash command; command selects Issue",
+    "empty / real local image upload and rejected unsupported file",
+    "empty / dark mode, 390px sidebar and dialog keyboard navigation",
+    "empty / filtered ledger subtotal follows visible rows",
+    "showcase / empty last record deletion and undo",
+    "showcase / drawer restores focus; unsent replies survive navigation and stay actor-scoped",
+    "showcase / composing input does not open slash command; command selects Issue",
+    "showcase / real local image upload and rejected unsupported file",
+    "showcase / dark mode, 390px sidebar and dialog keyboard navigation",
+    "showcase / filtered ledger subtotal follows visible rows"
+  ],
+  "limits": [
+    "Composition-event simulation is not a real IME certification",
+    "Image fixture tests decode and preview, not OCR"
+  ]
+}

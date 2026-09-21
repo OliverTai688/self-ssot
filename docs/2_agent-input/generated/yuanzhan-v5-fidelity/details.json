@@ -1,0 +1,77 @@
+{
+  "results": [
+    {
+      "mode": "empty",
+      "test": "Standup summon, composition guard and indentation"
+    },
+    {
+      "mode": "empty",
+      "test": "Thread creation / send / five-field Close card"
+    },
+    {
+      "mode": "empty",
+      "test": "Evidence required checks, fixed file version, freeze and new-version isolation"
+    },
+    {
+      "mode": "empty",
+      "test": "Three-column reconciliation, exact amount match / unmatch"
+    },
+    {
+      "mode": "empty",
+      "test": "Source document / clause / commitment / monthly log"
+    },
+    {
+      "mode": "empty",
+      "test": "Weekly capacity totals 100%"
+    },
+    {
+      "mode": "empty",
+      "test": "Minute-level attendance, author confirmation, no fabricated estimation"
+    },
+    {
+      "mode": "empty",
+      "test": "Payroll member read-only scope"
+    },
+    {
+      "mode": "empty",
+      "test": "Mobile project conversation stays inside viewport"
+    },
+    {
+      "mode": "showcase",
+      "test": "Standup summon, composition guard and indentation"
+    },
+    {
+      "mode": "showcase",
+      "test": "Thread creation / send / five-field Close card"
+    },
+    {
+      "mode": "showcase",
+      "test": "Evidence required checks, fixed file version, freeze and new-version isolation"
+    },
+    {
+      "mode": "showcase",
+      "test": "Three-column reconciliation, exact amount match / unmatch"
+    },
+    {
+      "mode": "showcase",
+      "test": "Source document / clause / commitment / monthly log"
+    },
+    {
+      "mode": "showcase",
+      "test": "Weekly capacity totals 100%"
+    },
+    {
+      "mode": "showcase",
+      "test": "Minute-level attendance, author confirmation, no fabricated estimation"
+    },
+    {
+      "mode": "showcase",
+      "test": "Payroll member read-only scope"
+    },
+    {
+      "mode": "showcase",
+      "test": "Mobile project conversation stays inside viewport"
+    }
+  ],
+  "errors": []
+}

@@ -23,14 +23,28 @@ interface LifeContextType {
 
 const LifeContext = createContext<LifeContextType | null>(null)
 
-export function LifeProvider({ children }: { children: ReactNode }) {
+export function LifeProvider({
+  children,
+  allowMockSeed = false,
+}: {
+  children: ReactNode
+  /** Only the AUTH-013 demo account should pass true; everyone else starts blank. */
+  allowMockSeed?: boolean
+}) {
   const today = new Date().toISOString().split("T")[0]
+  const seedDailyLogs = allowMockSeed ? mockDailyLogs : []
 
-  const existingToday = mockDailyLogs.find((l) => l.date === today)
+  const existingToday = seedDailyLogs.find((l) => l.date === today)
   const initialToday: DailyLog = existingToday ?? { id: `log-${today}`, date: today }
 
-  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>(mockDailyLogs)
-  const [weeklyCheckIns, setWeeklyCheckIns] = useState<WeeklyCheckIn[]>(mockWeeklyCheckIns)
+  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>(seedDailyLogs)
+  const [weeklyCheckIns, setWeeklyCheckIns] = useState<WeeklyCheckIn[]>(
+    allowMockSeed ? mockWeeklyCheckIns : []
+  )
+  // MonthlyPlan is a single required object (weight/calorie/water targets),
+  // not a list — there is no safe "blank" shape without making the type
+  // nullable and updating every consumer. Left as the generic template
+  // for every account for now; only the list-shaped state below is gated.
   const [monthlyPlan, setMonthlyPlan] = useState<MonthlyPlan>(mockMonthlyPlan)
   const [dailyGoals, setDailyGoals] = useState<DailyGoals>(defaultDailyGoals)
   const [todayLog, setTodayLog] = useState<DailyLog>(initialToday)

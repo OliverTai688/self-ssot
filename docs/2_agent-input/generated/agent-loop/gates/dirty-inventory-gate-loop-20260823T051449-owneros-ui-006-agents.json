@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "runId": "gate-loop-20260823T051449-owneros-ui-006-agents",
+  "createdAt": "2026-08-23T05:14:49+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "selectedTask": "OWNEROS-UI-006-AGENT-COMMAND-CENTER",
+  "ownerInstruction": "Implementation-first pass; generate related docs; no extra evidence focus.",
+  "dirtyOverlapDecision": {
+    "status": "PROCEED_NARROW_SLICE",
+    "reason": "The repository already has broad dirty/untracked history from prior loops and owner work. This run will not revert or edit unrelated dirty files, and will only touch the Agent command center UI/checker plus loop tracking docs.",
+    "knownPreExistingDirtyClasses": [
+      "prior owner/loop docs and generated reports",
+      "prior Prisma/auth/storage/work/dashboard/settings/admin/company changes",
+      "deleted raw Enron sample files",
+      "untracked gate artifacts and prior loop proof packets"
+    ]
+  },
+  "plannedTouchPaths": [
+    "src/app/(dashboard)/agents/agent-command-center-client.tsx",
+    "scripts/check-agent-command-center.mjs",
+    "tasks.md",
+    "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "docs/2_agent-input/generated/agent-loop/loop-state.json",
+    "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-226-20260823-agent-command-center-simplified-surface.md",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-226-20260823-agent-command-center-simplified-surface.json"
+  ],
+  "explicitlyNotTouching": [
+    "AGENTS.md",
+    "Prisma schema or migrations",
+    "auth/session code",
+    "public routes",
+    "external agent registration",
+    "provider delivery/runtime code",
+    "unrelated deleted raw dataset files"
+  ],
+  "safety": {
+    "publicOutputEnabled": false,
+    "externalRegisterable": false,
+    "externalAgentDatabaseAccess": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "autonomousExecution": false
+  }
+}

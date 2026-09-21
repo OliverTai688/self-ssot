@@ -1,0 +1,15 @@
+{
+  "task": "YZLIVE-001",
+  "date": "2026-09-15",
+  "scope": "planning docs only",
+  "localLinksChecked": 10,
+  "missingLinks": [],
+  "uniqueFormalIds": "PASS",
+  "taskReferences": "PASS",
+  "scopedDiffCheck": {
+    "exitCode": 0,
+    "output": ""
+  },
+  "runtimeValidation": "NOT_RUN",
+  "liveEmailOrAccountOrDatabaseMutation": false
+}

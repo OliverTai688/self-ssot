@@ -1,11 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { PlusIcon, SparklesIcon } from "lucide-react"
+import { PlusIcon, SparklesIcon, XIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useIngestion } from "@/lib/context/ingestion-context"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { ModuleSettingsControl } from "@/components/layout/module-settings-control"
+import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher"
 
 // ─── Quick Capture Modal ──────────────────────────────────────────────────────
 
@@ -17,6 +19,7 @@ function QuickCaptureModal({
   onClose: () => void
 }) {
   const { addManualCapture } = useIngestion()
+  const { copy } = useProductLanguage()
   const [value, setValue] = React.useState("")
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
@@ -69,7 +72,17 @@ function QuickCaptureModal({
       <div className="relative z-10 w-full max-w-xl rounded-xl bg-popover ring-1 ring-foreground/10 shadow-lg overflow-hidden">
         <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b">
           <SparklesIcon className="size-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">快速擷取 — AI 將自動分類</span>
+          <span className="flex-1 text-sm text-muted-foreground">
+            {copy.state.quickCaptureTitle}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={copy.state.quickCaptureClose}
+            className="rounded-md p-1 text-muted-foreground/70 hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <XIcon className="size-4" />
+          </button>
         </div>
 
         <div className="p-4">
@@ -77,7 +90,7 @@ function QuickCaptureModal({
             ref={textareaRef}
             className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 outline-none leading-relaxed"
             rows={4}
-            placeholder="隨便說什麼都行：想法、任務、收據、感受、連結…"
+            placeholder={copy.state.quickCapturePlaceholder}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -85,10 +98,12 @@ function QuickCaptureModal({
         </div>
 
         <div className="flex items-center justify-between px-4 pb-4">
-          <p className="text-xs text-muted-foreground/50">⌘ + Enter 送出 · Esc 關閉</p>
+          <p className="text-xs text-muted-foreground/50">
+            {copy.state.quickCaptureShortcut}
+          </p>
           <Button size="sm" onClick={handleSubmit} disabled={!value.trim()}>
             <SparklesIcon className="size-3.5" />
-            擷取並分析
+            {copy.state.quickCaptureSubmit}
           </Button>
         </div>
       </div>
@@ -105,6 +120,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ title, description }: AppHeaderProps) {
   const [captureOpen, setCaptureOpen] = React.useState(false)
+  const { copy } = useProductLanguage()
 
   React.useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -130,6 +146,7 @@ export function AppHeader({ title, description }: AppHeaderProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <WorkspaceSwitcher />
           <ModuleSettingsControl />
           <Button
             variant="outline"
@@ -138,7 +155,7 @@ export function AppHeader({ title, description }: AppHeaderProps) {
             onClick={() => setCaptureOpen(true)}
           >
             <PlusIcon className="size-3.5" />
-            快速擷取
+            {copy.state.quickCaptureButton}
             <kbd className="hidden sm:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1 font-mono text-[10px] text-muted-foreground">
               <span>⌘</span><span>K</span>
             </kbd>

@@ -20,8 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { cn } from "@/lib/utils"
 import type { ProjectDeliverable, DeliverableStatus, DeliverableVisibility, DeliverableNodeType } from "@/types/work"
+
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (formatted, [key, value]) =>
+      formatted.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
 
 export interface DeliverableDialogInput {
   type: DeliverableNodeType
@@ -53,6 +62,8 @@ export function AddDeliverableDialog({
   isSaving = false,
   error,
 }: AddDeliverableDialogProps) {
+  const { copy } = useProductLanguage()
+  const deliverableCopy = copy.work.deliverables
   const [type, setType] = React.useState<DeliverableNodeType>(defaultType)
   const [selectedParentId, setSelectedParentId] = React.useState<string | null>(parentId)
   const [title, setTitle] = React.useState("")
@@ -100,7 +111,11 @@ export function AddDeliverableDialog({
       <DialogTrigger className="hidden" />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>新增{type === "folder" ? "資料夾" : "文件"}</DialogTitle>
+          <DialogTitle>
+            {formatCopy(deliverableCopy.dialog.titleTemplate, {
+              type: deliverableCopy.types[type],
+            })}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -112,7 +127,7 @@ export function AddDeliverableDialog({
 
           {/* Type toggle */}
           <div className="flex flex-col gap-1.5">
-            <Label>類型</Label>
+            <Label>{deliverableCopy.dialog.type}</Label>
             <div className="flex rounded-lg border border-border overflow-hidden">
               {(["folder", "file"] as const).map((t) => (
                 <button
@@ -128,7 +143,7 @@ export function AddDeliverableDialog({
                     isSaving && "cursor-not-allowed opacity-60"
                   )}
                 >
-                  {t === "folder" ? "資料夾" : "文件"}
+                  {deliverableCopy.types[t]}
                 </button>
               ))}
             </div>
@@ -137,7 +152,7 @@ export function AddDeliverableDialog({
           {/* Parent folder */}
           {folders.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <Label>所在資料夾</Label>
+              <Label>{deliverableCopy.dialog.parentFolder}</Label>
               <Select
                 value={selectedParentId ?? "__root__"}
                 onValueChange={(v) => { if (v) setSelectedParentId(v === "__root__" ? null : v) }}
@@ -145,7 +160,7 @@ export function AddDeliverableDialog({
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__root__">根目錄</SelectItem>
+                  <SelectItem value="__root__">{deliverableCopy.dialog.rootFolder}</SelectItem>
                   {folders.map((f) => (
                     <SelectItem key={f.id} value={f.id}>{f.title}</SelectItem>
                   ))}
@@ -156,10 +171,18 @@ export function AddDeliverableDialog({
 
           {/* Name */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="d-title">{type === "folder" ? "資料夾名稱" : "文件名稱"}</Label>
+            <Label htmlFor="d-title">
+              {type === "folder"
+                ? deliverableCopy.dialog.folderName
+                : deliverableCopy.dialog.fileName}
+            </Label>
             <Input
               id="d-title"
-              placeholder={type === "folder" ? "例：設計稿 / 已交付" : "例：銷售趨勢模組（網頁版）"}
+              placeholder={
+                type === "folder"
+                  ? deliverableCopy.dialog.folderPlaceholder
+                  : deliverableCopy.dialog.filePlaceholder
+              }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
@@ -171,10 +194,10 @@ export function AddDeliverableDialog({
           {type === "file" && (
             <>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="d-desc">說明（選填）</Label>
+                <Label htmlFor="d-desc">{deliverableCopy.dialog.description}</Label>
                 <Input
                   id="d-desc"
-                  placeholder="簡短描述交付物內容"
+                  placeholder={deliverableCopy.dialog.descriptionPlaceholder}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   disabled={isSaving}
@@ -182,7 +205,7 @@ export function AddDeliverableDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label>狀態</Label>
+                  <Label>{deliverableCopy.dialog.status}</Label>
                   <Select
                     value={status}
                     onValueChange={(v) => { if (v) setStatus(v as DeliverableStatus) }}
@@ -190,14 +213,14 @@ export function AddDeliverableDialog({
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="draft">草稿</SelectItem>
-                      <SelectItem value="delivered">已交付</SelectItem>
-                      <SelectItem value="approved">已核准</SelectItem>
+                      <SelectItem value="draft">{deliverableCopy.statuses.draft}</SelectItem>
+                      <SelectItem value="delivered">{deliverableCopy.statuses.delivered}</SelectItem>
+                      <SelectItem value="approved">{deliverableCopy.statuses.approved}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label>可見性</Label>
+                  <Label>{deliverableCopy.dialog.visibility}</Label>
                   <Select
                     value={visibility}
                     onValueChange={(v) => { if (v) setVisibility(v as DeliverableVisibility) }}
@@ -205,8 +228,10 @@ export function AddDeliverableDialog({
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="internal">內部</SelectItem>
-                      <SelectItem value="client_visible">客戶可見</SelectItem>
+                      <SelectItem value="internal">{deliverableCopy.visibility.internal}</SelectItem>
+                      <SelectItem value="client_visible">
+                        {deliverableCopy.visibility.client_visible}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -216,13 +241,19 @@ export function AddDeliverableDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" size="sm" onClick={handleClose} disabled={isSaving}>取消</Button>
+          <Button variant="ghost" size="sm" onClick={handleClose} disabled={isSaving}>
+            {deliverableCopy.dialog.cancel}
+          </Button>
           <Button
             size="sm"
             onClick={() => void handleSave()}
             disabled={!title.trim() || isSaving}
           >
-            {isSaving ? "新增中" : `新增${type === "folder" ? "資料夾" : "文件"}`}
+            {isSaving
+              ? deliverableCopy.dialog.saving
+              : formatCopy(deliverableCopy.dialog.saveTemplate, {
+                  type: deliverableCopy.types[type],
+                })}
           </Button>
         </DialogFooter>
       </DialogContent>

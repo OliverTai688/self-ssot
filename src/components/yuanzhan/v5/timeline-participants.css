@@ -1,0 +1,6 @@
+/* 時間線參與者（提案 C）：頭像群組、全體標記、Google 不會同步標記 */
+.tl-avs{display:inline-flex;flex-shrink:0}
+.tl-avs .av{width:16px;height:16px;font-size:8px;border:1.5px solid var(--surface);margin-left:-5px}
+.tl-avs .av:first-child{margin-left:0}
+.tl-all{font-size:10px;color:var(--text-3);flex-shrink:0}
+.tl-nosync{font-size:10px;color:var(--text-3);border:1px dashed var(--border);border-radius:20px;padding:1px 7px;flex-shrink:0;white-space:nowrap}

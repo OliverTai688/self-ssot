@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "recordedAt": "2026-08-30",
+  "status": "OWNER_DECISIONS_CONFIRMED_UI_REGISTRY_ESTABLISHED",
+  "scope": "GATE_A_TO_GATE_C_PREFLIGHT",
+  "decisions": {
+    "cLevelAuthority": {
+      "status": "CONFIRMED",
+      "grantOrRemoveBy": ["OWNER", "DESIGNATED_C_LEVEL_ADMIN"],
+      "auditRequired": true,
+      "lastOwnerRemovalDenied": true
+    },
+    "companyFormalKnowledge": {
+      "status": "CONFIRMED",
+      "memberMayPropose": true,
+      "publishers": ["COMPANY_ADMIN", "OWNER"],
+      "visibilityApprovalRequired": true
+    },
+    "publicSpaceTrigger": {
+      "status": "CONFIRMED_WITH_FAIL_CLOSED_BOUNDARY",
+      "modes": ["MANUAL", "SCHEDULED", "AI_AGENT_INITIATED"],
+      "approvedGoalOrTemplateRequired": true,
+      "visible": true,
+      "pauseable": true,
+      "rateLimited": true,
+      "fullTranscriptRequired": true,
+      "downstreamWrites": "PROPOSAL_ONLY"
+    },
+    "retention": {
+      "status": "CONFIRMED",
+      "activeDays": 180,
+      "deleteBehavior": "DATABASE_SOFT_ARCHIVE",
+      "automaticTerminalPurgeAllowed": false,
+      "archiveDuration": "INDEFINITE_UNTIL_OWNER_AUTHORIZED_TERMINAL_PURGE",
+      "r2ObjectLifecycle": "RETAIN_ARCHIVED_UNTIL_OWNER_AUTHORIZED_TERMINAL_PURGE"
+    },
+    "deployment": {
+      "status": "TARGET_SELECTED_NOT_CONFIGURED",
+      "platform": "VERCEL",
+      "domain": "www.person.yzedtech.com"
+    },
+    "pilot": {
+      "status": "CONFIRMED_COMPLETE_ACTIVE_COMPANY_PILOT",
+      "participants": ["OWNER", "MARKETING_PARTNER"],
+      "totalPeople": 2,
+      "nonOwnerMembers": 1,
+      "gateRule": "OWNER_PLUS_ALL_ACTIVE_COMPANY_MEMBERS_MINIMUM_ONE_INVITED_NON_OWNER"
+    },
+    "releaseBaseline": {
+      "status": "DIRECTION_APPROVED_NOT_EXECUTED",
+      "preserveExistingChanges": true,
+      "dedicatedWorktreeOrCheckpoint": true,
+      "automationResumeAfterBaselineApproved": true
+    }
+  },
+  "architecture": {
+    "bffFirstRequired": true,
+    "requireUserRequired": true,
+    "serviceAuthorizationRequired": true,
+    "uiSafeDtoRequired": true,
+    "clientPrismaImportAllowed": false,
+    "clientSecretOrRawProviderPayloadAllowed": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "uiGovernance": {
+    "skill": "saas-ui-refactor-director",
+    "registryPath": "docs/03_feature-reference/REF-003_ui-screen-registry.md",
+    "registryStatus": "ACTIVE_SINGLE_SOURCE_OF_TRUTH",
+    "activeUiId": null,
+    "reviewStarted": false,
+    "implementationAuthorized": false,
+    "normalPageRuleExplanationsAllowed": false,
+    "conciseActionableBoundaryAllowed": true,
+    "fullExplanationDestination": "WEB_USER_MANUAL",
+    "operatorDiagnosticsDestination": "ADMIN"
+  },
+  "openDecisionIds": [],
+  "execution": {
+    "runtimeChanged": false,
+    "uiChanged": false,
+    "automationChanged": false,
+    "deploymentChanged": false,
+    "databaseChanged": false,
+    "providerChanged": false
+  }
+}

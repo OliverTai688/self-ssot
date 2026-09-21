@@ -45,9 +45,10 @@ const RISK_ORDER = {
 const APPROVAL_ORDER = {
   none: 0,
   owner_review: 1,
-  admin_review: 2,
-  human_required: 3,
-  external_approval_required: 4,
+  workspace_manager: 2,
+  admin_review: 3,
+  human_required: 4,
+  external_approval_required: 5,
 } as const satisfies Record<OperatingAuditApprovalLevel, number>
 
 const sensitiveKeyPattern =

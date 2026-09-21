@@ -1,0 +1,137 @@
+{
+  "result": "PASS",
+  "checks": 31,
+  "results": [
+    {
+      "name": "empty / all surfaces initial render, no overflow",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / finance subpages have no transactions, payroll, budget or chart series",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / immediate work journal, Standup and team read/comment boundaries",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / private space and search isolation",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / project and journal-created task, assignee progress, same timeline ID",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / hierarchical discussion and direct attachment",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / event create, star, edit, delete and focus return",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / Evidence first repo, missing-source guard and immutable version",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / ledger formulas, sort/filter/paste, invalid formula and batch",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / vouchers bidirectional, bank exact match",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / reimbursements, payroll role and project budget",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / capacity configuration and sample-based forecast",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / commitment source, monthly log and nondeletable obligation",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / goals, audit, restricted search and keyboard tabs",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / mobile daily collaboration and contained table scrolling",
+      "result": "PASS"
+    },
+    {
+      "name": "empty / refresh resets UI records; legacy localStorage cannot override env",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / all surfaces initial render, no overflow",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / immediate work journal, Standup and team read/comment boundaries",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / private space and search isolation",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / project and journal-created task, assignee progress, same timeline ID",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / hierarchical discussion and direct attachment",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / event create, star, edit, delete and focus return",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / Evidence first repo, missing-source guard and immutable version",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / ledger formulas, sort/filter/paste, invalid formula and batch",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / vouchers bidirectional, bank exact match",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / reimbursements, payroll role and project budget",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / capacity configuration and sample-based forecast",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / commitment source, monthly log and nondeletable obligation",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / goals, audit, restricted search and keyboard tabs",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / mobile daily collaboration and contained table scrolling",
+      "result": "PASS"
+    },
+    {
+      "name": "showcase / refresh resets UI records; legacy localStorage cannot override env",
+      "result": "PASS"
+    }
+  ],
+  "errors": [],
+  "mutations": [],
+  "viewports": [
+    "1440x1000",
+    "390x844"
+  ],
+  "scope": "UI memory scenarios; existing auth Profile read only; no formal backend isolation claim"
+}

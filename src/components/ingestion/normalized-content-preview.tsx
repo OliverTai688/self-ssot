@@ -1,3 +1,5 @@
+"use client"
+
 import {
   AudioLinesIcon,
   FileTextIcon,
@@ -7,19 +9,20 @@ import {
   GlobeIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { NormalizedContent, NormalizedContentType } from "@/types/ingestion"
 
 const CONTENT_TYPE_CONFIG: Record<
   NormalizedContentType,
-  { label: string; icon: React.ReactNode }
+  { icon: React.ReactNode }
 > = {
-  message_text: { label: "訊息文字", icon: <MessageSquareIcon className="size-3" /> },
-  document_text: { label: "文件全文", icon: <FileTextIcon className="size-3" /> },
-  document_chunk: { label: "文件段落", icon: <FileTextIcon className="size-3" /> },
-  transcript: { label: "語音轉錄", icon: <AudioLinesIcon className="size-3" /> },
-  image_summary: { label: "圖片摘要", icon: <ImageIcon className="size-3" /> },
-  receipt_extraction: { label: "收據提取", icon: <ReceiptIcon className="size-3" /> },
-  url_excerpt: { label: "URL 摘要", icon: <GlobeIcon className="size-3" /> },
+  message_text: { icon: <MessageSquareIcon className="size-3" /> },
+  document_text: { icon: <FileTextIcon className="size-3" /> },
+  document_chunk: { icon: <FileTextIcon className="size-3" /> },
+  transcript: { icon: <AudioLinesIcon className="size-3" /> },
+  image_summary: { icon: <ImageIcon className="size-3" /> },
+  receipt_extraction: { icon: <ReceiptIcon className="size-3" /> },
+  url_excerpt: { icon: <GlobeIcon className="size-3" /> },
 }
 
 interface NormalizedContentPreviewProps {
@@ -33,6 +36,8 @@ export function NormalizedContentPreview({
   className,
   maxItems = 3,
 }: NormalizedContentPreviewProps) {
+  const { copy } = useProductLanguage()
+
   if (contents.length === 0) return null
 
   const visible = contents.slice(0, maxItems)
@@ -47,7 +52,7 @@ export function NormalizedContentPreview({
             <div className="flex items-center gap-1.5 mb-1.5">
               <span className="text-muted-foreground">{config.icon}</span>
               <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                {config.label}
+                {copy.inbox.normalizedPreview.contentTypes[nc.contentType]}
               </span>
               {nc.heading && (
                 <>
@@ -56,7 +61,10 @@ export function NormalizedContentPreview({
                 </>
               )}
               <span className="ml-auto text-[11px] text-muted-foreground/50">
-                ~{nc.tokenEstimate} tokens
+                {copy.inbox.normalizedPreview.tokenEstimateTemplate.replace(
+                  "{tokens}",
+                  String(nc.tokenEstimate)
+                )}
               </span>
             </div>
             <p className="text-xs text-foreground/70 leading-relaxed line-clamp-2">{nc.text}</p>
@@ -65,7 +73,7 @@ export function NormalizedContentPreview({
       })}
       {remaining > 0 && (
         <p className="text-xs text-muted-foreground/60 text-center">
-          +{remaining} 個段落
+          {copy.inbox.normalizedPreview.remainingTemplate.replace("{count}", String(remaining))}
         </p>
       )}
     </div>

@@ -1,0 +1,348 @@
+{
+  "viewport": "1440x1000",
+  "scope": "30 workspace bodies excluding header and added rail controls; one complete issue drawer",
+  "method": "Pixels with max RGB channel delta <=30; descriptive comparison, not a sole acceptance threshold",
+  "results": [
+    {
+      "page": "capacity-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "capacity-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "capacity-2.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "capacity-3.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 99.85,
+      "meanMaxChannelDelta": 0.14
+    },
+    {
+      "page": "commit-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "commit-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "desk-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "desk-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "desk-2.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "journal-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 99.98,
+      "meanMaxChannelDelta": 0.05
+    },
+    {
+      "page": "journal-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "journal-2.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "money-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 99.82,
+      "meanMaxChannelDelta": 0.27
+    },
+    {
+      "page": "money-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "money-2.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 99.9,
+      "meanMaxChannelDelta": 0.12
+    },
+    {
+      "page": "money-3.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "money-4.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 99,
+      "meanMaxChannelDelta": 1.58
+    },
+    {
+      "page": "money-5.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "project-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "project-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "project-2.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 99.92,
+      "meanMaxChannelDelta": 0.1
+    },
+    {
+      "page": "project-3.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 99.94,
+      "meanMaxChannelDelta": 0.06
+    },
+    {
+      "page": "project-4.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "signal-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "signal-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "signal-2.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "timeline-0.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "timeline-1.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "timeline-2.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "timeline-3.png",
+      "region": {
+        "x": 78,
+        "y": 139,
+        "width": 1362,
+        "height": 861
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    },
+    {
+      "page": "issue-drawer.png",
+      "region": {
+        "x": 980,
+        "y": 0,
+        "width": 460,
+        "height": 1000
+      },
+      "within30RGBPercent": 100,
+      "meanMaxChannelDelta": 0
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "date": "2026-09-13",
+  "task": "YZUI-001",
+  "copyPolicy": "Byte-identical snapshot; originals preserved; internal documentation only.",
+  "files": [
+    {
+      "source": "Claude outputs/圓展_Operating_Interface_提案.html",
+      "archived": "originals/圓展_Operating_Interface_提案.html",
+      "role": "historical-source",
+      "sha256": "2f9ccb5608ad84d082261c7abd6d0ab3ce45a83ce405d6e92bde1b17ec2a4973",
+      "bytes": 56417
+    },
+    {
+      "source": "Claude outputs/圓展_Operating_Interface_提案_v2.docx",
+      "archived": "originals/圓展_Operating_Interface_提案_v2.docx",
+      "role": "historical-source",
+      "sha256": "a0f4d3e587b44821cf049d59ed8955f5059d418734fef1437971b4ab7ae127b0",
+      "bytes": 1831362
+    },
+    {
+      "source": "Claude outputs/圓展_Operating_Interface_提案_v2.html",
+      "archived": "originals/圓展_Operating_Interface_提案_v2.html",
+      "role": "historical-source",
+      "sha256": "6ca75cc68febc7fecaa0c268c28625037e4434d80a21a62de536d101acd4afe2",
+      "bytes": 63812
+    },
+    {
+      "source": "Claude outputs/圓展_Operating_System_原型_v2.html",
+      "archived": "originals/圓展_Operating_System_原型_v2.html",
+      "role": "historical-source",
+      "sha256": "305cddd1e0fdd61c8cc23994bac81f60f0ee7f61bb65c7cee836526a64eb4605",
+      "bytes": 107269
+    },
+    {
+      "source": "Claude outputs/圓展_Operating_System_原型_v3_CRUD.html",
+      "archived": "originals/圓展_Operating_System_原型_v3_CRUD.html",
+      "role": "historical-source",
+      "sha256": "a92a4af9295c3120cdcac4eadea8a70a78772965c59419ba551c34de165f48a0",
+      "bytes": 189500
+    },
+    {
+      "source": "Claude outputs/圓展_Operating_System_原型_v4_書寫式.html",
+      "archived": "originals/圓展_Operating_System_原型_v4_書寫式.html",
+      "role": "historical-source",
+      "sha256": "894f238496fbf613e42d250062cc5a1132ca6392ed553cefceb1aab42233cbf9",
+      "bytes": 226315
+    },
+    {
+      "source": "Claude outputs/圓展_Operating_System_原型_v5_兩人上線版.html",
+      "archived": "originals/圓展_Operating_System_原型_v5_兩人上線版.html",
+      "role": "historical-source",
+      "sha256": "0ddd489b73ebc1fa38dd718ef1728a1267509b97a11e5c843ffb995dc091a212",
+      "bytes": 281186
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/REVIEW.md",
+      "archived": "integration-v2/REVIEW.md",
+      "role": "proposal-history",
+      "sha256": "38a8ee9e0f389d33e99ad7daa0ec8ddd6c48bf9edfdabbb21a9c122ff8787d8a",
+      "bytes": 4754
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/index.html",
+      "archived": "integration-v2/index.html",
+      "role": "selected-workspace-direction",
+      "sha256": "771842adf6366f5170e339c7e825c15c9362ad5d3c060b380340890cb98c164c",
+      "bytes": 40502
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/proposal-a.html",
+      "archived": "integration-v2/proposal-a.html",
+      "role": "proposal-history",
+      "sha256": "159c37825d6681072e96324d543a0d4ba09dd6aa2a78cca7c7d720c9cd83f05e",
+      "bytes": 50617
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/proposal-b.html",
+      "archived": "integration-v2/proposal-b.html",
+      "role": "selected-workspace-direction",
+      "sha256": "2d8da4491f9b74995be1b28ce0cee4701f4a5e6f8addcf0970d1fe02e06fe4f8",
+      "bytes": 47200
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/proposal-c.html",
+      "archived": "integration-v2/proposal-c.html",
+      "role": "proposal-history",
+      "sha256": "092318d702d8120b1f69507d644e1d2e5b75eb5ed656d06ece5f6e632239310c",
+      "bytes": 50728
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/v1-archive/REVIEW.md",
+      "archived": "integration-v2/v1-archive/REVIEW.md",
+      "role": "proposal-history",
+      "sha256": "9530d027cc9f0c405d8a5702fef0cd5cd9a9c289694f3ed9b8f2795969a0d229",
+      "bytes": 4403
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/v1-archive/index.html",
+      "archived": "integration-v2/v1-archive/index.html",
+      "role": "proposal-history",
+      "sha256": "6839858ec585e4729b6a1d5b830f5a8830316d4170f65582cfc1a87d495c0bac",
+      "bytes": 37926
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/v1-archive/proposal-a.html",
+      "archived": "integration-v2/v1-archive/proposal-a.html",
+      "role": "proposal-history",
+      "sha256": "519c9583b3aaf90132985ad5c3b1cd25ddacb9e5ea2167462e80d6cdf008683d",
+      "bytes": 44999
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/v1-archive/proposal-b.html",
+      "archived": "integration-v2/v1-archive/proposal-b.html",
+      "role": "proposal-history",
+      "sha256": "6017c656d6636f19b2b83d2b262dea90d11ca851dcc629a7608297732721af83",
+      "bytes": 45048
+    },
+    {
+      "source": "Claude outputs/圓展_Personal_OS_整合提案/v1-archive/proposal-c.html",
+      "archived": "integration-v2/v1-archive/proposal-c.html",
+      "role": "proposal-history",
+      "sha256": "d0dff492d9880e6a07e8481a438f40adb7aa5ef7432d5b81d86a1e3de12bf05c",
+      "bytes": 45110
+    }
+  ]
+}

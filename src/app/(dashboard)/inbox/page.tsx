@@ -18,18 +18,27 @@ import { SourceItemCard } from "@/components/ingestion/source-item-card"
 import { NormalizedContentPreview } from "@/components/ingestion/normalized-content-preview"
 import { TriageProposalCard } from "@/components/ai/triage-proposal-card"
 import { useIngestion } from "@/lib/context/ingestion-context"
-import type { RawSourceItem } from "@/types/ingestion"
+import { useProductLanguage } from "@/lib/context/product-language-context"
+import type { ProductCopy } from "@/lib/i18n/product-copy"
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 type InboxTab = "raw" | "processing" | "review" | "confirmed"
+type InboxCopy = ProductCopy["inbox"]
 
-const TABS: Array<{ id: InboxTab; label: string }> = [
-  { id: "raw", label: "原始來源" },
-  { id: "processing", label: "標準化" },
-  { id: "review", label: "AI 審閱" },
-  { id: "confirmed", label: "已確認" },
+const TABS: Array<{ id: InboxTab }> = [
+  { id: "raw" },
+  { id: "processing" },
+  { id: "review" },
+  { id: "confirmed" },
 ]
+
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
 
 // ─── Toast notification ───────────────────────────────────────────────────────
 
@@ -60,30 +69,30 @@ function ToastBar() {
 
 // ─── Mock action bar ──────────────────────────────────────────────────────────
 
-function MockActionBar() {
+function MockActionBar({ copy }: { copy: InboxCopy }) {
   const { mockSyncLINE, mockImportGoogleDoc, mockUploadMarkdown, mockUploadMedia } = useIngestion()
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-muted-foreground/60 mr-1">模擬匯入：</span>
+      <span className="text-xs text-muted-foreground/60 mr-1">{copy.mockImportLabel}</span>
       <Button variant="outline" size="xs" className="gap-1.5" onClick={() => mockSyncLINE()}>
         <MessageSquareIcon className="size-3" />
-        LINE 同步
+        {copy.actions.lineSync}
       </Button>
       <Button variant="outline" size="xs" className="gap-1.5" onClick={() => mockImportGoogleDoc()}>
         <FileTextIcon className="size-3" />
-        Google Doc
+        {copy.actions.googleDoc}
       </Button>
       <Button variant="outline" size="xs" className="gap-1.5" onClick={() => mockUploadMarkdown()}>
         <FileTextIcon className="size-3" />
-        Markdown
+        {copy.actions.markdown}
       </Button>
       <Button variant="outline" size="xs" className="gap-1.5" onClick={() => mockUploadMedia("image")}>
         <UploadIcon className="size-3" />
-        圖片
+        {copy.actions.image}
       </Button>
       <Button variant="outline" size="xs" className="gap-1.5" onClick={() => mockUploadMedia("audio")}>
         <AudioLinesIcon className="size-3" />
-        語音
+        {copy.actions.audio}
       </Button>
     </div>
   )
@@ -91,14 +100,14 @@ function MockActionBar() {
 
 // ─── Tab: Raw Sources ─────────────────────────────────────────────────────────
 
-function RawSourcesTab() {
+function RawSourcesTab({ copy }: { copy: InboxCopy }) {
   const { rawSourceItems, getNormalizedForItem, getProposalsForItem, runMockAnalysis } = useIngestion()
   const sorted = [...rawSourceItems].sort(
     (a, b) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime()
   )
 
   if (sorted.length === 0) {
-    return <EmptyState icon={<InboxIcon />} title="尚無原始來源" hint="透過上方按鈕匯入或用 ⌘K 擷取" />
+    return <EmptyState icon={<InboxIcon />} title={copy.empty.raw.title} hint={copy.empty.raw.hint} />
   }
 
   return (
@@ -118,14 +127,14 @@ function RawSourcesTab() {
 
 // ─── Tab: Processing ──────────────────────────────────────────────────────────
 
-function ProcessingTab() {
+function ProcessingTab({ copy }: { copy: InboxCopy }) {
   const { rawSourceItems, getNormalizedForItem } = useIngestion()
   const processedItems = rawSourceItems.filter(
     (item) => item.processingStatus === "processed"
   )
 
   if (processedItems.length === 0) {
-    return <EmptyState icon={<RefreshCwIcon />} title="尚無已標準化的項目" hint="原始來源處理完成後會出現在此" />
+    return <EmptyState icon={<RefreshCwIcon />} title={copy.empty.processing.title} hint={copy.empty.processing.hint} />
   }
 
   return (
@@ -137,13 +146,18 @@ function ProcessingTab() {
           item.title ??
           item.previewText?.slice(0, 50) ??
           item.rawText?.slice(0, 50) ??
-          "未命名來源"
+          copy.processing.unnamedSource
         return (
           <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="border-b border-border/50 bg-muted/20 px-4 py-2.5">
-              <p className="text-xs font-medium text-muted-foreground">來源：{title}</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                {copy.processing.sourcePrefix}{title}
+              </p>
               <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                {ncs.length} 個標準化段落 · 合計 ~{ncs.reduce((s, nc) => s + nc.tokenEstimate, 0)} tokens
+                {formatCopy(copy.processing.summaryTemplate, {
+                  count: ncs.length,
+                  tokens: ncs.reduce((s, nc) => s + nc.tokenEstimate, 0),
+                })}
               </p>
             </div>
             <div className="px-4 py-3">
@@ -158,7 +172,7 @@ function ProcessingTab() {
 
 // ─── Tab: AI Review ───────────────────────────────────────────────────────────
 
-function AIReviewTab() {
+function AIReviewTab({ copy }: { copy: InboxCopy }) {
   const { proposals, rawSourceItems, getEvidenceForProposal, resolveProposal } = useIngestion()
   const pending = proposals.filter((p) => p.status === "pending" || p.status === "deferred")
   const highConfidence = pending.filter((p) => p.confidence === "high")
@@ -170,7 +184,7 @@ function AIReviewTab() {
   }
 
   if (pending.length === 0) {
-    return <EmptyState icon={<SparklesIcon />} title="沒有待審閱的 AI 建議" hint="確認或略過建議後，新的建議會在匯入後出現" />
+    return <EmptyState icon={<SparklesIcon />} title={copy.empty.review.title} hint={copy.empty.review.hint} />
   }
 
   return (
@@ -179,10 +193,10 @@ function AIReviewTab() {
         <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/50">
           <div>
             <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-              {highConfidence.length} 則高置信度建議
+              {formatCopy(copy.review.highConfidenceTitleTemplate, { count: highConfidence.length })}
             </p>
             <p className="text-xs text-emerald-700/70 dark:text-emerald-400/70">
-              AI 對這些判斷非常確定，可以一鍵全部確認
+              {copy.review.highConfidenceHint}
             </p>
           </div>
           <Button
@@ -191,7 +205,7 @@ function AIReviewTab() {
             className="text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-900"
             onClick={batchConfirmHighConfidence}
           >
-            全部確認
+            {copy.review.confirmAll}
           </Button>
         </div>
       )}
@@ -217,14 +231,14 @@ function AIReviewTab() {
 
 // ─── Tab: Confirmed ───────────────────────────────────────────────────────────
 
-function ConfirmedTab() {
+function ConfirmedTab({ copy }: { copy: InboxCopy }) {
   const { proposals, rawSourceItems, getEvidenceForProposal, resolveProposal } = useIngestion()
   const confirmed = proposals.filter(
     (p) => p.status === "confirmed" || p.status === "edited" || p.status === "dismissed"
   )
 
   if (confirmed.length === 0) {
-    return <EmptyState icon={<SparklesIcon />} title="尚無已處理的建議" hint="確認或略過 AI 建議後會出現在此" />
+    return <EmptyState icon={<SparklesIcon />} title={copy.empty.confirmed.title} hint={copy.empty.confirmed.hint} />
   }
 
   return (
@@ -272,7 +286,9 @@ function EmptyState({
 
 export default function InboxPage() {
   const [activeTab, setActiveTab] = React.useState<InboxTab>("review")
-  const { rawSourceItems, proposals, normalizedContents, pendingProposalCount } = useIngestion()
+  const { rawSourceItems, proposals } = useIngestion()
+  const { copy } = useProductLanguage()
+  const inboxCopy = copy.inbox
 
   const tabCounts: Record<InboxTab, number> = {
     raw: rawSourceItems.length,
@@ -285,12 +301,12 @@ export default function InboxPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <AppHeader title="AI Intake Center" description="原始來源在此進入。AI 處理後才會生成審閱建議，你只需確認關鍵決策。" />
+      <AppHeader title={inboxCopy.title} description={inboxCopy.description} />
 
       <div className="flex-1 overflow-y-auto">
         {/* Sub-header: mock actions */}
         <div className="border-b border-border/50 bg-muted/20 px-6 py-3">
-          <MockActionBar />
+          <MockActionBar copy={inboxCopy} />
         </div>
 
         <div className="px-6 py-6">
@@ -309,7 +325,7 @@ export default function InboxPage() {
                       : "text-muted-foreground hover:text-foreground",
                   ].join(" ")}
                 >
-                  {tab.label}
+                  {inboxCopy.tabs[tab.id]}
                   {tabCounts[tab.id] > 0 && (
                     <span className="ml-1.5 tabular-nums opacity-60">
                       ({tabCounts[tab.id]})
@@ -321,17 +337,14 @@ export default function InboxPage() {
 
             {/* Tab description */}
             <div className="text-xs text-muted-foreground/70">
-              {activeTab === "raw" && "原始匯入或擷取的項目，尚未經過 AI 解讀。"}
-              {activeTab === "processing" && "已從原始來源提取的標準化內容，AI 使用這些內容進行分析。"}
-              {activeTab === "review" && "AI 生成的分類建議，每則都連結回原始來源。確認後才會實際儲存。"}
-              {activeTab === "confirmed" && "已處理的 AI 建議記錄。"}
+              {inboxCopy.tabDescriptions[activeTab]}
             </div>
 
             {/* Tab content */}
-            {activeTab === "raw" && <RawSourcesTab />}
-            {activeTab === "processing" && <ProcessingTab />}
-            {activeTab === "review" && <AIReviewTab />}
-            {activeTab === "confirmed" && <ConfirmedTab />}
+            {activeTab === "raw" && <RawSourcesTab copy={inboxCopy} />}
+            {activeTab === "processing" && <ProcessingTab copy={inboxCopy} />}
+            {activeTab === "review" && <AIReviewTab copy={inboxCopy} />}
+            {activeTab === "confirmed" && <ConfirmedTab copy={inboxCopy} />}
           </div>
         </div>
       </div>

@@ -1,0 +1,58 @@
+{
+  "id": "OWNEROS-UI-003",
+  "status": "PASS",
+  "generatedAt": "2026-08-22T08:31:17.866Z",
+  "settingsPath": "src/app/(dashboard)/settings/page.tsx",
+  "checkerCommand": "pnpm settings:simplified:check",
+  "surface": {
+    "mode": "protected_server_component_control_plane",
+    "primaryJob": "Control identity, workspace, sources, modules, agents, env, and Manual Ops",
+    "commandBarIncludes": [
+      "Identity",
+      "Workspace",
+      "Sources",
+      "Modules",
+      "Agents",
+      "Manual Ops"
+    ],
+    "slots": [
+      "identity-mode-strip",
+      "attention-header",
+      "command-bar",
+      "resource-index",
+      "settings-control-plane",
+      "detail-pane",
+      "boundary-panel",
+      "records-audit",
+      "manual-ops-handoff"
+    ]
+  },
+  "gateMapping": {
+    "gateA": "Owner-private settings and proof handoff usability prerequisite only",
+    "gateB": "Member/workspace controls remain non-mutating until selected later",
+    "gateC": "C5 UI hardening prerequisite only",
+    "gateAchieved": false
+  },
+  "nanda": {
+    "lifecycle": "protected_owner_visible_boundary_surface",
+    "protocols": [
+      "internal"
+    ],
+    "endpointChanged": false,
+    "externalRegisterable": false,
+    "registrationStatus": "not_registered"
+  },
+  "runtimeFlags": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "permissionWrite": false,
+    "envMutation": false,
+    "retentionDeleteRuntime": false,
+    "providerCall": false,
+    "publicOutputExpanded": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

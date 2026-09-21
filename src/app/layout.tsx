@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { CompanyThemeProvider } from "@/lib/theme/company-theme-context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default function RootLayout({
@@ -26,12 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="zh-Hant-TW" suppressHydrationWarning>
       <head>
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';if(t==='system')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(t);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';if(t==='system')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.remove('light','dark');document.documentElement.classList.add(t);var c=localStorage.getItem('company-theme');if(['white','orange','black','brand'].indexOf(c)<0)c='black';document.documentElement.setAttribute('data-company-theme',c);}catch(e){}})();`,
           }}
         />
       </head>
@@ -45,7 +46,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>{children}</TooltipProvider>
+          <CompanyThemeProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </CompanyThemeProvider>
         </ThemeProvider>
       </body>
     </html>

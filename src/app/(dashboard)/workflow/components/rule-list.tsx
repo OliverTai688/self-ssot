@@ -4,8 +4,8 @@ import * as React from "react"
 import { EditIcon, GripVerticalIcon, PlusIcon, TrashIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { AGENT_MAP } from "@/lib/workflow/agents"
-import { INTENT_LABELS } from "@/lib/workflow/types"
 import type { WorkflowRule, AgentId } from "@/lib/workflow/types"
 
 interface RuleListProps {
@@ -17,6 +17,13 @@ interface RuleListProps {
   onAddRule: () => void
 }
 
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
+
 export function RuleList({
   rules,
   filterAgent,
@@ -25,6 +32,8 @@ export function RuleList({
   onDeleteRule,
   onAddRule,
 }: RuleListProps) {
+  const { copy } = useProductLanguage()
+  const workflowCopy = copy.workflow
   const filtered = filterAgent
     ? rules.filter((r) => r.fromAgent === filterAgent || r.toAgent === filterAgent)
     : rules
@@ -36,21 +45,27 @@ export function RuleList({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">
-            {filterAgent ? `${AGENT_MAP[filterAgent]?.displayName} 相關規則` : "全部規則"}
+            {filterAgent
+              ? formatCopy(workflowCopy.rules.relatedRulesTemplate, {
+                  agent: workflowCopy.agents[filterAgent],
+                })
+              : workflowCopy.rules.allRules}
           </p>
-          <p className="text-[11px] text-muted-foreground">{sorted.length} 條規則</p>
+          <p className="text-[11px] text-muted-foreground">
+            {formatCopy(workflowCopy.rules.countTemplate, { count: sorted.length })}
+          </p>
         </div>
         <Button size="sm" onClick={onAddRule} className="h-7 gap-1.5 text-xs">
           <PlusIcon className="size-3" />
-          新增規則
+          {workflowCopy.addRule}
         </Button>
       </div>
 
       {sorted.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/60 py-10 flex flex-col items-center gap-2">
-          <p className="text-sm text-muted-foreground">尚無規則</p>
+          <p className="text-sm text-muted-foreground">{workflowCopy.rules.empty}</p>
           <Button variant="outline" size="sm" onClick={onAddRule} className="h-7 text-xs">
-            新增第一條規則
+            {workflowCopy.rules.addFirst}
           </Button>
         </div>
       ) : (
@@ -62,6 +77,7 @@ export function RuleList({
               onToggle={() => onToggleRule(rule.id)}
               onEdit={() => onEditRule(rule)}
               onDelete={() => onDeleteRule(rule.id)}
+              labels={workflowCopy}
             />
           ))}
         </div>
@@ -75,14 +91,19 @@ function RuleCard({
   onToggle,
   onEdit,
   onDelete,
+  labels,
 }: {
   rule: WorkflowRule
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
+  labels: ReturnType<typeof useProductLanguage>["copy"]["workflow"]
 }) {
   const fromAgent = rule.fromAgent !== "*" ? AGENT_MAP[rule.fromAgent as AgentId] : null
   const toAgent = AGENT_MAP[rule.toAgent]
+  const fromAgentLabel =
+    rule.fromAgent !== "*" ? labels.agents[rule.fromAgent as AgentId] : labels.rules.any
+  const toAgentLabel = labels.agents[rule.toAgent]
 
   return (
     <div
@@ -104,16 +125,16 @@ function RuleCard({
               className="rounded-md px-2 py-0.5 text-[11px] font-medium"
               style={{ background: fromAgent.color + "15", color: fromAgent.color }}
             >
-              {fromAgent.displayName}
+              {fromAgentLabel}
             </span>
           ) : (
             <span className="rounded-md px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground">
-              任意
+              {labels.rules.any}
             </span>
           )}
 
           <span className="text-[11px] text-muted-foreground">
-            {INTENT_LABELS[rule.intent]}
+            {labels.intents[rule.intent]}
           </span>
 
           <span className="text-muted-foreground/40 text-[11px]">→</span>
@@ -123,23 +144,23 @@ function RuleCard({
             className="rounded-md px-2 py-0.5 text-[11px] font-medium"
             style={{ background: toAgent?.color + "15", color: toAgent?.color }}
           >
-            {toAgent?.displayName}
+            {toAgentLabel}
           </span>
 
           <span className="text-[11px] text-muted-foreground">
-            {INTENT_LABELS[rule.targetIntent]}
+            {labels.intents[rule.targetIntent]}
           </span>
         </div>
 
         <div className="flex items-center gap-2 mt-2">
           {rule.mode === "exclusive" && (
             <span className="text-[10px] rounded-full border border-border/60 px-1.5 py-0.5 text-muted-foreground">
-              獨佔
+              {labels.rules.exclusive}
             </span>
           )}
           {rule.requiresApproval && (
             <span className="text-[10px] rounded-full border border-amber-500/40 px-1.5 py-0.5 text-amber-500">
-              需批准
+              {labels.rules.requiresApproval}
             </span>
           )}
           {rule.conditions && (

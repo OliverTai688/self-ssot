@@ -1,5 +1,190 @@
 # Acceptance Criteria
 
+## YZLIVE — 帳號與正式使用（2026-09-15，PROPOSED／NOT_RUN）
+
+依 [PLN-071](../05_execution-plans/PLN-071_yuanzhan-account-and-private-launch-plan.md) 第 8 節及 [AUT-009](../02_architecture-and-rules/AUT-009_yuanzhan-email-otp-account-boundary.md)：三帳號實際收六碼登入、無 Magic Link／Google／固定碼正式替代入口；UID 與本人資料對應；公司管理採 active membership；私人日誌／附件／搜尋隔離；本人資料與公司協作跨重整持久化；停用／session 撤銷／最後 owner 負測試；SMTP／HTTPS／backup restore／部署回退及跨三帳號驗收。當前只有規劃與文件查核完成，上述 runtime 測試均 NOT_RUN，原型驗證不替代正式上線證據。
+
+## YZUI — 圓展 UI 雙資料模式驗收（2026-09-13）
+
+本次完成 `YZUI-001..010` 的 UI-memory 階段。UI 階段以 [PRD-006](../01_product-requirements/PRD-006_yuanzhan-team-ui-phase.md)、[ARC-040](../02_architecture-and-rules/ARC-040_yuanzhan-ui-data-mode-contract.md) 與 [ACC-008](ACC-008_yuanzhan-ui-dual-mode-acceptance.md) 為準；UI-088 的 12 情境雙模式已通過，正式服務授權與持久化不在本期 claim。
+
+- 同一組 UI／CRUD 以 server env `PERSONAL_OS_UI_DATA_MODE=showcase|empty` 決定初始資料，不受示範帳號或舊 localStorage 開關覆蓋；未設定時採空白，非法值明確失敗。env reader 與 memory adapter 已實作。
+- `showcase` 有跨日誌、任務、專案、時間線、文件及財務的合成關聯案例；`empty` 所有業務集合為空，單一業務物件為 null，搜尋、統計與隱藏視圖均不殘留範例。
+- 空白模式可從第一筆新增、編輯、引用、刪除，最後一筆刪除後恢復可操作空白狀態；無資料不可顯示虛構洞察或預測。
+- 個人資料只對自己呈現；公司普通工作預設成員可見，可篩選作者，受限專案與人事資料有獨立範圍。UI 模擬不得被當成真實多使用者權限證明。
+- 所有新操作保持 UI 記憶體模式，同一 ID 跨視圖更新，重新整理重置；不得呼叫正式業務寫入或套用原型的示範資料到 DB。
+- 12 個情境均須依 ACC-008 在兩種模式驗證，包含桌機／手機、空白／錯誤／載入／無權限及第一筆到跨頁操作。完整模組範圍不得以只有靜態占位頁宣稱完成。
+
+上述 UI 驗收不取代既有 auth、持久化、財務正確性或正式上線驗收，也不改變其狀態。
+
+## OWNEROS-UI-006 Simplified Agent Command Center Acceptance
+
+- `/agents` includes the `OWNEROS-UI-006-AGENTS-SURFACE` marker.
+- The first viewport states one primary job: `Agent Command Center` for `Choose a dry-run operation, inspect proof, prepare proposal, and keep audit boundaries visible.`
+- `/agents` keeps the current protected owner-only and NANDA-safe state honest with visible `Protected owner only`, `dry_run only`, `proposal only`, and `externalRegisterable=false` language.
+- `/agents` includes the required simplified slots: identity/mode strip, attention header, command bar, operation selection resource index, detail pane, proposal-review pane, protected dry-run proof panel, records/audit, settings/boundary, and module-readiness drilldown.
+- The primary workflow stays one path: choose a bounded operation, write an owner instruction, create a local proposal packet, or run one protected same-origin dry-run proof.
+- The AGENT-016 module readiness matrix remains available as a drilldown and continues to show module, operation id, owner agent, internal bus/group, CLI dry-run command, protected HTTP payload, risk/approval, blocked writes, audit readiness, write-blocked state, and external registration denial.
+- `scripts/check-agent-command-center.mjs` is exposed as `pnpm agent:command-center:check` and validates simplified runtime markers, existing command-center/page/service/type markers, one allowed client dry-run fetch, required AGENT-010/011/014/015/016 operation ids, and forbidden runtime side-effect patterns.
+- `OWNEROS-UI-006` is implementation-first/proof-light per owner instruction: static checker proof is required now; browser smoke may be owner-run or deferred to a later proof loop.
+- This pass adds no execute mode, route handler, Server Action, Prisma schema, migration, database write, provider call, public output expansion, external collaboration runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim.
+
+## OWNEROS-UI-005 Company-First Simplified Module Acceptance
+
+- `/company` includes the `OWNEROS-UI-005-COMPANY-SURFACE` marker.
+- The first viewport states one primary job: `Company Operating Desk` for `Separate private thinking, formal knowledge, policies, contracts, and Company AI proposals.`
+- `/company` keeps its current high-risk prototype path honest with visible `High-risk strategy module`, `Prototype state`, and `Formal knowledge pending` state language.
+- `/company` includes the required module slots: identity/mode strip, command bar, `Company Lanes` resource index, `Company Readiness` detail pane, `Company AI Proposal` proposal-review surface, `Records / Audit`, `Settings / Boundary`, and Manual Ops handoff.
+- Company lanes separate `Owner private thinking`, `Formal shared knowledge`, Policy, and Contract objects so private strategy cannot silently become formal Company-readable truth.
+- Company handoff language names `AUTH-005`, `COMPANY-BFF`, and `DEPLOY-002` without claiming live owner-read proof or launch-level progress.
+- Company boundary language remains fail-closed: `No public output`, `No Company publication runtime`, `No high-risk write`, `No external agent DB access`, and `externalRegisterable=false` are visible or statically enforced.
+- `scripts/check-owneros-company-simplified-surface.mjs` is exposed as `pnpm company:simplified:check` and validates runtime markers, docs/task markers, package script registration, and forbidden runtime side-effect patterns.
+- `OWNEROS-UI-005` is now implemented at Work/Research/Company runtime UI/checker scope; browser smoke remains deferred by owner instruction.
+- This pass adds no route handler, Server Action, Prisma schema, migration, live Company DB read, database write, provider call, public output expansion, Company publication runtime, high-risk write, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim.
+
+## OWNEROS-UI-005 Research-First Simplified Module Acceptance
+
+- `/research` includes the `OWNEROS-UI-005-RESEARCH-SURFACE` marker.
+- The first viewport states one primary job: `Research Operating Desk` for `Organize sources, questions, evidence, outputs, and Research AI proposals.`
+- `/research` keeps its current prototype/localStorage/mock data path honest with visible `Prototype state` and `Formal persistence pending` state language.
+- `/research` includes the required module slots: identity/mode strip, command bar, `Research Queue` resource index, `Research Readiness` detail pane, `Research AI Proposal` proposal-review surface, `Records / Audit`, `Settings / Boundary`, and Manual Ops handoff.
+- Research handoff language names `AUTH-005`, `RESEARCH-BFF`, and `DEPLOY-002` without claiming live owner-read proof or launch-level progress.
+- Research boundary language remains fail-closed: `No public output`, `No Company publication`, `No high-risk write`, `No external agent DB access`, and `externalRegisterable=false` are visible or statically enforced.
+- `scripts/check-owneros-research-simplified-surface.mjs` is exposed as `pnpm research:simplified:check` and validates runtime markers, docs/task markers, package script registration, and forbidden runtime side-effect patterns.
+- `OWNEROS-UI-005` was partial after the Work-first and Research-first passes; the later Company pass completes the Work/Research/Company runtime UI/checker scope.
+- This pass adds no route handler, Server Action, Prisma schema, migration, live Research DB read, database write, provider call, public output expansion, Company publication runtime, high-risk write, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim.
+
+## OWNEROS-UI-005 Work-First Simplified Module Acceptance
+
+- `/work` includes the `OWNEROS-UI-005-WORK-SURFACE` marker.
+- The first viewport states one primary job: `Work Operating Desk` for `Open projects, tasks, client boundaries, and Work AI proposals.`
+- `/work` preserves the protected Server Component loader with `requireUser`, `getWorkspaceProjectIndexForProfile`, `getTeamWorkspaceCreateReadinessForProfile`, and `getTeamWorkspaceInvitationIndexForProfile`; Client Components receive only UI-safe DTOs.
+- `/work` includes the required module slots: identity/mode strip, command bar, `Project Queue` resource index, `Project Readiness` detail pane, `Work AI Proposal` proposal-review surface, `Records / Audit`, `Settings / Boundary`, and Manual Ops handoff.
+- Work state language is honest: `DB-backed owner path` and `Formal proof pending` are visible, team writes remain gated, and Manual Ops still names `AUTH-005`, `WORK-009`, and `DEPLOY-002`.
+- Work boundary language remains fail-closed: `No public output`, `No Company publication`, `No high-risk write`, `No external agent DB access`, and `externalRegisterable=false` are visible or statically enforced.
+- `scripts/check-owneros-work-simplified-surface.mjs` is exposed as `pnpm work:simplified:check` and validates runtime markers, loader markers, docs/task markers, and forbidden runtime side-effect patterns.
+- `OWNEROS-UI-005` was partial after this Work-first pass; the later Research and Company passes complete the Work/Research/Company runtime UI/checker scope.
+- This pass adds no route handler, Server Action, Prisma schema, migration, provider call, public output expansion, Company publication runtime, high-risk write, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim.
+
+## OWNEROS-UI-004 Simplified Admin Control Plane Acceptance
+
+- `/admin` includes the `OWNEROS-UI-004-ADMIN-SURFACE` marker.
+- The first viewport exposes one admin/operator job: `Admin Control Plane` with `Inspect launch blockers, audit proof, system readiness, and Manual Ops`.
+- The command bar includes `Blockers`, `Proof`, `System`, `Audit`, and `Manual Ops`.
+- The page renders required operating slots: identity/mode strip, attention header, command bar, operator queue resource index, system-readiness detail pane, records/audit, proof handoff, and Manual Ops handoff.
+- The admin control plane includes indexed rows for `Blocker Queue`, `Proof Queue`, `System Readiness`, and `Audit / Records`.
+- The default `/admin` route keeps the existing lightweight overview loader path through `getAdminLaunchOverview()` while full evidence remains available through `/admin/detail` and `getAdminLaunchConsole()`.
+- The proof handoff keeps `AUTH-005`, `WORK-009`, and `DEPLOY-002` explicit without claiming Gate A/B/C achievement.
+- `scripts/check-owneros-admin-simplified-surface.mjs` is exposed as `pnpm admin:simplified:check` and validates runtime markers, docs/task markers, loader markers, and forbidden runtime side-effect patterns.
+- `OWNEROS-UI-004` is implementation-first/proof-light per owner instruction: static checker and TypeScript proof are required now; browser smoke may be owner-run or deferred to a later proof loop.
+- `OWNEROS-UI-004` adds no admin mutation, route handler, Server Action, Prisma schema, migration, database write, environment edit, deployment API write, provider runtime, public output expansion, external runtime, external agent database access, external registration, Gmail send, or Gate/launch-level claim; `externalRegisterable=false` remains visible.
+
+## OWNEROS-UI-003 Simplified Settings Control Plane Acceptance
+
+- `/settings` includes the `OWNEROS-UI-003-SETTINGS-SURFACE` marker.
+- The first viewport exposes one primary owner settings job: `Settings Control Plane` with `Control identity, workspace, sources, modules, agents, env, and Manual Ops`.
+- The command bar includes `Identity`, `Workspace`, `Sources`, `Modules`, `Agents`, and `Manual Ops`.
+- The page renders required operating slots: identity/mode strip, attention header, command bar, settings resource index, detail/boundary pane, records/audit, and Manual Ops handoff.
+- The settings control plane includes identity/profile, owner/member workspace, source connections, module permissions, agent boundaries, and environment/manual-ops rows.
+- The page keeps the existing protected Server Component loader and BFF contracts: `resolveCurrentUser()`, module permission snapshot loading, owner evidence console, source workflow readiness, agent protocol readiness, owner auth boundary, and `buildAdminAuditBffContract()`.
+- `scripts/check-owneros-settings-simplified-surface.mjs` is exposed as `pnpm settings:simplified:check` and validates runtime markers, docs/task markers, loader markers, and forbidden runtime side-effect patterns.
+- `OWNEROS-UI-003` is implementation-first/proof-light per owner instruction: static checker and TypeScript proof are required now; browser smoke may be owner-run or deferred to a later proof loop.
+- `OWNEROS-UI-003` adds no route handler, Server Action, Prisma schema, migration, permission write, retention deletion/export runtime, environment mutation, provider call, public output expansion, external runtime, external agent database access, external registration, or Gate/launch-level claim; `externalRegisterable=false` remains visible.
+
+## OWNEROS-AIINPUT-UI-001 Simplified AI Input Work Desktop Acceptance
+
+- `/ai-input` includes the `OWNEROS-AIINPUT-UI-001-SURFACE` marker.
+- The first viewport exposes one primary owner job: `AI Work Desktop` with `Capture, review, route`.
+- The command bar includes `Capture`, `Review`, `Sources`, `Context`, and `Manual Ops`.
+- The page renders required operating slots: identity/mode strip, attention header, command bar, source/conversation index, proposal detail pane, agent proposal pane, settings/boundaries, records/audit, and Manual Ops handoff.
+- The page keeps the existing protected Server Component loader and BFF contracts: `buildAIInputFormalReadinessContract()` and `loadAIInputSourceConnectionCatalog()` pass serializable DTOs into `AIInputClient`.
+- `scripts/check-owneros-ai-input-simplified-surface.mjs` is exposed as `pnpm ai-input:simplified:check` and validates runtime markers, docs/task markers, page loader markers, and forbidden runtime side-effect patterns.
+- `OWNEROS-AIINPUT-UI-001` is implementation-first/proof-light per owner instruction: static checker and TypeScript proof are required now; browser smoke may be owner-run or deferred to a later proof loop.
+- `OWNEROS-AIINPUT-UI-001` adds no route handler, Server Action, Prisma schema, migration, database write, provider call, OAuth/webhook/polling runtime, public output expansion, external runtime, external agent database access, external registration, or Gate/launch-level claim; `externalRegisterable=false` remains visible.
+
+## LOOP-219 Launch-Level Review And Next-Phase Routing Acceptance
+
+- `docs/06_audits-and-reports/RPT-063_loop-219-launch-level-review-and-next-phase-routing.md` exists and is indexed by `MAN-001`.
+- Loop 219 generates current-loop no-secret launch, auth, Work proof target, Manual Ops, preemption, owner-plan, freshness, Gate A incomplete, and launch-level review JSON packets under `docs/2_agent-input/generated/agent-loop/reports/`.
+- The review keeps formal launch at `L0_LOCAL_PROTOTYPE`, conditional Manual Ops at `M1_MANUAL_OPS_READY`, and conditional product maturity at `C3_ARCHITECTURE_GATE_READY`.
+- Gate A/B/C remain `NOT_ACHIEVED`; Gate A Gmail remains `NOT_TRIGGERED`.
+- The review records no-upgrade reasons for missing Gate A A1-A8 runtime/owner/deployed evidence, missing signed-in owner auth proof, missing Work proof target confirmations, and missing deployment marker proof.
+- The next implementation route is `OWNEROS-AIINPUT-UI-001` unless signed-in owner `/auth/status?proof=1` evidence appears and preempts with `AUTH-005`.
+- The review adds no runtime source change, route handler, Server Action, Prisma schema, migration, database read/write, provider call, Gmail send, public output, external runtime, external agent database access, external registration, or launch-level claim.
+
+## OWNEROS-BFF-001 Core Surface BFF View Model Acceptance
+
+- `docs/02_architecture-and-rules/ARC-037_owneros-core-surface-bff-view-model-contract.md` exists and is indexed by `MAN-001`.
+- `src/lib/contracts/owneros-core-surface-bff.contract.ts` exports `OWNEROS_CORE_SURFACE_BFF_CONTRACT_ID`, `OWNEROS_CORE_SURFACE_UI_CONTRACT_ID`, `OWNEROS_CORE_SURFACE_BFF_SURFACES`, `OWNEROS_CORE_SURFACE_COMPONENTS`, `OWNEROS_CORE_SURFACE_BFF_INVARIANTS`, and runtime-disabled safety flags.
+- `scripts/check-owneros-core-surface-bff-contract.mjs` is exposed as `pnpm owneros:surface-bff:check` and validates the formal doc, contract, package script, backlog, sprint, completed log, tasks memory, index entry, source refs, shared surfaces, shared component vocabulary, BFF invariants, and forbidden runtime side-effect patterns.
+- The contract covers `/dashboard`, `/ai-input`, `/settings`, and `/admin`, including their current loader refs, UI-safe view model names, required operating slots, state labels, command groups, audit/boundary refs, next runtime tasks, and stop conditions.
+- `OWNEROS-UI-003` remains the settings runtime task, but its shared layout/component and BFF prerequisites are now defined by `OWNEROS-BFF-001`.
+- The shared component contract defines `OwnerOsSurfaceFrame`, `OwnerOsCommandBar`, `OwnerOsResourceIndex`, `OwnerOsDetailPane`, `OwnerOsAgentProposalPane`, `OwnerOsRecordsAudit`, and `OwnerOsBoundaryPanel`.
+- The BFF invariant is `Server Component page -> protected loader -> requireUser() or resolveCurrentUser() -> service authorization -> domain service -> mapper/view model -> serializable Client Component props`.
+- `OWNEROS-BFF-001` maps to Gate A A2/A8, Gate B B1/B2/B4, and Gate C C2/C3/C5 as a prerequisite only; it does not claim Gate A/B/C achievement.
+- `OWNEROS-BFF-001` adds no route handler, Server Action, Prisma schema, migration, database read/write, provider call, public output expansion, external runtime, external agent database access, external registration, or launch-level claim; `externalRegisterable: false` remains true for this slice.
+
+## OWNEROS-UI-002 Simplified Owner Dashboard Acceptance
+
+- `/dashboard` includes the `OWNEROS-UI-002-DASHBOARD-SURFACE` marker.
+- The first viewport exposes one primary owner job: `Choose the next owner action`.
+- The dashboard command bar includes `AI Work Desktop`, Work, Inbox, Settings, and Admin, with `AI Work Desktop` as the primary entry.
+- The dashboard renders required operating slots: identity/mode strip, attention header, command bar, resource index, detail/proposal pane, records/audit timeline, and Manual Ops handoff.
+- The page keeps the existing protected Server Component loader and `getDailyCommandCenter()` contract; it does not import dirty `/ai-input` runtime components.
+- `scripts/check-owner-dashboard-simplified-surface.mjs` is exposed as `pnpm dashboard:simplified:check` and validates dashboard markers, docs/task markers, and forbidden runtime side-effect patterns.
+- `OWNEROS-UI-002` adds no route handler, Server Action, Prisma schema, migration, database write, provider call, public output expansion, external runtime, external agent database access, external registration, or Gate/launch-level claim.
+
+## OWNEROS-UI-001 Simplified SaaS Operating Surface Pattern Acceptance
+
+- `docs/02_architecture-and-rules/ARC-036_simplified-saas-operating-surface-design-pattern.md` exists and is indexed by `MAN-001`.
+- `src/lib/contracts/simplified-saas-operating-surface.contract.ts` exports `SIMPLIFIED_SAAS_OPERATING_SURFACE_CONTRACT_ID`, `SIMPLIFIED_SAAS_SURFACE_RULES`, `SIMPLIFIED_SAAS_SURFACE_TARGETS`, `SIMPLIFIED_SAAS_SOURCE_REFS`, `SIMPLIFIED_SAAS_COPY_BUDGET`, and runtime-disabled safety flags.
+- `scripts/check-simplified-saas-operating-surface.mjs` is exposed as `pnpm ui:simplified-saas:check` and validates the formal doc, contract, package script, backlog, sprint, completed log, tasks memory, index entry, source refs, and forbidden runtime markers.
+- The pattern covers one primary job, command bar, resource index, detail/proposal pane, records/audit, settings/boundaries, concise copy budget, honest real/demo/mock/formal-readiness/DB-backed/unavailable/Manual Ops state language, and blocked UI patterns.
+- The pattern maps to Gate A owner-private operability, Gate B member/team surface consistency, and Gate C `C5_CORE_JOURNEY_UI_HARDENING` without claiming any Gate achievement.
+- Follow-up rows `OWNEROS-UI-002..006` exist for `/dashboard` plus AI Work Desktop entry, `/settings`, `/admin`, Work/Research/Company/module pages, and `/agents`.
+- `OWNEROS-UI-001` adds no route handler, Server Action, Prisma schema, migration, database read/write, provider call, public output expansion, external runtime, external agent database access, external registration, or launch-level claim.
+
+## AIINPUT-CONN-004 Typed Provider Manifest And Protected BFF Acceptance
+
+- `AIInputSourceConnectionCatalogDTO` separates provider manifests, account instances, scope instances, redacted connection list/detail, setup session, scope preview, connection test, duplicate fingerprint, revoke impact, authorization/audit metadata, runtime flags, NANDA posture, validation, and stop conditions.
+- LINE, Google Drive, RSS, Gmail, GitHub, and Telegram each expose the same ordered provider/account/scope/sync-analysis/governance/review state machine with typed provider-specific account and scope metadata.
+- Google Docs is not a provider id. Google Drive explicitly carries Docs/Sheets/Slides file-subtype provenance.
+- `loadAIInputSourceConnectionCatalog()` is server-only, directly calls `requireUser()`, returns no Profile id/email/provider subject/native scope id/raw payload/secret, and passes only a UI-safe DTO through `/ai-input` Server Component to the Client Component and wizard.
+- The operation catalog allows only protected static manifest reads. Account list, setup draft persistence, scope preview/discovery, provider test, revoke-impact read, and activation are explicitly blocked with audit refs and reasons.
+- Duplicate identity is a server-generated hash-only future contract. Client-native provider ids, the fingerprint value, and raw provider identifiers are not accepted or exposed.
+- Missing, duplicate, incomplete, out-of-order, runtime-enabled, standalone-Google-Docs, or otherwise invalid manifests fail closed to `provider_manifest_catalog_unavailable` with zero providers/accounts/scopes and no client mock fallback in formal mode.
+- The wizard consumes the server DTO, drives provider and step behavior from validated manifests, and renders an unavailable state instead of provider choices when the catalog fails validation.
+- OAuth, secret storage, callbacks, webhooks, polling, provider API calls, route handlers, Server Actions, Prisma/DB reads or writes, module final writes, public output, external-agent DB access, and external registration remain false; `externalRegisterable` remains `false`.
+- `pnpm ai-input:connection-manifest:check` validates DTO coverage, providers, steps, auth handoff, operation/fingerprint/impact/audit/stop boundaries, malformed-manifest behavior, Server-to-client-to-wizard wiring, and forbidden runtime imports/patterns.
+
+## AIINPUT-CONN-003 Multistep And Multi-Account Prototype Acceptance
+
+- `/ai-input` mock mode exposes `新增連線`; formal mode exposes only a disabled/unavailable action and immediately closes/resets any mock wizard state.
+- The accessible Dialog implements six ordered steps: provider, account, scope, sync/analysis, routing/governance, and review/create.
+- Provider choices are LINE, Google Drive, RSS, Gmail, GitHub, and Telegram. Google Docs is not a provider choice; Docs/Sheets/Slides remain Drive folder file subtypes/provenance.
+- Provider branches expose the correct prototype topology: Google accounts, GitHub App installations, LINE Official Accounts, Telegram bots, Gmail privacy/restricted-scope warning, and RSS without an account step or real URL fetch.
+- Multiple redacted accounts show independent auth health and dependent connection counts; one account can serve multiple independently managed connection drafts.
+- Selecting multiple Drive folders creates one in-memory draft per folder. Exact provider/account/scope duplicates are blocked while different provider-native scopes remain selectable.
+- Account management includes inline dependency and revoke/reauthorize impact preview; it does not mutate credentials or delete provenance.
+- Review displays provider, redacted account, scope count, sync/analysis, routing, risk, approval, retention, PII, Morning Brief, subfolder, and attachment choices before mock creation.
+- Creation returns only `draft` / `Mock drafts only`, updates current-page mock rows, never claims authorization/activation, and disappears after reload.
+- Formal connection details never clone or derive policy fields from `connectorsState` mock rows.
+- `pnpm ai-input:connection-wizard:check` verifies steps, providers, Dialog/ARIA, Drive naming, duplicate/impact states, formal fail-closed integration, and forbidden network/DB/secret/localStorage patterns.
+- No OAuth callback, route handler, Server Action, provider SDK/API call, token/secret input, webhook, polling, localStorage/sessionStorage, Prisma/DB read/write, schema/migration, public output, final module write, external agent access, or external registration is added; `externalRegisterable` remains `false`.
+
+## AIINPUT-CONN-001 External Source Connection Research Acceptance
+
+- `RES-027_external-source-connection-multistep-and-multi-account-management-research.md` exists and is indexed by `MAN-001`.
+- The source setup catalog presents **Google Drive folder** connections; it does not present Google Docs as a separate new-connection provider. Native Google Docs/Sheets/Slides remain file subtypes with Drive file identity and provenance.
+- The domain separates provider accounts and credential health from independently manageable source-connection scopes and sync health.
+- The target model supports multiple authorized accounts per provider and multiple scoped connections per account; public RSS remains a credentialless per-feed connection.
+- First-time `新增連線` uses a provider-aware six-step modal covering provider, account/authorization, scope, sync/analysis, routing/risk/retention, and review/test/create.
+- Existing-connection management and provider-account management are separate from setup; reconnect/revoke shows impact across dependent connections before an account-level change.
+- LINE, Google Drive, RSS, Gmail, GitHub, and Telegram each have explicit setup, scope, incremental-sync/webhook, permission, risk, and stop conditions.
+- Proposed BFF operations require `requireUser()`, owner-scoped service authorization, validation, idempotency, redacted DTOs, secret references, audit events, and provider-specific approval before runtime activation.
+- `AIINPUT-CONN-002..011` provide executable staged scope, acceptance, likely files/surfaces, verification, risks, and stop conditions.
+- `AIINPUT-CONN-001` adds no runtime UI, OAuth callback, webhook, polling, provider call, database/schema mutation, secret write, public output, final module write, external collaboration, or external registration; `externalRegisterable` remains `false`.
+
 ## v0.1 Operational Acceptance
 
 - DB contract is documented and migration strategy is clear.
@@ -42,6 +227,121 @@
 - UI handles validation and action failure.
 - Client-visible data is explicitly marked.
 - Internal notes never appear in public output by default.
+
+## TEAMCOLLAB-001/002 Team Workspace Collaboration Research And Contract Acceptance
+
+- `RES-026` exists and records the owner's current shared-team direction.
+- It explicitly supersedes only the one-Profile/one-Tenant/no-sharing product decision in `RES-020` while preserving `RES-020` as the current-runtime isolation audit.
+- Requirement understanding is scored 89/100 High and three same-issue research rounds cover local code/PRD fit, comparable product patterns, and auth/persistence/AI safety.
+- One Profile may have one personal workspace and multiple team memberships.
+- Workspace roles (`OWNER`, `ADMIN`, `MEMBER`, `GUEST`) remain separate from project roles (`VIEWER`, `COMMENTER`, `EDITOR`, `MANAGER`) and existing global `UserRole`.
+- Active members see workspace-visible projects through server-authorized inheritance; guests require explicit project grants.
+- A personal project transfer is stable-ID, audited, manager-only, relation-preserving, and does not expand Client Portal visibility.
+- Email invitations are application records with token digests, expiry/revoke states, exact authenticated-email acceptance, idempotency, and trusted-server-only provider delivery.
+- Collaborator feedback is attributed, versioned, auditable, withdrawable, and project scoped.
+- AI may retrieve authorized project feedback and create evidence-linked summaries/actions/`MemoryCandidate` proposals; automatic provider fine-tuning, global memory, final Work writes, cross-workspace reuse, and external-agent access remain disabled.
+- `SCH-006`, `AUT-008`, and `PLN-066` exist; `SCH-004` is marked superseded and must not be implemented.
+- `PLN-060` contains executable `TEAMCOLLAB-001..010` tasks with scope, acceptance, likely files, verification, risks, and stop conditions.
+- NANDA gate keeps WorkAgent internal/protected and `externalRegisterable: false`.
+- `TEAMCOLLAB-001/002` do not edit Prisma schema, apply migrations, create memberships, send invitations, transfer projects, create feedback, call AI providers, expand public output, or change launch level.
+
+## TEAMCOLLAB-003 Workspace And Project Capability Resolver Acceptance
+
+- `src/lib/contracts/team-workspace-capability.contract.ts` is server-only, pure, deny-by-default, and contains no Prisma/database/provider/network/request-state/runtime write.
+- Active identity, active workspace, and matching active membership are common prerequisites; suspended/left/removed memberships cannot use owner/admin status or stale direct grants.
+- Workspace `OWNER`/`ADMIN` resolves project `MANAGER`; an active exact direct grant overrides inherited access; only `MEMBER` inherits the configured role on `WORKSPACE_VISIBLE`; `GUEST` never inherits; `PRIVATE` requires owner/admin or a direct grant.
+- Runtime-invalid roles/status/access modes, blank identifiers, malformed grants, guessed cross-workspace IDs, missing membership, and inactive resources fail closed without throwing.
+- Workspace and project capability maps are exact and separate. `feedback.update_own` requires a later author check; `project.transfer` requires a later target workspace owner/admin check; project `MANAGER` alone cannot manage workspace policy.
+- Redacted BFF decision DTOs hide internal identifiers and mismatch diagnostics behind safe availability codes.
+- BFF operation policies cover workspace selection/index, project creation, member/invitation/policy/audit, target transfer receipt, project reads/writes/access, feedback own-update/moderation, transfer, and feedback-memory review.
+- All 13 `AUT-008` negative rows have explicit resolver fixture, BFF policy, or declared follow-up-boundary coverage; invitation and AI lifecycle declarations do not claim runtime proof.
+- `pnpm teamcollab:capability:check` executes 20 built-in and 25 extended fixtures, exact role maps, immutability/determinism, BFF redaction/transfer conditions, NANDA `externalRegisterable: false`, and forbidden side-effect scans.
+- No Prisma/schema/migration/seed, service, route, Server Action, UI, provider invitation, project transfer write, feedback persistence, AI runtime, public output, Client Portal visibility change, RLS claim, external agent, or launch-level upgrade is added.
+
+## TEAMCOLLAB-004 Additive Schema And Disposable Migration Proof Acceptance
+
+- `prisma/schema.prisma` contains Workspace, membership, invitation, project grant, feedback/version, and memory-candidate models; `Profile.authUserId` and `Project.workspaceId` remain nullable during cutover, while legacy `Project.ownerId` remains intact.
+- Project grant state is persisted as `ACTIVE`/`INACTIVE`, and a memory candidate must reference an existing `(feedbackId, version)` pair.
+- The reviewed SQL lives under `prisma/migration-drafts`, never under `prisma/migrations`; static checks reject destructive SQL, RLS claims, Client Portal column mutation, and unrelated timeline DDL.
+- Backfill creates one active personal workspace/owner membership per Profile, assigns every legacy Project to its owner's personal workspace, yields zero orphan Projects, and preserves legacy Project identity/owner/visibility/client-token values.
+- `prisma/seed.ts` upserts the demo personal workspace/membership and assigns all seeded Work projects; two consecutive seed passes keep stable entity counts.
+- `scripts/team-workspace-disposable-proof.ts` defaults to no-write dry-run, accepts no target URL, fingerprints only a self-created loopback cluster, overrides inherited DB URLs for child commands, applies the review draft in one transaction, and removes its owned temp cluster in `finally`.
+- Persisted two-workspace context plus the `TEAMCOLLAB-003` resolver proves cross-workspace read and write denial; denied writes do not mutate the target row. This is app-layer contract proof, not an RLS or privileged Prisma isolation claim.
+- `pnpm teamcollab:migration-draft:check`, dry-run proof, explicit disposable run, `pnpm db:validate`, `pnpm db:generate`, capability checker, TypeScript, build, and diff checks pass.
+- No live/Supabase migration, Auth cutover, invitation delivery, team read/write runtime, UI workspace switcher, public output, RLS policy, AI provider call, automatic memory promotion, external agent access, or launch upgrade is included.
+
+## TEAMCOLLAB-005 Protected Workspace Project Index Acceptance
+
+- `/work` is a request-time Server Component that calls `requireUser()` and the server-only `getWorkspaceProjectIndexForProfile()` BFF directly; the query-string workspace ID is only a preference, never authorization.
+- `WorkspaceProjectIndexDto` returns client-safe workspace choices, selection state, read-only capability snapshots, and `Omit<Project, "clientToken">` project rows without membership IDs, invitation tokens, emails, Prisma models, or nonserializable values.
+- Only active memberships in active workspaces become choices. Every project row is re-evaluated through the `TEAMCOLLAB-003` project resolver and returned only when `project.read` is allowed.
+- Owner/admin, member workspace inheritance, guest direct-grant, private project, inactive resource, and cross-workspace rules remain the exact `AUT-008`/resolver rules; UI state cannot expand them.
+- Invalid or stale workspace selection safely falls back to an already authorized workspace, displays a non-disclosing notice, and does not reveal or load the guessed workspace's projects.
+- Auth Profile lookup explicitly selects only `id`, `email`, and `role`, so an unmigrated database does not fail on the pending `auth_user_id` column before workspace compatibility can be resolved.
+- Missing collaboration tables (`P2021`) or exactly zero memberships use an explicitly labelled legacy exact-owner personal-project compatibility path. Other database failures return `unavailable` with no mock fallback; existing-but-invalid membership rows fail closed.
+- The Work UI shows personal/team tabs, type, role, member count, visible-project count, selected state, loading, empty/filter-empty, unavailable, and not-found-or-forbidden states.
+- TEAM project cards are read-only `<article>` surfaces with `detailHref: null`, even when the legacy `ownerId` matches. The existing exact-owner detail route is reachable only for PERSONAL exact-owner projects.
+- `AddProjectDialog` remains available only in the explicitly labelled legacy personal compatibility path; TEAMCOLLAB-005 adds no team creation, invitation, transfer, grant, feedback, memory, RLS, public, provider, or AI write runtime.
+- `pnpm teamcollab:project-index:check` passes 24/24; `pnpm teamcollab:capability:check` passes 45 fixtures; targeted lint, Prisma validation/generation, TypeScript, production build, disposable browser route smoke, invalid-selection fallback, and console-error checks pass.
+
+## TEAMCOLLAB-005A Migration Reconciliation Acceptance
+
+- Read-only target evidence records collaboration tables outside Prisma migration history, zero workspaces/memberships, 10/10 Projects with null workspace scope, and a missing active-PERSONAL partial unique index without exposing database URLs, emails, tokens, or record bodies.
+- The canonical SQL is the reviewed `TEAMCOLLAB-004` executable body under `prisma/migrations/20260727150000_team_workspace_collaboration/`; its header keeps configured/valuable apply approval-gated.
+- `preflight.sql` is read-only and inventories required relations, columns, enums, indexes, migration ledger, aggregate counts, and repair applicability.
+- `repair.sql` is one advisory-locked transaction that writes only missing PERSONAL workspaces, matching creator ACTIVE OWNER memberships, null Project workspace scope, and the partial unique index; hard postconditions roll back on duplicate, orphan, index, non-target-row, or ledger mismatch.
+- Clean-history and drift-shaped self-created loopback PostgreSQL paths both produce exactly one active PERSONAL/OWNER membership per Profile, zero orphan Projects, the unique PERSONAL index, stable Project ID/owner/visibility/clientToken snapshots, and zero TEAM/invitation/grant/feedback/version/memory rows.
+- The proof accepts no database URL, ignores inherited DB env, fingerprints its owned cluster/data directory, requires three explicit write/apply/confirmation gates, and removes the cluster/temp directory.
+- `pnpm teamcollab:migration-reconcile:check`, explicit disposable proof, old draft checker compatibility, Prisma validate/generate, TypeScript, build, and diff checks pass.
+- Configured/live repair, migration-ledger resolution, TEAM creation, invitation, transfer, feedback, AI memory, RLS, public output, and launch upgrade are not performed by 005A.
+
+## TEAMCOLLAB-005B1 Audit-Backed Create-Team Acceptance
+
+- `/work` loads create-team readiness on the server. The control is enabled only for a DB-confirmed platform `OWNER` with exactly one active creator PERSONAL workspace, exactly one matching ACTIVE OWNER membership, zero owner Projects with null workspace scope, and exact audit-storage readiness.
+- The Server Action reruns `requireUser()`, validates a 2–80 character control-character-free name and UUID idempotency key, delegates to the service, returns only safe state, and revalidates `/work` after success.
+- The service defensively validates input again, never treats browser state or workspace membership alone as platform eligibility, and re-queries all authorization/data prerequisites inside the write transaction.
+- TEAM workspace, creator ACTIVE OWNER membership, and `workspace.created` event commit atomically. Forced audit failure leaves all three counts unchanged.
+- The audit request reference is a profile/action/key-bound SHA-256 digest; metadata is exactly `{}`; sensitive refs remain null; UPDATE and DELETE fail with SQLSTATE `55000`.
+- Exact trigger/function, three CHECK definitions, and the unconditional three-key unique index are required. Missing, disabled, partial, or same-name weakened artifacts make both readiness and command fail closed with zero writes.
+- Sequential and concurrent same-key submissions return the same workspace with exactly one fresh result, one replay, and no duplicate rows. Reusing the key with a different name conflicts.
+- The dialog creates one UUID per logical open attempt, locks close/submit while pending, selects the returned workspace, and explicitly states that it does not invite, transfer, grant, write feedback, or enable AI memory.
+- `pnpm teamcollab:create-team:check` passes 31/31. The three-gate self-created loopback proof passes eligible/distinct/concurrent/invalid/denial/drift/rollback/redaction/append-only/no-scope cases and removes its cluster/temp root.
+- Configured/live migration, PERSONAL repair, migration-ledger resolution, and signed-in create-team browser activation are not claimed by 005B1; those are `TEAMCOLLAB-005B2`.
+
+## TEAMCOLLAB-005B2 Configured Activation Acceptance
+
+- Status: configured schema/data activation passed on 2026-07-27; signed-in owner create/select/audit interaction proof remains `REVIEW_REQUIRED`.
+- A restorable backup and explicit target-named owner approval exist.
+- `MIG-005` preflight/repair/postconditions and separately reviewed migration-history reconciliation pass before the audit migration is applied.
+- `MIG-006` exact constraints, trigger/function, and unique index pass on the target. The owner-triggered `db push` occurred before activation; `MIG-007` then restored db-push-omitted invariants and reconciled history without reset or blind deploy.
+- Signed-in `/work` shows the enabled create control, creates/selects one named test team, preserves personal project visibility and Client Portal fields, and yields exactly one redacted `workspace.created` row.
+- Any mismatch stops the activation and routes to a forward fix; invitation/provider/transfer/feedback/AI scope remains off.
+
+## TEAMCOLLAB-006 Existing-Profile Invitation Lifecycle Acceptance
+
+- Status: runtime and configured audit-catalog activation passed on 2026-07-27; signed-in two-Profile browser interaction remains `REVIEW_REQUIRED`.
+- OWNER/ADMIN may create or revoke invitations from a selected active TEAM; only an active OWNER may grant workspace OWNER. Global `UserRole`, client state, stale selection, and guessed IDs never authorize the write.
+- Invitee Email is NFKC-normalized, trimmed, lowercased, bounded to 254 characters, and must resolve to an existing Profile before creation. Acceptance also requires the authenticated verified Email to match exactly.
+- A fresh invitation returns its raw 256-bit token only once as `/work?invitation=<token>`; Prisma persists only the SHA-256 digest. Replays never recover or re-display the secret.
+- Reinvite atomically revokes and audits prior PENDING tokens for the same workspace/Email. ACTIVE membership blocks a new usable invite; inactive membership routes to explicit management.
+- Optional `projectId` and `projectRole` are paired, checked against the invited workspace, and may create only one explicit `VIEWER`/`COMMENTER`/`EDITOR`/`MANAGER` grant. GUEST receives no inherited project access.
+- Wrong Email, expiry, revoked/reused tokens, OWNER escalation, inactive membership, invalid workspace/project, and same-name weakened audit storage fail closed. Auditable denials persist without leaking Email/token material.
+- Audit metadata is exactly `{}`, request refs are SHA-256, only the reviewed event catalog is accepted, and UPDATE/DELETE fail with SQLSTATE `55000`.
+- `/work` provides members/invitations state, project/role selection, pending revoke, manual-link copy/mail draft, explicit `尚未寄出`, and an exact-email acceptance card. No localStorage/mock authorization is used.
+- `pnpm teamcollab:invitation:check` passes 27/27; create-team regression passes 32/32; the actual-service disposable PostgreSQL proof passes all lifecycle/security cases and removes its owned cluster/temp root.
+- `MIG-008` rollback rehearsal, configured deploy, postcheck, migration status, and schema diff pass while TEAM/invitation/audit counts remain zero.
+- Automatic provider delivery, Auth/Profile provisioning, member suspend/remove, project transfer, feedback/AI memory, public routes, RLS claims, and external agents are not accepted by this slice.
+
+## TEAMCOLLAB Runtime Acceptance Target
+
+- Workspace/project authorization is derived from `requireUser()` plus active membership/grants, never client state or global `UserRole`.
+- A user in two teams can switch between them and cannot read/write the other team's ungranted projects by guessed IDs.
+- Viewer/commenter/editor/manager capability boundaries pass positive and negative tests.
+- Wrong-email, expired, revoked, reused, and suspended invitation/member paths fail closed.
+- Team project transfer preserves project ID, tasks, notes, deliverables, files/media relations, feedback authorship, and audit.
+- Feedback deletion/withdrawal excludes future AI retrieval and invalidates or reviews derived memory.
+- App-layer authorization is proven independently; RLS is claimed only after JWT-aware disposable two-workspace proof.
+- Production migration, real provider invitations, Auth/permission cutover, public/client feedback, automatic durable memory, provider fine-tuning, and external agents remain human-approval-gated.
 
 ## Auth Runtime Acceptance
 
@@ -93,6 +393,60 @@
 - Login, settings, or admin owner-run handoff text points the owner to the redacted proof capture mode before saving evidence.
 - The implementation must not accept or print cookies, tokens, raw claims, provider payloads, Auth UIDs, Profile ids, DB URLs, Supabase URLs/keys, service-role keys, raw email values, or cross-user Work data in generated reports.
 - The implementation must not auto-create Profile rows, mutate auth provider state, write database rows, change schema/migrations, expand public output, claim `AUTH-005`, claim `WORK-009`, claim `DEPLOY-002`, or upgrade formal launch level.
+
+## AUTH-010 Email Six-Digit OTP Login Acceptance
+
+- `/login` presents Email six-digit verification as a primary passwordless path and keeps the existing Magic Link path available.
+- The send-code Server Action validates the email, calls `signInWithOtp`, and keeps `shouldCreateUser: false` so unknown email addresses are never auto-provisioned.
+- A successful send-code request returns the user to `/login` with the normalized protected `next` path, entered email, and the six-digit verification form visible.
+- The OTP input uses numeric input mode, `one-time-code` autocomplete, and exactly six digits; the Server Action repeats the six-digit validation instead of trusting HTML constraints.
+- The verification Server Action calls `verifyOtp({ email, token, type: "email" })` through the cookie-backed Supabase SSR server client and redirects only through `normalizeNextPath()`.
+- Invalid, expired, malformed, missing-env, and provider-request failure states remain on the public-safe login surface with no raw provider payload, token, cookie, claim, Auth UID, Profile id, Supabase key, or database detail.
+- Request and verification logs may include provider error code/status/name but must not include the submitted email address or OTP value.
+- The hosted Supabase `Magic Link or OTP` email template includes `{{ .Token }}` so a six-digit code is delivered; retaining `{{ .ConfirmationURL }}` preserves the existing Magic Link alternative.
+- A valid Supabase session without a matching Personal OS `Profile` continues to fail closed through the existing dashboard/Profile mapping boundary.
+- `pnpm auth:email-otp:check`, `pnpm owner:access:check`, TypeScript, build, and login-route/browser smoke pass. A real inbox receipt and successful OTP login remain required before claiming provider-level end-to-end proof.
+- `AUTH-010` does not add a service-role key, user provisioning, Profile provisioning, Prisma imports, application DB writes, schema changes, migrations, public private-data output, permission bypass, or launch-level upgrade.
+
+## AUTH-011 Local Development Fixed OTP Acceptance
+
+- `/login` on localhost can show a local-code path with the default six-digit code `123456`.
+- The local-code path is disabled in `NODE_ENV=production`.
+- By default, the fixed code is accepted only for localhost / `127.0.0.1` / `::1`; any non-local development use requires explicit `PERSONAL_OS_DEV_OTP_ENABLED=1`.
+- The fixed-code Server Action sets only an httpOnly, same-site, short-lived development cookie containing the submitted email.
+- If browser form state drops the submitted email, the fixed-code path may fall back to `PERSONAL_OS_DEV_USER_EMAIL` or the first email in `PERSONAL_OS_TEAM_PROFILES`, still only under the localhost/non-production fixed-code guard.
+- Protected dashboard navigation still reaches `requireUser()`, and `resolveCurrentUser()` must map the cookie email to an existing `Profile`; missing Profile remains fail-closed as `mock_profile_missing`.
+- `src/proxy.ts` may let the dev OTP cookie pass only so the dashboard layout can perform the existing server-side Profile check.
+- Sign-out deletes the local dev OTP cookie.
+- `pnpm auth:email-otp:check` validates the fixed-code guard, proxy pass-through, Profile mapping boundary, and production denial markers.
+- `AUTH-011` does not create Supabase Auth users, Supabase sessions, Personal OS Profile rows, Prisma writes, service-role calls, public output, permission bypass, real-session proof, or launch-level upgrade.
+
+## AUTH-012 Google OAuth Allowlisted Sign-In Acceptance
+
+- `/login` shows a "使用 Google 登入" button that is disabled whenever Supabase public env is not configured, matching the existing OTP/magic-link disabled state.
+- `/auth/google` (Route Handler) calls `supabase.auth.signInWithOAuth({ provider: "google" })` through the cookie-backed SSR client only; it never uses a service-role key.
+- `/auth/callback` checks `user.app_metadata.provider`/`providers` for `"google"` before applying any Google-specific gate; a magic-link/OTP session is never re-checked against the Google allowlist.
+- A Google sign-in whose verified email is not in `PERSONAL_OS_TEAM_PROFILES` is signed out (`scope: "local"`) and redirected to `/login?status=google_not_allowed`; no Profile is created for it.
+- A Google sign-in whose verified email is in `PERSONAL_OS_TEAM_PROFILES` reaches `next` and, on first login only, gets a `Profile` created with that entry's role; an existing Profile's role/name is never overwritten by this path.
+- `src/lib/auth/team-profiles.ts` is the single parser for `PERSONAL_OS_TEAM_PROFILES`, shared by `scripts/provision-team-profiles.ts` and the runtime allowlist so the two never drift.
+- `pnpm exec tsc --noEmit --pretty false` and `pnpm db:validate` pass; no Prisma schema or migration changes were introduced by this task.
+- Google Cloud Console OAuth client creation/consent screen and the Supabase Dashboard Google-provider toggle remain manual, owner-run steps; this acceptance item does not claim they are complete.
+
+## AUTH-013 Demo Account Login Acceptance
+
+- The demo login form on `/login` renders only when `isDemoLoginConfigured()` is true (both `PERSONAL_OS_DEMO_LOGIN_EMAIL` and a six-digit `PERSONAL_OS_DEMO_LOGIN_CODE` are set); email/token inputs are empty by default, never pre-filled or embedded in the rendered page.
+- `verifyEmailOtp` accepts the demo email+code pair in every environment (not gated by `NODE_ENV` or host, unlike the dev-otp bridge) and sets a dedicated `personal_os_demo_email` cookie distinct from the dev-otp cookie; `src/lib/auth/dev-otp.ts`'s production/localhost guard is not modified by this task.
+- `src/proxy.ts` lets the demo cookie reach protected routes in every environment; `resolveDemoLoginCurrentUser()` re-validates the cookie's email against the live `PERSONAL_OS_DEMO_LOGIN_EMAIL` value on every request, so unsetting either demo env var immediately invalidates existing demo cookies without a separate revocation step.
+- `signOut` clears both the dev-otp and demo cookies.
+- The demo account resolves to a real `Profile` (seeded via `prisma/seed.ts`, `DEMO_PROFILE_EMAIL = "test@yzedtech.com"`) that owns the existing seeded Work demo dataset; every other module continues to scope by `requireUser().profileId`, so no other account can see this data and the demo account cannot see anyone else's.
+- `pnpm exec tsc --noEmit --pretty false`, `pnpm exec eslint` on touched files, and `pnpm db:validate` pass; no Prisma schema/migration change was introduced.
+
+**Same-day follow-up — prototype module isolation:**
+
+- Only the account whose email equals the current `PERSONAL_OS_DEMO_LOGIN_EMAIL` sees illustrative/example content in Research, AI Input, Workflow, Life, Finance, Chamber, and Company; every other signed-in account (Google-allowlisted or otherwise) sees a genuinely empty state for that content, computed server-side once in `src/app/(dashboard)/layout.tsx` and threaded down via `DemoAccountProvider`/`allowMockSeed`/`defaultEnabled` props — never a client-side-only check that could be bypassed by editing localStorage.
+- Research's 17 localStorage-backed lists are namespaced by the signed-in email (`scopeId`), so two different real accounts sharing one browser cannot read or overwrite each other's prototype edits; a value the account already saved always wins over the seed, regardless of account.
+- `pnpm build` (full production build) passes after this change, confirming every dashboard route and the new provider wiring compile and generate correctly.
+- Explicitly out of scope / residual gaps, not claimed as closed: `Life`'s single-object `MonthlyPlan` template (not list-shaped, so not gated); `src/components/research/pub-timeline.tsx`, `idea-inbox.tsx`, and `src/lib/services/mock-ai.service.ts`'s direct `src/lib/mock/work` imports (a project picker and AI prompt context, not a top-level display); and full DB-backed persistence for these modules (this pass only changes which existing client-side illustrative content renders for which account — it does not add real multi-user CRUD/storage to any of these modules).
 
 ## AUTH-002 Module Permission Source Acceptance
 
@@ -931,7 +1285,7 @@
 - The contract status is `formal_source_control_matrix_active` and mode is `protected_read_no_connector_runtime`.
 - Matrix rows show source, provider, input mode, risk, connection status, next action, missing permissions, boundary, and audit refs without relying on mock connector rows.
 - Required input modes include manual, polling, webhook, event, scheduled, and one-time.
-- Required source rows cover manual import, LINE, Google Docs, RSS, Gmail, GitHub/Markdown, and Telegram.
+- Required source rows cover manual import, LINE, Google Drive folder, RSS, Gmail, GitHub/Markdown, and Telegram. Google Docs remains a Drive file subtype/provenance value rather than a separate new-connection row.
 - Protected admin/settings AI Input readiness includes an `AIINPUT-OPS-002 source control matrix` row so operations memory and page UI do not drift.
 - `scripts/check-ai-input-source-control-matrix.mjs` exists and is exposed as `pnpm ai-input:source-control:check`.
 - `pnpm ai-input:source-control:check` validates the type contract, server-only readiness service, `/ai-input` page usage, protected admin/settings readiness markers, package script, task memory, and no-runtime guards.
@@ -1623,7 +1977,7 @@
 ## DATTR-022 AI Input Sync Connector Status Acceptance
 
 - `同步設定` first presents external connector and sync status, not a source folder/resource tree.
-- The page shows multiple source categories such as LINE, Google Drive, Google Docs, RSS, Telegram, Gmail, GitHub/Markdown, and manual import.
+- The page shows multiple source categories such as LINE, Google Drive folders, RSS, Telegram, Gmail, GitHub/Markdown, and manual import. Google Docs/Sheets/Slides appear as Drive file subtypes, not separate connection providers.
 - Each row shows connector state such as connected, needs setup, planned, paused, or error.
 - Each row shows sync state such as completed, needs review, idle, running, not configured, or failed.
 - Each row shows source scope, sync cadence, last sync, next sync, default module hint, risk level, and review condition.
@@ -1745,3 +2099,145 @@
 - Classification is modeled as `LibraryAssetModuleLink` rows (many rows per asset, each row a single `moduleKey`), not a raw array field on the asset, to stay consistent with this repo's singular-`targetModule` contract convention.
 - Low-risk modules (`work`, `research`, `chamber`, `self`) may show AI-suggested classification directly with an "AI 分類" badge; high-risk modules (`finance`, `life`, `company`) require owner confirmation before a classification appears in that module's library subpage.
 - Module-scoped library subpages reuse `FileLibraryPage`/`MediaLibraryPage` via a `mode: "full" | "module_readonly"` prop rather than a bespoke per-module component; `module_readonly` hides upload and all mutating actions, keeping only reference/open/view-info/view-versions/view-references plus `download`/`export`.
+
+## R2STORE-009 Formal File/Media Library Read Acceptance
+
+- Protected dashboard loading reads `FileAsset` and `MediaAsset` through an owner-scoped server-only service and passes only serializable UI DTOs into the shared Client provider.
+- Mock and Formal assets and classification links use separate stores. Formal mode never renders `mockFileAssets`, `mockMediaAssets`, or mock classification links.
+- A valid owner-scoped query returning zero rows is a usable formal empty state with a first-upload action; it is not replaced by demo rows.
+- A failed formal DB read renders an explicit unavailable state with `hiddenMockFallback: true`; it does not silently render mock data.
+- Successful formal uploads use the persisted database asset ID/object key in the immediate UI and are reconstructed from the same Postgres row after reload.
+- Mock mode does not trigger real R2/Postgres upload writes; the owner must switch to Formal mode before uploading.
+- Client Components do not import Prisma, the database client, R2 credentials, or server environment values.
+- This acceptance does not add or approve schema migration, public/Client Portal file exposure, cross-owner reads, or external agent access.
+- `pnpm library:formal:check`, targeted ESLint, TypeScript, DB validation, production build, and authenticated browser toggle/upload/reload/download are the verification path.
+
+## AIINPUT-CONN-005 Source Connection Persistence Boundary Review Acceptance
+
+- A formal schema/auth/audit review separates provider accounts, credential references, source connections, versioned scopes, policies, cursors, run evidence, and operating audit events before any persistence runtime is enabled.
+- Owner/workspace authorization, cross-owner denial, duplicate identity, account reuse, connection revoke impact, retention, cascade behavior, and redacted read DTO boundaries are explicit and testable.
+- Legacy `GOOGLE_DOCS` source values are inventoried and mapped reversibly to Google Drive folder connections while retaining Docs/Sheets/Slides subtype and provenance; destructive enum/value removal is not accepted in this task.
+- Credentials remain server-only opaque references. Browser token input/storage, provider discovery, OAuth callbacks, webhooks, polling, provider API calls, activation, and configured database writes remain disabled.
+- The task produces formal `SCH`/`AUT`/`MIG` proposal artifacts and an executable static checker. It stops before Prisma edits, deployable migrations, migration or RLS apply, provider runtime, public/module final writes, and external registration.
+
+## INTERFACE-003 Interface Checker Drift Acceptance
+
+- `ModuleOperatingShell` continues to require the core overview, operation, agent, records, and settings tabs and may include the optional module library tab.
+- `pnpm interface:smoke:check` validates semantic required-tab coverage rather than the obsolete exact five-tab TypeScript union string.
+- The checker continues to reject missing core tabs, missing route/safety markers, forbidden database/provider imports, placeholder regressions, or weakened Client Portal containment.
+- This task changes the QA harness only; it does not redesign a page, change runtime tab behavior, write data, or make a launch-level claim.
+
+## OWNEROS-001 Product Contraction Documentation Acceptance
+
+- `RPT-062` contains exactly the requested three primary chapters: main/supporting scenarios, scenario-system development status, and remaining gaps before every company member can use the product.
+- The v1 main spine is durable conversation/source → structured authorized context → module AI collaboration → Inbox text intervention → documents/tasks → daily/weekly diary → reviewed Rule/Skill candidate → governed team/company reuse.
+- V1 includes unified AI chat, AI Input/file library, Inbox, Work, Research, Company, Personal/Team Workspaces, internal AI Public Space, diaries/skills, Google sign-in, LINE, Google Drive and Gmail.
+- Finance, Life and Chamber are contracted to collapsed mock/unavailable surfaces; Client Portal is deferred and disabled.
+- Personal Private, Team Project, Company Internal, C-level, and future External Client visibility levels are explicit; implementation is blocked before unresolved high-risk decisions.
+- Current code evidence distinguishes ready base, partial, mock-only, missing and decision/proof-blocked states without upgrading formal launch level.
+- `PLN-067` and `PLN-060` Phase 21 contain implementation-ready `OWNEROS-001..007` scope, dependencies, acceptance, verification, risk and stop conditions.
+- NANDA alignment keeps all proposed v1 agents internal/protected and `externalRegisterable: false`; no external agent database access is approved.
+- Documentation verification and evidence report pass; no runtime, schema, migration, OAuth/provider, database, deployment, public output, or launch behavior changes.
+
+## OWNEROS-GATE-001 Aggregate Gate Checker Acceptance
+
+Status: `DONE`.
+
+Acceptance:
+
+- `pnpm gate:a:check`, `pnpm gate:b:check`, and `pnpm gate:c:check` emit no-secret JSON packets for Gate A, Gate B, and Gate C.
+- Each packet includes Gate id/status, target environment, auth mode, tested commit, deployed commit, freshness, mock fallback use, runtime evidence, owner evidence, individual checks, blocker IDs, report path, report SHA-256, and safety flags.
+- The normal commands exit 0 only when all required checks for the selected Gate are current and PASS.
+- static/docs/readiness evidence alone cannot pass any Gate.
+- Missing, mock, static, proposal-only, conditional, stale, manual-review, single-happy-path, commit-mismatched, no-runtime, no-owner, no-negative, no-report, and no-SHA evidence all fail closed.
+- `--allow-incomplete` may be used only to write current blocked proof packets for loop evidence; it does not achieve a Gate.
+- Gate checker creation does not trigger Gmail, DB/provider mutation, deployment, public output, launch-level upgrade, or external registration.
+
+Verification:
+
+- `node --check scripts/check-owner-ai-work-desktop-gates.mjs`
+- `pnpm gate:a:check -- --allow-incomplete --out <path>`
+- `pnpm gate:b:check -- --allow-incomplete --out <path>`
+- `pnpm gate:c:check -- --allow-incomplete --out <path>`
+- `pnpm gate:a:check` should remain blocked until all Gate A runtime/owner evidence exists.
+- `pnpm exec tsc --noEmit --pretty false`
+- `git diff --check`
+
+## OWNEROS-002A Durable Chat ContextPackage Contract Acceptance
+
+Status: `DONE`.
+
+Acceptance:
+
+- `ARC-035_owner-ai-work-desktop-chat-context-package-contract.md` records the `OWNEROS-002A` research-to-task gate, 88/100 understanding score, three research rounds, selected and rejected patterns, BFF contract, source types, visibility levels, audit/memory rules, NANDA posture, and next staged tasks.
+- `src/lib/contracts/owner-ai-work-desktop-chat-context.contract.ts` defines conversation, message, context package, context reference, resolution check, manifest, source type, visibility, authz, retention, runtime flag, stop-condition, and acceptance-row contracts.
+- `pnpm owner:chat-context:check` validates the contract/doc/backlog/sprint/tasks/acceptance/index/package markers, required `requireUser()`/workspace/source/redaction/cross-owner checks, source types, visibility levels, runtime-disabled flags, and forbidden side-effect patterns.
+- Runtime flags remain fail-closed: no route handler, Server Action, Prisma schema, migration, DB read/write, provider call, email, public output, external runtime, external registration, or external agent database access.
+- Gate A remains `NOT_ACHIEVED` until a fresh DB-backed, owner-signed-in, deployed/no-mock, negative-auth, provider-boundary, browser/runtime evidence packet exists.
+
+Verification:
+
+- `node --check scripts/check-owner-ai-work-desktop-chat-context.mjs`
+- `pnpm owner:chat-context:check`
+- `pnpm exec tsc --noEmit --pretty false`
+- `pnpm db:validate`
+- `git diff --check`
+
+## OWNEROS-002B OwnerConversation Runtime Contract Acceptance
+
+Status: `DONE`.
+
+Acceptance:
+
+- `RPT-064_loop-227-short-launch-review-and-owner-conversation-routing.md` records the short launch review and confirms formal launch remains `L0_LOCAL_PROTOTYPE`, Manual Ops remains `M1_MANUAL_OPS_READY`, conditional product maturity remains `C3_ARCHITECTURE_GATE_READY`, and Gate A/B/C remain `NOT_ACHIEVED`.
+- `src/lib/contracts/owner-ai-work-desktop-conversation-runtime.contract.ts` defines the OwnerConversation BFF/runtime contract for `A2_DURABLE_AUTHORIZED_CHAT_CONTEXT` and `A5_INBOX_FREE_TEXT_RETURN_PATH`, including conversation thread, message, context package, context reference, and Inbox return path DTOs.
+- The contract keeps the first runtime scope as Personal Private and requires `requireUser()`, profile/workspace membership, source ownership/grant checks, redaction, Inbox origin return-path checks, audit event preparation, and cross-owner denial.
+- `pnpm owner:conversation-runtime:check` validates contract/doc/backlog/sprint/tasks/acceptance/completed-log/package markers, required surfaces, authz checks, runtime-disabled flags, and forbidden side-effect patterns.
+- Runtime flags remain fail-closed: no route handler, Server Action, schema/migration, DB read/write, provider call, Inbox reply runtime, email, public output, external runtime, external registration, or external agent database access.
+- Gate A remains NOT_ACHIEVED until a fresh DB-backed, owner-signed-in, deployed/no-mock, negative-auth, provider-boundary, Inbox round-trip, browser/runtime evidence packet exists.
+- NANDA posture stays internal BFF contract only with `externalRegisterable: false`.
+
+Verification:
+
+- `node --check scripts/check-owner-ai-work-desktop-conversation-runtime.mjs`
+- `pnpm owner:conversation-runtime:check`
+- `pnpm owner:chat-context:check`
+- `pnpm exec tsc --noEmit --pretty false`
+- `git diff --check`
+
+## OWNEROS-AUTO-001 Ten-Minute Gate Automation Acceptance
+
+- Existing automation id `personal-os-20m-aggressive-launch-loop` is updated, not duplicated; it remains a heartbeat on the same Codex task, is `PAUSED` during preflight, and retains `FREQ=MINUTELY;INTERVAL=10` for a later explicit resume.
+- Normal scheduled loops run only from the dedicated clean release worktree/branch recorded in the Gate prompt/state, verify checkpoint ancestry, and stop on unexpected dirty overlap.
+- `REF-003` is the only Screen ID source; a UI slice requires an owner-named UI ID plus an approved `saas-ui-refactor-director` proposal, and full rule explanations stay in the web manual/Admin rather than product pages.
+- Every wakeup reads root `AGENTS.md` plus the authoritative Gate prompt/state and selects one narrow slice for the earliest incomplete Gate.
+- A run lease prevents overlapping 10-minute executions; a dirty-path/hash inventory prevents accidental overwrite of existing work.
+- At most three bounded independent sub-agents may handle explorer/research, trust/architecture, QA/verification, or one disjoint worker role; the primary agent owns shared state, integration, evidence, Gate decisions, and Gmail send.
+- Requirement gaps trigger the repository Research-To-Task and page-understanding gates before runtime expansion.
+- Gate A, B, and C are binary/all-of and require current runtime/negative evidence; mock, static, proposal-only, conditional, stale, or isolated happy-path proof cannot achieve a Gate.
+- Aggregate `pnpm gate:a:check`, `gate:b:check`, and `gate:c:check` proof checkers are required before the corresponding Gate may achieve; `OWNEROS-GATE-001` owns their implementation and does not itself achieve a Gate.
+- Gate state starts with A/B/C `NOT_ACHIEVED`; automation setup does not change launch level or delivery Gate status.
+- Gmail was previously connected and MIME Markdown attachments were supported; because verification is stale, it must be reverified immediately before any allowed send.
+- Gate A first achievement creates human Markdown plus machine JSON proof, same-commit/environment evidence, SHA-256 and deterministic notification id; it reconciles Sent mail before sending and only the primary agent may send.
+- The Gate A email must include the Markdown report as an attachment. Attachment/provider failure remains retryable and cannot silently degrade to body-only or be reported as sent.
+- Setup sends no email. The automation is authorized for exactly the Gate A completion notification and no other external email.
+- `RPT-062 §3.5` product decisions are resolved by OD-01 through OD-04. Production DB/provider/deployment/public/high-risk actions and new ambiguities outside those decisions remain stop conditions; three consecutive no-progress owner-input blocks pause the automation instead of generating repeated adjacent documentation.
+- Gate B requires the Owner plus every active company member and at least one invited non-owner; the current named pilot is the Owner plus one marketing partner.
+- Gate C enforces 180 active days followed by indefinite database/R2 archive, database soft archive for product deletion, and no terminal purge without explicit Owner authorization.
+- All agent work remains internal/protected, `externalRegisterable: false`, with no external agent database access.
+
+## OWNEROS-AUTO-003 Gate Loop Activation Acceptance
+
+- Product Owner explicitly authorizes resume after `OWNEROS-AUTO-002` passes.
+- The existing automation is updated in place to `ACTIVE`; no duplicate is created and the cadence remains 10 minutes.
+- Release worktree path, branch, checkpoint ancestry, clean state, and dependency runtime all pass.
+- Gmail profile is freshly reverified without sending a message; the Gate A email remains `NOT_TRIGGERED` and is reverified again immediately before the eventual exactly-once attachment send.
+- Repository loop state, Gate activation state, app automation status, and TOML status agree on `ACTIVE`.
+- Initial run lease is `IDLE`; Gate A/B/C remain `NOT_ACHIEVED`; Active UI remains `NONE`.
+- `pnpm gate:activation:check` passes and records an internal-only lifecycle/observability artifact.
+- No deployment, migration, DB/provider write, test email, public output, terminal purge, external agent database access, external registration, or Gate claim occurs during activation.
+
+
+### 圓展 UI-088 D10 指定 v5 修訂
+
+當前 UI renderer、30 子頁與雙模式驗收見 [ACC-008](ACC-008_yuanzhan-ui-dual-mode-acceptance.md) 的 YZUI-011 追加條件。v5 視覺與操作驗證不沿用前版九工作面瀏覽器結果，也不升級正式 DB/auth/launch 狀態。

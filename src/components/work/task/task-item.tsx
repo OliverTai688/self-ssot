@@ -5,14 +5,8 @@ import { ClockIcon, EyeIcon, Loader2Icon, LockIcon, SparklesIcon, Trash2Icon } f
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { ProjectTask, TaskStatus } from "@/types/work"
-
-const statusLabels: Record<TaskStatus, string> = {
-  todo: "待辦",
-  in_progress: "進行中",
-  done: "完成",
-  blocked: "阻塞",
-}
 
 const statusColors: Record<TaskStatus, string> = {
   todo: "text-muted-foreground",
@@ -20,8 +14,6 @@ const statusColors: Record<TaskStatus, string> = {
   done: "text-emerald-600 dark:text-emerald-400",
   blocked: "text-destructive",
 }
-
-const priorityLabels: Record<number, string> = { 1: "高", 2: "中", 3: "低" }
 
 interface TaskItemProps {
   task: ProjectTask
@@ -32,7 +24,10 @@ interface TaskItemProps {
 }
 
 export function TaskItem({ task, onToggleDone, onDelete, isPending = false, isDeleting = false }: TaskItemProps) {
+  const { copy, locale } = useProductLanguage()
+  const taskCopy = copy.work.tasks
   const isDone = task.status === "done"
+  const dateLocale = locale === "zh-TW" ? "zh-TW" : "en-US"
 
   return (
     <div
@@ -62,29 +57,29 @@ export function TaskItem({ task, onToggleDone, onDelete, isPending = false, isDe
 
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className={cn("text-[11px] font-medium", statusColors[task.status])}>
-            {statusLabels[task.status]}
+            {taskCopy.statuses[task.status]}
           </span>
           <span className="text-muted-foreground/40">·</span>
           <span className="text-[11px] text-muted-foreground">
-            P{task.priority} {priorityLabels[task.priority]}
+            P{task.priority} {taskCopy.priorities[task.priority]}
           </span>
 
           {task.visibility === "client_visible" ? (
             <span className="flex items-center gap-0.5 text-[11px] text-blue-600 dark:text-blue-400">
               <EyeIcon className="size-3" />
-              客戶可見
+              {taskCopy.visibility.client_visible}
             </span>
           ) : (
             <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground/60">
               <LockIcon className="size-3" />
-              內部
+              {taskCopy.visibility.internal}
             </span>
           )}
 
           {task.source === "ai_suggested" && (
             <span className="flex items-center gap-0.5 text-[11px] text-primary/70">
               <SparklesIcon className="size-3" />
-              AI 建議
+              {taskCopy.source.ai_suggested}
             </span>
           )}
 
@@ -94,7 +89,7 @@ export function TaskItem({ task, onToggleDone, onDelete, isPending = false, isDe
               new Date(task.dueAt) < new Date() && !isDone ? "text-destructive" : "text-muted-foreground"
             )}>
               <ClockIcon className="size-3" />
-              {new Date(task.dueAt).toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" })}
+              {new Date(task.dueAt).toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" })}
             </span>
           )}
         </div>
@@ -103,14 +98,14 @@ export function TaskItem({ task, onToggleDone, onDelete, isPending = false, isDe
       <div className="flex items-center gap-1 shrink-0">
         {task.status === "blocked" && (
           <Badge variant="outline" className="text-[10px] border-destructive/40 text-destructive">
-            阻塞
+            {taskCopy.statuses.blocked}
           </Badge>
         )}
         <button
           type="button"
           onClick={() => onDelete(task.id)}
           disabled={isPending || isDeleting}
-          title="刪除任務"
+          title={taskCopy.deleteTitle}
           className={cn(
             "rounded p-1 transition-colors opacity-0 group-hover:opacity-100",
             "text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10",

@@ -1,0 +1,38 @@
+{
+  "runId": "gate-loop-20260821T170027-owneros-bff-001",
+  "capturedAt": "2026-08-21T17:00:27+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "selectedSlice": "OWNEROS-BFF-001",
+  "note": "Dirty worktree already contains broad user/agent changes. This inventory records the intended overlap-sensitive files for this narrow contract/checker slice; unrelated dirty paths must not be reverted.",
+  "intendedTouchedFiles": [
+    "docs/02_architecture-and-rules/ARC-037_owneros-core-surface-bff-view-model-contract.md",
+    "src/lib/contracts/owneros-core-surface-bff.contract.ts",
+    "scripts/check-owneros-core-surface-bff-contract.mjs",
+    "package.json",
+    "docs/00_manual-and-index/MAN-001_document-index.md",
+    "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "docs/2_agent-input/generated/agent-loop/loop-state.json",
+    "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+    "tasks.md",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-218-20260821-owneros-core-surface-bff-contract.md",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-218-20260821-owneros-core-surface-bff-contract.json",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-218-20260821-gate-a-incomplete-after-core-surface-bff.json"
+  ],
+  "preEditHashes": {
+    "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json": "401eb33762e0c05f7423312f942e60ea960fbee427c4a0e26281149ee5070e4a",
+    "docs/2_agent-input/generated/agent-loop/loop-state.json": "cd17fc823674d3e6e87699bab43e932c6ac365e7536677ca3b7e896edf1dbd00",
+    "docs/05_execution-plans/PLN-060_task-backlog.md": "0becbeea3cd50993a7a7f25d086b1bba1f9e7de5ad500f79f68b2a27f1e04ada",
+    "docs/05_execution-plans/PLN-061_current-sprint.md": "9c9cd666fd49a58ac80ff30cee3744adeea159854e7f6faa43d493360d781db3",
+    "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md": "920512ef1074001a7f74ba140d925125ca693e7aec5593082060cbc63e79b436",
+    "docs/06_audits-and-reports/RPT-007_completed-log.md": "c206d7a7c0f7b4934ba3719b3b38d621860b2c0bf119feb09f1b8a6f403df66b",
+    "tasks.md": "da85479f54b609a839b26209e39de945de8a55f18ed2d7cff9033e8470ce1548",
+    "package.json": "1369899b2dc7eec276e2c084e0ce40070f2f3a3c299ba00670b2510e8787698b"
+  },
+  "knownDirtyCaveats": [
+    "PRD-004_next-stage-development-plan.md is deleted in the pre-existing worktree and is not restored by this slice.",
+    "src/app/(dashboard)/ai-input/page.tsx and ai-input-client.tsx are pre-existing dirty runtime files; this slice treats them as read-only and only defines their required future contract."
+  ]
+}

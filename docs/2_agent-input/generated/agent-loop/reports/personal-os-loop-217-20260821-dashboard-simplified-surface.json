@@ -1,0 +1,45 @@
+{
+  "id": "OWNEROS-UI-002",
+  "status": "PASS",
+  "generatedAt": "2026-08-21T08:29:28.810Z",
+  "dashboardPath": "src/app/(dashboard)/dashboard/page.tsx",
+  "checkerCommand": "pnpm dashboard:simplified:check",
+  "surface": {
+    "mode": "protected_server_component",
+    "primaryJob": "Choose the next owner action",
+    "commandBarIncludes": [
+      "/ai-input",
+      "/work",
+      "/inbox",
+      "/settings",
+      "/admin"
+    ],
+    "slots": [
+      "identity-mode-strip",
+      "attention-header",
+      "command-bar",
+      "resource-index",
+      "detail-pane",
+      "agent-proposal-pane",
+      "records-audit-timeline",
+      "manual-ops-handoff"
+    ]
+  },
+  "gateMapping": {
+    "gateA": "Owner-private operating entry and proof handoff usability only",
+    "gateB": "No member/team claim",
+    "gateC": "C5 UI hardening prerequisite only",
+    "gateAchieved": false
+  },
+  "runtimeFlags": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "publicOutputExpanded": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

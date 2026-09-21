@@ -2,7 +2,17 @@
 
 **Task:** `DATTR-024H-MIGRATION-DRAFT`  
 **Date:** 2026-06-23  
-**Status:** Review draft created; migration apply remains blocked
+**Status:** Review draft created; migration apply was intended to remain blocked, but see 2026-07-22 addendum below — the tables now exist in the live database as an unintended side effect of an unrelated migration.
+
+## 2026-07-22 Addendum — Tables Were Applied Ahead Of Schedule (Side Effect, Not A Deliberate Cutover)
+
+While implementing an unrelated feature (`R2STORE-001`, Cloudflare R2 storage — see `SCH-005`/`RES-022`), `prisma migrate dev` was run intending to add only `FileAsset`/`MediaAsset`. Because `prisma migrate dev` diffs the *entire* `schema.prisma` against the live database rather than a targeted subset, it also applied every other pending schema change already sitting in `schema.prisma` — including all seven tables this document describes (`SourceConnection`, `SourceAsset`, `AIWorkflowRun`, `AIWorkItem`, `SourceNamingProfile`, `DataUnitProposal`, `ModuleWriteIntent`) and the nullable `AcademicPerson.ownerId` column from `TENANT-001`. This was not requested or reviewed against this document's blocking rationale before running.
+
+**What this changes:** the tables now exist for real in the live Supabase database (migration `20260722084811_add_file_media_assets`).
+
+**What this does NOT change:** no application code reads or writes any of these seven tables — `src/lib/services/ai-input-source-workflow.service.ts` (`DATTR-024J`) still has `runtimeDbReadEnabled=false`/`runtimeDbWriteEnabled=false` hardcoded, no route handler or server action touches them, RLS policy is not applied (`DATTR-024K` still pending), connector runtime is not activated (`DATTR-024L` still pending), and `DATTR-024M`'s cutover-readiness gate fields (`migrationApplyAllowed`, `databaseConnectionAllowed`, `serviceDatabaseReadAllowed`, etc.) still correctly read `false` since those are computed from explicit code/env gates, not from whether the tables happen to exist. The owner reviewed this finding and chose to keep the tables (pure-additive, zero current runtime impact) rather than roll back with a further live-DB `DROP TABLE` migration.
+
+**Correction to this document's own claim:** "migration apply remains blocked" is no longer accurate for schema *existence*. It remains accurate for schema *usage* — every subsequent DATTR-024 gate (K/L/M) still applies unchanged before any service is allowed to actually read or write these tables.
 
 ## Context
 

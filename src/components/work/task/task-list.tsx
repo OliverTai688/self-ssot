@@ -12,9 +12,18 @@ import {
 import { Button } from "@/components/ui/button"
 import { TaskItem } from "@/components/work/task/task-item"
 import { TaskSheet, type TaskSheetInput } from "@/components/work/task/task-sheet"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { ProjectTask, TaskStatus } from "@/types/work"
 
 type FilterValue = "all" | TaskStatus
+
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (formatted, [key, value]) =>
+      formatted.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
 
 interface TaskListProps {
   initialTasks: ProjectTask[]
@@ -22,6 +31,8 @@ interface TaskListProps {
 }
 
 export function TaskList({ initialTasks, projectId }: TaskListProps) {
+  const { copy } = useProductLanguage()
+  const taskCopy = copy.work.tasks
   const router = useRouter()
   const [tasks, setTasks] = React.useState<ProjectTask[]>(initialTasks)
   const [filter, setFilter] = React.useState<FilterValue>("all")
@@ -63,7 +74,7 @@ export function TaskList({ initialTasks, projectId }: TaskListProps) {
 
       if (!result.success) {
         setTasks((prev) => prev.map((t) => (t.id === id ? task : t)))
-        setActionError(result.error)
+        setActionError(taskCopy.errors.toggle)
         return
       }
 
@@ -73,7 +84,7 @@ export function TaskList({ initialTasks, projectId }: TaskListProps) {
       refreshProjectDetail()
     } catch {
       setTasks((prev) => prev.map((t) => (t.id === id ? task : t)))
-      setActionError("切換任務狀態失敗，請稍後再試")
+      setActionError(taskCopy.errors.toggle)
     } finally {
       setPendingTaskIds((prev) => {
         const next = new Set(prev)
@@ -98,13 +109,13 @@ export function TaskList({ initialTasks, projectId }: TaskListProps) {
 
       if (!result.success) {
         setTasks((prev) => [...prev, task].sort((a, b) => a.priority - b.priority))
-        setActionError(result.error)
+        setActionError(taskCopy.errors.delete)
       } else {
         refreshProjectDetail()
       }
     } catch {
       setTasks((prev) => [...prev, task].sort((a, b) => a.priority - b.priority))
-      setActionError("刪除任務失敗，請稍後再試")
+      setActionError(taskCopy.errors.delete)
     } finally {
       setDeletingTaskIds((prev) => {
         const next = new Set(prev)
@@ -124,7 +135,7 @@ export function TaskList({ initialTasks, projectId }: TaskListProps) {
       const result = await addProjectTask(projectId, task)
 
       if (!result.success) {
-        setActionError(result.error)
+        setActionError(taskCopy.errors.add)
         return false
       }
 
@@ -132,7 +143,7 @@ export function TaskList({ initialTasks, projectId }: TaskListProps) {
       refreshProjectDetail()
       return true
     } catch {
-      setActionError("新增任務失敗，請稍後再試")
+      setActionError(taskCopy.errors.add)
       return false
     } finally {
       setIsAdding(false)
@@ -147,11 +158,14 @@ export function TaskList({ initialTasks, projectId }: TaskListProps) {
   })
 
   const filters: { value: FilterValue; label: string }[] = [
-    { value: "all", label: `全部 (${tasks.length})` },
-    { value: "todo", label: "待辦" },
-    { value: "in_progress", label: "進行中" },
-    { value: "done", label: "完成" },
-    { value: "blocked", label: "阻塞" },
+    {
+      value: "all",
+      label: formatCopy(taskCopy.filters.allTemplate, { count: tasks.length }),
+    },
+    { value: "todo", label: taskCopy.statuses.todo },
+    { value: "in_progress", label: taskCopy.statuses.in_progress },
+    { value: "done", label: taskCopy.statuses.done },
+    { value: "blocked", label: taskCopy.statuses.blocked },
   ]
 
   return (
@@ -188,14 +202,14 @@ export function TaskList({ initialTasks, projectId }: TaskListProps) {
           }}
         >
           <PlusIcon className="size-3.5" />
-          新增任務
+          {taskCopy.addTask}
         </Button>
       </div>
 
       {sorted.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
           <p className="text-sm text-muted-foreground">
-            {filter === "all" ? "還沒有任務，點擊新增" : "此狀態沒有任務"}
+            {filter === "all" ? taskCopy.emptyAll : taskCopy.emptyFiltered}
           </p>
         </div>
       ) : (

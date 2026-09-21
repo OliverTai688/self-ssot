@@ -74,7 +74,13 @@ const MODULE_SURFACES = [
 
 const SHELL_MARKERS = [
   "ModuleOperatingShell",
-  "type ShellTab = \"overview\" | \"operation\" | \"agent\" | \"records\" | \"settings\"",
+  "type ShellTab =",
+  "\"overview\"",
+  "\"operation\"",
+  "\"agent\"",
+  "\"records\"",
+  "\"settings\"",
+  "libraryTabItem",
   "ModuleOperatingRecord",
   "ModuleAgentProposal",
   "ModuleAuditRow",

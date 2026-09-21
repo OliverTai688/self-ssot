@@ -1,9 +1,9 @@
 # Operating Audit Event Schema Contract
 
 **Document ID:** `DBS-006`
-**Last updated:** 2026-06-21
-**Status:** Schema/BFF contract proposal for `AUDIT-OPS-001`
-**Runtime implementation:** Contract and static proof only; no Prisma schema, migration, seed, route handler, server action, database read, database write, export, or admin mutation is implemented in this slice.
+**Last updated:** 2026-07-27
+**Status:** General schema/BFF contract plus constrained Work workspace-creation and invitation writers
+**Runtime implementation:** `TEAMCOLLAB-005B1` and `TEAMCOLLAB-006` implement the configured `workspace.created` plus reviewed application-invitation catalog through protected Server Actions/services. General audit reads/exports, transfer/feedback/AI writers, provider delivery, and admin mutation remain unimplemented.
 
 ---
 
@@ -11,7 +11,7 @@
 
 `AUDIT-OPS-001` defines the cross-module operating audit event contract required before Personal OS expands persisted writes across Work, AI Input, Client Portal, Agent Team OS, Workflow, and high-risk modules.
 
-The goal is not to store audit rows in this loop. The goal is to make the future append-only audit model explicit enough that each next real-data task can implement one safe slice instead of inventing its own event vocabulary.
+The original goal was to make the append-only audit model explicit before storage. `TEAMCOLLAB-005B1` now validates that contract through the first deliberately narrow persisted writer: an eligible owner atomically creating a TEAM workspace and ACTIVE OWNER membership with a no-secret `workspace.created` event. This does not authorize other event families or a generic audit-write API.
 
 The machine-readable companion is `src/lib/contracts/operating-audit-event.contract.ts`, validated by:
 
@@ -156,9 +156,9 @@ DTOs must not expose:
 
 Exports are not part of this slice. A future export path requires owner/admin authorization, date range, redacted DTO mapper, high-risk approval handling, and separate acceptance criteria.
 
-## 7. Future Schema Sketch
+## 7. Schema And Initial Implementation
 
-This is a proposal only, not an applied Prisma change:
+The general shape below began as the `AUDIT-OPS-001` proposal. `TEAMCOLLAB-005B1` first persisted `workspace.created`; `TEAMCOLLAB-006` expands the exact catalog only to reviewed invitation lifecycle outcomes:
 
 ```prisma
 model OperatingAuditEvent {
@@ -206,7 +206,18 @@ Suggested indexes for a future reviewed migration:
 - `(targetType, targetRef, occurredAt desc)`;
 - `(operationId, occurredAt desc)`.
 
-Do not add this model until the migration impact, retention policy, and service-layer authorization have been reviewed.
+The model was added for `TEAMCOLLAB-005B1` after a scoped migration, retention, redaction, authorization, idempotency, append-only, and disposable-transaction review. `MIG-008` is the separately reviewed expansion for `workspace.member.invited`, `workspace.invitation.accepted`, `workspace.invitation.revoked`, and `workspace.invitation.expired`; any further family still requires its own reviewed migration and acceptance slice.
+
+### 7.1 First Persisted Writer Status
+
+- Prisma model: implemented.
+- Migrations: `20260727170000_team_workspace_creation_audit` and `20260727183000_team_workspace_invitation_audit_catalog`, reviewed, disposable-proven, and applied to the configured target.
+- Configured/live migration apply: complete through `MIG-007` and `MIG-008`; schema diff is clean.
+- Writers: protected `createTeamWorkspace` plus invitation create/revoke/accept Server Actions and services only.
+- Read/export/admin surface: not implemented.
+- Audit metadata: fixed empty JSON; no caller-controlled payload.
+- Integrity: exact catalog readiness, append-only trigger, SHA-256 request ref, unique idempotency tuple, transactional rollback.
+- Formal migration notes and owner-run activation gate: `MIG-006`.
 
 ## 8. Rejected Alternatives
 
@@ -221,13 +232,13 @@ Do not add this model until the migration impact, retention policy, and service-
 
 ## 9. Acceptance
 
-`AUDIT-OPS-001` is complete when:
+The original no-write `AUDIT-OPS-001` contract slice was complete when:
 
 - this formal `DBS-006` document exists;
 - `src/lib/contracts/operating-audit-event.contract.ts` exports `OPERATING_AUDIT_EVENT_FIELDS`, `OPERATING_AUDIT_EVENT_FAMILIES`, `OPERATING_AUDIT_BFF_CONTRACT`, and `OPERATING_AUDIT_CONTRACT_SUMMARY`;
 - `pnpm audit:ops:check` validates required fields, event families, module/surface coverage, referenced docs, no-write boundaries, redaction, retention, and tamper-evidence fields;
 - `ACC-002`, `PLN-060`, `PLN-061`, `tasks.md`, `RPT-007`, loop state, and generated loop evidence all reference the same no-write contract;
-- no route handler, server action, Prisma schema change, migration, seed, DB read/write, public output expansion, token lifecycle write, admin mutation, high-risk final write, autonomous agent write, or external registration is added.
+- that original slice added no route handler, server action, Prisma schema change, migration, seed, DB read/write, public output expansion, token lifecycle write, admin mutation, high-risk final write, autonomous agent write, or external registration. The later, separately reviewed `TEAMCOLLAB-005B1` exception is recorded in section 7.1 and `MIG-006`.
 
 ## 10. Next Implementation Order
 
@@ -235,7 +246,7 @@ Do not add this model until the migration impact, retention policy, and service-
 2. If an approved disposable Work proof target appears, run `WORK-009`.
 3. If proof remains absent, use `AUDIT-OPS-002` to map existing backend operations and per-module agent commands to the required operating audit event families before any persisted audit writer is introduced.
 4. If AI Input persistence is selected, split `DATTR-024` into audited Source Workflow BFF/schema-review/proof-target slices before persistence.
-5. Implement persisted audit only after a reviewed migration task confirms retention, hash-chain behavior, redacted metadata rules, and admin/settings read authorization.
+5. Implement any additional persisted audit family only after a reviewed migration task confirms retention, redacted metadata, authorization, integrity, and read/export boundaries; current exceptions are the constrained `workspace.created` and invitation lifecycle catalogs in `MIG-006`/`MIG-008`.
 6. Client Portal lifecycle writes and agent protected operation API remain downstream of the audit schema and owner/admin authorization proof.
 
 ## 11. AUDIT-OPS-002 Runtime Mapping Follow-Up

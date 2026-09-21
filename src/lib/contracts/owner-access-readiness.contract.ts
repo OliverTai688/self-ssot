@@ -91,14 +91,14 @@ export function buildOwnerAccessReadinessContract({
   const rows = [
     createReadinessRow({
       id: "supabase-login",
-      label: "Supabase magic link",
+      label: "Supabase email OTP / magic link",
       state: hasSupabaseConfig ? "ready" : "blocked",
       status: hasSupabaseConfig ? "Public env present" : "Missing public env",
       signal: hasSupabaseConfig
-        ? "Magic link request is enabled for existing Supabase users."
-        : "Magic link request is disabled until public Supabase env is present.",
+        ? "Email OTP and magic link requests are enabled for existing Supabase users."
+        : "Email OTP and magic link requests are disabled until public Supabase env is present.",
       nextAction: hasSupabaseConfig
-        ? "Send a magic link, sign in, then open /auth/status?proof=1 and save the redacted JSON."
+        ? "Send a six-digit email code or magic link, sign in, then open /auth/status?proof=1 and save the redacted JSON."
         : "Set public Supabase env, restart the app, then retry the login path.",
       command: "open http://localhost:3000/auth/status?proof=1",
       passSignal: "Signed-in /auth/status maps to an existing Profile and can unlock AUTH-005.",

@@ -14,12 +14,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useModulePermissions } from "@/lib/context/module-permissions-context"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { ALL_MODULES, UserRole } from "@/types/module-permission"
 import { cn } from "@/lib/utils"
 
 export function ModuleSettingsControl() {
   const [isOpen, setIsOpen] = React.useState(false)
   const { role, setRole, enabledModules, toggleModule } = useModulePermissions()
+  const { copy } = useProductLanguage()
+
+  const roleDescriptions: Record<UserRole, string> = {
+    owner: copy.state.roleOwner,
+    partner: copy.state.rolePartner,
+    client: copy.state.roleClient,
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -31,7 +39,7 @@ export function ModuleSettingsControl() {
             className="h-8 gap-1.5 px-3 border-dashed hover:border-solid text-xs text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
           >
             <SettingsIcon className="size-3.5" />
-            <span>帳戶權限管理</span>
+            <span>{copy.state.accountAccessButton}</span>
           </Button>
         }
       />
@@ -40,10 +48,10 @@ export function ModuleSettingsControl() {
         <DialogHeader className="px-5 pt-5 pb-4 border-b border-border/40">
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
             <ShieldCheckIcon className="size-4 text-primary" />
-            全域角色與獨立模組授權
+            {copy.state.accountAccessTitle}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            在這裡一鍵模擬不同帳戶角色，或手動啟用/關閉特定的獨立模組，即時展示微服務權限控制。
+            {copy.state.accountAccessDescription}
           </DialogDescription>
         </DialogHeader>
 
@@ -51,7 +59,7 @@ export function ModuleSettingsControl() {
           {/* Role selector */}
           <div className="space-y-2">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              1. 選擇模擬帳戶角色 (預設授權)
+              {copy.state.accountAccessRoleLabel}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {(["owner", "partner", "client"] as UserRole[]).map((r) => {
@@ -66,12 +74,12 @@ export function ModuleSettingsControl() {
                         ? "border-primary bg-primary/5 text-primary font-medium ring-1 ring-primary/20"
                         : "border-border hover:bg-muted/50 text-muted-foreground"
                     )}
-                  >
-                    <span className="text-xs uppercase font-bold tracking-tight">{r}</span>
-                    <span className="text-[9px] text-muted-foreground/60 leading-none">
-                      {r === "owner" ? "系統擁有者" : r === "partner" ? "商會夥伴" : "外部客戶"}
-                    </span>
-                  </button>
+                    >
+                      <span className="text-xs uppercase font-bold tracking-tight">{r}</span>
+                      <span className="text-[9px] text-muted-foreground/60 leading-none">
+                        {roleDescriptions[r]}
+                      </span>
+                    </button>
                 )
               })}
             </div>
@@ -80,7 +88,7 @@ export function ModuleSettingsControl() {
           {/* Module checklist */}
           <div className="space-y-2">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              2. 自由增刪獨立模組 (功能開關)
+              {copy.state.accountAccessModuleLabel}
             </label>
             <div className="rounded-lg border border-border divide-y divide-border/60 overflow-hidden bg-muted/20">
               {ALL_MODULES.map((m) => {
@@ -121,7 +129,7 @@ export function ModuleSettingsControl() {
             className="w-full"
             onClick={() => setIsOpen(false)}
           >
-            完成設定並套用
+            {copy.state.accountAccessApply}
           </Button>
         </DialogFooter>
       </DialogContent>

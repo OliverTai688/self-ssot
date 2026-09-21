@@ -8,6 +8,7 @@ import {
   UsersIcon,
   WalletIcon,
 } from "lucide-react"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { cn } from "@/lib/utils"
 import { AGENTS } from "@/lib/workflow/agents"
 import type { AgentFacts, AgentId, AgentMessage, WorkflowRule } from "@/lib/workflow/types"
@@ -40,21 +41,32 @@ function rulesForAgent(agent: AgentFacts, rules: WorkflowRule[]) {
   ).length
 }
 
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
+
 export function AgentRegistryPanel({
   selectedAgent,
   onSelectAgent,
   messages,
   rules,
 }: AgentRegistryPanelProps) {
+  const { copy } = useProductLanguage()
+  const workflowCopy = copy.workflow
+
   return (
     <div className="flex flex-col gap-1.5 w-52 shrink-0">
       <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1">
-        Agent 狀態
+        {workflowCopy.agentRegistry.title}
       </p>
       {AGENTS.map((agent) => {
         const isSelected = selectedAgent === agent.agentId
         const msgCount = countForAgent(agent, messages)
         const ruleCount = rulesForAgent(agent, rules)
+        const agentLabel = workflowCopy.agents[agent.agentId]
 
         return (
           <button
@@ -79,13 +91,17 @@ export function AgentRegistryPanel({
               {ICON_MAP[agent.icon]}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium leading-none mb-1.5">{agent.displayName}</p>
+              <p className="text-sm font-medium leading-none mb-1.5">{agentLabel}</p>
               <div className="flex gap-2">
                 <span className="text-[11px] text-muted-foreground">
-                  {msgCount} 訊息
+                  {formatCopy(workflowCopy.agentRegistry.messageCountTemplate, {
+                    count: msgCount,
+                  })}
                 </span>
                 <span className="text-[11px] text-muted-foreground">
-                  {ruleCount} 規則
+                  {formatCopy(workflowCopy.agentRegistry.ruleCountTemplate, {
+                    count: ruleCount,
+                  })}
                 </span>
               </div>
             </div>

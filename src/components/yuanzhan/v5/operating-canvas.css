@@ -1,0 +1,138 @@
+/* 營運模組（PLN-073 T3）。沿用 v5 既有的 .cal/.dc/.ev/.row/.panel 等類別，
+   這裡只補三欄骨架、熱力圖與甘特所需的樣式。顏色一律走既有 token。 */
+
+.op-shell{display:grid;grid-template-columns:186px 1fr;gap:14px;align-items:start}
+@media(max-width:1100px){.op-shell{grid-template-columns:1fr}}
+.op-main{min-width:0}
+
+.op-rail{border:1px solid var(--line);border-radius:10px;background:var(--surface-1);padding:10px}
+.op-rh{font-size:10px;letter-spacing:.06em;color:var(--text-3);margin:12px 0 6px}
+.op-rh:first-child{margin-top:0}
+.op-trk{display:flex;align-items:center;gap:7px;width:100%;text-align:left;border:1px solid var(--line);
+  border-radius:8px;padding:7px 9px;margin-bottom:5px;background:var(--surface-2);color:var(--text-2);
+  font-size:12px;cursor:pointer}
+.op-trk i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.op-trk b{margin-left:auto;font-size:11px;color:var(--text-3)}
+.op-trk:not(.on){opacity:.45}
+.op-trk.on{color:var(--text-1);border-color:var(--line-2)}
+.op-trk.p.on{background:color-mix(in srgb,var(--pri) 12%,transparent)}
+.op-trk.r.on{background:color-mix(in srgb,var(--teal) 12%,transparent)}
+.op-trk.i.on{background:color-mix(in srgb,var(--info) 12%,transparent)}
+.op-subs{display:flex;flex-wrap:wrap;gap:5px}
+.op-sub{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:20px;
+  padding:4px 9px;font-size:11px;background:var(--surface-2);color:var(--text-3);cursor:pointer}
+.op-sub.on{color:var(--text-1);border-color:var(--pri)}
+
+.op-per{font-size:12.5px;color:var(--text-1);min-width:92px;text-align:center}
+
+.op-card{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;
+  background:var(--surface-2);cursor:pointer}
+.op-card:hover{border-color:var(--line-2)}
+.op-card .t{font-size:12.5px;line-height:1.45}
+.op-card .m{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px}
+.op-card .op-d{font-size:10.5px;color:var(--text-3);font-family:ui-monospace,monospace}
+.op-warn{font-size:11px;color:var(--st-warn);margin-top:6px}
+
+/* 日曆補充：節奏的三種狀態與衝期標記 */
+.ev.r{background:color-mix(in srgb,var(--teal) 16%,transparent);color:var(--teal)}
+.ev.op-ghost{background:transparent;color:var(--text-3);border:1px dashed var(--line-2)}
+.ev.op-miss{background:color-mix(in srgb,var(--st-crit) 18%,transparent);color:var(--st-crit)}
+.ev.op-late{background:color-mix(in srgb,var(--st-warn) 16%,transparent);color:var(--st-warn)}
+.dc.op-conf{box-shadow:inset 0 0 0 1px var(--st-warn)}
+.op-warnmark{color:var(--st-warn)}
+.op-more{font-size:9.5px;color:var(--text-3);padding-left:3px}
+.op-confbar{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--st-warn);border-radius:9px;
+  padding:9px 11px;margin-bottom:10px;font-size:12px;color:var(--st-warn);line-height:1.6;
+  background:color-mix(in srgb,var(--st-warn) 8%,transparent)}
+
+/* 熱力 */
+.op-hm{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-1)}
+.op-hg{font-size:10.5px;letter-spacing:.05em;margin:14px 0 7px}
+.op-hmrow{display:grid;grid-template-columns:130px 1fr 44px;gap:9px;align-items:center;margin-bottom:4px}
+.op-hmrow.head{margin-bottom:7px}
+.op-hmrow .lb{font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op-hmrow .lb em{color:var(--text-3);font-style:normal;font-size:10px}
+.op-hmrow .pct{font-size:10.5px;color:var(--text-3);text-align:right;font-family:ui-monospace,monospace}
+.op-cells{display:grid;grid-template-columns:repeat(16,1fr);gap:3px}
+.op-wk{font-size:8.5px;color:var(--text-3);text-align:center;font-style:normal}
+.op-hc{aspect-ratio:1;border-radius:2.5px;background:var(--surface-3)}
+.op-hc.l1{background:color-mix(in srgb,var(--ok) 25%,var(--surface-3))}
+.op-hc.l2{background:color-mix(in srgb,var(--ok) 45%,var(--surface-3))}
+.op-hc.l3{background:color-mix(in srgb,var(--ok) 70%,var(--surface-3))}
+.op-hc.l4{background:var(--ok)}
+.op-hc.b0{background:var(--surface-3)}
+.op-hc.b1{background:color-mix(in srgb,var(--pri) 25%,var(--surface-3))}
+.op-hc.b2{background:color-mix(in srgb,var(--pri) 45%,var(--surface-3))}
+.op-hc.b3{background:color-mix(in srgb,var(--pri) 70%,var(--surface-3))}
+.op-hc.b4{background:var(--pri)}
+.op-hc.v0{background:var(--surface-3)}
+.op-hc.v1{background:color-mix(in srgb,var(--info) 25%,var(--surface-3))}
+.op-hc.v2{background:color-mix(in srgb,var(--info) 45%,var(--surface-3))}
+.op-hc.v3{background:color-mix(in srgb,var(--info) 70%,var(--surface-3))}
+.op-hc.v4{background:var(--info)}
+.op-hc.miss{background:color-mix(in srgb,var(--st-crit) 30%,var(--surface-3));
+  box-shadow:inset 0 0 0 1px var(--st-crit)}
+.op-hc.fut{background:var(--surface-3);box-shadow:inset 0 0 0 1px var(--line)}
+.op-hleg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text-3);margin-top:12px}
+.op-hleg .op-hc{width:9px;height:9px;aspect-ratio:auto}
+.op-hleg .sp{flex:1}
+
+/* 甘特 */
+.op-gantt{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface-1)}
+.op-gr{display:grid;grid-template-columns:180px 1fr;border-bottom:1px solid var(--line);
+  align-items:center;min-height:34px}
+.op-gr:last-child{border-bottom:none}
+.op-gr.head{background:var(--surface-2)}
+.op-gr .lb{padding:7px 10px;font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;cursor:pointer}
+.op-gr.head .lb{color:var(--text-3);font-size:10.5px;cursor:default}
+.op-gt{position:relative;height:34px}
+.op-gg{position:absolute;inset:0;display:grid}
+.op-gg i{border-left:1px solid var(--line)}
+.op-gbar{position:absolute;top:10px;height:14px;border-radius:4px;background:var(--pri);color:#fff;
+  font-size:9.5px;line-height:14px;padding:0 6px;white-space:nowrap;overflow:hidden}
+.op-gms{position:absolute;top:9px;width:13px;height:13px;margin-left:-6px;transform:rotate(45deg);
+  border-radius:3px;background:var(--st-warn);cursor:pointer}
+.op-gms.done{background:var(--ok)}
+.op-gocc{position:absolute;top:26px;height:5px;border-radius:3px;background:var(--info);cursor:pointer}
+.op-gwk{position:absolute;top:10px;font-size:9px;color:var(--text-3);padding-left:4px}
+.op-now{position:absolute;top:0;bottom:0;width:1px;background:var(--pri);opacity:.6}
+
+/* ---- 收斂（T4）：搬家提示、目標對齊、里程碑樹 ---- */
+.op-moved{display:flex;gap:8px;align-items:flex-start;border:1px dashed var(--line-2);border-radius:9px;
+  padding:9px 11px;margin-bottom:10px;font-size:11.5px;color:var(--text-3);line-height:1.6}
+.op-moved b{color:var(--text-2)}
+
+.op-align{font-size:12px}
+.op-al-g{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.op-al-g b{font-size:13px}
+.op-al-g .m{color:var(--text-3);font-size:11px}
+.op-al-pct{font-family:ui-monospace,monospace;color:var(--pri)}
+.op-al-bar{height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden;margin-bottom:10px}
+.op-al-bar i{display:block;height:100%;background:var(--pri)}
+.op-al-row{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-top:1px solid var(--line)}
+.op-al-row .m{color:var(--text-3);font-size:11px;width:92px;flex-shrink:0}
+
+.op-tree{margin:-12px -14px}
+.op-ms{border-bottom:1px solid var(--line)}
+.op-ms:last-child{border-bottom:none}
+.op-ms-h{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface-2);cursor:pointer}
+.op-ms-h:hover{background:var(--surface-3)}
+.op-ms-h b{font-size:12.5px}
+.op-ms-h .m{font-family:ui-monospace,monospace;font-size:10.5px;color:var(--text-3)}
+.op-dia{width:10px;height:10px;transform:rotate(45deg);border-radius:2px;background:var(--st-warn);flex-shrink:0}
+.op-dia.done{background:var(--ok)}
+.op-obj{padding:7px 14px 7px 32px;border-top:1px solid var(--line)}
+.op-obj-h{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);cursor:pointer}
+.op-obj-h:hover{color:var(--text-1)}
+.op-obj-h .m{color:var(--text-3);font-size:10.5px;font-family:ui-monospace,monospace}
+.op-tk{display:flex;align-items:center;gap:8px;padding:5px 0 5px 16px;font-size:11.5px;
+  color:var(--text-2);cursor:pointer}
+.op-tk:hover{color:var(--text-1)}
+.op-tk.empty{color:var(--text-3);cursor:default;font-size:11px}
+.op-tk .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.op-tk .m{font-family:ui-monospace,monospace;font-size:10px;color:var(--text-3)}
+.op-st{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--line-2);flex-shrink:0}
+.op-st.doing{border-color:var(--pri);background:color-mix(in srgb,var(--pri) 35%,transparent)}
+.op-st.review{border-color:var(--info);background:color-mix(in srgb,var(--info) 35%,transparent)}
+.op-st.done{border-color:var(--ok);background:var(--ok)}

@@ -20,6 +20,7 @@ import {
   UsersIcon,
   WalletIcon,
 } from "lucide-react"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { AGENTS, AGENT_MAP } from "@/lib/workflow/agents"
 import type { AgentId, WorkflowRule, AgentMessage } from "@/lib/workflow/types"
 import { countMessagesByRoute } from "@/lib/workflow/mock-data"
@@ -101,6 +102,8 @@ interface FlowVisualizerProps {
 }
 
 export function FlowVisualizer({ rules, messages, selectedAgent, onSelectAgent }: FlowVisualizerProps) {
+  const { copy } = useProductLanguage()
+  const workflowCopy = copy.workflow
   const routeCounts = React.useMemo(() => countMessagesByRoute(messages), [messages])
 
   const nodes: Node[] = React.useMemo(
@@ -114,7 +117,7 @@ export function FlowVisualizer({ rules, messages, selectedAgent, onSelectAgent }
           type: "agent",
           position: POSITIONS[agent.agentId],
           data: {
-            label: agent.displayName,
+            label: workflowCopy.agents[agent.agentId],
             icon: agent.icon,
             color: agent.color,
             bgColor: agent.bgColor,
@@ -123,7 +126,7 @@ export function FlowVisualizer({ rules, messages, selectedAgent, onSelectAgent }
           },
         }
       }),
-    [messages, selectedAgent]
+    [messages, selectedAgent, workflowCopy.agents]
   )
 
   const edges: Edge[] = React.useMemo(() => {
@@ -188,18 +191,26 @@ export function FlowVisualizer({ rules, messages, selectedAgent, onSelectAgent }
 
       {/* Legend */}
       <div className="absolute bottom-12 right-3 rounded-xl border border-border/50 bg-card/80 backdrop-blur px-3 py-2 flex flex-col gap-1.5">
-        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">圖例</p>
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+          {workflowCopy.flow.legend}
+        </p>
         <div className="flex items-center gap-1.5">
           <div className="h-0.5 w-5 rounded-full bg-primary animate-pulse" />
-          <span className="text-[11px] text-muted-foreground">活躍路由</span>
+          <span className="text-[11px] text-muted-foreground">
+            {workflowCopy.flow.activeRoute}
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-0.5 w-5 rounded-full bg-muted-foreground" />
-          <span className="text-[11px] text-muted-foreground">靜態規則</span>
+          <span className="text-[11px] text-muted-foreground">
+            {workflowCopy.flow.staticRule}
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="size-2 rounded-full bg-primary" />
-          <span className="text-[11px] text-muted-foreground">訊息數量</span>
+          <span className="text-[11px] text-muted-foreground">
+            {workflowCopy.flow.messageCount}
+          </span>
         </div>
       </div>
     </div>

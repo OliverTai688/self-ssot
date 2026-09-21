@@ -1,0 +1,157 @@
+{
+  "id": "OWNEROS-GATE-001",
+  "generatedAt": "2026-08-21T07:04:17.103Z",
+  "gate": {
+    "key": "gateA",
+    "id": "OWNER_PRIVATE_AI_WORK_DESKTOP_READY",
+    "label": "Gate A",
+    "status": "NOT_ACHIEVED",
+    "stateStatus": "NOT_ACHIEVED"
+  },
+  "targetEnvironment": "local",
+  "authMode": "unspecified",
+  "testedCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "deployedCommit": null,
+  "freshness": {
+    "status": "blocked",
+    "maxAgeHours": 72,
+    "staleCriterionIds": []
+  },
+  "mockFallbackUsed": false,
+  "runtimeEvidencePresent": false,
+  "ownerEvidencePresent": false,
+  "individualChecks": [
+    {
+      "id": "A1_REAL_GOOGLE_OWNER_AUTH",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A1_REAL_GOOGLE_OWNER_AUTH_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A3_R2_FILE_LIBRARY_MULTI_CONTEXT",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A3_R2_FILE_LIBRARY_MULTI_CONTEXT_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A5_INBOX_FREE_TEXT_RETURN_PATH",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A5_INBOX_FREE_TEXT_RETURN_PATH_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A6_AGENT_DIARY_AND_SKILL_CANDIDATE",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A6_AGENT_DIARY_AND_SKILL_CANDIDATE_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A7_LINE_DRIVE_GMAIL_OWNER_PROOF",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A7_LINE_DRIVE_GMAIL_OWNER_PROOF_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    },
+    {
+      "id": "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF",
+      "status": "BLOCKED",
+      "evidenceKind": "unknown",
+      "blockingIds": [
+        "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF_EVIDENCE_MISSING"
+      ],
+      "reportPath": null,
+      "reportSha256": null
+    }
+  ],
+  "blockingIds": [
+    "A1_REAL_GOOGLE_OWNER_AUTH_EVIDENCE_MISSING",
+    "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT_EVIDENCE_MISSING",
+    "A3_R2_FILE_LIBRARY_MULTI_CONTEXT_EVIDENCE_MISSING",
+    "A4_WORK_RESEARCH_COMPANY_REAL_OWNER_PATHS_EVIDENCE_MISSING",
+    "A5_INBOX_FREE_TEXT_RETURN_PATH_EVIDENCE_MISSING",
+    "A6_AGENT_DIARY_AND_SKILL_CANDIDATE_EVIDENCE_MISSING",
+    "A7_LINE_DRIVE_GMAIL_OWNER_PROOF_EVIDENCE_MISSING",
+    "A8_PRIVATE_DEPLOYED_NO_MOCK_CORE_PROOF_EVIDENCE_MISSING",
+    "GATE_A_DEPLOYED_COMMIT_ENV_MISSING",
+    "GATE_A_FORMAL_L1_NOT_RECORDED",
+    "OWNER_PRIVATE_AI_WORK_DESKTOP_READY_REPORT_PATH_MISSING",
+    "OWNER_PRIVATE_AI_WORK_DESKTOP_READY_STATE_NOT_ACHIEVED"
+  ],
+  "reportPath": null,
+  "reportSha256": null,
+  "documents": {
+    "gateState": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+    "loopState": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+    "prompt": "docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md",
+    "scenarioAudit": "docs/06_audits-and-reports/RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md",
+    "plan": "docs/05_execution-plans/PLN-067_owner-ai-work-desktop-and-company-sharing-contraction-plan.md",
+    "acceptance": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "contract": "src/lib/contracts/owner-ai-work-desktop-gate.contract.ts",
+    "contractSha256": "515f4de14172bb7bbd3298b7e7fd897a43f7f8ea81273f7d1fbf876224b4dabe"
+  },
+  "requiredProofFields": [
+    "gate.id",
+    "gate.status",
+    "targetEnvironment",
+    "authMode",
+    "testedCommit",
+    "deployedCommit",
+    "freshness",
+    "mockFallbackUsed",
+    "runtimeEvidencePresent",
+    "ownerEvidencePresent",
+    "individualChecks",
+    "blockingIds",
+    "reportPath",
+    "reportSha256"
+  ],
+  "safety": {
+    "printsSecrets": false,
+    "mutatesDatabase": false,
+    "mutatesProvider": false,
+    "sendsEmail": false,
+    "gmailSendAttempted": false,
+    "publicOutputEnabled": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  }
+}

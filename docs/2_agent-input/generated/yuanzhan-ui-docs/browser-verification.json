@@ -1,0 +1,68 @@
+{
+  "date": "2026-09-13",
+  "scope": "archived HTML only; no app/env runtime coverage",
+  "pages": [
+    {
+      "file": "originals/圓展_Operating_Interface_提案.html",
+      "title": "圓展 Operating Interface 提案"
+    },
+    {
+      "file": "originals/圓展_Operating_Interface_提案_v2.html",
+      "title": "圓展 Operating Interface v2"
+    },
+    {
+      "file": "originals/圓展_Operating_System_原型_v2.html",
+      "title": "圓展 Operating System · 互動原型"
+    },
+    {
+      "file": "originals/圓展_Operating_System_原型_v3_CRUD.html",
+      "title": "圓展 Operating System v3 · CRUD 原型"
+    },
+    {
+      "file": "originals/圓展_Operating_System_原型_v4_書寫式.html",
+      "title": "圓展 Operating System v4 · 書寫式工作系統"
+    },
+    {
+      "file": "originals/圓展_Operating_System_原型_v5_兩人上線版.html",
+      "title": "圓展 Operating System v5 · 兩人上線版"
+    },
+    {
+      "file": "integration-v2/index.html",
+      "title": "圓展 × Personal OS｜雙空間與工作日誌 v2"
+    },
+    {
+      "file": "integration-v2/proposal-a.html",
+      "title": "A 日誌啟動｜圓展 × Personal OS 整合提案"
+    },
+    {
+      "file": "integration-v2/proposal-b.html",
+      "title": "圓展工作日誌｜雙空間整合 v2"
+    },
+    {
+      "file": "integration-v2/proposal-c.html",
+      "title": "C 專案脈絡｜圓展 × Personal OS 整合提案"
+    },
+    {
+      "file": "integration-v2/v1-archive/index.html",
+      "title": "圓展 × Personal OS｜三種介面整合提案"
+    },
+    {
+      "file": "integration-v2/v1-archive/proposal-a.html",
+      "title": "A 日誌啟動｜圓展 × Personal OS 整合提案"
+    },
+    {
+      "file": "integration-v2/v1-archive/proposal-b.html",
+      "title": "B 空間切換｜圓展 × Personal OS 整合提案"
+    },
+    {
+      "file": "integration-v2/v1-archive/proposal-c.html",
+      "title": "C 專案脈絡｜圓展 × Personal OS 整合提案"
+    }
+  ],
+  "checks": [
+    "Archived overview tabs and keyboard navigation",
+    "Archived company entry, shared ID across work views, separate private surface",
+    "390px archived journal has no document overflow"
+  ],
+  "errors": []
+}

@@ -1,9 +1,11 @@
-import { AppHeader } from "@/components/layout/app-header"
-import { Badge } from "@/components/ui/badge"
 import { buildOwnerAgentCommandCenterContract } from "@/lib/services/agent-command-center.service"
 import { getCurrentUser } from "@/lib/services/auth.service"
+import { AppHeader } from "@/components/layout/app-header"
 
-import { AgentCommandCenterClient } from "./agent-command-center-client"
+import {
+  AgentCommandCenterBlocked,
+  AgentCommandCenterClient,
+} from "./agent-command-center-client"
 
 export const dynamic = "force-dynamic"
 
@@ -12,35 +14,29 @@ export default async function AgentsPage() {
 
   if (currentUser?.role !== "OWNER") {
     return (
-      <div className="flex flex-col gap-6">
-        <AppHeader
-          title="AI 指令中心"
-          description="Owner-only proposal workspace for bounded single-agent and group-agent commands."
+      <div className="flex flex-col h-full overflow-hidden">
+        <AppHeader 
+          title="AI 指令中心 (Skill Library)" 
+          description="擁有者專用的受控 AI 指令、提案與預演工作區。" 
         />
-        <section className="rounded-lg border bg-background p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold">Owner approval required</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                This command surface is limited to OWNER role accounts.
-              </p>
-            </div>
-            <Badge variant="outline">blocked</Badge>
-          </div>
-        </section>
+        <main className="flex-1 overflow-y-auto px-6 py-6">
+          <AgentCommandCenterBlocked />
+        </main>
       </div>
     )
   }
 
-  const contract = buildOwnerAgentCommandCenterContract()
+  const contract = await buildOwnerAgentCommandCenterContract()
 
   return (
-    <div className="flex flex-col gap-6">
-      <AppHeader
-        title="AI 指令中心"
-        description="Owner-only proposal workspace for bounded single-agent and group-agent commands."
+    <div className="flex flex-col h-full overflow-hidden">
+      <AppHeader 
+        title="AI 指令中心 (Skill Library)" 
+        description="擁有者專用的受控 AI 指令、提案與預演工作區。" 
       />
-      <AgentCommandCenterClient contract={contract} />
+      <main className="flex-1 overflow-y-auto px-6 py-6">
+        <AgentCommandCenterClient contract={contract} />
+      </main>
     </div>
   )
 }

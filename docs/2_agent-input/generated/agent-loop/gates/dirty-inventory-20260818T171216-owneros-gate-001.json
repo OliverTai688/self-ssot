@@ -1,0 +1,985 @@
+{
+  "runId": "gate-loop-20260818T171216-owneros-gate-001",
+  "recordedAt": "2026-08-18T17:12:16+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "items": [
+    {
+      "path": "AGENTS.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "1dda4769d5a736636f09daeada82a186e94a640b4db9c8124e9839648f0436fa"
+    },
+    {
+      "path": "docs/00_manual-and-index/MAN-001_document-index.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "d6e8a87e19a4598ca6d23f4c10debea9e798081b85fc0dafe1427f2fad17ab97"
+    },
+    {
+      "path": "docs/01_product-requirements/PRD-004_next-stage-development-plan.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "a37ad53aea61ab5a01341e6416f396836f08de2e8e5ddd18d2bd6fe9d8682024"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/ARC-031_ai-input-source-workflow-bff-split-contract.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "72272bbd418846a46896cc3048eb4fc74c28b8030ee6fba003f05556c6edc332"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/AUT-002_auth-runtime-strategy.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "b7c73e5c7ba2c2783e9eaa5538007270c5684e7e1542348211ee4ace5b357b4d"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/AUT-007_ai-input-source-workflow-connector-runtime-approval.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "4ccdca73ac7648090997f727870815d64118addbc2f2f27c4cac3408eb69c5fb"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/DBS-006_operating-audit-event-schema-contract.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "57694441b817d0f4de7d282b047197675465523c4207e170b55510e618412620"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/MIG-003_ai-input-source-workflow-create-only-migration-draft.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "bc721877d1c3435d5da37ccdd8fd928df4f3d146dc3061b9fb723ec6643279af"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "6ba6aa1e48cc3b1e8d3953c86ab09c28075cff654a2548965e66390a68c38157"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "f1477f485b3a06db10ad7612d76e81ed565e88d174116d97cd591754f026650e"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-063_thirty-loop-launch-automation-plan.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "f0695649655e50e63f14aa4e339b664d35b3c64bc53a39534e0f7087ed2a0af3"
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "e6848319e2f0ebdedb1b257bcca952ee5a3adf24a60c246b941d52d7a1d00050"
+    },
+    {
+      "path": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "866d0aab1daf944910f8c345277b8c4ed367e093c5f561ba7f769b37a72cca65"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/auth-session-proof/latest-auth-session-proof.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "b32f3d4a7f5079dc262cf3c8241baff791bb982a4e28704f1600aeb438cb09cd"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/development-strategy.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "e67a71d34ceecbc75609297f3eb8d94f9ee97ce21c8adbb5e3119d88c4b4148a"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/launch-proof/latest-launch-proof.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "d7f543d2e9cd5e65706c4c739122b74cd9b55bb1e5b283a968127c73135afed4"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "a12b3e7dbfb6d333e5a7bb9a46a7a45edff02d63f7a83240f170cc91a2df1a62"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/manual-ops/latest-manual-ops-docker-readiness.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "213d71795defe52935a3bfa4122633ed5798bea54414b591d9a5ba95d44cc3b2"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/manual-ops/latest-manual-ops-launch-gate.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "f2a0d9945aa6c3ad0daa76d75946add456c5903cacaf28f4cf7b1e4626f52b26"
+    },
+    {
+      "path": "package.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "1441baea4658277c538bcbfb3b6833cc410bbd69f47a2374b1b42954c73cab3f"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "type": "file",
+      "exists": true,
+      "sha256": "b579d2f2788948125386c3e5de48e7819464a10e08f6b9045065c7254dcb4c11"
+    },
+    {
+      "path": "prisma/migrations/migration_lock.toml",
+      "type": "file",
+      "exists": true,
+      "sha256": "99836963713b4f5b269ad49af0ed3d7b0b2e336115c2f92dc9ac683d139d0900"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "type": "file",
+      "exists": true,
+      "sha256": "21e10c0fa9ae3a0f9af6b968613b84664d0bd03a205935a80faa1e7c80d5dab4"
+    },
+    {
+      "path": "prisma/seed.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "9666d95be7edb3cc8098da1dc53d580deaf560c5eb3a5730ccc3d9c75e2fd464"
+    },
+    {
+      "path": "scripts/check-ai-input-source-control-matrix.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "127760f55b7bdd422fc33bb695bb0e1d5bfea051b407afd787f72175671c2f47"
+    },
+    {
+      "path": "scripts/check-interface-operability.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "558dfd285b363ff65b23694dab888821e49795a4b7e04a9a919c1af5e93c04f4"
+    },
+    {
+      "path": "scripts/check-owner-access-readiness.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "6764364442ea5fa99d0271c9408117e20feaa408bdf1e7b0908146057279f011"
+    },
+    {
+      "path": "src/app/(auth)/login/page.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "1371dc627cae6b8cdbc40cefb8b8811a1e56d1898ee4272f687ac1a6baad4249"
+    },
+    {
+      "path": "src/app/(dashboard)/ai-input/ai-input-client.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "1609746149807c3ebb494e56c5ff7e7b3affd05d04b3e604e7f77572045227aa"
+    },
+    {
+      "path": "src/app/(dashboard)/ai-input/page.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "8cfb0e88667f2d316167b1863ed0762146b4b365ba2d9281358443a464b3e91c"
+    },
+    {
+      "path": "src/app/(dashboard)/layout.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "e8c3f014bbe08f07b9522f456a4b07b106aca5a6411c876f44ddbcaed6ab5888"
+    },
+    {
+      "path": "src/app/(dashboard)/work/page.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "496f369d01b9371d6822fd19bdc93f7fac67b52f3aece20d643caac975472081"
+    },
+    {
+      "path": "src/app/(dashboard)/work/work-client.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "3aa9212d20fda28a11605798f31c3937b6e64bef3320dea665d3c59a21a0a923"
+    },
+    {
+      "path": "src/app/actions/auth.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "7b6829afead36c50f25b24fe834e0ba4ff19e26190bcb1ce83045d13174fb5a0"
+    },
+    {
+      "path": "src/components/ai/file-library/file-empty-state.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "4cb83fc6de9ff5fad17018e126e159c0b33abb81ecaf2e5cc17686f4b1269c50"
+    },
+    {
+      "path": "src/components/ai/file-library/file-library-page.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "7f7b9274037ecfa01c77612cb304736288293ac35e15ad7387172fcec0535858"
+    },
+    {
+      "path": "src/components/ai/media-library/media-library-page.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "471f62ac33031fdb7aa207ba5cfdb604f911562bf535f538282fc3e551020f2e"
+    },
+    {
+      "path": "src/components/work/project/add-project-dialog.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "ba1c8dcf9b5292b3838ba3b0c8922e7a7fc8bcaa085ef9304dc57cca670732ed"
+    },
+    {
+      "path": "src/components/work/project/project-card.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "414989c8a2e12cee058225914b45cea56f1b85639f2dd6b4267b79c37362cdc5"
+    },
+    {
+      "path": "src/components/work/project/project-focus-card.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "f38b8a94956d6e9d148e17e41ffdbf5ae749899a6af37a07e1f83e7617249152"
+    },
+    {
+      "path": "src/lib/context/library-classification-context.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "c64a5a71cdab06b4d47c28d4fbc12ddd5e81807c4a46449db6335716d00ebf6d"
+    },
+    {
+      "path": "src/lib/contracts/operating-audit-event.contract.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "ba573380847bceeb4342336b00b0884982db2785b9bb08a99a0671ad73678e21"
+    },
+    {
+      "path": "src/lib/contracts/owner-access-readiness.contract.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "85ce32c9a985ddd3dc09c1af1ace95f190a3c75500da6c8be051f81a40a001c4"
+    },
+    {
+      "path": "src/lib/contracts/research-owner-read-adapter-authz.contract.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "a3253b5304b953eac46aff58566ba8b84355bae8e92953dddf51911a2304fcbb"
+    },
+    {
+      "path": "src/lib/contracts/research-owner-read-query-plan.contract.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "a05539d4087fa8478f81b15d4bcfbd242eb8288ca951fe163c9e83a1e82405a1"
+    },
+    {
+      "path": "src/lib/db.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "8ed7a989afdac3c3ac31d83e721af72aba9f36d4f6c8519c49c3179afd4a6205"
+    },
+    {
+      "path": "src/lib/mappers/work.mapper.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "b06745cc4daf8a8b165f67779e4c78570f1ca0bcfa772a87593962081ec4d920"
+    },
+    {
+      "path": "src/lib/services/ai-input-readiness.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "338cd0dcabdcc66e05d2b821e592a64395209e13dd73bb688e142add68e19763"
+    },
+    {
+      "path": "src/lib/services/auth.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "2069905ea91114df03941de70d9a94bc7ade0b64ada336833acef22387231973"
+    },
+    {
+      "path": "src/lib/services/operating-audit-event-builder.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "8967d1e92a3f5b8f62bb4357af6e33ad8bd9262c8e14fbce8f4746ad354f5b46"
+    },
+    {
+      "path": "src/types/ai-input-readiness.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "871374e0242f78daf21dd97013219e193011453c1891b03b0de6c5017218f898"
+    },
+    {
+      "path": "src/types/media-library.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "9cdbbd09bd30462f37b9256a681c839168d7aa32f6966a024b3ce466aa6e0785"
+    },
+    {
+      "path": "tasks.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "5c71a50e3a72e218847f65fda01c884dddce35a3f3fd35ce5ae835988aafb1b7"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/ARC-033_tenant-owner-isolation-invariant.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "d6e982907618771d5c0ec42a7e059c178ad28f635c4e76342bd6abcc8e9f3c2f"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/ARC-034_ai-development-team-os-contract.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "3c9f5e3416bbd7734afee7c6dc47b9c1f2cfb66c61042f4e0422876b70f68968"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/AUT-008_team-membership-project-role-invitation-and-ai-feedback-boundary.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "b42f8b19f33a31ffc1420b513758e9fe5d6f430181cb3250d02fce73ad7aa467"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/MIG-004_team-workspace-collaboration-additive-migration-draft.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "b94e1a4d6725c7e0c86ca6625050ab1a9bcb345af0565dbac75f7ecb06f5f2ad"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/MIG-005_team-workspace-migration-history-reconciliation.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "454960422392b45f97c99b3fd7d6faf0ac02c4542cb1ff66dbbbc3103e8cb61e"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/MIG-006_team-workspace-creation-audit-migration.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "7ba3b13f9d5e6dd04931b3850b0cccddd9b3151e1d27cef72e2dbd13253b774e"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/MIG-007_configured-db-push-team-workspace-activation.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "0dc032fd17887e078195840dab7e1730ea1709732d7f34e98342f2557aa239d4"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/MIG-008_team-workspace-invitation-audit-catalog-activation.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "8879f673f4dc06c1aab82a82a2410422d07a8246057af32d87f1ca0450a0dc8d"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/SCH-004_tenant-workspace-schema-proposal.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "1063f0176403e78f965b840afd3a24578ec4b0898d94f114bf3bcb629ea69a00"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/SCH-005_cloudflare-r2-storage-schema-proposal.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "07314cd915a8134fb88410ac3bd624106fe9edd2825cfe0f93badf2b76b67c18"
+    },
+    {
+      "path": "docs/02_architecture-and-rules/SCH-006_team-workspace-project-collaboration-schema-proposal.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "990252fa978871916aab6f2bf9a2754ae3bbb86a8076e6d8fa51232a789c3430"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-064_cloudflare-r2-storage-multi-stage-implementation-plan.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "28d18f0e2aa2b527f0c5345a5ce53bb78d07df29381a490c07bc3d6f4debc9f4"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-065_ai-development-team-os-research-plan.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "f63b1bd774eb31888ad82ee4029fb6a925e0fa35505b3cd7e6b6dcf9dddc36f0"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-066_team-workspace-collaboration-implementation-plan.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "b83d04e03ff87b8aa22940951a837ebabe743d80d96c25b35ecc8404e50d4dd5"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-067_owner-ai-work-desktop-and-company-sharing-contraction-plan.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "f6722f049093f140733bd271e4f3690efc45a5f7c88f6221811c37ce1def3ddb"
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "c8c699339616cb6bdc87a4e9fb52215af1e2460c672605711ce5ba4a0404d202"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-020_multi-tenant-team-workspace-isolation-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "1bcfba32ea697cdcc2f096e132c4248e6230b3bd52b5e6f7db82bf2dc1f3216d"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-021_work-portfolio-import-phase-staffing-calendar-and-diary-gap-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "51002b85489d7c974dc26e52990f0b1895878f0aaa126b61220ef061d8447255"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-022_cloudflare-r2-file-media-storage-integration-gap-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "ec3514d0eba5eef4e918068d347e03d95899b6c8851483bb081203c18d84f649"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-023_ai-development-team-os-structural-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "e09311c2285a670140df6c4d4be5804368e721be7f5d908a6859b7c41fcce346"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-024_shared-team-os-trust-plane-and-independent-ai-development-team-interface-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "42e4fe6772bf740b4fa72b14f50c1a49b035a5786022733eb5c47a5a6ac81b45"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-025_github-reference-repositories-for-ai-development-team-os-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "c3c1b7db14d78e5ed87129fca95c7827659409d35f70ce21bb1654f7d833a154"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-026_team-workspace-project-collaboration-and-ai-feedback-memory-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "0d668d0ede2c81311d45f4974182525d1dc0c6939b4dbaeac1bd1142a69dde6f"
+    },
+    {
+      "path": "docs/07_research-and-design/RES-027_external-source-connection-multistep-and-multi-account-management-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "979ee26640422107ff5e16b1dffa9575282808e9d3b6e8de12c7e8b45c66f70f"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/ai-development-team-os-discussion-brief.zh.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "69b7a6ee6b7d468303bf5ab1c77b66b6080aa29bf9875f2da2338f31f8bd7d0a"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/gates/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/github-reference-repositories-for-ai-development-team-os.zh.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "9a82c5496c200cb55c170683a3e7503c877c4f51fd9fa9e9f67d82ca315bf0ad"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "87e6829611063264ff66ae60a34641877aa551f53a00fa931d5c7a1d3ea296fc"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-195-20260722-ai-development-team-os-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "aa2422fa64afa52bd64c49eac4eec9404c732f44e858730e1f803f3bc7a29a97"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-196-20260722-shared-team-os-trust-plane-independent-interface-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "0243d912fa4e413549c9cc628f9a7df314d676a9fa761c7da499a44b90a8ca02"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-197-20260722-github-reference-repos-ai-development-team-os.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "35f6deff4bbe577b8db1de901506863b4f25dae8ba6bf7d6617fe4cd836532f9"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-198-20260724-ai-development-team-os-contract.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "5c4893d8f735cefb8005d374acccfb2abb84720e3660b37d4312223872bb1cd3"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-199-20260727-email-otp-login.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "7792ac5846a53f29ed1d5cc3d3293f9caedf06f33f2dd70ad939d70f03badd07"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-200-20260727-launch-level-review.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "0326ccd2ee125a659906a46876832cc038d64c0091f1e05c2d8b4fe1a6707843"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-201-20260727-team-workspace-capability-resolver.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "0f2ee1d8f284cee34083e578c2028aca3e14ce43cdcee32fe62d1a6f0936b8a9"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-202-20260727-formal-library-real-data-cutover.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "b46a5cd8621291118a4f24cdc1c3dc50a3b097ef703b50318e60bfeb35cc5064"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-203-20260727-team-workspace-additive-schema-disposable-proof.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "86119acbedc0b3aea1f43f0d19e7843cba462a6be0a70e86538ddd3c8d01aaae"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-204-20260727-protected-workspace-project-index.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "0e0f49269e72a5a3fe0b45b7709d51b37b5bd60a969c8bee2f704f0ca4626ce8"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-205-20260727-team-workspace-migration-reconciliation.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "b8f8cec4c3d7ca450e09d3c67e6d3d702bf4996b7e005d92766454e392005565"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-206-20260727-external-source-connection-research.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "dc4e9f9cacb4cd8df3ae96874084c901787f893a9dd897d30effce3c48a1f6b5"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-206-20260727-launch-level-review.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "e8470d31232b08b6995e8c0e32ec452bbff683b179135bf8437ded55efdb8e3c"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-207-20260727-audit-backed-team-workspace-creation.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "56a0070a5bec45d76a622de4123b2f9af717a6a2b4d1b1dd26eaa08747a3a7ef"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-208-20260727-ai-input-connection-wizard.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "fd1c05f59da8c0918d4241f05e2b14502af8ca6fe11dd2f3913792f462337a43"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-209-20260727-configured-team-workspace-activation.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "895def7684486bf34d8faec3464aee4ee4cd203a412272b9c42857f5be37b454"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-210-20260727-ai-input-connection-manifest-bff.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "89d57aa4f36a63dd06c81a9460e97ce54f0f4e3b9fc91b8d9014b2e36ae9ab7c"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-auth-proof.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "fdb4bf5ba0b286b07a64470f1d6fdf61a5135ef84e00a76b62bdd686ecb38f97"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-level-review.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "115ef2c5c9c41e4c191184260d2a4f103d4c42017bdb6360838946de8ed74d0c"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-owner-proof-plan.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "ecc53038c53af352dd952f3838410bc1763c4640dc5e468dd0dd1463eb1e4c95"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-preemption-router.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "26be13268cad44d64c5a4b5a44375ac184dd37a1aa0959f41e5e75ce5c112acc"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-proof.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "936365c236f8cf5b53e98e9e07944eb4b2bac67cc00d336737d7019955c8edcf"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-work-proof-target-readiness.json",
+      "type": "file",
+      "exists": true,
+      "sha256": "984e44ee3f963a9bb4a4a3f8e682f162ba7d44e26c7c06b883935b59b6d7c735"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-212-20260727-team-workspace-invitation-lifecycle.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "fe319d27d8c7f3031a0dbbc0ef74614e908aa6f0f8b3462db192f6501d7f26a8"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-213-20260727-interface-smoke-semantic-tab-checker.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "98145fc33b9a86c229f8a227218963fd39160aeaf03c99fc07050ae00b27df40"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260818-scenario-system-contraction-docs.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "da7bfd8ba4a48bc5cfb6662c186ed11efb396c6237938608ba9c5c1047631e84"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260818-ten-minute-gate-automation.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "d3b9b2105632ff6a1ff0a2638697578b60e0db4d6bcfbd1704d8b47fe2cc797f"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/res015-vs-independent-ai-dev-teams-comparison-research.en.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "78226c25c5a3b45cbf62dbf6ab06b2f637046b99b460af80816a408faa66b8be"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/res015-vs-independent-ai-dev-teams-comparison-research.zh.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "b57aca46dedef9c00cc5021596e5640b3bbd7611088e3b4839a416d28825257f"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/shared-team-os-trust-plane-independent-interface-research.zh.md",
+      "type": "file",
+      "exists": true,
+      "sha256": "3899440215b1d27725abab58d91c7d71f9ecd64b43be876b66f24e97e5662116"
+    },
+    {
+      "path": "prisma/migration-drafts/20260727_teamcollab_004_workspace_collaboration_additive/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "prisma/migration-drafts/20260727_teamcollab_005a_configured_drift_repair/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "prisma/migration-drafts/20260727_teamcollab_005b_configured_db_push_activation/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "prisma/migrations/20260722084811_add_file_media_assets/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "prisma/migrations/20260727150000_team_workspace_collaboration/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "prisma/migrations/20260727170000_team_workspace_creation_audit/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "prisma/migrations/20260727183000_team_workspace_invitation_audit_catalog/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "scripts/check-ai-development-team-os-contract.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "21f37d2392eb8ab78355c480264ac410782a0f1856b44f51041ecdd7b115c94c"
+    },
+    {
+      "path": "scripts/check-ai-input-connection-manifest-bff.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "e3c349f4c5945b3e6ad6bf6390e8b5220ea5d8561eee8aa0923a8cf6927745b7"
+    },
+    {
+      "path": "scripts/check-ai-input-connection-wizard.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "3313dd8dabaa34bfac0edf29e970fd8a57710fae0f0cfec5cfa17a3809dc691d"
+    },
+    {
+      "path": "scripts/check-email-otp-auth.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "3569e64a17b00780ed05d78e648ab3fda12539c4422bf7edb4532e7bda30a97d"
+    },
+    {
+      "path": "scripts/check-library-formal-mode.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "f91797bb2740a4908b579c1e20aab6b94828d62dc00e06f611d8b46226798ebe"
+    },
+    {
+      "path": "scripts/check-team-workspace-capability.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "6309b7279fd6c7159345cfe4de3221c5d7f29ca371bafb78492b18a90fa84dc4"
+    },
+    {
+      "path": "scripts/check-team-workspace-configured-activation.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "b9d63f8cd086ea7965bd9f05857f56a3b995295eb27e3458452c225c054b3541"
+    },
+    {
+      "path": "scripts/check-team-workspace-create.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "4b05fd4b184f9017e631a455f8cb6d2f4f9adcd889a61de952b57a8c0baf06e6"
+    },
+    {
+      "path": "scripts/check-team-workspace-invitation.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "0245d5cd74b3827418297140a49002db98a109ed0b748ab189fefebd03e66143"
+    },
+    {
+      "path": "scripts/check-team-workspace-migration-draft.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "0431976e4f165b34a7dcead0addffa071f471be9b8d037a3c87a32c09a0a7ad9"
+    },
+    {
+      "path": "scripts/check-team-workspace-migration-reconciliation.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "44867d21f4e0e8786bf697596cb8e9aeb8d8a5d8f73e6b36b3bb7c2f77dfe55b"
+    },
+    {
+      "path": "scripts/check-team-workspace-project-index.mjs",
+      "type": "file",
+      "exists": true,
+      "sha256": "213ef9e80da8321c5ac88dfa473616b13da1ffdcc627e3f136ed8e569996219c"
+    },
+    {
+      "path": "scripts/load-local-env.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "f12812a6b2dfa075e2ee17abba5c2f54a42afc9c572b4b7233ab8ecb2cafe5d7"
+    },
+    {
+      "path": "scripts/provision-team-profiles.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "8e1f2f1c97b27f7db7f4aec20cfd075a22b9519ce548e00362480fbf56440d38"
+    },
+    {
+      "path": "scripts/r2-storage-smoke-test.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "6d25f383e833a720369973fbc1238a74ab1903799a7c4afc8cabcfd6737915a6"
+    },
+    {
+      "path": "scripts/team-workspace-create-disposable-proof.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "e1b396adaedab8b22134a42ec3975a1868b5bed76fe49707f9422f5b0f933b49"
+    },
+    {
+      "path": "scripts/team-workspace-disposable-proof.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "da391bea1fbe513ce08232bb2ee25b7e7d3a429913cb3c78f7acf9fc1331c534"
+    },
+    {
+      "path": "scripts/team-workspace-invitation-disposable-proof.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "e2b771e4aa102847dd7ba60aba1d5389824b41f4e578361337dc4f3a001ab68d"
+    },
+    {
+      "path": "scripts/team-workspace-migration-reconciliation-proof.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "2f206547bdce4a12c66edb5a8a1980d4a93a96525ef1d97a42e9e0a0065801d5"
+    },
+    {
+      "path": "src/app/(dashboard)/work/loading.tsx",
+      "type": "file",
+      "exists": true,
+      "sha256": "802e6b3698320b4a98642c6775331536b33b5cca5eeab52d9e157c3c08cf45b0"
+    },
+    {
+      "path": "src/app/actions/storage.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "1d62063373ccbcfe6cc9d4fd737038d900f312defcf183acb547dc30c9467eee"
+    },
+    {
+      "path": "src/app/actions/team-workspace-invitation.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "8b1a2c6acda63b56a9e51bd022e93695b4c390b133a2577e0b1067b64bd9b936"
+    },
+    {
+      "path": "src/app/actions/team-workspace.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "74394b7c4cc16c441eb2715bee95d243a18d3936d30c2cd6a856204b7a6f625b"
+    },
+    {
+      "path": "src/components/ai/source-connections/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "src/components/auth/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "src/components/work/workspace/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "src/lib/contracts/ai-development-team-os.contract.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "6b54fa906a07787eeb22601ec68d96fd06138f73d8a08915ac129cfb8b91e5e4"
+    },
+    {
+      "path": "src/lib/contracts/ai-input-source-connection-catalog.contract.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "ae0e9767a0edbc159f6754e6027085b21193fa11841f2473a2527aa44b8590f6"
+    },
+    {
+      "path": "src/lib/contracts/team-workspace-capability.contract.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "2fa06349c6d2ae9b5c9006f8ee31a3f3ad2339befee04d4bd0417011167e3447"
+    },
+    {
+      "path": "src/lib/mappers/library-asset.mapper.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "9d751a2853c8c3461c391c02ef595eb40b44883372e2e553cf9763381061ad7c"
+    },
+    {
+      "path": "src/lib/mappers/team-workspace.mapper.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "81a543d347bf1e51f69748ee93fb3d7fa96efe3d051d52d6435af17165d884e5"
+    },
+    {
+      "path": "src/lib/services/ai-input-source-connection-catalog.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "cc4334ec1483ff77d11c5e2c83a18749f7c98f41e3ba0404dd012757d16f05ac"
+    },
+    {
+      "path": "src/lib/services/library-asset-index.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "6ca466151c8b6fe489efd5824ff5f254152e4a086abbae3a16a64204724245d8"
+    },
+    {
+      "path": "src/lib/services/project-timeline.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "871f1f131c57e9769639f464712f8ae6b067743b5899fa72ccccee1e198eb84b"
+    },
+    {
+      "path": "src/lib/services/storage.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "77874eb0be43812a7302a4aed3b65da075df3a751d0a4f19fb0e1227f74c19a1"
+    },
+    {
+      "path": "src/lib/services/team-workspace-audit-readiness.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "190838036b1135a0cacb2f850ae313f1183c53fb144deb99ff2b989d56a5f133"
+    },
+    {
+      "path": "src/lib/services/team-workspace-command.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "12f2d44b88f057e557aa11a31c664c25e8dce20f21b61a7c07fbd58d197989c9"
+    },
+    {
+      "path": "src/lib/services/team-workspace-invitation.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "643c26e691ebd2f4a54495811101ec10aaed6a7b6e8fa8311f88e2a68b6d3418"
+    },
+    {
+      "path": "src/lib/services/team-workspace.service.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "0004860613b9304b2a36da81ca73410a74db2055026289dffd9880e27a78e34a"
+    },
+    {
+      "path": "src/lib/storage/",
+      "type": "directory",
+      "exists": true,
+      "sha256": null
+    },
+    {
+      "path": "src/types/ai-input-source-connection-catalog.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "b1bad18325977df27666859d66542129dbbca4a830b1b41996d53c528b2e762a"
+    },
+    {
+      "path": "src/types/library-asset-index.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "1fac74c43c908cfd52dc067f0a70f7da7879b08bd63badac2540f457e3e48929"
+    },
+    {
+      "path": "src/types/team-workspace-command.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "361bfd0baf38288248f2e1f7e389c651a622af5280a984b6eb9024d3476ced53"
+    },
+    {
+      "path": "src/types/team-workspace-invitation.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "981544c50c0c4bd7e300b1211de3a210ba0825a0cfb2bfaf5301f99237692c24"
+    },
+    {
+      "path": "src/types/workspace-project-index.ts",
+      "type": "file",
+      "exists": true,
+      "sha256": "6f89437265b1546f81b83543d735a60cf60305bb5a76fcdf7895cdec701a1aa3"
+    }
+  ]
+}

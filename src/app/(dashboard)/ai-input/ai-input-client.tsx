@@ -4,26 +4,30 @@ import * as React from "react"
 import {
   AudioLinesIcon,
   AlertTriangleIcon,
+  ArrowLeftIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
-  ChevronRightIcon,
   Clock3Icon,
   CopyIcon,
   DatabaseIcon,
   FileTextIcon,
   FolderIcon,
-  FolderPlusIcon,
   HistoryIcon,
   ImageIcon,
+  InfoIcon,
   ListChecksIcon,
   MessageSquareIcon,
   MoreVerticalIcon,
   PenLineIcon,
+  PinIcon,
+  PinOffIcon,
   PlusIcon,
   RssIcon,
+  SearchIcon,
   SendIcon,
   Settings2Icon,
   ShieldAlertIcon,
+  SlidersHorizontalIcon,
   SparklesIcon,
   Trash2Icon,
   UploadIcon,
@@ -33,7 +37,9 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DetailDrawer } from "@/components/owneros/detail-drawer"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,12 +60,19 @@ import {
 } from "@/components/ui/dialog"
 import { TriageProposalCard } from "@/components/ai/triage-proposal-card"
 import { useIngestion } from "@/lib/context/ingestion-context"
+import { useIsDemoAccount } from "@/lib/context/demo-account-context"
 import { useMockDataMode } from "@/lib/context/mock-data-mode-context"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { cn } from "@/lib/utils"
 import { generateReferenceCode } from "@/lib/naming/reference-code"
 import { AddLinkDialog } from "@/components/ai/add-link-dialog"
 import { FileLibraryPage } from "@/components/ai/file-library/file-library-page"
 import { MediaLibraryPage } from "@/components/ai/media-library/media-library-page"
+import {
+  SourceConnectionWizard,
+  type SourceConnectionDraft,
+} from "@/components/ai/source-connections/source-connection-wizard"
+import type { ProductCopy } from "@/lib/i18n/product-copy"
 import { getAIResponse } from "./actions"
 import type {
   AIInputFormalReadinessContract,
@@ -72,6 +85,7 @@ import type {
   AIInputSourceWorkflowReadModelKind,
 } from "@/types/ai-input-readiness"
 import type { MentionRef } from "@/types/sync-scope"
+import type { AIInputSourceConnectionCatalogDTO } from "@/types/ai-input-source-connection-catalog"
 import type { AITriageProposal, DecisionType, Evidence, RawSourceItem } from "@/types/ingestion"
 import type {
   SourceSyncMode,
@@ -225,6 +239,29 @@ interface SourceConnectorRow {
   inputMode: AIInputSourceControlInputMode
   nextAction: string
   missingPermissions: string | null
+  provenanceNote?: string | null
+  accountLabel?: string
+  mockOnly?: true
+}
+
+type SourceSettingsCopy = ProductCopy["aiInput"]["chat"]["sourceSettings"]
+const SOURCE_SETTINGS_DRAWER_TABS = ["sync", "nodes", "routing", "approval", "governance"] as const
+type SourceSettingsDrawerTab = (typeof SOURCE_SETTINGS_DRAWER_TABS)[number]
+
+interface SourceConnectorDisplayCopy {
+  source?: string
+  provider?: string
+  connectorType?: string
+  scope?: string
+  cadence?: string
+  lastSync?: string
+  nextSync?: string
+  defaultModule?: string
+  riskLabel?: string
+  reviewRule?: string
+  nextAction?: string
+  missingPermissions?: string
+  provenanceNote?: string
 }
 
 interface ExtendedSourceConnectorRow extends SourceConnectorRow {
@@ -260,6 +297,21 @@ interface SourceInputMatrixRow {
   boundary?: string
 }
 
+interface OwnerAIInputSourceIndexRow {
+  id: string
+  label: string
+  meta: string
+  status: AIInputSourceControlConnectionStatus
+  nextAction: string
+}
+
+interface OwnerAIInputSourceSummary {
+  rowCount: number
+  connectedCount: number
+  attentionCount: number
+  providerCount: number
+}
+
 interface SyncReviewPolicy {
   id: string
   condition: string
@@ -277,12 +329,18 @@ interface CoworkStarter {
   contextHint: string
 }
 
+// 2026-09-05: hidden per product owner direction — the landing screen should
+// stay minimal (title + composer only) while the owner explores the surface
+// unaided. Left in place, not deleted, so the suggestion grid can come back
+// later (e.g. as an onboarding-only affordance) without re-authoring it.
+const SHOW_LANDING_SUGGESTIONS = false
+
 const QUICK_PROMPTS = [
-  { icon: <PenLineIcon className="size-4" />, label: "整理思路", prompt: "幫我整理今天的想法和待辦：" },
-  { icon: <FolderIcon className="size-4" />, label: "專案更新", prompt: "記錄專案最新進展：" },
-  { icon: <MessageSquareIcon className="size-4" />, label: "會議紀錄", prompt: "整理以下會議內容：" },
-  { icon: <SparklesIcon className="size-4" />, label: "分析資訊", prompt: "分析並整理以下資訊：" },
-]
+  { id: "thought", icon: <PenLineIcon className="size-4" /> },
+  { id: "project", icon: <FolderIcon className="size-4" /> },
+  { id: "meeting", icon: <MessageSquareIcon className="size-4" /> },
+  { id: "insight", icon: <SparklesIcon className="size-4" /> },
+] as const
 
 const COWORK_STARTERS: CoworkStarter[] = [
   {
@@ -314,12 +372,12 @@ const COWORK_STARTERS: CoworkStarter[] = [
   },
 ]
 
-const WORKBENCH_TABS: Array<{ id: WorkbenchTab; label: string; icon: React.ReactNode }> = [
-  { id: "today", label: "今日 Workflow", icon: <ListChecksIcon className="size-3.5" /> },
-  { id: "review", label: "需要確認", icon: <ShieldAlertIcon className="size-3.5" /> },
-  { id: "environment", label: "來源環境", icon: <Settings2Icon className="size-3.5" /> },
-  { id: "results", label: "整理結果", icon: <DatabaseIcon className="size-3.5" /> },
-  { id: "log", label: "工作紀錄", icon: <HistoryIcon className="size-3.5" /> },
+const WORKBENCH_TABS: Array<{ id: WorkbenchTab; icon: React.ReactNode }> = [
+  { id: "today", icon: <ListChecksIcon className="size-3.5" /> },
+  { id: "review", icon: <ShieldAlertIcon className="size-3.5" /> },
+  { id: "environment", icon: <Settings2Icon className="size-3.5" /> },
+  { id: "results", icon: <DatabaseIcon className="size-3.5" /> },
+  { id: "log", icon: <HistoryIcon className="size-3.5" /> },
 ]
 
 const MOCK_WORKFLOW_RUNS: WorkflowRunCard[] = [
@@ -377,7 +435,7 @@ const MOCK_REVIEW_ITEMS: ReviewItemCard[] = [
 ]
 
 const MOCK_SOURCE_ENVIRONMENTS: SourceEnvironmentCard[] = [
-  { id: "env-line", source: "LINE 商會核心幹部群", cadence: "每日同步", module: "商會", risk: "中風險", brief: "進早安簡報" },
+  { id: "env-line", source: "LINE 商會核心幹部群", cadence: "每日同步", module: "商會", risk: "中風險", brief: "進今日摘要" },
   { id: "env-drive", source: "Google Drive Personal OS 研究", cadence: "手動同步", module: "研究", risk: "低風險", brief: "異常才回報" },
   { id: "env-rss", source: "RSS 教育科技", cadence: "每日同步", module: "研究", risk: "低風險", brief: "只摘要高相關文章" },
 ]
@@ -418,9 +476,9 @@ const MOCK_SOURCE_CONNECTORS: SourceConnectorRow[] = [
   },
   {
     id: "sync-drive-research",
-    source: "Google Drive Personal OS 研究",
-    provider: "Drive",
-    connectorType: "Cloud files",
+    source: "Google Drive Personal OS 研究資料夾",
+    provider: "Google Drive",
+    connectorType: "Folder files",
     connectionStatus: "connected",
     syncStatus: "completed",
     scope: "研究資料夾新增與更新文件",
@@ -433,15 +491,16 @@ const MOCK_SOURCE_CONNECTORS: SourceConnectorRow[] = [
     inputMode: "manual",
     nextAction: "無需操作",
     missingPermissions: null,
+    provenanceNote: "資料夾內 Google Docs、Sheets 與 Slides 保留 Drive 檔案身分與快照來源。",
   },
   {
-    id: "sync-google-docs-work",
-    source: "Google Docs 專案文件",
-    provider: "Google Docs",
-    connectorType: "Document",
+    id: "sync-google-drive-work-folder",
+    source: "Google Drive 專案資料夾",
+    provider: "Google Drive",
+    connectorType: "Folder files",
     connectionStatus: "connected",
     syncStatus: "idle",
-    scope: "指定文件清單與文件更新",
+    scope: "指定資料夾內 Docs、Sheets、Slides、PDF 等檔案與更新",
     cadence: "文件變更",
     lastSync: "今天 10:08",
     nextSync: "等待變更",
@@ -451,6 +510,7 @@ const MOCK_SOURCE_CONNECTORS: SourceConnectorRow[] = [
     inputMode: "event",
     nextAction: "無需操作",
     missingPermissions: null,
+    provenanceNote: "Google Docs 等原生檔案保留 Drive file ID、MIME type、revision 與 export/snapshot 來源。",
   },
   {
     id: "sync-rss-edtech",
@@ -583,8 +643,94 @@ function makeClientId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2)}`
 }
 
-function generateAIResponse(text: string, mode: ChatMode): string {
+function formatCopyTemplate(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
+
+function getSourceConnectorDisplay(
+  connector: SourceConnectorRow,
+  sourceSettingsCopy: SourceSettingsCopy
+) {
+  const rowCopy = (sourceSettingsCopy.sourceRows as Record<string, SourceConnectorDisplayCopy>)[connector.id] ?? {}
+
+  return {
+    source: rowCopy.source ?? connector.source,
+    provider: rowCopy.provider ?? connector.provider,
+    connectorType: rowCopy.connectorType ?? connector.connectorType,
+    scope: rowCopy.scope ?? connector.scope,
+    cadence: rowCopy.cadence ?? connector.cadence,
+    lastSync: rowCopy.lastSync ?? connector.lastSync,
+    nextSync: rowCopy.nextSync ?? connector.nextSync,
+    defaultModule: rowCopy.defaultModule ?? connector.defaultModule,
+    riskLabel: rowCopy.riskLabel ?? connector.riskPolicy,
+    reviewRule: rowCopy.reviewRule ?? connector.reviewRule,
+    nextAction: rowCopy.nextAction ?? connector.nextAction,
+    missingPermissions: rowCopy.missingPermissions ?? connector.missingPermissions,
+    provenanceNote: rowCopy.provenanceNote ?? connector.provenanceNote,
+  }
+}
+
+function getSourceProviderTypeLabel(
+  provider: string,
+  connectorType: string,
+  sourceSettingsCopy: SourceSettingsCopy
+) {
+  const key = `${provider} · ${connectorType}`
+  const providerTypeLabels = sourceSettingsCopy.providerTypeLabels as Record<string, string>
+  return providerTypeLabels[key] ?? key
+}
+
+function generateAIResponse(text: string, mode: ChatMode, locale: "zh-TW" | "en-US"): string {
   const normalizedText = text.toLowerCase().trim()
+
+  if (locale === "en-US") {
+    if (["hi", "hello", "你好", "嗨", "哈囉", "greet"].some((g) => normalizedText.includes(g))) {
+      return "Hello! I am your Personal OS assistant. What would you like to capture, organize, or plan today?"
+    }
+
+    if (["好的", "ok", "了解", "收到", "嗯嗯", "okay", "對", "好的！"].some((a) => normalizedText === a)) {
+      return "Got it. Send me the idea, task, context, or project update whenever you are ready."
+    }
+
+    if (["什麼", "如何", "怎麼", "哪裡", "嗎", "？", "?"].some((q) => normalizedText.includes(q))) {
+      if (normalizedText.includes("project") || normalizedText.includes("work") || normalizedText.includes("task") || normalizedText.includes("專案") || normalizedText.includes("工作") || normalizedText.includes("任務")) {
+        return "For work planning, start by naming the outcome, current blocker, next owner action, and any source context. I can help turn that into a clean next-step proposal."
+      }
+      if (normalizedText.includes("research") || normalizedText.includes("paper") || normalizedText.includes("文獻") || normalizedText.includes("研究")) {
+        return "For research work, it helps to separate the question, source material, claims, and possible work applications. Share the source or idea and I will help structure it."
+      }
+      if (normalizedText.includes("finance") || normalizedText.includes("expense") || normalizedText.includes("money") || normalizedText.includes("財務") || normalizedText.includes("錢") || normalizedText.includes("支出")) {
+        return "For finance-related notes, keep the amount, category, date, and context clear. I can help draft a review item, but final finance writes stay owner-approved."
+      }
+      return `Good question. For "${text}", we can break this into context, decision, next action, and what evidence would make the answer more reliable.`
+    }
+
+    switch (mode) {
+      case "general":
+        return `Useful capture. For "${text}", I would first ask: what is the fastest way to validate it, who is involved, and what should happen next?`
+      case "report_gen":
+        return `Received the report direction: "${text}". I can help shape the outline, scope, source references, and next owner review point.`
+      case "reflection":
+        return `Thanks for sharing that reflection. For "${text}", it may help to name the feeling, what triggered it, and one small adjustment you want to try.`
+      case "work":
+        return `Received the work context: "${text}". The useful next step is to turn it into an outcome, blocker, owner action, and follow-up date.`
+      case "research":
+        return `I have noted the research idea: "${text}". We can turn it into a question, source list, claim map, and possible work application.`
+      case "chamber":
+        return `Received the chamber or relationship context: "${text}". We can structure it as a contact, opportunity, follow-up action, and relationship note.`
+      case "finance":
+        return `I have captured the finance-related note: "${text}". I can help draft a review item, while final finance records remain approval-gated.`
+      case "life":
+        return `Received the life rhythm note: "${text}". We can track the pattern, energy impact, and one practical adjustment for the week.`
+      case "company":
+        return `Received the company strategy context: "${text}". We can connect it to vision, metrics, constraints, and the next strategic decision.`
+      default:
+        return `I understand "${text}". We can keep exploring it, or turn it into a clean next-step proposal when you are ready.`
+    }
+  }
   
   // 1. Greetings
   if (["hi", "hello", "你好", "嗨", "哈囉", "greet"].some(g => normalizedText.includes(g))) {
@@ -639,10 +785,20 @@ function generateAIResponse(text: string, mode: ChatMode): string {
 
 export default function AIInputClient({
   formalReadiness,
+  sourceConnectionCatalog,
 }: {
   formalReadiness: AIInputFormalReadinessContract
+  sourceConnectionCatalog: AIInputSourceConnectionCatalogDTO
 }) {
   const { isMockDataEnabled, toggleMockData } = useMockDataMode()
+  // AUTH-013: the demo/formal toggle and its inline notice are illustrative
+  // affordances for the fixed-code demo account only. Every other signed-in
+  // (real tenant) account never sees them — the surface starts blank and
+  // usable with no mode-switch chrome.
+  const isDemoAccount = useIsDemoAccount()
+  const { locale, copy } = useProductLanguage()
+  const chatCopy = copy.aiInput.chat
+  const sourceSettingsCopy = chatCopy.sourceSettings
   const {
     addManualCapture,
     addConversationCapture,
@@ -665,6 +821,7 @@ export default function AIInputClient({
     id: string
     label: string
     collapsed: boolean
+    pinned?: boolean
   }
 
   type ChatThreadKind = "personal" | "source_coworking" | "agent_task_link"
@@ -682,26 +839,27 @@ export default function AIInputClient({
     folderId: string | null
     threadKind: ChatThreadKind
     referenceCode: string
+    pinned?: boolean
   }
 
   const PERSONAL_FOLDER_ID = "folder-personal"
   const SOURCE_FOLDER_ID = "folder-source-coworking"
 
   const [folders, setFolders] = React.useState<ChatThreadFolder[]>([
-    { id: PERSONAL_FOLDER_ID, label: "個人對話", collapsed: false },
-    { id: SOURCE_FOLDER_ID, label: "來源協作", collapsed: false },
+    { id: PERSONAL_FOLDER_ID, label: chatCopy.personalFolder, collapsed: false },
+    { id: SOURCE_FOLDER_ID, label: chatCopy.sourceFolder, collapsed: false },
   ])
 
   const [threads, setThreads] = React.useState<ChatThread[]>([
     {
       id: "default",
-      title: "💬 個人 AI 對話 (Oliver)",
+      title: chatCopy.newConversationTitle,
       messages: [
         {
           id: "welcome",
           sender: "ai",
           type: "text",
-          content: "您好！我是您的 Personal OS 助理。您可以將任何資訊丟進這裡，我會幫您整理、分類並給予下一步建議。",
+          content: chatCopy.welcomeMessage,
           timestamp: new Date(),
         }
       ],
@@ -711,7 +869,7 @@ export default function AIInputClient({
       mentions: [],
       folderId: PERSONAL_FOLDER_ID,
       threadKind: "personal",
-      referenceCode: generateReferenceCode("THREAD", "AIINPUT"),
+      referenceCode: "THREAD-AIINPUT-DEFAULT",
     }
   ])
   const [activeConvId, setActiveConvId] = React.useState<string>("default")
@@ -721,7 +879,30 @@ export default function AIInputClient({
   const [workspaceView, setWorkspaceView] = React.useState<AIInputSubpage>("chat")
   const [workbenchTab, setWorkbenchTab] = React.useState<WorkbenchTab>("today")
   const [inputText, setInputText] = React.useState("")
-  const [isImportDropdownOpen, setIsImportDropdownOpen] = React.useState(false)
+  const [isScheduledDialogOpen, setIsScheduledDialogOpen] = React.useState(false)
+  // Clicking a Project navigates into a dedicated project workspace — per
+  // Anthropic's own docs, a project is its own page with its own chat list,
+  // knowledge, and instructions, not a filter over the global chat list.
+  // https://support.claude.com/en/articles/9517075-what-are-projects
+  // https://support.claude.com/en/articles/9519177-how-can-i-create-and-manage-projects
+  const [projectViewId, setProjectViewId] = React.useState<string | null>(null)
+  // Sidebar search + filter: a real (not decorative) pop-up search over all
+  // chats/projects, and a real, data-backed filter/group/sort panel — no
+  // fabricated chrome.
+  const [isSearchDialogOpen, setIsSearchDialogOpen] = React.useState(false)
+  const [chatSearchQuery, setChatSearchQuery] = React.useState("")
+  const [chatTypeFilter, setChatTypeFilter] = React.useState<"all" | ChatThreadKind>("all")
+  const [chatStatusFilter, setChatStatusFilter] = React.useState<"all" | "imported" | "not_imported">("all")
+  const [chatActivityFilter, setChatActivityFilter] = React.useState<"all" | "today" | "week">("all")
+  const [chatGroupBy, setChatGroupBy] = React.useState<"none" | "mode" | "status">("none")
+  const [chatSortBy, setChatSortBy] = React.useState<"last_activity" | "title">("last_activity")
+  const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = React.useState(false)
+  const [newFolderNameDraft, setNewFolderNameDraft] = React.useState("")
+  const [renamingFolderId, setRenamingFolderId] = React.useState<string | null>(null)
+  const [folderRenameDraft, setFolderRenameDraft] = React.useState("")
+  const [deleteFolderCandidateId, setDeleteFolderCandidateId] = React.useState<string | null>(null)
+  const [isChatsSectionCollapsed, setIsChatsSectionCollapsed] = React.useState(false)
+  const [isProjectsSectionCollapsed, setIsProjectsSectionCollapsed] = React.useState(false)
 
   const [connectorsState, setConnectorsState] = React.useState<ExtendedSourceConnectorRow[]>(() => {
     const DEFAULT_THINKING_NODES: SourceThinkingNodeDTO[] = [
@@ -736,7 +917,7 @@ export default function AIInputClient({
 
     return MOCK_SOURCE_CONNECTORS.map((connector) => {
       const isMessaging = connector.provider === "LINE" || connector.provider === "Telegram" || connector.provider === "Gmail";
-      const isDriveOrDocs = connector.provider === "Drive" || connector.provider === "Google Docs" || connector.provider === "GitHub";
+      const isDriveOrRepo = connector.provider === "Google Drive" || connector.provider === "GitHub";
       return {
         ...connector,
         syncMode: isMessaging ? "manual_and_scheduled" : "manual_only",
@@ -746,11 +927,11 @@ export default function AIInputClient({
         analysisSchedule: isMessaging ? "0 9 * * *" : null,
         analysisEnabled: isMessaging,
         analyzeOnlyWhenPending: true,
-        allowedTargetModules: isMessaging ? ["chamber", "work"] : isDriveOrDocs ? ["research", "work"] : ["research"],
+        allowedTargetModules: isMessaging ? ["chamber", "work"] : isDriveOrRepo ? ["research", "work"] : ["research"],
         riskClassification: connector.riskPolicy === "高" ? "high" : connector.riskPolicy === "中" ? "medium" : "low",
         approvalLevel: connector.riskPolicy === "高" ? "always_require" : "auto_execute_low_risk",
         includeInMorningBrief: isMessaging,
-        retentionDays: isMessaging ? 90 : isDriveOrDocs ? 0 : 30,
+        retentionDays: isMessaging ? 90 : isDriveOrRepo ? 0 : 30,
         piiMaskingEnabled: false,
         uploadDirectory: isMessaging ? `/uploads/${connector.provider.toLowerCase()}` : "/uploads/general",
         thinkingNodes: DEFAULT_THINKING_NODES.map((node) => ({ ...node })),
@@ -771,6 +952,38 @@ export default function AIInputClient({
   const importType = activeThread.importType
   const mentions = activeThread.mentions
   const referencedTitles = React.useMemo(() => new Set(mentions.map((m) => m.name)), [mentions])
+
+  function getModeLabel(selectedMode: ChatMode) {
+    return chatCopy.modes[selectedMode]?.label ?? chatCopy.modes.general.label
+  }
+
+  function getModeHint(selectedMode: ChatMode) {
+    return chatCopy.modes[selectedMode]?.hint ?? chatCopy.modes.general.hint
+  }
+
+  function getModePlaceholder(selectedMode: ChatMode) {
+    return chatCopy.modes[selectedMode]?.placeholder ?? chatCopy.modes.general.placeholder
+  }
+
+  function getFolderDisplayLabel(folder: ChatThreadFolder) {
+    if (folder.id === PERSONAL_FOLDER_ID) return chatCopy.personalFolder
+    if (folder.id === SOURCE_FOLDER_ID) return chatCopy.sourceFolder
+    return folder.label
+  }
+
+  // Every thread — including the very first one — starts out as a plain
+  // "New chat" like Claude's own sidebar, not a personalized welcome title.
+  // It only ever gets a real name via manual rename or AI naming.
+  function getThreadDisplayTitle(thread: ChatThread) {
+    return thread.title || chatCopy.newConversationTitle
+  }
+
+  function withChatCopyTemplate(template: string, values: Record<string, string>) {
+    return Object.entries(values).reduce(
+      (text, [key, value]) => text.replaceAll(`{${key}}`, value),
+      template
+    )
+  }
 
   // State wrappers/setters for backward compatibility
   const setMessages = React.useCallback((newMessagesOrUpdater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
@@ -847,47 +1060,84 @@ export default function AIInputClient({
     })
   }, [proposals, isTyping])
 
-  function startNewConversation(initialText?: string, title?: string) {
+  function startNewConversation(initialText?: string, title?: string, folderId: string = PERSONAL_FOLDER_ID, mode: ChatMode = "general") {
     const id = makeClientId("new")
     const welcome: ChatMessage = {
       id: makeClientId("welcome"),
       sender: "ai",
       type: "text",
-      content: "您好！我是您的 Personal OS 助理。您可以將任何資訊丟進這裡，我會幫您整理、分類並給予下一步建議。",
+      content: chatCopy.welcomeMessage,
       timestamp: new Date(),
     }
     const newThread: ChatThread = {
       id: id,
-      title: title || `💬 AI 對話 (${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`,
+      title: title || chatCopy.newConversationTitle,
       messages: [welcome],
-      mode: "general",
+      mode,
       isImported: false,
       importType: null,
       mentions: [],
-      folderId: PERSONAL_FOLDER_ID,
-      threadKind: "personal",
+      folderId,
+      threadKind: folderId === PERSONAL_FOLDER_ID ? "personal" : "source_coworking",
       referenceCode: generateReferenceCode("THREAD", "AIINPUT"),
     }
     setThreads((prev) => [...prev, newThread])
     setActiveConvId(id)
-    setIsImportDropdownOpen(false)
     if (initialText) {
       setTimeout(() => doSendText(initialText), 50)
     }
   }
 
-  function handleCreateFolder() {
-    const label = window.prompt("資料夾名稱")?.trim()
+  // A proper in-app dialog, not the browser's native window.prompt() — that
+  // renders as an OS-chrome popup labeled with the page's own origin
+  // (e.g. "localhost:3000 says"), which reads as a broken/foreign prompt
+  // rather than part of the product.
+  function commitCreateFolder() {
+    const label = newFolderNameDraft.trim()
     if (!label) return
     setFolders((prev) => [...prev, { id: makeClientId("folder"), label, collapsed: false }])
+    setNewFolderNameDraft("")
+    setIsNewFolderDialogOpen(false)
   }
 
-  function handleToggleFolder(folderId: string) {
-    setFolders((prev) => prev.map((f) => f.id === folderId ? { ...f, collapsed: !f.collapsed } : f))
+  function beginRenameFolder(folderId: string, currentLabel: string) {
+    setRenamingFolderId(folderId)
+    setFolderRenameDraft(currentLabel)
+  }
+
+  function commitRenameFolder() {
+    const label = folderRenameDraft.trim()
+    if (renamingFolderId && label) {
+      setFolders((prev) => prev.map((f) => f.id === renamingFolderId ? { ...f, label } : f))
+    }
+    setRenamingFolderId(null)
+    setFolderRenameDraft("")
+  }
+
+  function cancelRenameFolder() {
+    setRenamingFolderId(null)
+    setFolderRenameDraft("")
+  }
+
+  function handleTogglePinFolder(folderId: string) {
+    setFolders((prev) => prev.map((f) => f.id === folderId ? { ...f, pinned: !f.pinned } : f))
+  }
+
+  function confirmDeleteFolder() {
+    const id = deleteFolderCandidateId
+    if (!id) return
+    setFolders((prev) => prev.filter((f) => f.id !== id))
+    setThreads((prev) => prev.map((t) => t.folderId === id ? { ...t, folderId: null } : t))
+    if (projectViewId === id) setProjectViewId(null)
+    setDeleteFolderCandidateId(null)
   }
 
   function handleMoveThreadToFolder(threadId: string, folderId: string | null) {
     setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, folderId } : t))
+  }
+
+  function handleTogglePinThread(threadId: string) {
+    setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, pinned: !t.pinned } : t))
   }
 
   function beginRenameThread(threadId: string, currentTitle: string) {
@@ -914,7 +1164,7 @@ export default function AIInputClient({
     const source = firstUserMessage?.content?.trim() || thread.messages.find((m) => m.type === "text")?.content?.trim()
     if (!source) return thread.title
     const excerpt = source.replace(/\s+/g, " ").slice(0, 16)
-    return `💬 ${excerpt}${source.length > 16 ? "…" : ""}`
+    return `${excerpt}${source.length > 16 ? "…" : ""}`
   }
 
   function handleAutoTitleThread(threadId: string) {
@@ -933,11 +1183,12 @@ export default function AIInputClient({
   }
 
   function doSendText(text: string, currentMentions: MentionRef[] = []) {
+    const referenceList = currentMentions.map((m) => m.name).join(chatCopy.referenceSeparator)
     const contextSuffix = currentMentions.length > 0
-      ? `\n\n[參考背景：${currentMentions.map((m) => m.name).join("、")}]`
+      ? `\n\n[${withChatCopyTemplate(chatCopy.referenceContextSuffix, { references: referenceList })}]`
       : ""
     const displayText = currentMentions.length > 0
-      ? `${text}\n＠ ${currentMentions.map((m) => m.name).join("、")}`
+      ? `${text}\n${chatCopy.referenceDisplayPrefix} ${referenceList}`
       : text
 
     const newUserMsg = {
@@ -956,9 +1207,9 @@ export default function AIInputClient({
       let aiReply = ""
       try {
         const historyContext = [...messages, newUserMsg]
-        aiReply = await getAIResponse(text, mode, historyContext)
+        aiReply = await getAIResponse(text, mode, historyContext, locale)
       } catch (err) {
-        aiReply = generateAIResponse(text, mode)
+        aiReply = generateAIResponse(text, mode, locale)
       }
 
       setIsTyping(false)
@@ -983,20 +1234,23 @@ export default function AIInputClient({
     const transcript = messages
       .filter((m) => m.type === "text")
       .map((m) => {
-        const role = m.sender === "user" ? "使用者" : "AI"
+        const role = m.sender === "user" ? chatCopy.transcriptUserRole : chatCopy.transcriptAiRole
         const time = m.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        return `[${time}] ${role}：${m.content}`
+        return `[${time}] ${role}${locale === "en-US" ? ": " : "："}${m.content}`
       })
       .join("\n")
 
-    const modeLabel = CHAT_MODES[mode]?.label || "Capture"
+    const modeLabel = getModeLabel(mode)
 
     // Construct dynamic topics list based on user inputs
     const userMsgs = messages.filter((m) => m.sender === "user" && m.type === "text")
     const topics = userMsgs.map((m) => m.content).join("；")
     const customSummary = userMsgs.length > 0
-      ? `與 AI 的對話紀錄 (${modeLabel})。討論要點包括：${topics.length > 80 ? topics.slice(0, 77) + "..." : topics}`
-      : `與 AI 的對話紀錄 (${modeLabel})，共包含對話內容。`
+      ? withChatCopyTemplate(chatCopy.transcriptSummaryWithTopics, {
+          mode: modeLabel,
+          topics: topics.length > 80 ? topics.slice(0, 77) + "..." : topics,
+        })
+      : withChatCopyTemplate(chatCopy.transcriptSummaryEmpty, { mode: modeLabel })
       
     addConversationCapture(transcript, modeLabel, customSummary)
     
@@ -1005,8 +1259,8 @@ export default function AIInputClient({
     
     // Add system message to the chat
     const systemText = type === "manual"
-      ? "系統訊息：您已手動將此對話紀錄匯入來源分析區域。"
-      : "系統訊息：因閒置 24 小時，系統已自動將此對話紀錄匯入來源分析區域。"
+      ? chatCopy.systemImportedManual
+      : chatCopy.systemImportedAuto
       
     setMessages((prev) => [
       ...prev,
@@ -1018,7 +1272,7 @@ export default function AIInputClient({
         timestamp: new Date(),
       }
     ])
-  }, [messages, mode, addConversationCapture])
+  }, [messages, mode, locale, chatCopy, addConversationCapture])
 
   function handleSend() {
     if (!inputText.trim() && mentions.length === 0) return
@@ -1066,194 +1320,17 @@ export default function AIInputClient({
 
     // 2. Generate coworking messages
     const now = new Date()
-    let coworkMessages: ChatMessage[] = []
-
-    if (sourceId === "line") {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[LINE 採集代理]**: 偵測到社群『商會核心幹部群』有新訊息！已自動同步 34 則未處理對話，正啟動 Co-working 對話以進行分析分類...",
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: "🤖 **[系統智能]**: 收到 LINE 對話包！分析結果：內容主要涵蓋『商會幹部例會籌備』與『人際引薦線索』。建議分類至 **商會** 模組，並在此生成 Ingestion 提案供 Oliver 確認。",
-          timestamp: now,
-        },
-        {
-          id: "cw-3",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[LINE 採集代理]**: 分析合理，確認建立提案！已生成 Ingestion 審核卡，包含會議待辦及引薦卡草稿，請 Oliver 確認分類或進行後續優化處理。",
-          timestamp: now,
-        }
-      ]
-    } else if (sourceId === "rss") {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[RSS 採集代理]**: 已從訂閱源同步最新文章：『Next.js 16 新特性與記憶體優化指南』。正提取大綱與核心關鍵字並引導分流...",
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: "🤖 **[系統智能]**: 讀取完畢。該文深入探討 Webpack 編譯 Worker 與記憶體優化，屬於技術文獻。建議歸檔至 **研究** 模組，作為 Oliver 的知識庫參考。",
-          timestamp: now,
-        },
-        {
-          id: "cw-3",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[RSS 採集代理]**: 分類確認！已在此建立研究 Ingestion 審核提案，將其對接至知識圖譜中。",
-          timestamp: now,
-        }
-      ]
-    } else if (sourceId === "googledoc") {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[Google Doc 採集代理]**: 檢測到文件『CDR 破產與重組技術比較分析』有變更。正在提取文檔段落以對接 Personal OS 專案...",
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: "🤖 **[系統智能]**: 收到文件。內容提及破產程序法規及案例分析，這與當前 **工作** 模組的破產重組專案緊密關聯。建議將該文件歸類至 **工作** 分類。",
-          timestamp: now,
-        },
-        {
-          id: "cw-3",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[Google Doc 採集代理]**: 確認。已建立 Ingestion 工作卡提案，方便將下一步任務映射到時間軸中。",
-          timestamp: now,
-        }
-      ]
-    } else if (sourceId === "markdown") {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[Markdown 文件代理]**: 已讀取匯入的 Markdown 檔案『2026年個人目標與反思總結』。正在分析內容語調與反思深度...",
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: "🤖 **[系統智能]**: 該文件涉及個人的情緒感受、時間分配反思以及明年的心智決策模型。這顯然屬於 **自己 (Self)** 模組。建議建立反思日誌提案。",
-          timestamp: now,
-        },
-        {
-          id: "cw-3",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[Markdown 文件代理]**: 分類完畢。已在此生成個人反思 Ingestion 提案，請確認。",
-          timestamp: now,
-        }
-      ]
-    } else if (sourceId === "image") {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[圖片分析代理]**: 偵測到新圖片上傳！正在執行多模態 OCR 解析與結構描繪...",
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: "🤖 **[系統智能]**: 圖片包含一張『系統設計架構圖與時序流程』。這可作專案文檔背景。建議歸類至 **工作** 分類中的架構資產庫。",
-          timestamp: now,
-        },
-        {
-          id: "cw-3",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[圖片分析代理]**: 好的，已將圖片記錄包裝為 Ingestion 提案供審查。",
-          timestamp: now,
-        }
-      ]
-    } else if (sourceId === "audio") {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[語音轉錄代理]**: 已收到新語音錄音檔案。啟動 Whisper 音訊轉譯，正在生成逐字稿與結構摘要...",
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: "🤖 **[系統智能]**: 轉譯結果顯示這是一段與商會理事長的拜訪談話。主要提及未來引薦機會與人脈連結。建議分類至 **商會** CRM 歸檔。",
-          timestamp: now,
-        },
-        {
-          id: "cw-3",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[語音轉錄代理]**: 已生成引薦人脈的 Ingestion 審核提案，並包含 Whisper 摘要供 Oliver 參考。",
-          timestamp: now,
-        }
-      ]
-    } else if (sourceId === "link") {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[網頁連結解析代理]**: 正在解析匯入的外部連結。讀取 HTML 中並抓取標題、敘事與結構...",
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: "🤖 **[系統智能]**: 該網頁包含關於 Next.js 16 更新的官方部落格。建議歸類至 **研究** 知識庫以擴展研究視野。",
-          timestamp: now,
-        },
-        {
-          id: "cw-3",
-          sender: "ai",
-          type: "text",
-          content: "🔄 **[網頁連結解析代理]**: 好的，已在此生成 Ingestion 提案。",
-          timestamp: now,
-        }
-      ]
-    } else {
-      coworkMessages = [
-        {
-          id: "cw-1",
-          sender: "ai",
-          type: "text",
-          content: `🔄 **[${label} 採集代理]**: 偵測到新來源同步中...`,
-          timestamp: now,
-        },
-        {
-          id: "cw-2",
-          sender: "ai",
-          type: "text",
-          content: `🤖 **[系統智能]**: 收到來源。建議進行自動分類，並在此生成 Ingestion 提案。`,
-          timestamp: now,
-        }
-      ]
-    }
+    const sourceCowork =
+      chatCopy.sourceCowork[sourceId as keyof typeof chatCopy.sourceCowork]
+      ?? chatCopy.sourceCowork.default
+    const title = withChatCopyTemplate(sourceCowork.title, { label })
+    const coworkMessages: ChatMessage[] = sourceCowork.messages.map((content, index) => ({
+      id: `cw-${index + 1}`,
+      sender: "ai",
+      type: "text",
+      content: withChatCopyTemplate(content, { label }),
+      timestamp: now,
+    }))
 
     const threadId = "source-" + sourceId
     setThreads((prev) => {
@@ -1263,7 +1340,7 @@ export default function AIInputClient({
       }
       const newThread: ChatThread = {
         id: threadId,
-        title: `🔄 ${label} 來源處理對話`,
+        title: `🔄 ${title}`,
         messages: coworkMessages,
         mode: "general",
         isImported: true,
@@ -1280,29 +1357,31 @@ export default function AIInputClient({
 
     setActiveConvId(threadId)
     setWorkspaceView("chat")
-    pushToast(`已切換至「${label} 來源處理對話」進行協作確認！`)
-  }, [threads, pushToast])
+    pushToast(withChatCopyTemplate(sourceCowork.toast, { label, title }))
+  }, [chatCopy, pushToast])
 
   const handleReferenceLibraryItem = React.useCallback((name: string, kind: "file" | "media") => {
     setMentions((prev) => {
       if (prev.some((m) => m.name === name)) {
-        pushToast("此項目已存在於本次對話的引用脈絡中。")
+        pushToast(chatCopy.referenceAlreadyAddedToast)
         return prev
       }
       const newMention: MentionRef = {
         kind: "source_asset",
         id: "lib-ref-" + Date.now(),
         name: name,
-        description: kind === "file" ? "自系統檔案庫引用" : "自系統媒體庫引用",
+        description: kind === "file"
+          ? chatCopy.fileReferenceDescription
+          : chatCopy.mediaReferenceDescription,
       }
-      pushToast(`已成功引用「${name}」作為本次對話的參考脈絡！`)
+      pushToast(withChatCopyTemplate(chatCopy.referenceAddedToast, { name }))
       return [...prev, newMention]
     })
-  }, [pushToast])
+  }, [chatCopy, pushToast])
 
   function handleAddLinks(urls: string[]) {
     addUrlCapture(urls)
-    handleSourceSyncAction("link", "連結", () => {})
+    handleSourceSyncAction("link", chatCopy.importActions.link, () => {})
   }
 
   const displayMessages = React.useMemo(() => {
@@ -1347,7 +1426,7 @@ export default function AIInputClient({
           id: makeClientId("mode"),
           sender: "ai",
           type: "system",
-          content: `${CHAT_MODES[newMode].label} 模式 — ${CHAT_MODES[newMode].hint}`,
+          content: `${getModeLabel(newMode)} - ${getModeHint(newMode)}`,
           timestamp: new Date(),
         },
       ])
@@ -1357,10 +1436,10 @@ export default function AIInputClient({
   const allActions = [
     { id: "line",      icon: <MessageSquareIcon />, label: "LINE",       onClick: () => handleSourceSyncAction("line", "LINE", mockSyncLINE) },
     { id: "googledoc", icon: <FileTextIcon />,      label: "Google Doc", onClick: () => handleSourceSyncAction("googledoc", "Google Doc", mockImportGoogleDoc) },
-    { id: "link",      icon: <LinkIcon />,          label: "連結",       onClick: () => {} }, // Dialog handled below
+    { id: "link",      icon: <LinkIcon />,          label: chatCopy.importActions.link, onClick: () => {} }, // Dialog handled below
     { id: "markdown",  icon: <FileTextIcon />,      label: "Markdown",   onClick: () => handleSourceSyncAction("markdown", "Markdown", mockUploadMarkdown) },
-    { id: "image",     icon: <UploadIcon />,         label: "圖片",       onClick: () => handleSourceSyncAction("image", "圖片", () => mockUploadMedia("image")) },
-    { id: "audio",     icon: <AudioLinesIcon />,     label: "語音",       onClick: () => handleSourceSyncAction("audio", "語音", () => mockUploadMedia("audio")) },
+    { id: "image",     icon: <UploadIcon />,         label: chatCopy.importActions.image, onClick: () => handleSourceSyncAction("image", chatCopy.importActions.image, () => mockUploadMedia("image")) },
+    { id: "audio",     icon: <AudioLinesIcon />,     label: chatCopy.importActions.audio, onClick: () => handleSourceSyncAction("audio", chatCopy.importActions.audio, () => mockUploadMedia("audio")) },
     { id: "rss",       icon: <RssIcon />,            label: "RSS",        onClick: () => handleSourceSyncAction("rss", "RSS", mockSyncRSS) },
   ]
 
@@ -1404,12 +1483,154 @@ export default function AIInputClient({
   const mockReviewCount = isMockDataEnabled ? MOCK_REVIEW_ITEMS.length : 0
   const reviewCount = mockReviewCount + pendingProposalCount
 
-  const ungroupedThreads = threads.filter((t) => !t.folderId)
+  const sourceIndexRows = React.useMemo<OwnerAIInputSourceIndexRow[]>(() => {
+    const rows = isMockDataEnabled
+      ? connectorsState.map((connector) => {
+          const display = getSourceConnectorDisplay(connector, sourceSettingsCopy)
+          return {
+            id: connector.id,
+            label: display.source,
+            meta: `${display.provider} · ${display.defaultModule}`,
+            status: connector.connectionStatus,
+            nextAction: display.nextAction,
+          }
+        })
+      : formalReadiness.sourceControlMatrix.rows.map((row) => ({
+          id: row.id,
+          label: row.source,
+          meta: `${row.provider} · ${row.defaultModule}`,
+          status: row.connectionStatus,
+          nextAction: row.nextAction,
+        }))
+
+    return rows.slice(0, 4)
+  }, [connectorsState, formalReadiness.sourceControlMatrix.rows, isMockDataEnabled, sourceSettingsCopy])
+
+  const sourceSummary = React.useMemo<OwnerAIInputSourceSummary>(() => {
+    if (isMockDataEnabled) {
+      return {
+        rowCount: connectorsState.length,
+        connectedCount: connectorsState.filter((connector) => connector.connectionStatus === "connected").length,
+        attentionCount: connectorsState.filter((connector) =>
+          connector.connectionStatus !== "connected" ||
+          connector.syncStatus === "review" ||
+          connector.syncStatus === "failed"
+        ).length,
+        providerCount: sourceConnectionCatalog.summary.providerCount,
+      }
+    }
+
+    return {
+      rowCount: formalReadiness.sourceControlMatrix.summary.rowCount,
+      connectedCount: formalReadiness.sourceControlMatrix.summary.connectedCount,
+      attentionCount:
+        formalReadiness.sourceControlMatrix.summary.needsSetupCount +
+        formalReadiness.sourceControlMatrix.summary.plannedCount +
+        formalReadiness.sourceControlMatrix.summary.missingPermissionCount +
+        formalReadiness.sourceControlMatrix.summary.highRiskCount,
+      providerCount: sourceConnectionCatalog.summary.providerCount,
+    }
+  }, [connectorsState, formalReadiness.sourceControlMatrix.summary, isMockDataEnabled, sourceConnectionCatalog.summary.providerCount])
+
+  // Sidebar sections mirror Claude.ai's Pinned/Projects/Chats layout: a
+  // thread appears in exactly one section, pinned threads taking priority.
+  // Chats always means the personal/uncategorized list — a Project is its
+  // own workspace (see projectViewId above), never a filter over this list.
+  const pinnedThreads = threads.filter((t) => t.pinned)
+  const projectFolders = folders
+    .filter((f) => f.id !== PERSONAL_FOLDER_ID)
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+  const openProject = projectFolders.find((f) => f.id === projectViewId) || null
+
+  // Search and the import filter are real, client-side filters over actual
+  // thread data — not decorative chrome.
+  function getThreadLastActivity(t: ChatThread): number {
+    const timestamps = t.messages.map((m) => m.timestamp.getTime())
+    return timestamps.length > 0 ? Math.max(...timestamps) : 0
+  }
+
+  const chatSectionThreads = threads
+    .filter((t) => !t.pinned && (t.folderId === PERSONAL_FOLDER_ID || t.folderId === null))
+    .filter((t) => chatTypeFilter === "all" || t.threadKind === chatTypeFilter)
+    .filter((t) => chatStatusFilter === "all" || (chatStatusFilter === "imported" ? t.isImported : !t.isImported))
+    .filter((t) => {
+      if (chatActivityFilter === "all") return true
+      const last = getThreadLastActivity(t)
+      const day = 24 * 60 * 60 * 1000
+      const elapsed = Date.now() - last
+      return chatActivityFilter === "today" ? elapsed < day : elapsed < 7 * day
+    })
+    .sort((a, b) =>
+      chatSortBy === "title"
+        ? getThreadDisplayTitle(a).localeCompare(getThreadDisplayTitle(b))
+        : getThreadLastActivity(b) - getThreadLastActivity(a)
+    )
+
+  // Group by is a real (non-decorative) grouping over the filtered/sorted
+  // set above — "none" renders as a single ungrouped list.
+  const chatSectionGroups: Array<{ label: string; items: ChatThread[] }> =
+    chatGroupBy === "none"
+      ? [{ label: "", items: chatSectionThreads }]
+      : chatGroupBy === "mode"
+      ? Array.from(
+          chatSectionThreads.reduce((map, t) => {
+            const key = getModeLabel(t.mode)
+            map.set(key, [...(map.get(key) ?? []), t])
+            return map
+          }, new Map<string, ChatThread[]>())
+        ).map(([label, items]) => ({ label, items }))
+      : (["imported", "not_imported"] as const)
+          .map((status) => ({
+            label: status === "imported" ? "已匯入來源" : "尚未匯入",
+            items: chatSectionThreads.filter((t) => (status === "imported" ? t.isImported : !t.isImported)),
+          }))
+          .filter((g) => g.items.length > 0)
+
   const deleteCandidateThread = threads.find((t) => t.id === deleteCandidateId) || null
+
+  function formatRelativeActivity(ms: number): string {
+    if (!ms) return ""
+    const diff = Date.now() - ms
+    const day = 24 * 60 * 60 * 1000
+    if (diff < day) return "今天"
+    if (diff < 2 * day) return "昨天"
+    if (diff < 7 * day) return "本週"
+    if (diff < 30 * day) return "上個月內"
+    return new Date(ms).toLocaleDateString()
+  }
+
+  // Real search over both projects and chats, like Claude's own "Search
+  // chats and projects" panel — not a mock/decorative results list.
+  const searchResults: Array<{ id: string; kind: "project" | "thread"; label: string; meta: string; sortKey: number }> = (() => {
+    const q = chatSearchQuery.trim().toLowerCase()
+    const projectMatches = folders
+      .filter((f) => f.id !== PERSONAL_FOLDER_ID)
+      .map((f) => ({ folder: f, label: getFolderDisplayLabel(f) }))
+      .filter(({ label }) => !q || label.toLowerCase().includes(q))
+      .map(({ folder, label }) => ({
+        id: folder.id,
+        kind: "project" as const,
+        label,
+        meta: `${threads.filter((t) => t.folderId === folder.id).length} 個對話`,
+        sortKey: Math.max(0, ...threads.filter((t) => t.folderId === folder.id).map(getThreadLastActivity)),
+      }))
+    const threadMatches = threads
+      .map((t) => ({ thread: t, label: getThreadDisplayTitle(t) }))
+      .filter(({ label }) => !q || label.toLowerCase().includes(q))
+      .map(({ thread, label }) => ({
+        id: thread.id,
+        kind: "thread" as const,
+        label,
+        meta: formatRelativeActivity(getThreadLastActivity(thread)),
+        sortKey: getThreadLastActivity(thread),
+      }))
+    return [...projectMatches, ...threadMatches].sort((a, b) => b.sortKey - a.sortKey)
+  })()
 
   function renderThreadRow(t: ChatThread) {
     const isActive = t.id === activeConvId
     const isRenaming = renamingThreadId === t.id
+    const displayTitle = getThreadDisplayTitle(t)
     return (
       <div
         key={t.id}
@@ -1435,14 +1656,25 @@ export default function AIInputClient({
           />
         ) : (
           <button
-            onClick={() => setActiveConvId(t.id)}
-            onDoubleClick={() => beginRenameThread(t.id, t.title)}
+            onClick={() => { setActiveConvId(t.id); setProjectViewId(null) }}
+            onDoubleClick={() => beginRenameThread(t.id, displayTitle)}
             className="flex-1 min-w-0 flex items-center gap-2 px-2.5 py-2 text-left"
           >
-            <span className="truncate flex-1">{t.title}</span>
+            <MessageSquareIcon className="size-3 shrink-0 text-muted-foreground/50" />
+            {t.pinned && <PinIcon className="size-3 shrink-0 text-muted-foreground/70" />}
+            <span className="truncate flex-1">{displayTitle}</span>
             {t.isSourceThread && (
               <span className="size-1.5 rounded-full bg-blue-500 shrink-0" />
             )}
+          </button>
+        )}
+        {!isRenaming && (
+          <button
+            onClick={(e) => { e.stopPropagation(); beginRenameThread(t.id, displayTitle) }}
+            title={chatCopy.renameThread}
+            className="shrink-0 size-5 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-muted"
+          >
+            <PenLineIcon className="size-3" />
           </button>
         )}
         {!isRenaming && (
@@ -1461,33 +1693,44 @@ export default function AIInputClient({
               <DropdownMenuItem
                 onClick={() => {
                   navigator.clipboard.writeText(t.referenceCode)
-                  pushToast(`已複製 AI 參考代碼：${t.referenceCode}`)
+                  pushToast(withChatCopyTemplate(chatCopy.copiedReferenceToast, { reference: t.referenceCode }))
                 }}
               >
                 <CopyIcon className="size-3.5" />
                 <span className="font-mono text-[10px] truncate">{t.referenceCode}</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => beginRenameThread(t.id, t.title)}>
-                <PenLineIcon className="size-3.5" /> 重新命名
+              <DropdownMenuItem onClick={() => handleTogglePinThread(t.id)}>
+                {t.pinned ? (
+                  <>
+                    <PinOffIcon className="size-3.5" /> 取消釘選
+                  </>
+                ) : (
+                  <>
+                    <PinIcon className="size-3.5" /> 釘選
+                  </>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => beginRenameThread(t.id, displayTitle)}>
+                <PenLineIcon className="size-3.5" /> {chatCopy.renameThread}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleAutoTitleThread(t.id)}>
-                <SparklesIcon className="size-3.5" /> AI 命名
+                <SparklesIcon className="size-3.5" /> {chatCopy.aiNameThread}
               </DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <FolderIcon className="size-3.5" /> 移到資料夾
+                  <FolderIcon className="size-3.5" /> {chatCopy.moveToFolder}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   {t.folderId !== null && (
                     <DropdownMenuItem onClick={() => handleMoveThreadToFolder(t.id, null)}>
-                      未分類
+                      {chatCopy.uncategorized}
                     </DropdownMenuItem>
                   )}
                   {folders.map((f) => (
                     f.id !== t.folderId && (
                       <DropdownMenuItem key={f.id} onClick={() => handleMoveThreadToFolder(t.id, f.id)}>
-                        {f.label}
+                        {getFolderDisplayLabel(f)}
                       </DropdownMenuItem>
                     )
                   ))}
@@ -1495,7 +1738,7 @@ export default function AIInputClient({
               </DropdownMenuSub>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteCandidateId(t.id)}>
-                <Trash2Icon className="size-3.5" /> 刪除對話
+                <Trash2Icon className="size-3.5" /> {chatCopy.deleteConversation}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1506,125 +1749,383 @@ export default function AIInputClient({
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
-      <AIInputSubpageNav
+      <AIInputHeaderBar
         activeView={workspaceView}
         contextCount={mentions.length}
-        reviewCount={reviewCount}
-        syncSourceCount={isMockDataEnabled ? MOCK_SOURCE_CONNECTORS.length : formalReadiness.sourceControlMatrix.summary.rowCount}
+        isDemoAccount={isDemoAccount}
         isMockDataEnabled={isMockDataEnabled}
-        onToggleMockData={toggleMockData}
+        pendingProposalCount={pendingProposalCount}
+        reviewCount={reviewCount}
+        sourceIndexRows={sourceIndexRows}
+        sourceSummary={sourceSummary}
+        syncSourceCount={isMockDataEnabled ? MOCK_SOURCE_CONNECTORS.length : formalReadiness.sourceControlMatrix.summary.rowCount}
+        threadCount={threads.length}
+        workflowRunCount={isMockDataEnabled ? MOCK_WORKFLOW_RUNS.length : formalReadiness.sourceWorkflow.summary.totalObjects}
+        onCapture={() => {
+          setWorkspaceView("chat")
+          setInputText((current) => current || chatCopy.capturePrompt)
+          setTimeout(() => textareaRef.current?.focus(), 0)
+        }}
         onChange={setWorkspaceView}
+        onToggleMockData={toggleMockData}
       />
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         {workspaceView === "chat" && (
           <div className="flex h-full w-full overflow-hidden">
-            {/* Left Thread List Sidebar */}
+            {/* Left Thread List Sidebar — Claude.ai-style New/Scheduled header
+                plus Pinned/Projects/Chats sections. */}
             <div className="w-56 shrink-0 border-r border-border/50 bg-muted/15 flex flex-col overflow-hidden">
-              <div className="p-3 border-b border-border/50 flex items-center justify-between">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">對話與來源處理</span>
-                <div className="flex items-center gap-0.5">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-5 rounded-md hover:bg-muted"
-                    title="新增資料夾"
-                    onClick={handleCreateFolder}
-                  >
-                    <FolderPlusIcon className="size-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-5 rounded-md hover:bg-muted"
-                    title="新增對話"
-                    onClick={() => startNewConversation(undefined, "💬 新增對話")}
-                  >
-                    <PlusIcon className="size-3" />
-                  </Button>
-                </div>
+              {/* A plain, always-visible list — like Claude's own top-of-
+                  sidebar rows — not a menu you have to click open. */}
+              <div className="p-1.5 border-b border-border/50 space-y-0.5">
+                <button
+                  onClick={() => startNewConversation(undefined, chatCopy.newConversationTitle)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors"
+                >
+                  <PlusIcon className="size-3.5 shrink-0" />
+                  {chatCopy.addConversation}
+                </button>
+                <button
+                  onClick={() => setIsScheduledDialogOpen(true)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors"
+                >
+                  <Clock3Icon className="size-3.5 shrink-0" />
+                  排程任務
+                </button>
               </div>
-              <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 no-scrollbar">
-                {ungroupedThreads.map(renderThreadRow)}
+              <div className="flex-1 overflow-y-auto p-1.5 no-scrollbar">
+                {pinnedThreads.length > 0 && (
+                  <div className="pb-2">
+                    <p className="px-1.5 pb-1 text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider">Pinned</p>
+                    <div className="space-y-0.5">{pinnedThreads.map(renderThreadRow)}</div>
+                  </div>
+                )}
 
-                {folders.map((folder) => {
-                  const folderThreads = threads.filter((t) => t.folderId === folder.id)
-                  return (
-                    <div key={folder.id} className="pt-1">
-                      <button
-                        onClick={() => handleToggleFolder(folder.id)}
-                        className="w-full flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:bg-muted/50"
-                      >
-                        {folder.collapsed ? (
-                          <ChevronRightIcon className="size-3" />
-                        ) : (
-                          <ChevronDownIcon className="size-3" />
-                        )}
-                        <FolderIcon className="size-3" />
-                        <span className="flex-1 text-left truncate">{folder.label}</span>
-                        <span className="text-muted-foreground/70">{folderThreads.length}</span>
-                      </button>
-                      {!folder.collapsed && (
-                        <div className="space-y-0.5">
-                          {folderThreads.length === 0 ? (
-                            <div className="px-3 py-1.5 text-[11px] text-muted-foreground/60">尚無對話</div>
-                          ) : (
-                            folderThreads.map(renderThreadRow)
+                {/* Projects — flat rows like Claude's own Projects list, no
+                    nested per-folder chat tree (that would just repeat what
+                    the folder name already says). Clicking a project filters
+                    the Chats section below to that project's conversations. */}
+                <div className="pb-2">
+                  <div className="flex items-center gap-1 px-1.5 pb-1">
+                    <button
+                      onClick={() => setIsProjectsSectionCollapsed((v) => !v)}
+                      className="flex flex-1 items-center gap-1 text-left text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider hover:text-foreground"
+                    >
+                      <ChevronDownIcon className={cn("size-3 transition-transform", isProjectsSectionCollapsed && "-rotate-90")} />
+                      Projects
+                    </button>
+                    {projectFolders.reduce((sum, f) => sum + threads.filter((t) => t.folderId === f.id).length, 0) > 0 && (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {projectFolders.reduce((sum, f) => sum + threads.filter((t) => t.folderId === f.id).length, 0)}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setIsNewFolderDialogOpen(true)}
+                      title={chatCopy.addFolder}
+                      className="size-5 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <PlusIcon className="size-3" />
+                    </button>
+                  </div>
+                  {!isProjectsSectionCollapsed && (
+                  <div className="space-y-0.5">
+                    {projectFolders.map((folder) => {
+                      const folderThreadCount = threads.filter((t) => t.folderId === folder.id).length
+                      const isOpen = projectViewId === folder.id
+                      const isRenaming = renamingFolderId === folder.id
+                      const folderLabel = getFolderDisplayLabel(folder)
+                      if (isRenaming) {
+                        return (
+                          <input
+                            key={folder.id}
+                            autoFocus
+                            value={folderRenameDraft}
+                            onChange={(e) => setFolderRenameDraft(e.target.value)}
+                            onBlur={commitRenameFolder}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") commitRenameFolder()
+                              if (e.key === "Escape") cancelRenameFolder()
+                            }}
+                            onFocus={(e) => e.currentTarget.select()}
+                            className="w-full rounded-lg border border-primary/40 bg-background px-2 py-1.5 text-xs outline-none"
+                          />
+                        )
+                      }
+                      return (
+                        <div
+                          key={folder.id}
+                          className={cn(
+                            "group w-full flex items-center gap-1 rounded-lg text-xs font-medium transition-colors",
+                            isOpen
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                           )}
+                        >
+                          <button
+                            onClick={() => setProjectViewId(folder.id)}
+                            className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left"
+                          >
+                            <FolderIcon className="size-3.5 shrink-0" />
+                            {folder.pinned && <PinIcon className="size-3 shrink-0 text-muted-foreground/70" />}
+                            <span className="flex-1 text-left truncate">{folderLabel}</span>
+                            <span className="text-muted-foreground/60">{folderThreadCount}</span>
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); beginRenameFolder(folder.id, folderLabel) }}
+                            title={chatCopy.renameThread}
+                            className="shrink-0 size-5 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-muted"
+                          >
+                            <PenLineIcon className="size-3" />
+                          </button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <button
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="shrink-0 mr-1 size-5 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-muted data-open:opacity-100"
+                                />
+                              }
+                            >
+                              <MoreVerticalIcon className="size-3.5" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-40">
+                              <DropdownMenuItem onClick={() => beginRenameFolder(folder.id, folderLabel)}>
+                                <PenLineIcon className="size-3.5" /> {chatCopy.renameThread}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem variant="destructive" onClick={() => setDeleteFolderCandidateId(folder.id)}>
+                                <Trash2Icon className="size-3.5" /> 刪除 Project
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
+                      )
+                    })}
+                  </div>
+                  )}
+                </div>
+
+                <div className="pb-2">
+                  <div className="flex items-center gap-1 px-1.5 pb-1">
+                    <button
+                      onClick={() => setIsChatsSectionCollapsed((v) => !v)}
+                      className="flex flex-1 items-center gap-1 text-left text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider hover:text-foreground"
+                    >
+                      <ChevronDownIcon className={cn("size-3 transition-transform", isChatsSectionCollapsed && "-rotate-90")} />
+                      Chats
+                    </button>
+                    {chatSectionThreads.length > 0 && (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {chatSectionThreads.length}
+                      </span>
+                    )}
+                    {/* Search opens a pop-up panel over the whole workspace,
+                        like Claude's own Cmd+K-style chat/project search —
+                        not an inline text field squeezed into the sidebar. */}
+                    <button
+                      onClick={() => setIsSearchDialogOpen(true)}
+                      title="搜尋對話與 Project"
+                      className="size-5 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <SearchIcon className="size-3" />
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <button
+                            title="篩選與排序"
+                            className={cn(
+                              "size-5 rounded-md flex items-center justify-center hover:bg-muted",
+                              chatTypeFilter !== "all" || chatStatusFilter !== "all" || chatActivityFilter !== "all" || chatGroupBy !== "none"
+                                ? "text-foreground bg-muted"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          />
+                        }
+                      >
+                        <SlidersHorizontalIcon className="size-3" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="text-xs">
+                            Type
+                            <span className="ml-auto text-muted-foreground">
+                              {chatTypeFilter === "all" ? "All" : chatTypeFilter === "personal" ? "個人" : "來源協作"}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => setChatTypeFilter("all")} className="text-xs">All</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatTypeFilter("personal")} className="text-xs">個人對話</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatTypeFilter("source_coworking")} className="text-xs">來源協作</DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="text-xs">
+                            Status
+                            <span className="ml-auto text-muted-foreground">
+                              {chatStatusFilter === "all" ? "All" : chatStatusFilter === "imported" ? "已匯入" : "未匯入"}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => setChatStatusFilter("all")} className="text-xs">All</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatStatusFilter("imported")} className="text-xs">已匯入來源</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatStatusFilter("not_imported")} className="text-xs">尚未匯入</DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="text-xs">
+                            Last activity
+                            <span className="ml-auto text-muted-foreground">
+                              {chatActivityFilter === "all" ? "All" : chatActivityFilter === "today" ? "今天" : "本週"}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => setChatActivityFilter("all")} className="text-xs">All</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatActivityFilter("today")} className="text-xs">今天</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatActivityFilter("week")} className="text-xs">本週</DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="text-xs">
+                            Group by
+                            <span className="ml-auto text-muted-foreground">
+                              {chatGroupBy === "none" ? "None" : chatGroupBy === "mode" ? "模式" : "狀態"}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => setChatGroupBy("none")} className="text-xs">None</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatGroupBy("mode")} className="text-xs">依模式</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatGroupBy("status")} className="text-xs">依匯入狀態</DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger className="text-xs">
+                            Sort by
+                            <span className="ml-auto text-muted-foreground">
+                              {chatSortBy === "last_activity" ? "最後活動" : "標題"}
+                            </span>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => setChatSortBy("last_activity")} className="text-xs">最後活動時間</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setChatSortBy("title")} className="text-xs">標題</DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <button
+                      onClick={() => startNewConversation(undefined, chatCopy.newConversationTitle)}
+                      title={chatCopy.addConversation}
+                      className="size-5 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <PlusIcon className="size-3" />
+                    </button>
+                  </div>
+
+                  {!isChatsSectionCollapsed && (
+                    chatSectionThreads.length === 0 ? (
+                      <div className="px-3 py-1.5 text-[11px] text-muted-foreground/60">{chatCopy.emptyFolder}</div>
+                    ) : (
+                      chatSectionGroups.map((group) => (
+                        <div key={group.label || "_all"} className="space-y-0.5 pb-1">
+                          {group.label && (
+                            <p className="px-2 pt-1 text-[10px] font-medium text-muted-foreground/50">{group.label}</p>
+                          )}
+                          {group.items.map(renderThreadRow)}
+                        </div>
+                      ))
+                    )
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Right Chat Main Area */}
             <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
-              {activeConvId === "default" && messages.length <= 1 ? (
-          /* Landing Screen */
-          <div className="flex h-full flex-col items-center justify-start overflow-y-auto px-6 pb-16 pt-12 md:pt-16 xl:pt-20">
+              {openProject ? (
+          <ProjectWorkspaceView
+            folderLabel={getFolderDisplayLabel(openProject)}
+            isPinned={!!openProject.pinned}
+            onTogglePin={() => handleTogglePinFolder(openProject.id)}
+            onRename={() => beginRenameFolder(openProject.id, getFolderDisplayLabel(openProject))}
+            onDelete={() => setDeleteFolderCandidateId(openProject.id)}
+            chatCount={threads.filter((t) => t.folderId === openProject.id).length}
+            chatRows={threads.filter((t) => t.folderId === openProject.id).map(renderThreadRow)}
+            contextItems={Array.from(
+              new Map(
+                threads
+                  .filter((t) => t.folderId === openProject.id)
+                  .flatMap((t) => t.mentions)
+                  .map((m) => [m.id, m])
+              ).values()
+            )}
+            onBack={() => setProjectViewId(null)}
+            onSend={(text, mode) => {
+              startNewConversation(text, chatCopy.newConversationTitle, openProject.id, mode)
+              setProjectViewId(null)
+            }}
+            isMockDataEnabled={isMockDataEnabled}
+            allActions={allActions}
+            onAddLink={handleAddLinks}
+            onVoice={() => handleSourceSyncAction("audio", chatCopy.importActions.audio, () => mockUploadMedia("audio"))}
+            chatCopy={chatCopy}
+            getModeLabel={getModeLabel}
+          />
+        ) : activeConvId === "default" && messages.length <= 1 ? (
+          /* Landing Screen — vertically centered like claude.ai's own
+             empty-state composer, rather than pinned to the top. */
+          <div className="flex h-full flex-col items-center justify-center overflow-y-auto px-6 py-12">
             <div className="w-full max-w-2xl space-y-8">
-              <MockModeInlineNotice isMockDataEnabled={isMockDataEnabled} />
+              {isDemoAccount && <MockModeInlineNotice isMockDataEnabled={isMockDataEnabled} />}
 
               <div className="text-center space-y-1">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                  再度光臨，Oliver
+                  {chatCopy.landingTitle}
                 </h1>
-                <p className="text-sm text-muted-foreground">有什麼想整理或思考的嗎？</p>
+                <p className="text-sm text-muted-foreground">{chatCopy.landingSubtitle}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                {QUICK_PROMPTS.map((qp) => (
-                  <button
-                    key={qp.label}
-                    onClick={() => handleQuickPrompt(qp.prompt)}
-                    className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3.5 text-sm text-left hover:bg-muted/60 transition-colors group"
-                  >
-                    <span className="text-muted-foreground group-hover:text-foreground transition-colors">{qp.icon}</span>
-                    <span className="font-medium">{qp.label}</span>
-                  </button>
-                ))}
-              </div>
+              {SHOW_LANDING_SUGGESTIONS && (
+                <>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {QUICK_PROMPTS.map((qp) => (
+                      <button
+                        key={qp.id}
+                        onClick={() => handleQuickPrompt(chatCopy.quickPrompts[qp.id].prompt)}
+                        className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3.5 text-sm text-left hover:bg-muted/60 transition-colors group"
+                      >
+                        <span className="text-muted-foreground group-hover:text-foreground transition-colors">{qp.icon}</span>
+                        <span className="font-medium">{chatCopy.quickPrompts[qp.id].label}</span>
+                      </button>
+                    ))}
+                  </div>
 
-              <div className="grid gap-2 md:grid-cols-3">
-                {COWORK_STARTERS.map((starter) => (
-                  <button
-                    key={starter.id}
-                    onClick={() => handleCoworkStarter(starter)}
-                    className="min-h-24 rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-left transition-colors hover:bg-muted/50"
-                  >
-                    <span className="text-primary">{starter.icon}</span>
-                    <span className="mt-2 block text-sm font-semibold">{starter.label}</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{starter.contextHint}</span>
-                  </button>
-                ))}
-              </div>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {COWORK_STARTERS.map((starter) => (
+                      <button
+                        key={starter.id}
+                        onClick={() =>
+                          handleCoworkStarter({
+                            ...starter,
+                            ...chatCopy.coworkStarters[starter.id as keyof typeof chatCopy.coworkStarters],
+                          })
+                        }
+                        className="min-h-24 rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                      >
+                        <span className="text-primary">{starter.icon}</span>
+                        <span className="mt-2 block text-sm font-semibold">{chatCopy.coworkStarters[starter.id as keyof typeof chatCopy.coworkStarters].label}</span>
+                        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{chatCopy.coworkStarters[starter.id as keyof typeof chatCopy.coworkStarters].contextHint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <div className="relative">
                 {filteredMentions.length > 0 && (
                   <div className="absolute bottom-full mb-2 left-0 right-0 z-20 rounded-xl border border-border bg-popover shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                    <p className="px-3 pt-2 pb-1 text-[10px] font-medium text-muted-foreground uppercase tracking-widest">選擇參考來源</p>
+                    <p className="px-3 pt-2 pb-1 text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{chatCopy.referencePicker}</p>
                     {filteredMentions.map((m) => (
                       <button
                         key={m.id}
@@ -1660,36 +2161,27 @@ export default function AIInputClient({
                       handleSend()
                     }
                   }}
-                  placeholder="輸入訊息、想法，或直接開始對話…輸入 @ 可選擇參考來源"
-                  className="w-full bg-muted/30 border border-border/60 rounded-2xl px-4 py-4 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-none min-h-[60px] max-h-[180px]"
+                  placeholder={chatCopy.inputPlaceholder}
+                  className="w-full bg-muted/30 border border-border/60 rounded-t-2xl rounded-b-none px-4 pt-4 pb-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-none min-h-[60px] max-h-[180px]"
                   rows={2}
                 />
-                <button
-                  onClick={handleSend}
-                  disabled={!inputText.trim() && mentions.length === 0}
-                  className="absolute right-3 bottom-3 p-2 rounded-xl bg-primary text-primary-foreground disabled:opacity-30 transition-all hover:scale-105 active:scale-95"
-                >
-                  <SendIcon className="size-4" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap justify-center">
-                {isMockDataEnabled ? (
-                  <>
-                    <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-widest mr-1">快速匯入</span>
-                    <ActionButton icon={<MessageSquareIcon />} label="LINE" onClick={() => handleSourceSyncAction("line", "LINE", mockSyncLINE)} />
-                    <AddLinkDialog onAdd={handleAddLinks} />
-                    <ActionButton icon={<FileTextIcon />} label="Google Doc" onClick={() => handleSourceSyncAction("googledoc", "Google Doc", mockImportGoogleDoc)} />
-                    <ActionButton icon={<FileTextIcon />} label="Markdown" onClick={() => handleSourceSyncAction("markdown", "Markdown", mockUploadMarkdown)} />
-                    <ActionButton icon={<UploadIcon />} label="圖片" onClick={() => handleSourceSyncAction("image", "圖片", () => mockUploadMedia("image"))} />
-                    <ActionButton icon={<AudioLinesIcon />} label="語音" onClick={() => handleSourceSyncAction("audio", "語音", () => mockUploadMedia("audio"))} />
-                    <ActionButton icon={<RssIcon />} label="RSS" onClick={() => handleSourceSyncAction("rss", "RSS", mockSyncRSS)} />
-                  </>
-                ) : (
-                  <p className="text-center text-xs leading-relaxed text-muted-foreground">
-                    Mock 快速匯入已關閉。等 SourceAsset / Workflow Run 接上 Supabase-backed BFF 後，這裡會改成真實匯入入口。
-                  </p>
-                )}
+                <div className="rounded-b-2xl border border-t-0 border-border/60 bg-muted/30 px-3 pb-2.5 pt-1">
+                  <ComposerToolbar
+                    mode={mode}
+                    onModeChange={handleModeChange}
+                    activeFolderId={activeThread.folderId}
+                    folderOptions={folders.map((f) => ({ id: f.id, label: getFolderDisplayLabel(f) }))}
+                    onFolderChange={(folderId) => handleMoveThreadToFolder(activeConvId, folderId)}
+                    isMockDataEnabled={isMockDataEnabled}
+                    allActions={allActions}
+                    onAddLink={handleAddLinks}
+                    onVoice={() => handleSourceSyncAction("audio", chatCopy.importActions.audio, () => mockUploadMedia("audio"))}
+                    chatCopy={chatCopy}
+                    getModeLabel={getModeLabel}
+                    onSend={handleSend}
+                    sendDisabled={!inputText.trim() && mentions.length === 0}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1707,14 +2199,14 @@ export default function AIInputClient({
                   <div className="text-xs">
                     {!isImported ? (
                       <>
-                        <span className="font-semibold text-foreground">對話狀態：保存在聊天視窗</span>
-                        <span className="text-muted-foreground ml-1.5">(尚未匯入來源分析)</span>
+                        <span className="font-semibold text-foreground">{chatCopy.statusSavedInChat}</span>
+                        <span className="text-muted-foreground ml-1.5">({chatCopy.statusNotImported})</span>
                       </>
                     ) : (
                       <>
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">對話狀態：已匯入來源分析</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">{chatCopy.statusImported}</span>
                         <span className="text-muted-foreground ml-1.5">
-                          (方式: {importType === "manual" ? "手動確認" : "閒置 24 小時自動匯入"})
+                          ({chatCopy.importMethod}: {importType === "manual" ? chatCopy.importManualMethod : chatCopy.importIdleMethod})
                         </span>
                       </>
                     )}
@@ -1732,7 +2224,7 @@ export default function AIInputClient({
                         className="bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] h-7 px-2.5 rounded-lg transition-all active:scale-95 disabled:opacity-40 flex items-center gap-1"
                       >
                         <InboxIcon className="size-3.5" />
-                        <span>手動匯入來源分析</span>
+                        <span>{chatCopy.manualImport}</span>
                       </Button>
                       <Button
                         size="xs"
@@ -1742,11 +2234,11 @@ export default function AIInputClient({
                         className="border-border/60 hover:bg-muted text-[11px] h-7 px-2.5 rounded-lg transition-all active:scale-95 disabled:opacity-40 flex items-center gap-1"
                       >
                         <ZapIcon className="size-3.5 text-amber-500 fill-amber-500/10" />
-                        <span>模擬閒置 24h</span>
+                        <span>{chatCopy.simulateIdleImport}</span>
                       </Button>
                       <span className="text-[10px] text-muted-foreground/60 hidden xl:inline-flex items-center gap-0.5">
                         (<Clock3Icon className="size-3" />
-                        <span>24h 閒置自動匯入</span>)
+                        <span>{chatCopy.idleImportHint}</span>)
                       </span>
                     </>
                   ) : (
@@ -1756,7 +2248,8 @@ export default function AIInputClient({
                       disabled
                       className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-[11px] h-7 px-2.5 rounded-lg border border-emerald-200/50 dark:border-emerald-900/50 font-medium"
                     >
-                      ✓ 已安全匯入 Ingestion
+                      <CheckCircle2Icon className="size-3.5" />
+                      {chatCopy.importedSafe}
                     </Button>
                   )}
                 </div>
@@ -1840,93 +2333,10 @@ export default function AIInputClient({
             </div>
 
             <div className="border-t border-border/50 bg-background/80 backdrop-blur-xl p-4 pb-6">
-              <div className="max-w-2xl mx-auto space-y-3">
-                {/* Mode tabs */}
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                  {(Object.keys(CHAT_MODES) as ChatMode[]).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => handleModeChange(m)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
-                        mode === m
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      )}
-                    >
-                      {CHAT_MODES[m].label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Import actions dropdown (unfiltered) */}
-                {isMockDataEnabled && (
-                  <div className="flex items-center gap-2 pb-0.5">
-                    <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">匯入</span>
-                    <div className="relative">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 rounded-full border-border/50 bg-background/50 hover:bg-muted text-xs font-normal gap-1.5 px-3 whitespace-nowrap shadow-sm"
-                        onClick={() => setIsImportDropdownOpen(!isImportDropdownOpen)}
-                      >
-                        <PlusIcon className="size-3 text-muted-foreground" />
-                        <span>選擇匯入來源</span>
-                      </Button>
-
-                      <AnimatePresence>
-                        {isImportDropdownOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setIsImportDropdownOpen(false)}
-                            />
-                            <motion.div
-                              initial={{ opacity: 0, y: 5 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 5 }}
-                              transition={{ duration: 0.15 }}
-                              className="absolute bottom-full left-0 mb-2 w-44 rounded-xl border border-border/50 bg-background/95 backdrop-blur-md p-1 shadow-lg z-50 flex flex-col gap-0.5"
-                            >
-                              {allActions.map((a) => (
-                                a.id === "link" ? (
-                                  <AddLinkDialog
-                                    key={a.id}
-                                    onAdd={handleAddLinks}
-                                    trigger={
-                                      <button
-                                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-                                        onClick={() => setIsImportDropdownOpen(false)}
-                                      >
-                                        <span className="size-3 text-muted-foreground flex items-center justify-center [&>svg]:size-3">{a.icon}</span>
-                                        <span className="flex-1">{a.label}</span>
-                                      </button>
-                                    }
-                                  />
-                                ) : (
-                                  <button
-                                    key={a.id}
-                                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-                                    onClick={() => {
-                                      setIsImportDropdownOpen(false)
-                                      a.onClick()
-                                    }}
-                                  >
-                                    <span className="size-3 text-muted-foreground flex items-center justify-center [&>svg]:size-3">{a.icon}</span>
-                                    <span className="flex-1">{a.label}</span>
-                                  </button>
-                                )
-                              ))}
-                            </motion.div>
-                          </>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                )}
+              <div className="max-w-2xl mx-auto space-y-2">
                 {!isMockDataEnabled && (
                   <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    正式模式已啟用，mock 匯入已關閉。對話仍可使用；來源寫入需等 Supabase-backed SourceAsset BFF 接上。
+                    {chatCopy.liveModeChatNote}
                   </p>
                 )}
 
@@ -1947,7 +2357,7 @@ export default function AIInputClient({
                   {/* Mention picker dropdown */}
                   {filteredMentions.length > 0 && (
                     <div className="absolute bottom-full mb-2 left-0 right-0 z-20 rounded-xl border border-border bg-popover shadow-lg overflow-hidden max-h-48 overflow-y-auto">
-                      <p className="px-3 pt-2 pb-1 text-[10px] font-medium text-muted-foreground uppercase tracking-widest">選擇參考來源</p>
+                      <p className="px-3 pt-2 pb-1 text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{chatCopy.referencePicker}</p>
                       {filteredMentions.map((m) => (
                         <button
                           key={m.id}
@@ -1974,17 +2384,27 @@ export default function AIInputClient({
                         handleSend()
                       }
                     }}
-                    placeholder={atQuery !== null ? "搜尋 LINE 群組或文件…" : CHAT_MODES[mode].placeholder}
-                    className="w-full bg-muted/40 border border-border/60 rounded-2xl px-4 py-3.5 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-none min-h-[52px] max-h-[160px]"
+                    placeholder={atQuery !== null ? chatCopy.searchReferencePlaceholder : getModePlaceholder(mode)}
+                    className="w-full bg-muted/40 border border-border/60 rounded-t-2xl rounded-b-none px-4 pt-3.5 pb-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all resize-none min-h-[52px] max-h-[160px]"
                     rows={1}
                   />
-                  <button
-                    onClick={handleSend}
-                    disabled={!inputText.trim() && mentions.length === 0}
-                    className="absolute right-3 bottom-3 p-1.5 rounded-xl bg-primary text-primary-foreground disabled:opacity-30 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <SendIcon className="size-3.5" />
-                  </button>
+                  <div className="rounded-b-2xl border border-t-0 border-border/60 bg-muted/40 px-3 pb-2 pt-1">
+                    <ComposerToolbar
+                      mode={mode}
+                      onModeChange={handleModeChange}
+                      activeFolderId={activeThread.folderId}
+                      folderOptions={folders.map((f) => ({ id: f.id, label: getFolderDisplayLabel(f) }))}
+                      onFolderChange={(folderId) => handleMoveThreadToFolder(activeConvId, folderId)}
+                      isMockDataEnabled={isMockDataEnabled}
+                      allActions={allActions}
+                      onAddLink={handleAddLinks}
+                      onVoice={() => handleSourceSyncAction("audio", chatCopy.importActions.audio, () => mockUploadMedia("audio"))}
+                      chatCopy={chatCopy}
+                      getModeLabel={getModeLabel}
+                      onSend={handleSend}
+                      sendDisabled={!inputText.trim() && mentions.length === 0}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1997,9 +2417,9 @@ export default function AIInputClient({
 
         {workspaceView === "context" && (
           <SubpageShell
-            description="只管理這次 AI 對話要引用哪些背景。這裡不是來源同步設定，也不會寫入模組資料。"
-            eyebrow="Reference Context"
-            title="參考脈絡"
+            description={chatCopy.subpageShell.context.description}
+            eyebrow={chatCopy.subpageShell.context.eyebrow}
+            title={chatCopy.subpageShell.context.title}
           >
             <SourceContextPanelContent
               mentionOptions={mentionOptions}
@@ -2013,9 +2433,9 @@ export default function AIInputClient({
 
         {workspaceView === "files" && (
           <SubpageShell
-            description="管理系統所有的檔案資產：每份檔案可能同時具備 Google Drive 外部來源與 PersonalOS 已保存的 Snapshot。您可以直接在此上傳新檔案，或將其引用作為目前對話的背景參考。"
-            eyebrow="File Library"
-            title="系統檔案庫"
+            description={chatCopy.subpageShell.files.description}
+            eyebrow={chatCopy.subpageShell.files.eyebrow}
+            title={chatCopy.subpageShell.files.title}
             wide
           >
             <FileLibraryPage
@@ -2027,9 +2447,9 @@ export default function AIInputClient({
 
         {workspaceView === "media" && (
           <SubpageShell
-            description="管理系統的所有媒體資產：圖片、影片與音樂。依分類瀏覽，上傳後可直接引用至當前 AI 對話進行多模態分析（圖片 OCR、影片畫面辨識、語音轉錄）。"
-            eyebrow="Media Library"
-            title="系統媒體庫"
+            description={chatCopy.subpageShell.media.description}
+            eyebrow={chatCopy.subpageShell.media.eyebrow}
+            title={chatCopy.subpageShell.media.title}
             wide
           >
             <MediaLibraryPage
@@ -2041,13 +2461,15 @@ export default function AIInputClient({
 
         {workspaceView === "settings" && (
           <SubpageShell
-            description="查看 LINE、Drive、Docs、RSS、Telegram、Gmail、GitHub 等外部來源的串接狀態、同步健康度、範圍與確認條件。這不是當前對話引用內容。"
-            eyebrow="Source Settings"
-            title="同步設定"
+            description={chatCopy.subpageShell.settings.description}
+            eyebrow={chatCopy.subpageShell.settings.eyebrow}
+            title={chatCopy.subpageShell.settings.title}
             wide
           >
             <SourceStructurePanelContent
+              key={isMockDataEnabled ? "mock-source-settings" : "formal-source-settings"}
               formalReadiness={formalReadiness}
+              sourceConnectionCatalog={sourceConnectionCatalog}
               isMockDataEnabled={isMockDataEnabled}
               resourceNodesCount={resourceNodes.length}
               connectorsState={connectorsState}
@@ -2060,10 +2482,10 @@ export default function AIInputClient({
         {workspaceView === "workbench" && (
           <SubpageShell
             description={isMockDataEnabled
-              ? "以表格查看今日 workflow、確認項目、來源環境、整理結果與工作紀錄。這裡只顯示 mock 狀態，不執行同步。"
-              : "正式模式只顯示 Supabase-backed workflow。若尚未接上資料庫表，這裡會維持空狀態。"}
-            eyebrow="Workflow Console"
-            title="AI 工作台"
+              ? chatCopy.subpageShell.workbench.mockDescription
+              : chatCopy.subpageShell.workbench.formalDescription}
+            eyebrow={chatCopy.subpageShell.workbench.eyebrow}
+            title={chatCopy.subpageShell.workbench.title}
             wide
           >
             <WorkflowWorkbenchPanelContent
@@ -2081,14 +2503,127 @@ export default function AIInputClient({
       <Dialog open={deleteCandidateId !== null} onOpenChange={(open) => !open && setDeleteCandidateId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>刪除對話</DialogTitle>
+            <DialogTitle>{chatCopy.deleteDialogTitle}</DialogTitle>
             <DialogDescription>
-              確定要刪除「{deleteCandidateThread?.title}」嗎？此對話的訊息紀錄將從本次工作階段移除，且無法復原。
+              {withChatCopyTemplate(chatCopy.deleteDialogDescription, {
+                title: deleteCandidateThread ? getThreadDisplayTitle(deleteCandidateThread) : "",
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteCandidateId(null)}>取消</Button>
-            <Button variant="destructive" onClick={confirmDeleteThread}>刪除</Button>
+            <Button variant="outline" onClick={() => setDeleteCandidateId(null)}>{chatCopy.cancel}</Button>
+            <Button variant="destructive" onClick={confirmDeleteThread}>{chatCopy.deleteAction}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isScheduledDialogOpen} onOpenChange={setIsScheduledDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>排程任務</DialogTitle>
+            <DialogDescription>
+              尚未串接排程任務來源。接上後，這裡會顯示自動匯入、定期整理等排程結果，而不是假造的排程清單。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-xs text-muted-foreground">
+            尚無排程任務
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsScheduledDialogOpen(false)}>{chatCopy.cancel}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isNewFolderDialogOpen}
+        onOpenChange={(open) => {
+          setIsNewFolderDialogOpen(open)
+          if (!open) setNewFolderNameDraft("")
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增 Project</DialogTitle>
+            <DialogDescription>Project 底下可以放多個對話，方便依主題整理來源與脈絡。</DialogDescription>
+          </DialogHeader>
+          <input
+            autoFocus
+            value={newFolderNameDraft}
+            onChange={(e) => setNewFolderNameDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") commitCreateFolder() }}
+            placeholder={chatCopy.newFolderPrompt}
+            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/30"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewFolderDialogOpen(false)}>{chatCopy.cancel}</Button>
+            <Button onClick={commitCreateFolder} disabled={!newFolderNameDraft.trim()}>{chatCopy.addFolder}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Search: a real pop-up panel over chats + projects, like Claude's own
+          search — not an inline field squeezed into the sidebar. */}
+      <Dialog
+        open={isSearchDialogOpen}
+        onOpenChange={(open) => {
+          setIsSearchDialogOpen(open)
+          if (!open) setChatSearchQuery("")
+        }}
+      >
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-lg">
+          <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
+            <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              autoFocus
+              value={chatSearchQuery}
+              onChange={(e) => setChatSearchQuery(e.target.value)}
+              placeholder="搜尋對話與 Project…"
+              className="flex-1 bg-transparent text-sm outline-none"
+            />
+          </div>
+          <div className="max-h-80 overflow-y-auto p-1.5">
+            {searchResults.length === 0 ? (
+              <p className="px-3 py-6 text-center text-xs text-muted-foreground">沒有符合的結果</p>
+            ) : (
+              searchResults.map((r) => (
+                <button
+                  key={`${r.kind}-${r.id}`}
+                  onClick={() => {
+                    if (r.kind === "project") {
+                      setProjectViewId(r.id)
+                    } else {
+                      setActiveConvId(r.id)
+                      setProjectViewId(null)
+                    }
+                    setIsSearchDialogOpen(false)
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-muted/60 transition-colors"
+                >
+                  {r.kind === "project" ? (
+                    <FolderIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <MessageSquareIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="flex-1 min-w-0 truncate">{r.label}</span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground/60">{r.meta}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteFolderCandidateId !== null} onOpenChange={(open) => !open && setDeleteFolderCandidateId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>刪除 Project</DialogTitle>
+            <DialogDescription>
+              確定要刪除這個 Project 嗎？裡面的對話會移回「未分類」，不會被刪除。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteFolderCandidateId(null)}>{chatCopy.cancel}</Button>
+            <Button variant="destructive" onClick={confirmDeleteFolder}>{chatCopy.deleteAction}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2098,79 +2633,79 @@ export default function AIInputClient({
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function AIInputSubpageNav({
+function AIInputHeaderBar({
   activeView,
   contextCount,
+  isDemoAccount,
   isMockDataEnabled,
+  pendingProposalCount,
   reviewCount,
+  sourceIndexRows,
+  sourceSummary,
   syncSourceCount,
-  onToggleMockData,
+  threadCount,
+  workflowRunCount,
+  onCapture,
   onChange,
+  onToggleMockData,
 }: {
   activeView: AIInputSubpage
   contextCount: number
+  isDemoAccount: boolean
   isMockDataEnabled: boolean
+  pendingProposalCount: number
   reviewCount: number
+  sourceIndexRows: OwnerAIInputSourceIndexRow[]
+  sourceSummary: OwnerAIInputSourceSummary
   syncSourceCount: number
-  onToggleMockData: () => void
+  threadCount: number
+  workflowRunCount: number
+  onCapture: () => void
   onChange: (view: AIInputSubpage) => void
+  onToggleMockData: () => void
 }) {
   const [mounted, setMounted] = React.useState(false)
+  const { copy } = useProductLanguage()
+  const surfaceCopy = copy.aiInput.surface
+  const subpageCopy = copy.aiInput.subpages
+
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
+  const topSources = sourceIndexRows.length > 0
+    ? sourceIndexRows
+    : [{
+        id: "source-empty",
+        label: surfaceCopy.noSourceRows,
+        meta: surfaceCopy.formalOnly,
+        status: "planned" as const,
+        nextAction: surfaceCopy.openSourceSettings,
+      }]
+
+  // 導覽分頁本身即可切換到 參考脈絡／同步設定／AI 工作台，數字徽章與下方詳細
+  // 面板共用同一組數值，不再另外用一整排統計卡重複呈現（合併自舊版
+  // AIInputSubpageNav + OwnerAIInputWorkDesktopSurface 兩排標頭）。
   const navItems: Array<{
     id: AIInputSubpage
     label: string
-    description: string
     count?: number
     icon: React.ReactNode
   }> = [
-    {
-      id: "chat",
-      label: "AI 對話",
-      description: "先開始 cowork",
-      icon: <SparklesIcon className="size-4" />,
-    },
-    {
-      id: "context",
-      label: "參考脈絡",
-      description: "本次對話引用",
-      count: mounted ? contextCount : undefined,
-      icon: <MessageSquareIcon className="size-4" />,
-    },
-    {
-      id: "files",
-      label: "檔案庫",
-      description: "系統資源檔案",
-      icon: <FileTextIcon className="size-4" />,
-    },
-    {
-      id: "media",
-      label: "媒體庫",
-      description: "圖片・影片・音樂",
-      icon: <ImageIcon className="size-4" />,
-    },
-    {
-      id: "settings",
-      label: "同步設定",
-      description: "串接與狀態",
-      count: mounted ? syncSourceCount : undefined,
-      icon: <Settings2Icon className="size-4" />,
-    },
-    {
-      id: "workbench",
-      label: "AI 工作台",
-      description: "workflow 表格",
-      count: mounted ? reviewCount : undefined,
-      icon: <ListChecksIcon className="size-4" />,
-    },
+    { id: "chat", label: subpageCopy.chat.label, count: mounted ? threadCount : undefined, icon: <SparklesIcon className="size-4" /> },
+    { id: "context", label: subpageCopy.context.label, count: mounted ? contextCount : undefined, icon: <MessageSquareIcon className="size-4" /> },
+    { id: "files", label: subpageCopy.files.label, icon: <FileTextIcon className="size-4" /> },
+    { id: "media", label: subpageCopy.media.label, icon: <ImageIcon className="size-4" /> },
+    { id: "settings", label: subpageCopy.settings.label, count: mounted ? syncSourceCount : undefined, icon: <Settings2Icon className="size-4" /> },
+    { id: "workbench", label: subpageCopy.workbench.label, count: mounted ? reviewCount : undefined, icon: <ListChecksIcon className="size-4" /> },
   ]
 
   return (
-    <div className="shrink-0 border-b border-border/60 bg-background/95 px-3 py-2 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center gap-2">
+    <div
+      className="shrink-0 border-b border-border/60 bg-background/95 px-3 py-2 backdrop-blur"
+      data-owneros-task="OWNEROS-AIINPUT-UI-001-SURFACE"
+    >
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto no-scrollbar">
           {navItems.map((item) => (
             <button
@@ -2178,7 +2713,7 @@ function AIInputSubpageNav({
               data-testid={`ai-input-subpage-${item.id}`}
               onClick={() => onChange(item.id)}
               className={cn(
-                "grid min-w-[132px] grid-cols-[auto_1fr_auto] items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors",
+                "flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left transition-colors",
                 activeView === item.id
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -2187,12 +2722,7 @@ function AIInputSubpageNav({
               <span className={activeView === item.id ? "text-primary-foreground" : "text-muted-foreground"}>
                 {item.icon}
               </span>
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-semibold">{item.label}</span>
-                <span className={cn("block truncate text-[10px]", activeView === item.id ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                  {item.description}
-                </span>
-              </span>
+              <span className="text-xs font-semibold">{item.label}</span>
               {typeof item.count === "number" && item.count > 0 && (
                 <span className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
@@ -2204,37 +2734,560 @@ function AIInputSubpageNav({
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={onToggleMockData}
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors",
-            isMockDataEnabled
-              ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
-              : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 rounded-md px-2.5 text-xs"
+            onClick={onCapture}
+          >
+            <PenLineIcon className="size-3.5" />
+            {surfaceCopy.capture}
+          </Button>
+
+          <DetailDrawer
+            title={surfaceCopy.title}
+            description={surfaceCopy.subtitle}
+            wide
+            trigger={
+              <Button size="sm" variant="ghost" className="h-8 gap-1.5 rounded-md px-2.5 text-xs">
+                <InfoIcon className="size-3.5" />
+                查看詳細
+              </Button>
+            }
+          >
+            <div className="grid gap-3">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline">{surfaceCopy.ownerPrivate}</Badge>
+                <Badge variant="outline">{isMockDataEnabled ? surfaceCopy.mockReadiness : surfaceCopy.formalReadiness}</Badge>
+                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">{surfaceCopy.gateAIncomplete}</Badge>
+                <Badge variant="outline">{surfaceCopy.externalRegistrationOff}</Badge>
+              </div>
+
+              <div className="rounded-lg border border-border/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-foreground">{surfaceCopy.sourceIndex}</p>
+                  <span className="text-[10px] font-semibold text-muted-foreground">{sourceSummary.rowCount} {surfaceCopy.sourceCount}</span>
+                </div>
+                <div className="mt-3 grid grid-cols-4 divide-x divide-border/60 rounded-md border border-border/60 bg-muted/10 text-center">
+                  <OwnerAISurfaceStat label={surfaceCopy.threads} value={threadCount} />
+                  <OwnerAISurfaceStat label={surfaceCopy.context} value={contextCount} />
+                  <OwnerAISurfaceStat label={surfaceCopy.ready} value={sourceSummary.connectedCount} />
+                  <OwnerAISurfaceStat label={surfaceCopy.review} value={sourceSummary.attentionCount} />
+                </div>
+                <div className="mt-3 space-y-1.5">
+                  {topSources.map((row) => (
+                    <div key={row.id} className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md border border-border/50 px-2.5 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-foreground">{row.label}</p>
+                        <p className="truncate text-[10px] text-muted-foreground">{row.meta} · {row.nextAction}</p>
+                      </div>
+                      <ConnectionStatusBadge status={row.status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/60 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">{surfaceCopy.proposalDetail}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      {pendingProposalCount > 0
+                        ? `${pendingProposalCount} ${surfaceCopy.pendingProposal}`
+                        : surfaceCopy.noPendingProposal}
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-border/60 bg-muted/20 px-2 py-1 text-xs font-semibold text-foreground">
+                    {reviewCount}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="rounded-md border border-border/60 bg-muted/10 px-2.5 py-2">
+                    <p className="font-semibold text-foreground">{surfaceCopy.nextDecision}</p>
+                    <p className="mt-1 text-muted-foreground">{surfaceCopy.nextDecisionBody}</p>
+                  </div>
+                  <div className="rounded-md border border-border/60 bg-muted/10 px-2.5 py-2">
+                    <p className="font-semibold text-foreground">{surfaceCopy.workflow}</p>
+                    <p className="mt-1 text-muted-foreground">{workflowRunCount} {surfaceCopy.workflowBody}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/60 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">{surfaceCopy.settingsBoundaries}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      {surfaceCopy.settingsBoundariesBody}
+                    </p>
+                  </div>
+                  <ShieldAlertIcon className="size-4 text-muted-foreground" />
+                </div>
+                <div className="mt-3 grid gap-1.5 text-[10px] font-medium text-muted-foreground sm:grid-cols-2">
+                  <span className="rounded-md bg-muted/30 px-2 py-1">{surfaceCopy.noProviderRuntime}</span>
+                  <span className="rounded-md bg-muted/30 px-2 py-1">{surfaceCopy.noDbWrite}</span>
+                  <span className="rounded-md bg-muted/30 px-2 py-1">{surfaceCopy.noPublicOutput}</span>
+                  <span className="rounded-md bg-muted/30 px-2 py-1">{sourceSummary.providerCount} {surfaceCopy.providerManifests}</span>
+                </div>
+              </div>
+            </div>
+          </DetailDrawer>
+
+          {/* AUTH-013: demo/formal toggle exists only for the fixed-code demo
+              account. Every real tenant login has no demo affordance at all —
+              the surface is simply the real, blank, usable one. */}
+          {isDemoAccount && (
+            <button
+              type="button"
+              onClick={onToggleMockData}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-semibold transition-colors",
+                isMockDataEnabled
+                  ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+              )}
+              title={isMockDataEnabled ? copy.state.mockTitle : copy.state.formalTitle}
+            >
+              <DatabaseIcon className="size-3.5" />
+              <span className="hidden sm:inline">{isMockDataEnabled ? copy.state.mock : copy.state.formal}</span>
+            </button>
           )}
-          title={isMockDataEnabled ? "關閉 mock data，切到正式模式" : "重新開啟 mock data demo"}
-        >
-          <DatabaseIcon className="size-3.5" />
-          <span className="hidden sm:inline">{isMockDataEnabled ? "Mock 開" : "正式模式"}</span>
-          <span className="sm:hidden">{isMockDataEnabled ? "Mock" : "Live"}</span>
-        </button>
+        </div>
       </div>
     </div>
   )
 }
 
-function MockModeInlineNotice({ isMockDataEnabled }: { isMockDataEnabled: boolean }) {
+function OwnerAISurfaceStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className={cn(
-      "rounded-lg border px-3 py-2 text-center text-xs leading-relaxed",
-      isMockDataEnabled
-        ? "border-amber-200 bg-amber-50 text-amber-800"
-        : "border-emerald-200 bg-emerald-50 text-emerald-800"
-    )}>
-      {isMockDataEnabled
-        ? "Mock data 目前開啟：這個頁面會使用 demo 來源、demo workflow 與本機狀態。右上角可切到正式模式。"
-        : "正式模式已啟用：mock 來源與 demo workflow 已關閉；尚未接上 Supabase 的來源功能會保持空狀態。"}
+    <div className="px-2 py-2">
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function MockModeInlineNotice({ isMockDataEnabled }: { isMockDataEnabled: boolean }) {
+  const { copy } = useProductLanguage()
+
+  return (
+    <div className="flex justify-center">
+      <span className={cn(
+        "inline-flex max-w-full items-center gap-1.5 truncate rounded-full border px-3 py-1 text-[11px]",
+        isMockDataEnabled
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : "border-emerald-200 bg-emerald-50 text-emerald-800"
+      )}>
+        {isMockDataEnabled
+          ? copy.state.mockEnabledNotice
+          : copy.state.formalModeNotice}
+      </span>
+    </div>
+  )
+}
+
+// Claude.ai-style composer toolbar: "+" attach/import, a Project-or-folder
+// binder, then chat mode + model pickers and voice on the right, mirroring
+// the reference composer (attach, project selector, model/voice cluster).
+// Shared by the landing composer and the active-chat composer so both stay
+// visually and behaviorally identical.
+type ComposerFolderOption = { id: string; label: string }
+type ComposerImportAction = { id: string; icon: React.ReactNode; label: string; onClick: () => void }
+
+function ComposerToolbar({
+  mode,
+  onModeChange,
+  activeFolderId,
+  folderOptions,
+  onFolderChange,
+  isMockDataEnabled,
+  allActions,
+  onAddLink,
+  onVoice,
+  chatCopy,
+  getModeLabel,
+  onSend,
+  sendDisabled,
+  showFolderSelector = true,
+}: {
+  mode: ChatMode
+  onModeChange: (mode: ChatMode) => void
+  activeFolderId: string | null
+  folderOptions: ComposerFolderOption[]
+  onFolderChange: (folderId: string | null) => void
+  isMockDataEnabled: boolean
+  allActions: ComposerImportAction[]
+  onAddLink: (urls: string[]) => void
+  onVoice: () => void
+  chatCopy: ProductCopy["aiInput"]["chat"]
+  getModeLabel: (mode: ChatMode) => string
+  onSend: () => void
+  sendDisabled: boolean
+  /** Hide the Project-or-folder picker when the composer already lives
+   * inside that project's own page (e.g. ProjectWorkspaceView) — showing
+   * it there would be a redundant, no-op control. */
+  showFolderSelector?: boolean
+}) {
+  const activeFolderLabel = folderOptions.find((f) => f.id === activeFolderId)?.label ?? chatCopy.uncategorized
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {/* + attach / import a source */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              title={chatCopy.quickImport}
+              className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            />
+          }
+        >
+          <PlusIcon className="size-3.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          {isMockDataEnabled ? (
+            allActions.map((a) =>
+              a.id === "link" ? (
+                <AddLinkDialog
+                  key={a.id}
+                  onAdd={onAddLink}
+                  trigger={
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-muted/80"
+                    >
+                      <span className="flex size-3.5 items-center justify-center text-muted-foreground [&>svg]:size-3.5">{a.icon}</span>
+                      {a.label}
+                    </button>
+                  }
+                />
+              ) : (
+                <DropdownMenuItem key={a.id} onClick={a.onClick} className="gap-2 text-xs">
+                  <span className="flex size-3.5 items-center justify-center text-muted-foreground [&>svg]:size-3.5">{a.icon}</span>
+                  {a.label}
+                </DropdownMenuItem>
+              )
+            )
+          ) : (
+            <div className="px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+              {chatCopy.mockImportDisabled}
+            </div>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Project or folder — binds this conversation to an existing
+          collaboration folder (Personal OS's equivalent of a Claude project). */}
+      {showFolderSelector && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="flex h-7 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              />
+            }
+          >
+            <FolderIcon className="size-3 shrink-0" />
+            <span className="max-w-20 truncate">{activeFolderLabel}</span>
+            <ChevronDownIcon className="size-3 shrink-0" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-44">
+            <DropdownMenuItem onClick={() => onFolderChange(null)} className="text-xs">
+              {chatCopy.uncategorized}
+            </DropdownMenuItem>
+            {folderOptions.map((f) => (
+              <DropdownMenuItem key={f.id} onClick={() => onFolderChange(f.id)} className="text-xs">
+                {f.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      <div className="min-w-0 flex-1" />
+
+      {/* 對話模式：drives placeholder + tone, unlike the model picker this is fully wired. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              className="flex h-7 min-w-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            />
+          }
+        >
+          <SparklesIcon className="size-3 shrink-0" />
+          <span className="max-w-16 truncate">{getModeLabel(mode)}</span>
+          <ChevronDownIcon className="size-3 shrink-0" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="max-h-64 w-48 overflow-y-auto">
+          {(Object.keys(CHAT_MODES) as ChatMode[]).map((m) => (
+            <DropdownMenuItem key={m} onClick={() => onModeChange(m)} className="text-xs">
+              {getModeLabel(m)}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* 多模型：placeholder only — backend has a single model today, so this
+          is shown honestly as not-yet-available rather than faking a working
+          switcher. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              title="多模型切換即將支援"
+              className="hidden h-7 shrink-0 items-center gap-1.5 rounded-full border border-border/60 bg-background/60 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+            />
+          }
+        >
+          <ZapIcon className="size-3 shrink-0" />
+          <span>標準模型</span>
+          <ChevronDownIcon className="size-3 shrink-0" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem disabled className="text-xs">Personal OS 標準模型（目前唯一可用）</DropdownMenuItem>
+          <DropdownMenuItem disabled className="text-xs">多模型切換即將開放</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Voice — reuses the same audio capture action as the import menu. */}
+      <button
+        type="button"
+        onClick={onVoice}
+        disabled={!isMockDataEnabled}
+        title={isMockDataEnabled ? chatCopy.importActions.audio : chatCopy.mockImportDisabled}
+        className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/60 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-background/60 disabled:hover:text-muted-foreground"
+      >
+        <AudioLinesIcon className="size-3.5" />
+      </button>
+
+      <button
+        type="button"
+        onClick={onSend}
+        disabled={sendDisabled}
+        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all hover:scale-105 active:scale-95 disabled:opacity-30"
+      >
+        <SendIcon className="size-3.5" />
+      </button>
+    </div>
+  )
+}
+
+// A Project's own page — per Anthropic's docs, clicking a project navigates
+// into a dedicated workspace with its own chat list, knowledge, and
+// instructions, rather than filtering the global chat list.
+// https://support.claude.com/en/articles/9517075-what-are-projects
+// https://support.claude.com/en/articles/9519177-how-can-i-create-and-manage-projects
+function ProjectWorkspaceView({
+  folderLabel,
+  isPinned,
+  onTogglePin,
+  onRename,
+  onDelete,
+  chatCount,
+  chatRows,
+  contextItems,
+  onBack,
+  onSend,
+  isMockDataEnabled,
+  allActions,
+  onAddLink,
+  onVoice,
+  chatCopy,
+  getModeLabel,
+}: {
+  folderLabel: string
+  isPinned: boolean
+  onTogglePin: () => void
+  onRename: () => void
+  onDelete: () => void
+  chatCount: number
+  chatRows: React.ReactNode
+  contextItems: MentionRef[]
+  onBack: () => void
+  onSend: (text: string, mode: ChatMode) => void
+  isMockDataEnabled: boolean
+  allActions: ComposerImportAction[]
+  onAddLink: (urls: string[]) => void
+  onVoice: () => void
+  chatCopy: ProductCopy["aiInput"]["chat"]
+  getModeLabel: (mode: ChatMode) => string
+}) {
+  const [draftText, setDraftText] = React.useState("")
+  const [draftMode, setDraftMode] = React.useState<ChatMode>("general")
+
+  function handleSubmit() {
+    if (!draftText.trim()) return
+    onSend(draftText.trim(), draftMode)
+    setDraftText("")
+  }
+
+  return (
+    <div className="flex h-full flex-col overflow-y-auto">
+      <div className="border-b border-border/50 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeftIcon className="size-3.5" /> 所有對話
+          </button>
+          {/* Browser-tab-like chrome: pin + more options, matching what
+              every Chats row already has. */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={onTogglePin}
+              title={isPinned ? "取消釘選" : "釘選"}
+              className={cn(
+                "size-7 rounded-md flex items-center justify-center hover:bg-muted",
+                isPinned ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {isPinned ? <PinIcon className="size-3.5" /> : <PinOffIcon className="size-3.5" />}
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button className="size-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground" />
+                }
+              >
+                <MoreVerticalIcon className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={onRename}>
+                  <PenLineIcon className="size-3.5" /> {chatCopy.renameThread}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                  <Trash2Icon className="size-3.5" /> 刪除 Project
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <FolderIcon className="size-4.5" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">{folderLabel}</h1>
+            <p className="text-xs text-muted-foreground">Project · {chatCount} 個對話</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col lg:flex-row">
+        <div className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-6 py-6">
+          {/* Directly usable chat frame — like Claude's own project page —
+              instead of a plain "start" button. */}
+          <div className="relative">
+            <textarea
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit()
+                }
+              }}
+              placeholder={`在「${folderLabel}」中開始新對話…`}
+              rows={2}
+              className="w-full resize-none rounded-t-2xl border border-border/60 bg-muted/30 px-4 pt-3.5 pb-1.5 text-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/20 min-h-[60px] max-h-[160px]"
+            />
+            <div className="rounded-b-2xl border border-t-0 border-border/60 bg-muted/30 px-3 pb-2 pt-1">
+              <ComposerToolbar
+                mode={draftMode}
+                onModeChange={setDraftMode}
+                activeFolderId={null}
+                folderOptions={[]}
+                onFolderChange={() => {}}
+                showFolderSelector={false}
+                isMockDataEnabled={isMockDataEnabled}
+                allActions={allActions}
+                onAddLink={onAddLink}
+                onVoice={onVoice}
+                chatCopy={chatCopy}
+                getModeLabel={getModeLabel}
+                onSend={handleSubmit}
+                sendDisabled={!draftText.trim()}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">對話</p>
+            {chatCount === 0 ? (
+              <p className="rounded-xl border border-dashed border-border/60 px-4 py-6 text-center text-xs text-muted-foreground">
+                這個 Project 還沒有對話
+              </p>
+            ) : (
+              <div className="space-y-0.5">{chatRows}</div>
+            )}
+          </div>
+        </div>
+
+        {/* Instructions / Memory / Context / Scheduled — mirrors Claude's own
+            project settings panel. Instructions/Memory/Scheduled are honest
+            not-yet-available states; Context lists real referenced sources
+            aggregated from this project's own conversations. */}
+        <div className="w-full shrink-0 border-t border-border/50 px-6 py-6 lg:w-72 lg:border-t-0 lg:border-l">
+          <ProjectPanelSection title="Instructions">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              尚未支援 Project 專屬指示，所有對話目前共用整體來源設定。
+            </p>
+          </ProjectPanelSection>
+          <ProjectPanelSection title="Memory">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              尚未接上記憶功能，這個 Project 目前不會保留跨對話記憶。
+            </p>
+          </ProjectPanelSection>
+          <ProjectPanelSection title="Context" defaultOpen>
+            {contextItems.length === 0 ? (
+              <p className="text-[11px] leading-relaxed text-muted-foreground">這個 Project 的對話目前沒有引用任何來源。</p>
+            ) : (
+              <div className="space-y-1">
+                {contextItems.map((item) => (
+                  <div key={item.id} className="truncate rounded-md bg-muted/30 px-2 py-1 text-[11px] text-foreground">
+                    {item.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ProjectPanelSection>
+          <ProjectPanelSection title="Scheduled">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">尚未串接排程任務來源。</p>
+          </ProjectPanelSection>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectPanelSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = React.useState(defaultOpen)
+  return (
+    <div className="border-b border-border/50 py-3 first:pt-0 last:border-b-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between text-xs font-semibold text-foreground"
+      >
+        {title}
+        <ChevronDownIcon className={cn("size-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <div className="mt-2">{children}</div>}
     </div>
   )
 }
@@ -2253,12 +3306,11 @@ function SubpageShell({
   wide?: boolean
 }) {
   return (
-    <div className="h-full overflow-y-auto px-4 py-5">
-      <div className={cn("mx-auto flex min-h-full flex-col gap-5", wide ? "max-w-6xl" : "max-w-3xl")}>
-        <header className="border-b border-border/60 pb-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{eyebrow}</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{title}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+    <div className="h-full overflow-y-auto px-4 py-3">
+      <div className={cn("mx-auto flex min-h-full flex-col gap-3", wide ? "max-w-6xl" : "max-w-3xl")}>
+        <header className="flex items-baseline gap-2 border-b border-border/60 pb-2.5">
+          <h1 className="text-sm font-semibold tracking-tight text-foreground">{title}</h1>
+          <p className="truncate text-xs text-muted-foreground" title={description}>{description}</p>
         </header>
         <div className="min-h-0 flex-1">{children}</div>
       </div>
@@ -2400,6 +3452,7 @@ function SourceOptionGroup({
 
 function SourceStructurePanelContent({
   formalReadiness,
+  sourceConnectionCatalog,
   isMockDataEnabled,
   resourceNodesCount,
   connectorsState,
@@ -2407,70 +3460,64 @@ function SourceStructurePanelContent({
   pushToast,
 }: {
   formalReadiness: AIInputFormalReadinessContract
+  sourceConnectionCatalog: AIInputSourceConnectionCatalogDTO
   isMockDataEnabled: boolean
   resourceNodesCount: number
   connectorsState: ExtendedSourceConnectorRow[]
   setConnectorsState: React.Dispatch<React.SetStateAction<ExtendedSourceConnectorRow[]>>
   pushToast: (msg: string) => void
 }) {
+  const { copy } = useProductLanguage()
+  const sourceSettingsCopy = copy.aiInput.chat.sourceSettings
+  const drawerCopy = sourceSettingsCopy.drawer
+  const [isConnectionWizardOpen, setIsConnectionWizardOpen] = React.useState(false)
   const [selectedConnectorId, setSelectedConnectorId] = React.useState<string | null>(null)
-  const [drawerTab, setDrawerTab] = React.useState<"sync" | "nodes" | "routing" | "approval" | "governance">("sync")
-  const selectedConnector = React.useMemo(() => {
-    if (!selectedConnectorId) return null
-    const mockMatch = connectorsState.find((c) => c.id === selectedConnectorId)
-    if (mockMatch) return mockMatch
-    const formalRow = formalReadiness.sourceControlMatrix.rows.find((r) => r.id === selectedConnectorId)
-    if (formalRow) {
-      const baseMock = connectorsState.find(m => m.provider === formalRow.provider) || connectorsState[0]
-      return {
-        ...baseMock,
-        id: formalRow.id,
-        source: formalRow.source,
-        provider: formalRow.provider,
-        connectorType: formalRow.connectorType,
-        connectionStatus: formalRow.connectionStatus,
-        syncStatus: formalRow.syncStatus,
-        riskPolicy: formalRow.riskLabel,
-        reviewRule: formalRow.reviewRule,
-      } as ExtendedSourceConnectorRow
-    }
-    return null
-  }, [selectedConnectorId, connectorsState, formalReadiness])
+  const [drawerTab, setDrawerTab] = React.useState<SourceSettingsDrawerTab>("sync")
   const [formData, setFormData] = React.useState<ExtendedSourceConnectorRow | null>(null)
 
-  React.useEffect(() => {
-    if (selectedConnector) {
-      setFormData(JSON.parse(JSON.stringify(selectedConnector))) // Deep copy to prevent side-effects on active row
-    } else {
-      setFormData(null)
+  const openConnectorSettings = React.useCallback((connectorId: string) => {
+    if (!isMockDataEnabled) return
+    const connector = connectorsState.find((candidate) => candidate.id === connectorId)
+    if (!connector) return
+    setSelectedConnectorId(connectorId)
+    setFormData(structuredClone(connector))
+  }, [connectorsState, isMockDataEnabled])
+
+  const closeConnectorSettings = React.useCallback(() => {
+    setSelectedConnectorId(null)
+    setFormData(null)
+  }, [])
+
+  const selectDrawerTab = React.useCallback((tab: SourceSettingsDrawerTab, focusTab = false) => {
+    setDrawerTab(tab)
+    if (focusTab) {
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLButtonElement>(`[data-source-settings-tab="${tab}"]`)
+          ?.focus()
+      })
     }
-  }, [selectedConnectorId, selectedConnector])
+  }, [])
 
   const connectors = isMockDataEnabled ? connectorsState : []
   const sourceInputMatrixRows: SourceInputMatrixRow[] = isMockDataEnabled
     ? connectors.map((connector) => {
-        const inputModeLabel: Record<AIInputSourceControlInputMode, string> = {
-          manual: "手動",
-          polling: "輪詢",
-          webhook: "Webhook",
-          event: "事件驅動",
-          scheduled: "排程",
-          one_time: "一次性",
-        }
+        const display = getSourceConnectorDisplay(connector, sourceSettingsCopy)
+        const inputModeLabel = sourceSettingsCopy.inputModeLabels as Record<AIInputSourceControlInputMode, string>
         const riskLevel: AIInputSourceControlRiskLevel =
           connector.riskPolicy === "高" ? "high" : connector.riskPolicy === "中" ? "medium" : "low"
 
         return {
           id: connector.id,
-          source: connector.source,
-          provider: connector.provider,
+          source: display.source,
+          provider: display.provider,
           connectionStatus: connector.connectionStatus,
           inputMode: connector.inputMode,
           inputModeLabel: inputModeLabel[connector.inputMode],
           riskLevel,
-          riskLabel: connector.riskPolicy,
-          nextAction: connector.nextAction,
-          missingPermissions: connector.missingPermissions,
+          riskLabel: display.riskLabel,
+          nextAction: display.nextAction,
+          missingPermissions: display.missingPermissions,
         }
       })
     : formalReadiness.sourceControlMatrix.rows
@@ -2485,9 +3532,11 @@ function SourceStructurePanelContent({
     ? connectors.filter((connector) => connector.syncStatus === "review" || connector.syncStatus === "failed").length
     : formalReadiness.sourceControlMatrix.summary.highRiskCount +
       formalReadiness.sourceControlMatrix.summary.missingPermissionCount
+  const selectedConnectorDisplay = formData ? getSourceConnectorDisplay(formData, sourceSettingsCopy) : null
 
   const unifiedRows = isMockDataEnabled
     ? connectorsState.map((connector) => {
+        const display = getSourceConnectorDisplay(connector, sourceSettingsCopy)
         const riskColor =
           connector.riskPolicy === "高"
             ? "text-red-600 dark:text-red-400"
@@ -2496,19 +3545,21 @@ function SourceStructurePanelContent({
             : "text-emerald-600 dark:text-emerald-400"
         return {
           id: connector.id,
-          source: connector.source,
-          provider: connector.provider,
-          connectorType: connector.connectorType,
-          riskLabel: connector.riskPolicy,
+          source: display.source,
+          provider: display.provider,
+          connectorType: display.connectorType,
+          riskLabel: display.riskLabel,
           riskColor,
-          reviewRule: connector.reviewRule,
-          cadence: connector.cadence,
-          lastSync: connector.lastSync,
-          nextSync: connector.nextSync,
-          defaultModule: connector.defaultModule,
+          reviewRule: display.reviewRule,
+          cadence: display.cadence,
+          lastSync: display.lastSync,
+          nextSync: display.nextSync,
+          defaultModule: display.defaultModule,
           connectionStatus: connector.connectionStatus,
           syncStatus: connector.syncStatus,
-          missingPermissions: connector.missingPermissions,
+          missingPermissions: display.missingPermissions,
+          provenanceNote: display.provenanceNote,
+          accountLabel: connector.accountLabel,
         }
       })
     : formalReadiness.sourceControlMatrix.rows.map((row) => {
@@ -2533,74 +3584,177 @@ function SourceStructurePanelContent({
           connectionStatus: row.connectionStatus,
           syncStatus: row.syncStatus,
           missingPermissions: row.missingPermissions,
+          provenanceNote: row.provenanceNote,
+          accountLabel: undefined,
         }
       })
 
+  const handleConnectionDraftsCreated = React.useCallback((drafts: SourceConnectionDraft[]) => {
+    if (!isMockDataEnabled || drafts.length === 0) return
+
+    const connectorTypes: Record<SourceConnectionDraft["provider"], string> = {
+      line: "Messaging",
+      google_drive: "Folder files",
+      rss: "Feed",
+      gmail: "Email",
+      github: "Repo files",
+      telegram: "Messaging",
+    }
+    const inputModes: Record<SourceConnectionDraft["provider"], AIInputSourceControlInputMode> = {
+      line: "webhook",
+      google_drive: "event",
+      rss: "polling",
+      gmail: "polling",
+      github: "event",
+      telegram: "webhook",
+    }
+    const targetModules: Record<SourceConnectionDraft["targetModule"], string> = {
+      work: "工作",
+      research: "研究",
+      chamber: "商會",
+      inbox: "Inbox",
+    }
+    const targetModuleIds: Record<SourceConnectionDraft["targetModule"], string> = {
+      work: "work",
+      research: "research",
+      chamber: "chamber",
+      inbox: "inbox",
+    }
+    const riskLabels: Record<SourceConnectionDraft["riskLevel"], string> = {
+      low: "低",
+      medium: "中",
+      high: "高",
+    }
+
+    const createdRows: ExtendedSourceConnectorRow[] = drafts.map((draft) => {
+      const isScheduled = draft.syncMode === "scheduled"
+      const riskPolicy = riskLabels[draft.riskLevel]
+      return {
+        id: draft.id,
+        source: draft.displayName,
+        provider: draft.provider === "google_drive" ? "Google Drive" : draft.providerLabel,
+        connectorType: connectorTypes[draft.provider],
+        connectionStatus: "planned",
+        syncStatus: "not_configured",
+        scope: [
+          draft.scopeLabel,
+          draft.includeSubfolders ? "包含子資料夾" : null,
+          draft.includeAttachments ? "包含附件" : null,
+        ].filter(Boolean).join(" · "),
+        cadence: draft.syncCadence,
+        lastSync: "尚未同步",
+        nextSync: "草稿確認後才可啟用",
+        defaultModule: targetModules[draft.targetModule],
+        riskPolicy,
+        reviewRule: draft.approvalRule === "always_review" ? "所有提案需人工確認" : "依風險分級確認",
+        inputMode: draft.syncMode === "manual" ? "manual" : isScheduled ? "scheduled" : inputModes[draft.provider],
+        nextAction: "管理 mock 草稿並確認邊界",
+        missingPermissions: "Mock 草稿：未建立真實授權、provider 連線或持久化。",
+        provenanceNote:
+          draft.provider === "google_drive"
+            ? "Google Docs、Sheets 與 Slides 僅作為 Drive 檔案子類型，保留檔案身分與快照來源。"
+            : null,
+        accountLabel: draft.accountLabel,
+        mockOnly: true,
+        syncMode: isScheduled ? "manual_and_scheduled" : "manual_only",
+        syncSchedule: isScheduled ? draft.syncCadence : null,
+        syncEnabled: false,
+        analysisMode: draft.analysisMode === "scheduled" ? "manual_and_scheduled" : "manual_only",
+        analysisSchedule: draft.analysisMode === "scheduled" ? draft.syncCadence : null,
+        analysisEnabled: false,
+        analyzeOnlyWhenPending: true,
+        allowedTargetModules: [targetModuleIds[draft.targetModule]],
+        riskClassification: draft.riskLevel,
+        approvalLevel: draft.approvalRule === "always_review" ? "always_require" : "auto_execute_low_risk",
+        includeInMorningBrief: draft.includeInMorningBrief,
+        retentionDays: draft.retentionDays,
+        piiMaskingEnabled: draft.piiMaskingEnabled,
+        uploadDirectory: `/uploads/${draft.provider}`,
+        thinkingNodes: [
+          { id: `${draft.id}-context`, nodeType: "source_context", order: 1, enabled: true, instruction: "判斷這個連線草稿的來源脈絡。" },
+          { id: `${draft.id}-classify`, nodeType: "classify_information", order: 2, enabled: true, instruction: "依資訊主題分類並建議路由。" },
+          { id: `${draft.id}-risk`, nodeType: "detect_risk", order: 3, enabled: true, instruction: "識別授權、隱私與寫入風險。" },
+        ],
+      }
+    })
+
+    setConnectorsState((current) => {
+      const createdIds = new Set(createdRows.map((row) => row.id))
+      return [...current.filter((row) => !createdIds.has(row.id)), ...createdRows]
+    })
+    pushToast(`已建立 ${createdRows.length} 個 mock 連線草稿；尚未授權、同步或儲存。`)
+  }, [isMockDataEnabled, pushToast, setConnectorsState])
+
   return (
     <div className="space-y-6 pb-8">
-      {/* Simplified Compact Header with Boundaries Tooltip */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
-        <div>
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-1.5">
-            外部資料源同步設定
-            <span 
-              className="group relative cursor-help inline-flex items-center justify-center size-4 rounded-full bg-muted text-[10px] text-muted-foreground hover:bg-muted-hover hover:text-foreground font-semibold"
-              title="【管理邊界說明】&#10;• 這裡管理：外部來源串接狀態、授權範圍、同步頻率排程、健康度、風險與 AI 審批政策。&#10;• 這裡不執行：直接寫入資料庫或覆寫外部來源檔案。"
-            >
-              i
-            </span>
-          </h2>
-          <p className="text-xs text-muted-foreground mt-1">管理並監控 LINE、Google Drive、Docs、RSS、Telegram、Gmail、GitHub 等管道的串接排程與 AI 處理邊界。</p>
-        </div>
-        <div className="flex gap-2 text-xs">
+      {/* Compact action toolbar — the tab header above already states title/description, so this row only carries actions and counts. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-4 text-xs">
+        <span
+          className="inline-flex cursor-help items-center gap-1 text-muted-foreground"
+          title={sourceSettingsCopy.boundaryTooltip}
+        >
+          <span className="inline-flex items-center justify-center size-4 rounded-full bg-muted text-[10px] font-semibold">
+            i
+          </span>
+          管理邊界
+        </span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1 text-foreground/80 font-medium">
-            已串接 <strong className="text-foreground">{connectedCount}</strong>
+            {sourceSettingsCopy.connectedCountLabel} <strong className="text-foreground">{connectedCount}</strong>
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1 text-foreground/80 font-medium">
-            待設定 <strong className="text-foreground">{setupCount}</strong>
+            {sourceSettingsCopy.setupCountLabel} <strong className="text-foreground">{setupCount}</strong>
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200/50 bg-amber-50/20 px-2.5 py-1 text-amber-700 font-medium dark:text-amber-400">
-            需確認 <strong className="text-amber-600 dark:text-amber-500">{reviewCount}</strong>
+            {sourceSettingsCopy.reviewCountLabel} <strong className="text-amber-600 dark:text-amber-500">{reviewCount}</strong>
           </span>
+          <Button
+            size="sm"
+            disabled={!isMockDataEnabled}
+            onClick={() => {
+              if (isMockDataEnabled) setIsConnectionWizardOpen(true)
+            }}
+            title={isMockDataEnabled ? sourceSettingsCopy.addConnectionTitleMock : sourceSettingsCopy.addConnectionTitleLive}
+            className="h-7 gap-1.5 text-xs"
+          >
+            <PlusIcon className="size-3.5" />
+            {isMockDataEnabled ? sourceSettingsCopy.addConnectionMock : sourceSettingsCopy.addConnectionLive}
+          </Button>
         </div>
       </div>
 
       {/* Unified Settings & Sync Management Dashboard */}
       <WorkbenchTable
-        columns={["來源管道", "類型", "風險與審核", "頻率排程", "上次/下次同步", "目標模組", "狀態", "操作"]}
-        description="管理所有資料來源的串接狀態、同步頻率排程、AI 分析管道與人工審核邊界政策。"
+        columns={[...sourceSettingsCopy.tableColumns]}
         gridClassName="grid-cols-[minmax(180px,1.2fr)_110px_120px_110px_140px_110px_100px_80px]"
-        title="來源設定與同步管理面板"
       >
         {unifiedRows.length > 0 ? (
           unifiedRows.map((row) => {
-            const translatedProviderType: Record<string, string> = {
-              "Manual · Upload": "手動匯入 · 上傳",
-              "LINE · Messaging": "LINE · 即時通訊",
-              "Google Docs · Document": "Google Docs · 文件",
-              "RSS · Feed": "RSS · 訂閱源",
-              "Gmail · Email": "Gmail · 電子郵件",
-              "GitHub · Repo files": "GitHub · 程式庫檔案",
-              "Telegram · Messaging": "Telegram · 即時通訊",
-              "Drive · Cloud files": "Drive · 雲端檔案",
-              "Drive · Folder files": "Drive · 資料夾檔案",
-            }
-            const key = `${row.provider} · ${row.connectorType}`
-            const typeLabel = translatedProviderType[key] || key
+            const typeLabel = getSourceProviderTypeLabel(row.provider, row.connectorType, sourceSettingsCopy)
 
             return (
               <WorkflowTableRow
                 key={row.id}
-                onClick={() => setSelectedConnectorId(row.id)}
+                onClick={isMockDataEnabled ? () => openConnectorSettings(row.id) : undefined}
                 cells={[
                   <span key="source" className="block min-w-0">
                     <span className="block truncate font-semibold text-foreground">{row.source}</span>
+                    {row.accountLabel && (
+                      <span className="block truncate text-[10px] text-muted-foreground mt-0.5" title={row.accountLabel}>
+                        {sourceSettingsCopy.externalAccountPrefix}: {row.accountLabel}
+                      </span>
+                    )}
                     {row.missingPermissions && (
                       <span 
                         className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 mt-1 cursor-help"
-                        title={`缺少授權權限限制：\n${row.missingPermissions}`}
+                        title={`${sourceSettingsCopy.missingPermissionTitle}:\n${row.missingPermissions}`}
                       >
-                        ⚠️ 缺少授權 (懸停查看)
+                        ⚠️ {sourceSettingsCopy.missingPermissionLabel}
+                      </span>
+                    )}
+                    {row.provenanceNote && (
+                      <span className="block truncate text-[10px] text-muted-foreground mt-1" title={row.provenanceNote}>
+                        {sourceSettingsCopy.provenanceRetainedLabel}
                       </span>
                     )}
                   </span>,
@@ -2608,17 +3762,19 @@ function SourceStructurePanelContent({
                   <span 
                     key="risk"
                     className="inline-flex items-center gap-1.5 cursor-help" 
-                    title={`人工確認規則：\n${row.reviewRule}`}
+                    title={`${sourceSettingsCopy.reviewRuleTitle}:\n${row.reviewRule}`}
                   >
                     <span className={cn("size-2 rounded-full", 
-                      row.riskLabel === "高" ? "bg-red-500" : row.riskLabel === "中" ? "bg-amber-500" : "bg-emerald-500"
+                      row.riskColor.includes("red") ? "bg-red-500" : row.riskColor.includes("amber") ? "bg-amber-500" : "bg-emerald-500"
                     )} />
-                    <span className={cn("text-xs font-semibold", row.riskColor)}>{row.riskLabel}風險</span>
+                    <span className={cn("text-xs font-semibold", row.riskColor)}>
+                      {formatCopyTemplate(sourceSettingsCopy.riskLabelTemplate, { risk: row.riskLabel })}
+                    </span>
                   </span>,
                   <span key="cadence" className="text-xs text-foreground/80">{row.cadence}</span>,
                   <span key="sync-time" className="block min-w-0">
-                    <span className="block text-xs text-foreground/85">上次：{row.lastSync}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-0.5">下次：{row.nextSync}</span>
+                    <span className="block text-xs text-foreground/85">{sourceSettingsCopy.previousSyncLabel}: {row.lastSync}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">{sourceSettingsCopy.nextSyncLabel}: {row.nextSync}</span>
                   </span>,
                   <span key="module" className="inline-flex items-center rounded bg-primary/5 border border-primary/10 px-2 py-0.5 text-xs text-primary font-medium">
                     {row.defaultModule}
@@ -2629,13 +3785,15 @@ function SourceStructurePanelContent({
                   </div>,
                   <button
                     key="manage"
+                    disabled={!isMockDataEnabled}
                     onClick={(e) => {
                       e.stopPropagation()
-                      setSelectedConnectorId(row.id)
+                      if (isMockDataEnabled) openConnectorSettings(row.id)
                     }}
-                    className="px-2.5 py-1 text-xs font-semibold rounded bg-primary text-primary-foreground hover:bg-primary/95 transition-colors shadow-sm"
+                    className="px-2.5 py-1 text-xs font-semibold rounded bg-primary text-primary-foreground hover:bg-primary/95 transition-colors shadow-sm disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none"
+                    title={isMockDataEnabled ? sourceSettingsCopy.manageConnectionTitleMock : sourceSettingsCopy.manageConnectionTitleLive}
                   >
-                    設定
+                    {isMockDataEnabled ? sourceSettingsCopy.manageMockLabel : sourceSettingsCopy.manageLiveLabel}
                   </button>,
                 ]}
                 gridClassName="grid-cols-[minmax(180px,1.2fr)_110px_120px_110px_140px_110px_100px_80px]"
@@ -2643,21 +3801,21 @@ function SourceStructurePanelContent({
             )
           })
         ) : (
-          <EmptyTableRow message="尚無外部來源連線資料。" />
+          <EmptyTableRow message={sourceSettingsCopy.emptyConnections} />
         )}
       </WorkbenchTable>
 
-      {/* Collapsible Developer Readiness Panel for Formal Mode */}
+      {/* Collapsible formal readiness panel for owner setup review. */}
       {!isMockDataEnabled && (
         <details className="border border-border/50 rounded-lg bg-muted/5 transition-all duration-200">
           <summary className="cursor-pointer px-4 py-3 text-xs font-semibold text-muted-foreground hover:text-foreground select-none flex items-center gap-2">
-            <span>⚙️ 開發者準備度與系統邊界資訊 (BFF Readiness Details)</span>
+            <span>正式資料準備與系統邊界</span>
           </summary>
           <div className="p-4 border-t border-border/50 space-y-6 bg-background">
             <FormalReadinessContractPanel
               contract={formalReadiness}
-              description="正式模式的 server-only readiness contract。它列出目前可以安全顯示的狀態、被刻意禁止的 runtime 行為，以及 DATTR-024 之前不能跨過的 persistence gate。"
-              title="正式資料 BFF readiness"
+              description="正式模式只顯示安全可見的準備狀態，並標出目前被刻意關閉的同步、寫入與外部執行能力。"
+              title="正式資料準備狀態"
             />
             <FormalSourceWorkflowReadModelTable contract={formalReadiness} />
             <FormalSourceWorkflowProofBootstrapPanel contract={formalReadiness} />
@@ -2667,30 +3825,33 @@ function SourceStructurePanelContent({
       )}
 
       <WorkbenchTable
-        columns={["條件", "處理方式", "原因"]}
-        description="同步設定應該把不確定、敏感或需要決策的結果送到 AI 工作台與早安簡報，而不是自動寫入模組。"
+        columns={[...sourceSettingsCopy.reviewPolicy.columns]}
+        description={sourceSettingsCopy.reviewPolicy.description}
         gridClassName="grid-cols-[minmax(180px,1fr)_minmax(240px,1.2fr)_minmax(300px,1.8fr)]"
-        title="人工確認政策"
+        title={sourceSettingsCopy.reviewPolicy.title}
       >
-        {SYNC_REVIEW_POLICIES.map((policy) => (
-          <WorkflowTableRow
-            key={policy.id}
-            cells={[policy.condition, policy.handling, policy.reason]}
-            gridClassName="grid-cols-[minmax(180px,1fr)_minmax(240px,1.2fr)_minmax(300px,1.8fr)]"
-          />
-        ))}
+        {SYNC_REVIEW_POLICIES.map((policy) => {
+          const policyCopy = (sourceSettingsCopy.reviewPolicy.rows as Record<string, Omit<SyncReviewPolicy, "id">>)[policy.id] ?? policy
+          return (
+            <WorkflowTableRow
+              key={policy.id}
+              cells={[policyCopy.condition, policyCopy.handling, policyCopy.reason]}
+              gridClassName="grid-cols-[minmax(180px,1fr)_minmax(240px,1.2fr)_minmax(300px,1.8fr)]"
+            />
+          )
+        })}
        </WorkbenchTable>
 
       {/* Settings Drawer */}
       <AnimatePresence>
-        {selectedConnectorId && selectedConnector && formData && (
+        {selectedConnectorId && formData && (
           <>
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedConnectorId(null)}
+              onClick={closeConnectorSettings}
               className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
             />
             {/* Drawer Container */}
@@ -2704,11 +3865,16 @@ function SourceStructurePanelContent({
               {/* Header */}
               <div className="flex items-center justify-between border-b border-border/60 px-6 py-4 bg-muted/30">
                 <div>
-                  <h3 className="text-base font-semibold text-foreground">{formData.source}</h3>
-                  <p className="text-xs text-muted-foreground">{formData.provider} · {formData.connectorType}</p>
+                  <h3 className="text-base font-semibold text-foreground">{selectedConnectorDisplay?.source ?? formData.source}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedConnectorDisplay
+                      ? getSourceProviderTypeLabel(selectedConnectorDisplay.provider, selectedConnectorDisplay.connectorType, sourceSettingsCopy)
+                      : `${formData.provider} · ${formData.connectorType}`}
+                  </p>
                 </div>
                 <button
-                  onClick={() => setSelectedConnectorId(null)}
+                  type="button"
+                  onClick={closeConnectorSettings}
                   className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 >
                   <span className="text-xl font-light">&times;</span>
@@ -2716,27 +3882,41 @@ function SourceStructurePanelContent({
               </div>
 
               {/* Tabs Nav */}
-              <div className="flex border-b border-border/60 px-4 bg-muted/10 text-xs font-medium scrollbar-none overflow-x-auto">
-                {(["sync", "nodes", "routing", "approval", "governance"] as const).map((tab) => {
-                  const labels = {
-                    sync: "同步與分析",
-                    nodes: "思考節點",
-                    routing: "資料路由",
-                    approval: "風險審批",
-                    governance: "治理隱私"
-                  }
+              <div
+                role="tablist"
+                aria-label={drawerCopy.tabListLabel}
+                className="flex border-b border-border/60 px-4 bg-muted/10 text-xs font-medium scrollbar-none overflow-x-auto"
+              >
+                {SOURCE_SETTINGS_DRAWER_TABS.map((tab, tabIndex) => {
+                  const isActive = drawerTab === tab
                   return (
                     <button
+                      type="button"
                       key={tab}
-                      onClick={() => setDrawerTab(tab)}
+                      id={`source-settings-tab-${tab}`}
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-controls={`source-settings-panel-${tab}`}
+                      data-source-settings-tab={tab}
+                      tabIndex={isActive ? 0 : -1}
+                      onClick={() => selectDrawerTab(tab)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return
+                        event.preventDefault()
+                        const direction = event.key === "ArrowRight" ? 1 : -1
+                        const nextIndex =
+                          (tabIndex + direction + SOURCE_SETTINGS_DRAWER_TABS.length) %
+                          SOURCE_SETTINGS_DRAWER_TABS.length
+                        selectDrawerTab(SOURCE_SETTINGS_DRAWER_TABS[nextIndex], true)
+                      }}
                       className={cn(
                         "px-4 py-3 border-b-2 transition-colors whitespace-nowrap",
-                        drawerTab === tab
+                        isActive
                           ? "border-primary text-foreground font-semibold"
                           : "border-transparent text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {labels[tab]}
+                      {drawerCopy.tabs[tab]}
                     </button>
                   )
                 })}
@@ -2745,15 +3925,20 @@ function SourceStructurePanelContent({
               {/* Scrollable Form Body */}
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 scrollbar-thin">
                 {drawerTab === "sync" && (
-                  <div className="space-y-5">
+                  <div
+                    id="source-settings-panel-sync"
+                    role="tabpanel"
+                    aria-labelledby="source-settings-tab-sync"
+                    className="space-y-5"
+                  >
                     {/* Sync Section */}
                     <div className="border border-border/60 rounded-lg p-4 bg-muted/10 space-y-4">
                       <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                         <ZapIcon className="size-3.5 text-amber-500" />
-                        外部同步政策
+                        {drawerCopy.syncPolicyTitle}
                       </h4>
                       <div className="flex items-center justify-between text-xs">
-                        <label className="text-muted-foreground">啟用排程自動同步</label>
+                        <label className="text-muted-foreground">{drawerCopy.enableScheduledSync}</label>
                         <input
                           type="checkbox"
                           checked={formData.syncEnabled}
@@ -2762,7 +3947,7 @@ function SourceStructurePanelContent({
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground block">同步觸發模式</label>
+                        <label className="text-xs font-medium text-muted-foreground block">{drawerCopy.syncTriggerMode}</label>
                         <div className="flex gap-4">
                           <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
                             <input
@@ -2771,7 +3956,7 @@ function SourceStructurePanelContent({
                               checked={formData.syncMode === "manual_only"}
                               onChange={() => setFormData({ ...formData, syncMode: "manual_only", syncSchedule: null })}
                             />
-                            僅限手動
+                            {drawerCopy.manualOnly}
                           </label>
                           <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
                             <input
@@ -2780,13 +3965,13 @@ function SourceStructurePanelContent({
                               checked={formData.syncMode === "manual_and_scheduled"}
                               onChange={() => setFormData({ ...formData, syncMode: "manual_and_scheduled", syncSchedule: "0 8 * * *" })}
                             />
-                            手動與排程
+                            {drawerCopy.manualAndScheduled}
                           </label>
                         </div>
                       </div>
                       {formData.syncMode === "manual_and_scheduled" && (
                         <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground block">自動同步頻率 (Cron String)</label>
+                          <label className="text-xs font-medium text-muted-foreground block">{drawerCopy.syncCronLabel}</label>
                           <input
                             type="text"
                             value={formData.syncSchedule || ""}
@@ -2802,10 +3987,10 @@ function SourceStructurePanelContent({
                     <div className="border border-border/60 rounded-lg p-4 bg-muted/10 space-y-4">
                       <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                         <SparklesIcon className="size-3.5 text-indigo-500" />
-                        AI Ingestion 分析政策
+                        {drawerCopy.analysisPolicyTitle}
                       </h4>
                       <div className="flex items-center justify-between text-xs">
-                        <label className="text-muted-foreground">啟用自動 AI 分析</label>
+                        <label className="text-muted-foreground">{drawerCopy.enableAutoAnalysis}</label>
                         <input
                           type="checkbox"
                           checked={formData.analysisEnabled}
@@ -2814,7 +3999,7 @@ function SourceStructurePanelContent({
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground block">分析觸發模式</label>
+                        <label className="text-xs font-medium text-muted-foreground block">{drawerCopy.analysisTriggerMode}</label>
                         <div className="flex gap-4">
                           <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
                             <input
@@ -2823,7 +4008,7 @@ function SourceStructurePanelContent({
                               checked={formData.analysisMode === "manual_only"}
                               onChange={() => setFormData({ ...formData, analysisMode: "manual_only", analysisSchedule: null })}
                             />
-                            僅限手動
+                            {drawerCopy.manualOnly}
                           </label>
                           <label className="flex items-center gap-1.5 text-xs text-foreground/80 cursor-pointer">
                             <input
@@ -2832,13 +4017,13 @@ function SourceStructurePanelContent({
                               checked={formData.analysisMode === "manual_and_scheduled"}
                               onChange={() => setFormData({ ...formData, analysisMode: "manual_and_scheduled", analysisSchedule: "0 9 * * *" })}
                             />
-                            手動與排程
+                            {drawerCopy.manualAndScheduled}
                           </label>
                         </div>
                       </div>
                       {formData.analysisMode === "manual_and_scheduled" && (
                         <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground block">自動分析頻率 (Cron String)</label>
+                          <label className="text-xs font-medium text-muted-foreground block">{drawerCopy.analysisCronLabel}</label>
                           <input
                             type="text"
                             value={formData.analysisSchedule || ""}
@@ -2849,7 +4034,7 @@ function SourceStructurePanelContent({
                         </div>
                       )}
                       <div className="flex items-center justify-between text-xs pt-1">
-                        <label className="text-muted-foreground">僅在有未處理的 Sync Batch 時分析</label>
+                        <label className="text-muted-foreground">{drawerCopy.analyzeOnlyWhenPending}</label>
                         <input
                           type="checkbox"
                           checked={formData.analyzeOnlyWhenPending}
@@ -2862,23 +4047,20 @@ function SourceStructurePanelContent({
                 )}
 
                 {drawerTab === "nodes" && (
-                  <div className="space-y-4">
+                  <div
+                    id="source-settings-panel-nodes"
+                    role="tabpanel"
+                    aria-labelledby="source-settings-tab-nodes"
+                    className="space-y-4"
+                  >
                     <div className="flex justify-between items-center pb-2">
-                      <span className="text-xs text-muted-foreground">調整 Ingestion 代理人的分析思緒節點與自訂提示詞</span>
+                      <span className="text-xs text-muted-foreground">{drawerCopy.nodesHelp}</span>
                     </div>
                     <div className="space-y-3">
                       {formData.thinkingNodes
                         ?.sort((a, b) => a.order - b.order)
                         .map((node, index) => {
-                          const nodeLabel: Record<string, string> = {
-                            source_context: "來源脈絡判斷",
-                            classify_information: "資訊主題分類",
-                            extract_entity: "關係人與實體抽取",
-                            extract_commitment: "承諾事項與交付物",
-                            detect_task_candidate: "行動任務候選識別",
-                            detect_risk: "潛在執行風險識別",
-                            draft_inbox_items: "Inbox 提案封裝起草",
-                          }
+                          const nodeLabel = drawerCopy.nodeLabels as Record<string, string>
                           return (
                             <div key={node.id} className="border border-border/60 rounded-lg p-3 bg-muted/5 space-y-2.5">
                               <div className="flex items-center justify-between">
@@ -2886,6 +4068,7 @@ function SourceStructurePanelContent({
                                   {/* Reordering buttons instead of complex drag */}
                                   <div className="flex flex-col gap-0.5">
                                     <button
+                                      type="button"
                                       disabled={index === 0}
                                       onClick={() => {
                                         if (!formData || !formData.thinkingNodes) return
@@ -2897,11 +4080,12 @@ function SourceStructurePanelContent({
                                         setFormData({ ...formData, thinkingNodes: nodes })
                                       }}
                                       className="text-muted-foreground hover:text-foreground disabled:opacity-20 text-[9px] font-bold p-0.5"
-                                      title="上移"
+                                      title={drawerCopy.moveUpTitle}
                                     >
                                       ▲
                                     </button>
                                     <button
+                                      type="button"
                                       disabled={index === (formData.thinkingNodes?.length || 1) - 1}
                                       onClick={() => {
                                         if (!formData || !formData.thinkingNodes) return
@@ -2913,7 +4097,7 @@ function SourceStructurePanelContent({
                                         setFormData({ ...formData, thinkingNodes: nodes })
                                       }}
                                       className="text-muted-foreground hover:text-foreground disabled:opacity-20 text-[9px] font-bold p-0.5"
-                                      title="下移"
+                                      title={drawerCopy.moveDownTitle}
                                     >
                                       ▼
                                     </button>
@@ -2943,7 +4127,7 @@ function SourceStructurePanelContent({
                                   }}
                                   rows={2}
                                   className="w-full text-[11px] leading-relaxed bg-muted/40 border border-border/50 rounded p-2 text-foreground focus:outline-none focus:border-border/80"
-                                  placeholder="請輸入給此分析節點的客製化引導指令..."
+                                  placeholder={drawerCopy.nodePlaceholder}
                                 />
                               )}
                             </div>
@@ -2954,34 +4138,41 @@ function SourceStructurePanelContent({
                 )}
 
                 {drawerTab === "routing" && (
-                  <div className="space-y-4">
+                  <div
+                    id="source-settings-panel-routing"
+                    role="tabpanel"
+                    aria-labelledby="source-settings-tab-routing"
+                    className="space-y-4"
+                  >
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-foreground block">預設發布模組 (Default Module)</label>
+                      <label className="text-xs font-semibold text-foreground block">{drawerCopy.defaultModuleLabel}</label>
                       <select
                         value={formData.defaultModule}
                         onChange={(e) => setFormData({ ...formData, defaultModule: e.target.value })}
                         className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
                       >
-                        <option value="工作">工作 (Work)</option>
-                        <option value="研究">研究 (Research)</option>
-                        <option value="商會">商會 (Chamber/CRM)</option>
-                        <option value="生活">生活 (Life)</option>
-                        <option value="財務">財務 (Finance)</option>
-                        <option value="公司">公司 (Company Strategy)</option>
-                        <option value="依 AI triage">依 AI 自動判斷 (Triage)</option>
+                        <option value="工作">{drawerCopy.moduleOptions.work}</option>
+                        <option value="研究">{drawerCopy.moduleOptions.research}</option>
+                        <option value="商會">{drawerCopy.moduleOptions.chamber}</option>
+                        <option value="生活">{drawerCopy.moduleOptions.life}</option>
+                        <option value="財務">{drawerCopy.moduleOptions.finance}</option>
+                        <option value="公司">{drawerCopy.moduleOptions.company}</option>
+                        <option value="Inbox">{drawerCopy.moduleOptions.inbox}</option>
+                        <option value="依 AI triage">{drawerCopy.moduleOptions.triage}</option>
                       </select>
                     </div>
 
                     <div className="space-y-2 pt-2">
-                      <label className="text-xs font-semibold text-foreground block">授權寫入目標模組 (Allowed Target Modules)</label>
+                      <label className="text-xs font-semibold text-foreground block">{drawerCopy.allowedTargetModulesLabel}</label>
                       <div className="border border-border/60 rounded-lg p-3 bg-muted/10 space-y-2.5">
                         {[
-                          { id: "work", label: "工作模組 (Work)" },
-                          { id: "research", label: "研究模組 (Research)" },
-                          { id: "chamber", label: "商會模組 (Chamber)" },
-                          { id: "life", label: "生活模組 (Life)" },
-                          { id: "finance", label: "財務模組 (Finance - 高風險)" },
-                          { id: "company", label: "公司策略模組 (Company - 高風險)" },
+                          { id: "work", label: drawerCopy.allowedModuleOptions.work },
+                          { id: "research", label: drawerCopy.allowedModuleOptions.research },
+                          { id: "chamber", label: drawerCopy.allowedModuleOptions.chamber },
+                          { id: "life", label: drawerCopy.allowedModuleOptions.life },
+                          { id: "finance", label: drawerCopy.allowedModuleOptions.finance },
+                          { id: "company", label: drawerCopy.allowedModuleOptions.company },
+                          { id: "inbox", label: drawerCopy.allowedModuleOptions.inbox },
                         ].map((mod) => {
                           const isChecked = formData.allowedTargetModules?.includes(mod.id)
                           return (
@@ -3010,41 +4201,46 @@ function SourceStructurePanelContent({
                 )}
 
                 {drawerTab === "approval" && (
-                  <div className="space-y-5">
+                  <div
+                    id="source-settings-panel-approval"
+                    role="tabpanel"
+                    aria-labelledby="source-settings-tab-approval"
+                    className="space-y-5"
+                  >
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-foreground block">風險等級設定</label>
+                      <label className="text-xs font-semibold text-foreground block">{drawerCopy.riskLevelLabel}</label>
                       <select
                         value={formData.riskClassification}
                         onChange={(e) => setFormData({ ...formData, riskClassification: e.target.value as SourceRiskClassification })}
                         className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
                       >
-                        <option value="low">低風險 (Low)</option>
-                        <option value="medium">中風險 (Medium)</option>
-                        <option value="high">高風險 (High)</option>
+                        <option value="low">{drawerCopy.riskOptions.low}</option>
+                        <option value="medium">{drawerCopy.riskOptions.medium}</option>
+                        <option value="high">{drawerCopy.riskOptions.high}</option>
                       </select>
-                      <span className="text-[10px] text-muted-foreground block">風險等級會影響 AI Ingestion 提案的預設審查優先級與去識別化觸發條件。</span>
+                      <span className="text-[10px] text-muted-foreground block">{drawerCopy.riskHelp}</span>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-foreground block">行動提案審批政策 (Approval Level)</label>
+                      <label className="text-xs font-semibold text-foreground block">{drawerCopy.approvalLevelLabel}</label>
                       <select
                         value={formData.approvalLevel}
                         onChange={(e) => setFormData({ ...formData, approvalLevel: e.target.value as SourceApprovalLevel })}
                         className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
                       >
-                        <option value="always_require">所有提案均需人工確認 (Always Require)</option>
-                        <option value="auto_execute_low_risk">低風險提案自動執行，中高風險需確認</option>
-                        <option value="full_automation">完全自動化執行 (Full Automation - 限極低風險)</option>
+                        <option value="always_require">{drawerCopy.approvalOptions.always_require}</option>
+                        <option value="auto_execute_low_risk">{drawerCopy.approvalOptions.auto_execute_low_risk}</option>
+                        <option value="full_automation">{drawerCopy.approvalOptions.full_automation}</option>
                       </select>
                     </div>
 
                     <div className="border border-border/60 rounded-lg p-4 bg-muted/10 space-y-3">
                       <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                         <Settings2Icon className="size-3.5 text-muted-foreground" />
-                        早安簡報通知設定
+                        {drawerCopy.todayNotificationTitle}
                       </h4>
                       <div className="flex items-center justify-between text-xs">
-                        <label className="text-muted-foreground">將同步異常與決策項目匯入早安簡報</label>
+                        <label className="text-muted-foreground">{drawerCopy.includeInToday}</label>
                         <input
                           type="checkbox"
                           checked={formData.includeInMorningBrief}
@@ -3057,24 +4253,29 @@ function SourceStructurePanelContent({
                 )}
 
                 {drawerTab === "governance" && (
-                  <div className="space-y-4">
+                  <div
+                    id="source-settings-panel-governance"
+                    role="tabpanel"
+                    aria-labelledby="source-settings-tab-governance"
+                    className="space-y-4"
+                  >
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-foreground block">資料保存期限 (Retention Policy)</label>
+                      <label className="text-xs font-semibold text-foreground block">{drawerCopy.retentionLabel}</label>
                       <select
                         value={formData.retentionDays}
                         onChange={(e) => setFormData({ ...formData, retentionDays: parseInt(e.target.value) })}
                         className="w-full text-xs bg-muted/30 border border-border/60 rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-border/80"
                       >
-                        <option value="30">保存 30 天後自動刪除/封存</option>
-                        <option value="90">保存 90 天後自動刪除/封存</option>
-                        <option value="0">永久保存 (Infinite)</option>
+                        <option value="30">{drawerCopy.retentionOptions["30"]}</option>
+                        <option value="90">{drawerCopy.retentionOptions["90"]}</option>
+                        <option value="0">{drawerCopy.retentionOptions["0"]}</option>
                       </select>
                     </div>
 
                     <div className="flex items-center justify-between text-xs border border-border/60 rounded-lg p-4 bg-muted/10">
                       <div>
-                        <label className="font-semibold text-foreground block">去識別化敏感資訊 (PII Masking)</label>
-                        <span className="text-[10px] text-muted-foreground mt-0.5 block">自動遮蔽分析過程中的人名、電話、Email 等隱私資訊</span>
+                        <label className="font-semibold text-foreground block">{drawerCopy.piiTitle}</label>
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">{drawerCopy.piiDescription}</span>
                       </div>
                       <input
                         type="checkbox"
@@ -3085,7 +4286,7 @@ function SourceStructurePanelContent({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-foreground block">本機手動上傳預設目錄 (Upload Path)</label>
+                      <label className="text-xs font-semibold text-foreground block">{drawerCopy.uploadPathLabel}</label>
                       <input
                         type="text"
                         value={formData.uploadDirectory}
@@ -3122,48 +4323,33 @@ function SourceStructurePanelContent({
                           : c
                       )
                     )
-                    pushToast(`[儲存成功]: 已儲存 ${formData.source} 的同步與處理設定。`)
-                    setSelectedConnectorId(null)
+                    pushToast(formatCopyTemplate(drawerCopy.savedToast, { source: selectedConnectorDisplay?.source ?? formData.source }))
+                    closeConnectorSettings()
                   }}
                   className="flex-1 bg-primary text-primary-foreground text-xs h-9 rounded-lg hover:bg-primary/95"
                 >
-                  儲存設定
+                  {drawerCopy.save}
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setSelectedConnectorId(null)}
+                  onClick={closeConnectorSettings}
                   className="flex-1 border-border/60 text-foreground hover:bg-muted text-xs h-9 rounded-lg"
                 >
-                  取消
+                  {drawerCopy.cancel}
                 </Button>
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-    </div>
-  )
-}
 
-function ActionButton({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={onClick}
-      className="h-7 rounded-full border-border/50 bg-background/50 hover:bg-muted text-xs font-normal gap-1.5 px-2.5 whitespace-nowrap shadow-sm"
-    >
-      <span className="size-3 text-muted-foreground">{icon}</span>
-      {label}
-    </Button>
+      <SourceConnectionWizard
+        catalog={sourceConnectionCatalog}
+        open={isMockDataEnabled && isConnectionWizardOpen}
+        onOpenChange={(open) => setIsConnectionWizardOpen(isMockDataEnabled && open)}
+        onCreated={handleConnectionDraftsCreated}
+      />
+    </div>
   )
 }
 
@@ -3212,6 +4398,8 @@ function WorkflowWorkbenchPanelContent({
   rawSourceCount: number
   compact?: boolean
 }) {
+  const { copy } = useProductLanguage()
+  const workbenchCopy = copy.aiInput.chat.workbench
   const formalWorkflowKinds: AIInputSourceWorkflowReadModelKind[] = [
     "ai_workflow_run",
     "ai_work_item",
@@ -3221,11 +4409,37 @@ function WorkflowWorkbenchPanelContent({
   const formalWorkflowModels = formalReadiness.sourceWorkflow.models.filter((model) =>
     formalWorkflowKinds.includes(model.kind)
   )
-  const workflowRuns = isMockDataEnabled ? MOCK_WORKFLOW_RUNS : []
-  const reviewItems = isMockDataEnabled ? MOCK_REVIEW_ITEMS : []
-  const sourceEnvironments = isMockDataEnabled ? MOCK_SOURCE_ENVIRONMENTS : []
-  const organizingResults = isMockDataEnabled ? MOCK_ORGANIZING_RESULTS : []
-  const workLog = isMockDataEnabled ? MOCK_WORK_LOG : []
+  const demoRows = workbenchCopy.demoRows
+  const workflowRuns = isMockDataEnabled
+    ? MOCK_WORKFLOW_RUNS.map((run) => ({
+        ...run,
+        ...((demoRows.workflowRuns as Record<string, Partial<WorkflowRunCard>>)[run.id] ?? {}),
+      }))
+    : []
+  const reviewItems = isMockDataEnabled
+    ? MOCK_REVIEW_ITEMS.map((item) => ({
+        ...item,
+        ...((demoRows.reviewItems as Record<string, Partial<ReviewItemCard>>)[item.id] ?? {}),
+      }))
+    : []
+  const sourceEnvironments = isMockDataEnabled
+    ? MOCK_SOURCE_ENVIRONMENTS.map((source) => ({
+        ...source,
+        ...((demoRows.sourceEnvironments as Record<string, Partial<SourceEnvironmentCard>>)[source.id] ?? {}),
+      }))
+    : []
+  const organizingResults = isMockDataEnabled
+    ? MOCK_ORGANIZING_RESULTS.map((result) => ({
+        ...result,
+        ...((demoRows.organizingResults as Record<string, Partial<OrganizingResultCard>>)[result.id] ?? {}),
+      }))
+    : []
+  const workLog = isMockDataEnabled
+    ? MOCK_WORK_LOG.map((entry) => ({
+        ...entry,
+        text: (demoRows.workLog as Record<string, string>)[entry.id] ?? entry.text,
+      }))
+    : []
   const reviewCount = isMockDataEnabled ? reviewItems.length + pendingProposalCount : formalWorkflowModels.length
   const completedCount = workflowRuns.filter((run) => run.status === "completed").length
 
@@ -3234,22 +4448,20 @@ function WorkflowWorkbenchPanelContent({
       <div className={cn("border-b border-border/60 px-4 py-3", compact && "px-3")}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">AI 工作台</p>
-            <h2 className="mt-1 text-sm font-semibold text-foreground">Source Workflow Console</h2>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{workbenchCopy.consoleEyebrow}</p>
+            <h2 className="mt-1 text-sm font-semibold text-foreground">{workbenchCopy.consoleTitle}</h2>
           </div>
           <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-            {isMockDataEnabled ? "Mock" : "正式模式"}
+            {isMockDataEnabled ? workbenchCopy.mockBadge : workbenchCopy.formalBadge}
           </span>
         </div>
         <div className="mt-3 grid grid-cols-3 divide-x divide-border/60 rounded-lg border border-border/60 bg-muted/20">
-          <WorkflowStat label="今日" value={workflowRuns.length.toString()} />
-          <WorkflowStat label="完成" value={completedCount.toString()} />
-          <WorkflowStat label="確認" value={reviewCount.toString()} tone={reviewCount > 0 ? "warning" : "default"} />
+          <WorkflowStat label={workbenchCopy.stats.today} value={workflowRuns.length.toString()} />
+          <WorkflowStat label={workbenchCopy.stats.completed} value={completedCount.toString()} />
+          <WorkflowStat label={workbenchCopy.stats.review} value={reviewCount.toString()} tone={reviewCount > 0 ? "warning" : "default"} />
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-          {isMockDataEnabled
-            ? "目前只顯示 workflow 表格狀態；不執行真實同步、不寫入資料庫。"
-            : "Mock workflow 已關閉；DATTR-024A 先顯示正式 workflow read model 的空/不可用狀態。"}
+          {isMockDataEnabled ? workbenchCopy.mockNotice : workbenchCopy.formalNotice}
         </p>
       </div>
 
@@ -3268,7 +4480,7 @@ function WorkflowWorkbenchPanelContent({
               )}
             >
               {tab.icon}
-              <span className="flex-1 truncate">{tab.label}</span>
+              <span className="flex-1 truncate">{workbenchCopy.tabs[tab.id]}</span>
               {tab.id === "review" && reviewCount > 0 && (
                 <span className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px]",
@@ -3288,8 +4500,8 @@ function WorkflowWorkbenchPanelContent({
             <FormalReadinessContractPanel
               compact
               contract={formalReadiness}
-              description="Mock workflow 關閉後，AI 工作台先顯示 formal readiness contract，而不是假裝已有正式 run 或 work item。"
-              title="正式 Workflow readiness"
+              description={workbenchCopy.formalReadinessDescription}
+              title={workbenchCopy.formalReadinessTitle}
             />
             <FormalSourceWorkflowReadModelTable
               compact
@@ -3303,12 +4515,12 @@ function WorkflowWorkbenchPanelContent({
 
         {activeTab === "today" && (
           <WorkbenchTable
-            columns={["來源", "狀態", "整理結果", "可引用 ID"]}
+            columns={[...workbenchCopy.tables.today.columns]}
             description={isMockDataEnabled
-              ? `${rawSourceCount} 個 mock source assets 正在形成可觀察 workflow。`
-              : "正式模式下不顯示 mock source assets；這裡會列出真實同步與整理 run。"}
+              ? formatCopyTemplate(workbenchCopy.tables.today.mockDescription, { count: rawSourceCount })
+              : workbenchCopy.tables.today.formalDescription}
             gridClassName="grid-cols-[minmax(160px,1.2fr)_96px_minmax(220px,2fr)_150px]"
-            title="今日 Workflow"
+            title={workbenchCopy.tables.today.title}
           >
             {workflowRuns.length > 0 ? (
               workflowRuns.map((run) => (
@@ -3324,17 +4536,17 @@ function WorkflowWorkbenchPanelContent({
                 />
               ))
             ) : (
-              <EmptyTableRow message="尚無 Supabase-backed workflow run。下一步需要實作 SourceAsset / AIWorkflowRun BFF。" />
+              <EmptyTableRow message={workbenchCopy.tables.today.empty} />
             )}
           </WorkbenchTable>
         )}
 
         {activeTab === "review" && (
           <WorkbenchTable
-            columns={["類型", "目標", "需要確認的原因", "風險"]}
-            description="只顯示不確定、風險、或需要你決策的項目。"
+            columns={[...workbenchCopy.tables.review.columns]}
+            description={workbenchCopy.tables.review.description}
             gridClassName="grid-cols-[112px_minmax(160px,1fr)_minmax(240px,2fr)_88px]"
-            title="需要確認"
+            title={workbenchCopy.tables.review.title}
           >
             {reviewItems.map((item) => (
                 <WorkflowTableRow
@@ -3344,7 +4556,7 @@ function WorkflowWorkbenchPanelContent({
                     <span key="target" className="font-mono text-[11px] text-muted-foreground">{item.target}</span>,
                     `${item.title}：${item.description}`,
                     <span key="severity" className={cn("text-xs font-semibold", item.severity === "high" ? "text-rose-600" : "text-amber-600")}>
-                      {item.severity === "high" ? "高" : "中"}
+                      {item.severity === "high" ? workbenchCopy.tables.review.highSeverity : workbenchCopy.tables.review.mediumSeverity}
                     </span>,
                   ]}
                   gridClassName="grid-cols-[112px_minmax(160px,1fr)_minmax(240px,2fr)_88px]"
@@ -3355,24 +4567,24 @@ function WorkflowWorkbenchPanelContent({
                 cells={[
                   "Triage",
                   <span key="target" className="font-mono text-[11px] text-muted-foreground">@TRIAGE-PENDING</span>,
-                  `目前 ingestion mock pipeline 還有 ${pendingProposalCount} 個待確認 proposal，可在對話中逐一處理。`,
-                  <span key="severity" className="text-xs font-semibold text-amber-600">中</span>,
+                  formatCopyTemplate(workbenchCopy.tables.review.pendingProposalDescription, { count: pendingProposalCount }),
+                  <span key="severity" className="text-xs font-semibold text-amber-600">{workbenchCopy.tables.review.mediumSeverity}</span>,
                 ]}
                 gridClassName="grid-cols-[112px_minmax(160px,1fr)_minmax(240px,2fr)_88px]"
               />
             )}
             {reviewItems.length === 0 && pendingProposalCount === 0 && (
-              <EmptyTableRow message="正式模式下目前沒有 Supabase-backed AIWorkItem。Mock 確認卡已關閉。" />
+              <EmptyTableRow message={workbenchCopy.tables.review.empty} />
             )}
           </WorkbenchTable>
         )}
 
         {activeTab === "environment" && (
           <WorkbenchTable
-            columns={["來源", "頻率", "預設模組", "風險", "簡報規則"]}
-            description="顯示來源處理規則，不是詳細 connector 後台。"
+            columns={[...workbenchCopy.tables.environment.columns]}
+            description={workbenchCopy.tables.environment.description}
             gridClassName="grid-cols-[minmax(220px,1.6fr)_100px_100px_92px_132px]"
-            title="來源環境"
+            title={workbenchCopy.tables.environment.title}
           >
             {sourceEnvironments.length > 0 ? (
               sourceEnvironments.map((source) => (
@@ -3383,17 +4595,17 @@ function WorkflowWorkbenchPanelContent({
                 />
               ))
             ) : (
-              <EmptyTableRow message="尚無正式 SourceWorkflowConfig。需先將來源環境設定持久化到 Supabase。" />
+              <EmptyTableRow message={workbenchCopy.tables.environment.empty} />
             )}
           </WorkbenchTable>
         )}
 
         {activeTab === "results" && (
           <WorkbenchTable
-            columns={["狀態", "候選成果", "說明"]}
-            description="AI 已整理出的候選成果，仍需經由 proposal / write intent。"
+            columns={[...workbenchCopy.tables.results.columns]}
+            description={workbenchCopy.tables.results.description}
             gridClassName="grid-cols-[116px_minmax(220px,1.2fr)_minmax(260px,2fr)]"
-            title="整理結果"
+            title={workbenchCopy.tables.results.title}
           >
             {organizingResults.length > 0 ? (
               organizingResults.map((result) => (
@@ -3408,17 +4620,17 @@ function WorkflowWorkbenchPanelContent({
                 />
               ))
             ) : (
-              <EmptyTableRow message="尚無正式整理結果。需等 DataUnitProposal / ModuleWriteIntent 接上 Supabase。" />
+              <EmptyTableRow message={workbenchCopy.tables.results.empty} />
             )}
           </WorkbenchTable>
         )}
 
         {activeTab === "log" && (
           <WorkbenchTable
-            columns={["時間", "事件"]}
-            description="保留近期 workflow 透明度，詳細 step 之後再 drill down。"
+            columns={[...workbenchCopy.tables.log.columns]}
+            description={workbenchCopy.tables.log.description}
             gridClassName="grid-cols-[80px_minmax(320px,1fr)]"
-            title="工作紀錄"
+            title={workbenchCopy.tables.log.title}
           >
             {workLog.length > 0 ? (
               workLog.map((entry) => (
@@ -3432,7 +4644,7 @@ function WorkflowWorkbenchPanelContent({
                 />
               ))
             ) : (
-              <EmptyTableRow message="尚無正式 workflow event log。Mock 工作紀錄已關閉。" />
+              <EmptyTableRow message={workbenchCopy.tables.log.empty} />
             )}
           </WorkbenchTable>
         )}
@@ -3657,7 +4869,7 @@ function FormalSourceWorkflowProofBootstrapPanel({
     `no silent DATABASE_URL ${proof.safety.doesNotUseDatabaseUrlSilently ? "yes" : "no"}`,
     `no migration apply ${proof.safety.doesNotApplyMigration ? "yes" : "no"}`,
     `no default write ${proof.safety.doesNotWriteDatabaseByDefault ? "yes" : "no"}`,
-    "externalRegisterable false",
+    "external registration off",
   ].join(" / ")
   const handoffEvidenceTargets =
     handoff.evidenceTargets.length > 0 ? handoff.evidenceTargets.slice(0, 3).join(" / ") : "not_collected"
@@ -3667,12 +4879,12 @@ function FormalSourceWorkflowProofBootstrapPanel({
       <div className="flex flex-col gap-3 border-b border-border/60 px-3 py-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">
-            {compact ? "Local proof bootstrap" : "DATTR-024O Source Workflow proof packet"}
+            {compact ? "本機檢查啟動包" : "來源流程檢查包"}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {compact
-              ? "Latest local bootstrap packet, child proof command, and missing owner inputs."
-              : "Protected no-secret view of the latest local Source Workflow proof bootstrap packet. The UI never executes the command or renders target URL, host, credentials, or raw packet body."}
+              ? "最新本機啟動包、檢查命令與缺少的 owner input。"
+              : "受保護的無密鑰來源流程檢查視圖。此 UI 不執行命令，也不顯示目標 URL、host、憑證或原始封包內容。"}
           </p>
         </div>
         <ReadinessPill tone={tone}>{proof.summary.packetStatus}</ReadinessPill>
@@ -3680,34 +4892,34 @@ function FormalSourceWorkflowProofBootstrapPanel({
 
       <div className={cn("grid gap-3 p-3 text-xs", compact ? "md:grid-cols-2" : "lg:grid-cols-4")}>
         <div className="min-w-0 rounded-md bg-background/70 px-3 py-2">
-          <p className="font-medium text-foreground">Latest packet</p>
+          <p className="font-medium text-foreground">最新檢查包</p>
           <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">
             {proof.source.latestPacketPath}
           </p>
           <p className="mt-1 text-[10px] text-muted-foreground">{proof.summary.checkerStatus}</p>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            Evidence freshness {proofEvidence.latest.freshness} / {evidenceAge}
+            證據新鮮度 {proofEvidence.latest.freshness} / {evidenceAge}
           </p>
         </div>
         <div className="min-w-0 rounded-md bg-background/70 px-3 py-2">
-          <p className="font-medium text-foreground">Target classification</p>
+          <p className="font-medium text-foreground">目標分類</p>
           <p className="mt-1 leading-relaxed text-muted-foreground">{targetSummary}</p>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            URL redacted {proof.target.targetUrlRedacted ? "yes" : "no"} / host redacted{" "}
+            URL 已遮蔽 {proof.target.targetUrlRedacted ? "yes" : "no"} / host 已遮蔽{" "}
             {proof.target.hostRedacted ? "yes" : "no"}
           </p>
         </div>
         <div className="min-w-0 rounded-md bg-background/70 px-3 py-2">
-          <p className="font-medium text-foreground">Child proof command</p>
+          <p className="font-medium text-foreground">檢查命令</p>
           <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">
             {proof.plannedChildProcess.command}
           </p>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            runnable now {proof.plannedChildProcess.runnableNow ? "yes" : "no"}
+            現在可執行 {proof.plannedChildProcess.runnableNow ? "yes" : "no"}
           </p>
         </div>
         <div className="min-w-0 rounded-md bg-background/70 px-3 py-2">
-          <p className="font-medium text-foreground">Manual Ops gap</p>
+          <p className="font-medium text-foreground">設定缺口</p>
           <p className="mt-1 leading-relaxed text-muted-foreground">
             {proof.summary.missingCount} missing / {proof.summary.warningCount} warning
           </p>
@@ -3720,20 +4932,20 @@ function FormalSourceWorkflowProofBootstrapPanel({
       {!compact && (
         <div className="grid gap-3 border-t border-border/60 p-3 text-xs lg:grid-cols-4">
           <div className="rounded-md bg-background/70 px-3 py-2">
-            <p className="font-medium text-foreground">DATTR-024Q proof target handoff</p>
+            <p className="font-medium text-foreground">設定交接目標</p>
             <p className="mt-1 leading-relaxed text-muted-foreground">{handoff.ownerAction}</p>
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {handoff.missingPrerequisites.length} missing / no runtime execution
+              {handoff.missingPrerequisites.length} 項待補 / 未執行 runtime
             </p>
           </div>
           <div className="rounded-md bg-background/70 px-3 py-2">
-            <p className="font-medium text-foreground">Env var names only</p>
+            <p className="font-medium text-foreground">環境變數名稱</p>
             <p className="mt-1 break-words font-mono text-[11px] leading-relaxed text-muted-foreground">
               {handoff.envVarNames.join(" / ")}
             </p>
           </div>
           <div className="rounded-md bg-background/70 px-3 py-2">
-            <p className="font-medium text-foreground">Evidence targets</p>
+            <p className="font-medium text-foreground">檢查目標</p>
             <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground">
               {handoffEvidenceTargets}
             </p>
@@ -3819,18 +5031,20 @@ function WorkbenchTable({
   gridClassName,
   children,
 }: {
-  title: string
-  description: string
+  title?: string
+  description?: string
   columns: string[]
   gridClassName: string
   children: React.ReactNode
 }) {
   return (
     <section className="space-y-3">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{description}</p>
-      </div>
+      {title && (
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{description}</p>}
+        </div>
+      )}
       <div className="overflow-x-auto rounded-lg border border-border/60">
         <div className={cn("grid min-w-[680px] border-b border-border/60 bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground", gridClassName)}>
           {columns.map((column) => (
@@ -3882,10 +5096,12 @@ function EmptyTableRow({ message }: { message: string }) {
 }
 
 function WorkflowStatusBadge({ status }: { status: WorkflowRunCard["status"] }) {
+  const { copy } = useProductLanguage()
+  const labels = copy.aiInput.chat.workbench.workflowStatus
   const statusConfig = {
-    completed: { label: "完成", icon: <CheckCircle2Icon className="size-3.5" />, className: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-    review: { label: "需確認", icon: <AlertTriangleIcon className="size-3.5" />, className: "text-amber-700 bg-amber-50 border-amber-200" },
-    partial: { label: "部分完成", icon: <Clock3Icon className="size-3.5" />, className: "text-sky-700 bg-sky-50 border-sky-200" },
+    completed: { label: labels.completed, icon: <CheckCircle2Icon className="size-3.5" />, className: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+    review: { label: labels.review, icon: <AlertTriangleIcon className="size-3.5" />, className: "text-amber-700 bg-amber-50 border-amber-200" },
+    partial: { label: labels.partial, icon: <Clock3Icon className="size-3.5" />, className: "text-sky-700 bg-sky-50 border-sky-200" },
   }[status]
 
   return (
@@ -3897,12 +5113,14 @@ function WorkflowStatusBadge({ status }: { status: WorkflowRunCard["status"] }) 
 }
 
 function ConnectionStatusBadge({ status }: { status: SourceConnectorRow["connectionStatus"] }) {
+  const { copy } = useProductLanguage()
+  const labels = copy.aiInput.chat.sourceSettings.connectionStatus
   const statusConfig = {
-    connected: { label: "已串接", className: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-    needs_setup: { label: "待設定", className: "text-amber-700 bg-amber-50 border-amber-200" },
-    planned: { label: "規劃中", className: "text-sky-700 bg-sky-50 border-sky-200" },
-    paused: { label: "暫停", className: "text-slate-600 bg-slate-50 border-slate-200" },
-    error: { label: "錯誤", className: "text-rose-700 bg-rose-50 border-rose-200" },
+    connected: { label: labels.connected, className: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+    needs_setup: { label: labels.needs_setup, className: "text-amber-700 bg-amber-50 border-amber-200" },
+    planned: { label: labels.planned, className: "text-sky-700 bg-sky-50 border-sky-200" },
+    paused: { label: labels.paused, className: "text-slate-600 bg-slate-50 border-slate-200" },
+    error: { label: labels.error, className: "text-rose-700 bg-rose-50 border-rose-200" },
   }[status]
 
   return (
@@ -3913,13 +5131,15 @@ function ConnectionStatusBadge({ status }: { status: SourceConnectorRow["connect
 }
 
 function SourceSyncStatusBadge({ status }: { status: SourceConnectorRow["syncStatus"] }) {
+  const { copy } = useProductLanguage()
+  const labels = copy.aiInput.chat.sourceSettings.syncStatus
   const statusConfig = {
-    completed: { label: "完成", className: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-    review: { label: "需確認", className: "text-amber-700 bg-amber-50 border-amber-200" },
-    idle: { label: "待機", className: "text-slate-600 bg-slate-50 border-slate-200" },
-    running: { label: "同步中", className: "text-sky-700 bg-sky-50 border-sky-200" },
-    not_configured: { label: "未設定", className: "text-muted-foreground bg-muted border-border" },
-    failed: { label: "失敗", className: "text-rose-700 bg-rose-50 border-rose-200" },
+    completed: { label: labels.completed, className: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+    review: { label: labels.review, className: "text-amber-700 bg-amber-50 border-amber-200" },
+    idle: { label: labels.idle, className: "text-slate-600 bg-slate-50 border-slate-200" },
+    running: { label: labels.running, className: "text-sky-700 bg-sky-50 border-sky-200" },
+    not_configured: { label: labels.not_configured, className: "text-muted-foreground bg-muted border-border" },
+    failed: { label: labels.failed, className: "text-rose-700 bg-rose-50 border-rose-200" },
   }[status]
 
   return (

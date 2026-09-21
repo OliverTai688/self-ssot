@@ -3,6 +3,7 @@
 import { WalletIcon } from "lucide-react"
 import { AppHeader } from "@/components/layout/app-header"
 import { ModuleGuard } from "@/components/layout/module-guard"
+import { useIsDemoAccount } from "@/lib/context/demo-account-context"
 import {
   ModuleOperatingShell,
   type ModuleAgentProposal,
@@ -11,7 +12,7 @@ import {
   type ModuleSettingRow,
 } from "@/components/layout/module-operating-shell"
 
-const financeRecords: ModuleOperatingRecord[] = [
+const exampleFinanceRecords: ModuleOperatingRecord[] = [
   {
     id: "finance-001",
     title: "Lisa 六月顧問費入帳確認",
@@ -89,7 +90,7 @@ const financeRecords: ModuleOperatingRecord[] = [
   },
 ]
 
-const financeProposals: ModuleAgentProposal[] = [
+const exampleFinanceProposals: ModuleAgentProposal[] = [
   {
     id: "finance-proposal-001",
     title: "把收入與雲端成本分成兩個 review lane",
@@ -110,7 +111,7 @@ const financeProposals: ModuleAgentProposal[] = [
   },
 ]
 
-const financeAuditRows: ModuleAuditRow[] = [
+const exampleFinanceAuditRows: ModuleAuditRow[] = [
   {
     id: "finance-audit-001",
     time: "今天 10:20",
@@ -167,6 +168,13 @@ const financeSettings: ModuleSettingRow[] = [
 ]
 
 export default function FinancePage() {
+  // AUTH-013: the illustrative income/expense rows above are demo-account-
+  // only content. Every other signed-in account starts blank.
+  const isDemoAccount = useIsDemoAccount()
+  const financeRecords = isDemoAccount ? exampleFinanceRecords : []
+  const financeProposals = isDemoAccount ? exampleFinanceProposals : []
+  const financeAuditRows = isDemoAccount ? exampleFinanceAuditRows : []
+
   return (
     <ModuleGuard moduleKey="finance">
       <div className="flex flex-col h-full overflow-hidden">
@@ -176,11 +184,15 @@ export default function FinancePage() {
             icon={WalletIcon}
             operationLabel="收支記錄"
             operationDescription="收入、支出、發票與現金流追蹤"
-            overviewItems={[
-              { label: "本月現金流", placeholder: "預估淨流 +TWD 110,200；正式金額需人工確認後才可信。" },
-              { label: "待確認交易", placeholder: "2 筆需要 owner review：Lisa 入帳、雲端工具月費。" },
-              { label: "發票追蹤", placeholder: "1 筆收入草稿等待核對發票號碼與收款日期。" },
-            ]}
+            overviewItems={
+              isDemoAccount
+                ? [
+                    { label: "本月現金流", placeholder: "預估淨流 +TWD 110,200；正式金額需人工確認後才可信。" },
+                    { label: "待確認交易", placeholder: "2 筆需要 owner review：Lisa 入帳、雲端工具月費。" },
+                    { label: "發票追蹤", placeholder: "1 筆收入草稿等待核對發票號碼與收款日期。" },
+                  ]
+                : []
+            }
             operationPlaceholder="介面已可操作收入、支出、現金流與人工確認流程；目前只更新本機狀態。"
             records={financeRecords}
             agentProposals={financeProposals}
@@ -189,6 +201,8 @@ export default function FinancePage() {
             highRisk
             highRiskNote="財務資料為高風險模組。所有新增、修改、刪除均需人工確認。Agent 僅可分析與提案，不可自動寫入。"
             privacyNote="財務資料僅限本人存取，不對 Client Portal、Research 或其他模組公開。Agent 不可讀取原始財務憑證。"
+            moduleKey="finance"
+            agentLabel="財務AI"
           />
         </main>
       </div>

@@ -1,0 +1,22 @@
+{
+  "result": "UI_PHASE_COMPLETE",
+  "uiId": "UI-088",
+  "route": "/company/operating",
+  "fixtureVersion": "yz-ui-20260913.2",
+  "modes": [
+    "showcase",
+    "empty"
+  ],
+  "contractGroups": 17,
+  "browserScenarioGroups": 31,
+  "browserEdgeGroups": 12,
+  "typecheck": "PASS",
+  "scopedEslint": "PASS",
+  "productionBuild": "PASS_WITH_EXISTING_FONT_CACHE",
+  "directGoogleFontsBuild": "NETWORK_ECONNRESET",
+  "anonymousProductionRoute": "307_TO_LOGIN_NO_FIXTURE",
+  "sourceHashManifest": "source-manifest.json",
+  "formalLaunchClaimChanged": false,
+  "businessPersistence": "memory-only; refresh resets",
+  "runtimeTruth": "PROTOTYPE"
+}

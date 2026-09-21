@@ -12,12 +12,23 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { ProjectPhaseNode, ProjectTimeline } from "@/types/work"
+
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (formatted, [key, value]) =>
+      formatted.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
 
 // ─── Milestone row ────────────────────────────────────────────────────────────
 
 function MilestoneRow({ milestone }: { milestone: ProjectPhaseNode["milestones"][number] }) {
-  const dateLabel = new Date(milestone.date).toLocaleDateString("zh-TW", {
+  const { locale } = useProductLanguage()
+  const dateLocale = locale === "zh-TW" ? "zh-TW" : "en-US"
+  const dateLabel = new Date(milestone.date).toLocaleDateString(dateLocale, {
     month: "numeric",
     day: "numeric",
   })
@@ -52,13 +63,16 @@ function PhaseNodeCard({
   node: ProjectPhaseNode
   isLast: boolean
 }) {
+  const { copy, locale } = useProductLanguage()
+  const timelineCopy = copy.work.timeline
+  const dateLocale = locale === "zh-TW" ? "zh-TW" : "en-US"
   const [open, setOpen] = React.useState(node.status === "active")
 
-  const startLabel = new Date(node.startDate).toLocaleDateString("zh-TW", {
+  const startLabel = new Date(node.startDate).toLocaleDateString(dateLocale, {
     month: "numeric",
     day: "numeric",
   })
-  const endLabel = new Date(node.endDate).toLocaleDateString("zh-TW", {
+  const endLabel = new Date(node.endDate).toLocaleDateString(dateLocale, {
     month: "numeric",
     day: "numeric",
   })
@@ -72,8 +86,7 @@ function PhaseNodeCard({
       <CircleDotIcon className="size-4 text-muted-foreground/30 shrink-0" />
     )
 
-  const statusLabel =
-    node.status === "done" ? "已完成" : node.status === "active" ? "進行中" : "待開始"
+  const statusLabel = timelineCopy.statuses[node.status]
 
   const statusBadgeClass =
     node.status === "done"
@@ -129,7 +142,10 @@ interface ProjectTimelineSectionProps {
 }
 
 export function ProjectTimelineSection({ timeline }: ProjectTimelineSectionProps) {
-  const generatedLabel = new Date(timeline.generatedAt).toLocaleDateString("zh-TW", {
+  const { copy, locale } = useProductLanguage()
+  const timelineCopy = copy.work.timeline
+  const dateLocale = locale === "zh-TW" ? "zh-TW" : "en-US"
+  const generatedLabel = new Date(timeline.generatedAt).toLocaleDateString(dateLocale, {
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
@@ -145,15 +161,21 @@ export function ProjectTimelineSection({ timeline }: ProjectTimelineSectionProps
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ClockIcon className="size-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">專案時間線</h3>
+          <h3 className="text-sm font-semibold">{timelineCopy.title}</h3>
           {activePhase && (
             <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-              目前：{activePhase.label}
+              {formatCopy(timelineCopy.currentTemplate, {
+                phase: activePhase.label,
+              })}
             </span>
           )}
         </div>
         <span className="text-[11px] text-muted-foreground/50">
-          {doneCount}/{timeline.phases.length} 階段完成 · 更新於 {generatedLabel}
+          {formatCopy(timelineCopy.summaryTemplate, {
+            done: doneCount,
+            total: timeline.phases.length,
+            date: generatedLabel,
+          })}
         </span>
       </div>
 

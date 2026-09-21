@@ -1,0 +1,40 @@
+{
+  "runId": "gate-loop-20260823T044733-owneros-ui-005-company",
+  "capturedAt": "2026-08-23T04:47:33+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "selectedTask": "OWNEROS-UI-005-COMPANY-FIRST",
+  "ownerInstruction": "Implementation-first; generate related files; evidence/browser proof deferred.",
+  "existingDirtyBeforeThisLoop": [
+    "M docs/05_execution-plans/PLN-060_task-backlog.md",
+    "M docs/05_execution-plans/PLN-061_current-sprint.md",
+    "M docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "M docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "M docs/2_agent-input/generated/agent-loop/loop-state.json",
+    "M package.json",
+    "M tasks.md",
+    "?? docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json"
+  ],
+  "plannedTouchPaths": [
+    "src/app/(dashboard)/company/page.tsx",
+    "scripts/check-owneros-company-simplified-surface.mjs",
+    "package.json",
+    "tasks.md",
+    "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "docs/2_agent-input/generated/agent-loop/loop-state.json",
+    "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-225-20260823-company-simplified-surface.md",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-225-20260823-company-simplified-surface.json"
+  ],
+  "overlapDecision": "Proceed with the same OWNEROS-UI-005 documentation/state files already being advanced by prior loops; do not revert unrelated dirty changes.",
+  "highRiskBoundaries": {
+    "companyPublicationRuntime": false,
+    "highRiskWrite": false,
+    "publicOutput": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false,
+    "productionMutation": false
+  }
+}

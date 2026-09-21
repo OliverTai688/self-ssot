@@ -1,0 +1,74 @@
+{
+  "id": "OWNEROS-AUTO-002",
+  "runId": "owner-directed-20260831-gate-loop-preflight",
+  "generatedAt": "2026-08-31T13:00:00+08:00",
+  "status": "PASS_PAUSED_READY_FOR_OWNER_REVIEW",
+  "baseline": {
+    "mainCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+    "trackedChangeCount": 184,
+    "untrackedFileCount": 244,
+    "deletionCount": 71,
+    "trackedDiffSha256": "bd7a70ea9e5a8c0b2b4fb4374e760ff74b691aa5de5291ae818cf1f4c13e3cbf",
+    "untrackedAggregateSha256": "3b69f0722010dbc2b17468ed495dc4ab31d114ea290c62fb9246d593b72a4824",
+    "releaseWorktree": "/Users/pzps0964713/Documents/github/self-stucture-v1-gate-release",
+    "releaseBranch": "codex/gate-loop-release-baseline-20260831",
+    "checkpointCommit": "900620e1f4b324e1e817edb24415f25f634f2301",
+    "verifiedContractCommit": "d574a82199216acb606d272af102b96146d2e3ee"
+  },
+  "automation": {
+    "id": "personal-os-20m-aggressive-launch-loop",
+    "cadenceMinutes": 10,
+    "status": "PAUSED",
+    "targetReleaseWorktree": true,
+    "resumeRequiresExplicitOwnerAuthorization": true
+  },
+  "gates": {
+    "gateA": "NOT_ACHIEVED",
+    "gateB": "NOT_ACHIEVED",
+    "gateC": "NOT_ACHIEVED",
+    "gateBPilotCriterion": "B6_OWNER_PLUS_ALL_ACTIVE_MEMBERS_MIN_ONE_NON_OWNER_PILOT",
+    "evidenceFreshness": "STALE_REBASE_REQUIRED",
+    "maxAgeHours": 72
+  },
+  "gmail": {
+    "completionNotification": "NOT_TRIGGERED",
+    "connectionEvidence": "CONNECTED_STALE_REVERIFY_REQUIRED",
+    "sendAttempted": false
+  },
+  "ui": {
+    "registry": "docs/03_feature-reference/REF-003_ui-screen-registry.md",
+    "activeUi": null
+  },
+  "verification": {
+    "preflight": {
+      "status": "PASS",
+      "checkCount": 13,
+      "blockingIds": []
+    },
+    "gateAll": {
+      "status": "EXPECTED_NOT_ACHIEVED"
+    },
+    "jsonParse": "PASS",
+    "checkerSyntax": "PASS",
+    "typecheckMainDependencyRuntime": "PASS",
+    "typecheckReleaseWorktree": "DEPENDENCY_RUNTIME_UNAVAILABLE"
+  },
+  "subagents": [],
+  "externalActions": {
+    "emailSent": false,
+    "deployed": false,
+    "databaseMutated": false,
+    "providerActivated": false,
+    "publicOutput": false,
+    "pushed": false
+  },
+  "safety": {
+    "externalRegisterable": false,
+    "externalAgentDatabaseAccess": false,
+    "terminalPurgeAuthorized": false
+  },
+  "reports": {
+    "formal": "docs/06_audits-and-reports/RPT-067_gate-loop-release-baseline-preflight.md",
+    "evidence": "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260831-gate-loop-preflight.md"
+  }
+}

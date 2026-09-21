@@ -94,7 +94,30 @@ interface ResearchContextType {
 
 const ResearchContext = React.createContext<ResearchContextType | undefined>(undefined)
 
-export function ResearchProvider({ children }: { children: React.ReactNode }) {
+export function ResearchProvider({
+  children,
+  allowMockSeed = false,
+  scopeId = null,
+}: {
+  children: React.ReactNode
+  /**
+   * Whether a brand-new (empty-localStorage) viewer should be seeded with
+   * the illustrative `mock*` arrays. Only the AUTH-013 demo account should
+   * pass `true`; every other account starts genuinely empty.
+   */
+  allowMockSeed?: boolean
+  /**
+   * Namespaces every `pos_res_*` localStorage key by this value (typically
+   * the signed-in email) so two different accounts sharing one browser
+   * never read or overwrite each other's prototype Research state.
+   */
+  scopeId?: string | null
+}) {
+  const scopedKey = React.useCallback(
+    (key: string) => (scopeId ? `${key}:${scopeId}` : key),
+    [scopeId]
+  )
+
   // ─── Legacy state ──────────────────────────────────────────────────────────
   const [threads, setThreads] = React.useState<ResearchThread[]>([])
   const [ideas, setIdeas] = React.useState<ResearchIdea[]>([])
@@ -122,9 +145,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     window.queueMicrotask(() => {
       if (cancelled) return
 
-      const get = (key: string) => localStorage.getItem(key)
-      const parse = <T,>(raw: string | null, fallback: T[]): T[] =>
-        raw ? (JSON.parse(raw) as T[]) : fallback
+      const get = (key: string) => localStorage.getItem(scopedKey(key))
+      // A stored value always wins (it's this account's own prior edit).
+      // Only an empty/first-visit store falls back to the mock seed, and
+      // only when allowMockSeed (the AUTH-013 demo account) says so.
+      const parse = <T,>(raw: string | null, seed: T[]): T[] =>
+        raw ? (JSON.parse(raw) as T[]) : allowMockSeed ? seed : []
 
       setThreads(parse(get("pos_res_threads"), mockResearchThreads))
       setIdeas(parse(get("pos_res_ideas"), mockResearchIdeas))
@@ -149,9 +175,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [scopedKey, allowMockSeed])
 
-  const save = (key: string, data: unknown) => localStorage.setItem(key, JSON.stringify(data))
+  const save = React.useCallback(
+    (key: string, data: unknown) => localStorage.setItem(scopedKey(key), JSON.stringify(data)),
+    [scopedKey]
+  )
 
   // ─── Legacy methods ─────────────────────────────────────────────────────────
   const addThread = React.useCallback((title: string, description?: string, workLinkage?: string) => {
@@ -160,7 +189,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_threads", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addIdea = React.useCallback((threadId: string, title: string, body: string, ideaType: "concept" | "hypothesis" | "question", linkedProjectId?: string, linkedProjectName?: string) => {
     setIdeas((prev) => {
@@ -168,7 +197,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_ideas", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addMaterial = React.useCallback((threadId: string, title: string, type: "paper" | "book" | "article" | "data" | "tool", url?: string, notes?: string) => {
     setMaterials((prev) => {
@@ -176,7 +205,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_materials", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addPublicationTarget = React.useCallback((threadId: string, venueName: string, venueType: "conference" | "journal" | "platform" | "public", deadline: string, notes?: string) => {
     setPublicationTargets((prev) => {
@@ -184,7 +213,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_targets", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addMilestone = React.useCallback((threadId: string, title: string, deliverable: string, dueAt: string) => {
     setMilestones((prev) => {
@@ -192,7 +221,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_milestones", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addOutput = React.useCallback((threadId: string, type: "slide" | "poster" | "summary" | "learning_path" | "blog", title: string, body?: string) => {
     setOutputs((prev) => {
@@ -200,7 +229,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_outputs", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const linkIdeaToWork = React.useCallback((ideaId: string, projectId: string, projectName: string) => {
     setIdeas((prev) => {
@@ -208,7 +237,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_ideas", next)
       return next
     })
-  }, [])
+  }, [save])
 
   // ─── Network model methods ──────────────────────────────────────────────────
   const addIssue = React.useCallback((title: string, description?: string, keywords: string[] = [], disciplines: string[] = []) => {
@@ -218,7 +247,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_issues", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addQuestion = React.useCallback((question: string, issueId?: string, notes?: string) => {
     setQuestions((prev) => {
@@ -227,7 +256,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_questions", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addConcept = React.useCallback((name: string, shortDefinition?: string) => {
     setConcepts((prev) => {
@@ -236,7 +265,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_concepts", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addSource = React.useCallback((title: string, sourceType: ResearchSourceType, authors?: string[], year?: number, url?: string, summary?: string) => {
     setSources((prev) => {
@@ -245,7 +274,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_sources", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addIdeaV2 = React.useCallback((title: string, body: string, ideaType: ResearchIdeaV2["ideaType"], sourceContext?: IdeaSourceContext, issueId?: string) => {
     setIdeasV2((prev) => {
@@ -254,7 +283,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_ideasv2", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addLink = React.useCallback((fromType: ResearchEntityType, fromId: string, toType: ResearchEntityType, toId: string, relationType: ResearchRelationType, note?: string) => {
     setLinks((prev) => {
@@ -262,7 +291,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_links", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addWritingProject = React.useCallback((title: string, writingType: ResearchWritingProject["writingType"], issueId?: string, targetVenueName?: string) => {
     setWritingProjects((prev) => {
@@ -271,7 +300,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_writing", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addEvent = React.useCallback((name: string, eventType: ResearchEventType, fields: string[] = []) => {
     setEvents((prev) => {
@@ -280,7 +309,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_events", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const addPerson = React.useCallback((name: string, role?: AcademicRole, affiliation?: string) => {
     setPeople((prev) => {
@@ -289,7 +318,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
       save("pos_res_people", next)
       return next
     })
-  }, [])
+  }, [save])
 
   const getLinkedEntities = React.useCallback((entityType: ResearchEntityType, entityId: string): ResearchLink[] => {
     return links.filter(

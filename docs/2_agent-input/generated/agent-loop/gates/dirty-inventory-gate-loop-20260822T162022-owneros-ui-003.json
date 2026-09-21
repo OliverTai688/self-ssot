@@ -1,0 +1,71 @@
+{
+  "runId": "gate-loop-20260822T162022-owneros-ui-003",
+  "recordedAt": "2026-08-22T16:20:22+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "selectedTask": "OWNEROS-UI-003",
+  "dirtyOverlapDecision": {
+    "status": "PROCEED_WITH_EXPLICIT_SLICE",
+    "reason": "/settings is already dirty in the shared worktree, but OWNEROS-UI-003 is the next recorded runtime slice. This run will only make additive/local settings control-plane edits and will not revert unrelated user or agent changes.",
+    "ownedPaths": [
+      "src/app/(dashboard)/settings/page.tsx",
+      "scripts/check-owneros-settings-simplified-surface.mjs",
+      "package.json",
+      "tasks.md",
+      "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json"
+    ]
+  },
+  "initialPathHashes": [
+    {
+      "path": "src/app/(dashboard)/settings/page.tsx",
+      "sha256": "ce6a65bac1aff8f1187745027d182f0ca392f37bce611f70decdfdb926bd9a01"
+    },
+    {
+      "path": "package.json",
+      "sha256": "3a1a10209cd5574c7a8410f9814f34d1fbfacf27f0db5e1692d24367faf63aba"
+    },
+    {
+      "path": "tasks.md",
+      "sha256": "9657c5e66c53a2dbd99e05e7cdc32217982d0fc00ced6bfa9d3e862634f3b5a6"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "sha256": "07c98bbe31219cf6025d3d978b2e559c040f23bfbcbc05aff59aeec8e310349d"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "sha256": "6e7d7bca27af02b43f3e6dabbf94827ef0d6275b4949ad103fc0c4f2fdc4efa1"
+    },
+    {
+      "path": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "sha256": "18b491f9f3f50609d25eed6068a135872151db8fccf909a384fd6a64d003711e"
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "sha256": "38fbf04b2724dc4c562837103fffd091668c5d5264cd032344c62dde28616446"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "sha256": "1dff7cd3c29e62c4f8bf876dbbe5dfc089b80db0874457e2ce0acc2444b0af13"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+      "sha256": "b1020b889f1f7cec67293fbe2d10119d25359b8b821191236eaf2f192e4bf101"
+    }
+  ],
+  "forbiddenActions": [
+    "revert unrelated dirty changes",
+    "stage commit or push",
+    "permission write",
+    "retention deletion/export runtime",
+    "environment mutation",
+    "provider activation",
+    "public output",
+    "external registration",
+    "external agent database access"
+  ]
+}

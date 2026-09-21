@@ -1,0 +1,82 @@
+{
+  "runId": "gate-loop-20260823T032522-owneros-ui-005-research",
+  "generatedAt": "2026-08-23T03:25:22+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "plannedTask": "OWNEROS-UI-005-RESEARCH-FIRST",
+  "purpose": "Dirty-overlap inventory before the Research simplified operating surface implementation pass.",
+  "files": [
+    {
+      "path": "src/app/(dashboard)/research/page.tsx",
+      "exists": true,
+      "status": "clean",
+      "sha256": "15645fa28ad3d4c85effc6be9399c38cd840e13ecfa3f4c542f002b9928126be"
+    },
+    {
+      "path": "scripts/check-owneros-research-simplified-surface.mjs",
+      "exists": false,
+      "status": "clean",
+      "sha256": null
+    },
+    {
+      "path": "package.json",
+      "exists": true,
+      "status": "M package.json",
+      "sha256": "60390ac99c942c28093d03968610b87f7971da6d34c59c6563c724694ef03277"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "status": "M tasks.md",
+      "sha256": "196a153de5fde8a853b1f631f32aa0e3a983b19700be52224307d68b7aa3e553"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "exists": true,
+      "status": "M docs/05_execution-plans/PLN-060_task-backlog.md",
+      "sha256": "69679e8953dbafc012c9329143aa07fa2d6ead9597cafbe78563a00668ed403a"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "exists": true,
+      "status": "M docs/05_execution-plans/PLN-061_current-sprint.md",
+      "sha256": "fff9c000edf29e8d367bc4b8116e54f64e09581569396bde5ee362dea38c289a"
+    },
+    {
+      "path": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "exists": true,
+      "status": "M docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "sha256": "c15b9f4b226b450227c5a6b7a72050ad86c383402a8f461a586c460ece7628b5"
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "exists": true,
+      "status": "M docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "sha256": "38d329ecaaf7671ab612b41982a253e3fa01bdbf88f5e84f259bc2829a85e84c"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "exists": true,
+      "status": "M docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "sha256": "563b48bfc0b0214f4c928bfea163405045a4e0ef37cdbf0223a26cdb69331963"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+      "exists": true,
+      "status": "?? docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+      "sha256": "442dfe6085fedd23716cb6811073fa9570bfce4d085403e8ac3beedb5847b1e9"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-224-20260823-research-simplified-surface.md",
+      "exists": false,
+      "status": "clean",
+      "sha256": null
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-224-20260823-research-simplified-surface.json",
+      "exists": false,
+      "status": "clean",
+      "sha256": null
+    }
+  ],
+  "unrelatedDirtyPolicy": "Do not revert, stage, or normalize unrelated dirty/deleted/untracked files."
+}

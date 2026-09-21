@@ -347,6 +347,54 @@ External agents must never access the database directly. They receive scoped con
 - Avoid large redesigns unless the selected task explicitly asks for them.
 - See `docs/02_architecture-and-rules/ARC-012_frontend-operating-surface.md` for the module operating surface pattern.
 
+### 12.1 Icons Must Be Lucide; Colors Must Be Theme Tokens
+
+Applies to every `/company` and `/company/operating` page/component today, and to every new
+component going forward (React or the v5 Shadow-DOM workbench).
+
+- **Icons**: use `lucide-react` only. No emoji as a UI icon, no other icon library, no
+  hand-rolled inline `<svg>` in React components. Before adding an icon, check whether an
+  existing `lucide-react` import already covers it.
+- **v5 Shadow-DOM workbench icons**: the workbench has its own icon system — a `const I = {...}`
+  path table and a `svg(name, size)` helper, already emitting lucide-equivalent inline SVGs
+  (`viewBox="0 0 24 24" stroke="currentColor"`). Use `svg('name', size)` instead of an emoji or a
+  literal `<svg>` string in `*.source.js`. If the icon you need isn't in `I` yet, add it via a
+  `source-patches.mjs` `rep(...)` (the table itself lives in the frozen prototype — see below).
+  A glyph that is genuinely **content** (chip/option label values like `★ 是` / `✓ 已履行`,
+  document bullet markers, keyboard-shortcut notation like `⇧↵`) is not an icon — leave it as text.
+- **Colors**: never hardcode a hex value or a fixed Tailwind color class (`bg-red-500`,
+  `text-blue-600`, `hover:bg-gray-100`, …) in a company/operating component. Every color,
+  including hover/active/focus/disabled states, must resolve through the shared token system so
+  it follows the four company themes (white/orange/black/brand):
+  - Next.js/Tailwind pages: `company-tone` classes and CSS custom properties from
+    `src/app/globals.css`'s `.company-scope` overrides.
+  - v5 Shadow-DOM workbench: CSS variables from `src/lib/theme/company-theme.ts`'s
+    `V5_PALETTES` (the single source of truth — `theme-styles.ts` generates the
+    `:host([data-theme=...])` blocks from it automatically, nothing to touch there). Add a new
+    semantic token there instead of writing a literal color; define it on `BLACK` and, if the
+    light themes need a different value, on `WHITE` — `ORANGE` inherits from `WHITE` and `BRAND`
+    inherits from `BLACK` unless explicitly overridden, so most tokens only need those two
+    definitions. Always reference it as `var(--token, <fallback-hex>)` so a typo'd token name
+    degrades instead of breaking the paint.
+- **The v5 workbench is generated — never hand-edit `runtime.js` or `styles.ts`.** They're
+  overwritten every time `node scripts/generate-yuanzhan-v5.mjs` runs, from a frozen
+  owner-provided prototype HTML under
+  `docs/03_feature-reference/REF-004_yuanzhan-operating-interface/originals/`. To fix something
+  that originates in that frozen prototype:
+  - Color fixes go in `src/components/yuanzhan/v5/css-token-patches.mjs` (`patchCss`).
+  - JS/behavior/icon-table fixes go in `src/components/yuanzhan/v5/source-patches.mjs`
+    (`patchSource`).
+  - Both are lists of narrow `rep(old, new)` corrections that throw loudly if the prototype text
+    has moved — keep new patches just as narrow and reviewable.
+  - Files the team owns outright can be edited directly, no patch needed: `extensions.source.js`,
+    `replies.source.js`, `journal-cockpit.source.js`, `timeline-participants.source.js`,
+    `replies.css`, `journal-cockpit.css`, `timeline-participants.css`, `additions.css`.
+  - After changing any of the above, re-run `node scripts/generate-yuanzhan-v5.mjs` and re-check
+    `npx tsc --noEmit` before committing.
+- Before shipping a new company/operating component, grep it for stray hex
+  (`#[0-9a-fA-F]{3,8}`) and emoji outside of `var(...)` fallbacks/content strings — either should
+  have a reason documented in the PR/commit if it's intentional.
+
 ## 13. Testing and Verification Rules
 
 Run the smallest useful verification:
@@ -383,17 +431,30 @@ When a task completes, update:
 
 Preserve historical docs. Do not delete superseded docs unless explicitly asked.
 
-## 15. 20-Minute Launch Automation
+## 15. 10-Minute Gate A/B/C Development Automation
 
-This repo has an active Codex heartbeat automation:
+This repo has a Codex heartbeat automation for the owner-directed AI Work Desktop contraction:
 
 - Automation id: `personal-os-20m-aggressive-launch-loop`
-- Cadence: every 20 minutes
+- Cadence: every 10 minutes
 - Strategy file: `docs/2_agent-input/generated/agent-loop/development-strategy.md`
 - State file: `docs/2_agent-input/generated/agent-loop/loop-state.json`
 - Formal plan: `docs/05_execution-plans/PLN-063_thirty-loop-launch-automation-plan.md`
+- Gate prompt: `docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md`
+- Gate state: `docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json`
+- Release worktree: `/Users/pzps0964713/Documents/github/self-stucture-v1-gate-release`
+- Release branch/checkpoint: `codex/gate-loop-release-baseline-20260831`, descendant of `900620e1f4b324e1e817edb24415f25f634f2301`
+- UI Registry: `docs/03_feature-reference/REF-003_ui-screen-registry.md`
 
-The automation objective is to reach a complete online operating experience and then mature it through the next 30-loop research target in `RES-001` and the SaaS/OS surface standard in `RES-002`, including frontstage, member/owner settings, admin/operator page, backend architecture, BFF/API surfaces, auth, persistence, verification, per-module AI agent workspaces, owner-controlled agent operation API/CLI contracts, internal multi-agent coordination, and NANDA-aligned agent protocol readiness for every AI/agent surface.
+The automation objective is to reach, in order: Gate A `OWNER_PRIVATE_AI_WORK_DESKTOP_READY`, Gate B `COMPANY_TEAM_PILOT_READY`, and Gate C `HARDENED_INTERNAL_ROLLOUT_READY`. The exact criteria, sub-agent roles, Gmail notification rule, safety boundaries, and closeout format are authoritative in the gate prompt and gate-state files above. `RPT-062` and `PLN-067` define the product scenario and staged implementation path.
+
+The heartbeat is `ACTIVE` after explicit Product Owner authorization on 2026-08-31. Normal scheduled loops run only from the dedicated clean release worktree, verify branch/checkpoint ancestry, and stop on unexpected dirty overlap. The Owner decisions recorded in `owner-ai-work-desktop-owner-decisions-20260830.md` resolve the prior C-level, Company publication, Public Space trigger, retention, deployment-target, and pilot-threshold direction without authorizing production migrations, provider activation, deployment, public output, terminal purge, or other high-risk final writes.
+
+`REF-003` is the only authoritative Screen ID source. A loop may not select or edit a product screen until the Product Owner names one UI ID and approves its `saas-ui-refactor-director` proposal. Product pages must not contain rule manuals or architecture/launch prose; those explanations belong in the web user manual, with operator diagnostics in Admin.
+
+Each wakeup may use at most three bounded sub-agents for independent explorer/research, trust/architecture review, QA/verification, or one disjoint worker slice. Sub-agents must not overlap edits, revert unrelated dirty changes, stage, commit, push, mutate production services, or bypass approvals. The primary agent owns integration, review, verification, evidence, and gate decisions.
+
+When Gate A first becomes genuinely achieved, the automation is authorized to send exactly one Gmail message to the authenticated Gmail account's own mailbox with the Gate A Markdown report attached. Attachment/provider failure remains retryable and must not silently degrade to body-only or be reported as sent. Gmail must be reverified immediately before send. Gate A achievement does not imply Gate B or Gate C.
 
 When formal launch proof remains blocked by owner/operator setup, use `RES-005` to continue conditional L3 product maturity through interface, scenario, and architecture viewframe tasks. This may advance conditional product maturity, but it must not upgrade formal `launchLevels.current` to L1/L3/L4 without `AUTH-005`, `WORK-009` or `WORK-007`, and `DEPLOY-002` evidence.
 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import { AGENTS } from "@/lib/workflow/agents"
 import { INTENT_LABELS } from "@/lib/workflow/types"
 import type { WorkflowRule, AgentId, Intent, WorkflowMode } from "@/lib/workflow/types"
@@ -20,6 +21,8 @@ interface RuleBuilderDialogProps {
 const ALL_INTENTS = Object.keys(INTENT_LABELS) as Intent[]
 
 export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleBuilderDialogProps) {
+  const { copy } = useProductLanguage()
+  const workflowCopy = copy.workflow
   const [name, setName] = React.useState(initial?.name ?? "")
   const [fromAgent, setFromAgent] = React.useState<AgentId | "*">(initial?.fromAgent ?? "work")
   const [intent, setIntent] = React.useState<Intent>(initial?.intent ?? "task.create")
@@ -95,44 +98,44 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{initial ? "編輯規則" : "新增 Workflow 規則"}</DialogTitle>
+          <DialogTitle>
+            {initial ? workflowCopy.dialog.editTitle : workflowCopy.dialog.addTitle}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-5 py-2">
-          {/* Rule name */}
           <div className="grid gap-1.5">
-            <Label>規則名稱</Label>
+            <Label>{workflowCopy.dialog.name}</Label>
             <Input
-              placeholder="例：任務含金額 → 財務記錄"
+              placeholder={workflowCopy.dialog.namePlaceholder}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
-          {/* WHEN block */}
           <div className="rounded-xl border border-border/60 p-4 flex flex-col gap-4 bg-muted/20">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              WHEN（觸發條件）
+              {workflowCopy.dialog.when}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-xs">來源 Agent</Label>
+                <Label className="text-xs">{workflowCopy.dialog.fromAgent}</Label>
                 <Select value={fromAgent} onValueChange={(v) => setFromAgent(v as AgentId | "*")}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="*">任意 Agent</SelectItem>
+                    <SelectItem value="*">{workflowCopy.dialog.anyAgent}</SelectItem>
                     {AGENTS.map((a) => (
                       <SelectItem key={a.agentId} value={a.agentId}>
-                        {a.displayName}
+                        {workflowCopy.agents[a.agentId]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-xs">觸發 Intent</Label>
+                <Label className="text-xs">{workflowCopy.dialog.triggerIntent}</Label>
                 <Select value={intent} onValueChange={(v) => setIntent(v as Intent)}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
@@ -140,7 +143,7 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
                   <SelectContent>
                     {fromCapabilities.map((i) => (
                       <SelectItem key={i} value={i}>
-                        {INTENT_LABELS[i]}
+                        {workflowCopy.intents[i]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -148,9 +151,9 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-xs">額外條件（選填）</Label>
+              <Label className="text-xs">{workflowCopy.dialog.conditions}</Label>
               <Input
-                placeholder="例：payload.amount > 0"
+                placeholder={workflowCopy.dialog.conditionsPlaceholder}
                 value={conditions}
                 onChange={(e) => setConditions(e.target.value)}
                 className="font-mono text-xs h-8"
@@ -158,14 +161,13 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
             </div>
           </div>
 
-          {/* THEN block */}
           <div className="rounded-xl border border-border/60 p-4 flex flex-col gap-4 bg-muted/20">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              THEN（執行動作）
+              {workflowCopy.dialog.then}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-xs">目標 Agent</Label>
+                <Label className="text-xs">{workflowCopy.dialog.toAgent}</Label>
                 <Select value={toAgent} onValueChange={(v) => setToAgent(v as AgentId)}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
@@ -173,14 +175,14 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
                   <SelectContent>
                     {AGENTS.map((a) => (
                       <SelectItem key={a.agentId} value={a.agentId}>
-                        {a.displayName}
+                        {workflowCopy.agents[a.agentId]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-xs">目標 Intent</Label>
+                <Label className="text-xs">{workflowCopy.dialog.targetIntent}</Label>
                 <Select value={targetIntent} onValueChange={(v) => setTargetIntent(v as Intent)}>
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue />
@@ -188,7 +190,7 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
                   <SelectContent>
                     {toCapabilities.map((i) => (
                       <SelectItem key={i} value={i}>
-                        {INTENT_LABELS[i]}
+                        {workflowCopy.intents[i]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -197,22 +199,21 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
             </div>
           </div>
 
-          {/* Options */}
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
-              <Label className="text-xs">模式</Label>
+              <Label className="text-xs">{workflowCopy.dialog.mode}</Label>
               <Select value={mode} onValueChange={(v) => setMode(v as WorkflowMode)}>
                 <SelectTrigger className="h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="broadcast">廣播</SelectItem>
-                  <SelectItem value="exclusive">獨佔</SelectItem>
+                  <SelectItem value="broadcast">{workflowCopy.dialog.broadcast}</SelectItem>
+                  <SelectItem value="exclusive">{workflowCopy.dialog.exclusive}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-xs">需要批准</Label>
+              <Label className="text-xs">{workflowCopy.dialog.approval}</Label>
               <Select
                 value={requiresApproval ? "yes" : "no"}
                 onValueChange={(v) => setRequiresApproval(v === "yes")}
@@ -221,13 +222,13 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="no">即時執行</SelectItem>
-                  <SelectItem value="yes">需人工批准</SelectItem>
+                  <SelectItem value="no">{workflowCopy.dialog.immediate}</SelectItem>
+                  <SelectItem value="yes">{workflowCopy.dialog.humanApproval}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-xs">優先權</Label>
+              <Label className="text-xs">{workflowCopy.dialog.priority}</Label>
               <Input
                 type="number"
                 value={priority}
@@ -240,10 +241,10 @@ export function RuleBuilderDialog({ open, onOpenChange, initial, onSave }: RuleB
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {workflowCopy.dialog.cancel}
           </Button>
           <Button onClick={handleSave} disabled={!name.trim()}>
-            {initial ? "儲存" : "新增規則"}
+            {initial ? workflowCopy.dialog.save : workflowCopy.dialog.addRule}
           </Button>
         </DialogFooter>
       </DialogContent>

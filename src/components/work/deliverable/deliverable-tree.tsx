@@ -31,6 +31,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 import { AddDeliverableDialog, type DeliverableDialogInput } from "@/components/work/deliverable/add-deliverable-dialog"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { ProjectDeliverable, DeliverableStatus, DeliverableVisibility } from "@/types/work"
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -39,12 +40,6 @@ const statusIcon: Record<DeliverableStatus, React.ReactNode> = {
   draft: <CircleIcon className="size-3 text-muted-foreground/50" />,
   delivered: <ClockIcon className="size-3 text-amber-500" />,
   approved: <CheckCircle2Icon className="size-3 text-emerald-500" />,
-}
-
-const statusLabel: Record<DeliverableStatus, string> = {
-  draft: "草稿",
-  delivered: "已交付",
-  approved: "已核准",
 }
 
 function buildTree(nodes: ProjectDeliverable[], parentId: string | null) {
@@ -72,6 +67,8 @@ function FolderNode({
   onToggleVisibility: (id: string) => void
   onDelete: (id: string) => void
 }) {
+  const { copy } = useProductLanguage()
+  const deliverableCopy = copy.work.deliverables
   const [expanded, setExpanded] = React.useState(true)
   const children = buildTree(allNodes, node.id)
 
@@ -112,7 +109,7 @@ function FolderNode({
                 }}
               >
                 <FolderIcon className="size-3.5" />
-                新增資料夾
+                {deliverableCopy.tree.addFolder}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={(e) => {
@@ -121,7 +118,7 @@ function FolderNode({
                 }}
               >
                 <FileIcon className="size-3.5" />
-                新增文件
+                {deliverableCopy.tree.addFile}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -132,7 +129,7 @@ function FolderNode({
               e.stopPropagation()
               onDelete(node.id)
             }}
-            title="刪除資料夾"
+            title={deliverableCopy.tree.deleteFolder}
             className="flex items-center justify-center size-5 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
           >
             <Trash2Icon className="size-3" />
@@ -172,7 +169,7 @@ function FolderNode({
               className="text-xs text-muted-foreground/40 py-1"
               style={{ paddingLeft: `${24 + (depth + 1) * 16}px` }}
             >
-              空資料夾
+              {deliverableCopy.tree.emptyFolder}
             </div>
           )}
         </div>
@@ -198,6 +195,9 @@ function FileNode({
   onToggleVisibility: (id: string) => void
   onDelete: (id: string) => void
 }) {
+  const { copy } = useProductLanguage()
+  const deliverableCopy = copy.work.deliverables
+
   return (
     <div
       className={cn(
@@ -216,7 +216,7 @@ function FileNode({
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                 {statusIcon[node.status]}
-                {statusLabel[node.status]}
+                {deliverableCopy.statuses[node.status]}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="bottom">
                 {(["draft", "delivered", "approved"] as const).map((status) => (
@@ -226,7 +226,7 @@ function FileNode({
                     disabled={status === node.status}
                   >
                     {statusIcon[status]}
-                    {statusLabel[status]}
+                    {deliverableCopy.statuses[status]}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -234,7 +234,11 @@ function FileNode({
             <button
               type="button"
               onClick={() => onToggleVisibility(node.id)}
-              title={node.visibility === "client_visible" ? "改為內部" : "標記為客戶可見"}
+              title={
+                node.visibility === "client_visible"
+                  ? deliverableCopy.tree.markInternal
+                  : deliverableCopy.tree.markClientVisible
+              }
               className={cn(
                 "rounded p-0.5 transition-colors",
                 node.visibility === "client_visible"
@@ -251,7 +255,7 @@ function FileNode({
             <button
               type="button"
               onClick={() => onDelete(node.id)}
-              title="刪除文件"
+              title={deliverableCopy.tree.deleteFile}
               className="rounded p-0.5 transition-colors opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
             >
               <Trash2Icon className="size-3" />
@@ -271,6 +275,8 @@ interface DeliverableTreeProps {
 }
 
 export function DeliverableTree({ initialDeliverables, projectId }: DeliverableTreeProps) {
+  const { copy } = useProductLanguage()
+  const deliverableCopy = copy.work.deliverables
   const router = useRouter()
   const [nodes, setNodes] = React.useState(initialDeliverables)
   const [addState, setAddState] = React.useState<{
@@ -317,13 +323,13 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
 
       if (!result.success) {
         setNodes((prev) => [...prev, node])
-        setActionError(result.error)
+        setActionError(deliverableCopy.errors.delete)
       } else {
         refreshProjectDetail()
       }
     } catch {
       setNodes((prev) => [...prev, node])
-      setActionError("刪除交付物失敗，請稍後再試")
+      setActionError(deliverableCopy.errors.delete)
     } finally {
       setPendingNodeIds((prev) => {
         const next = new Set(prev)
@@ -343,7 +349,7 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
       const result = await createProjectDeliverable(projectId, data)
 
       if (!result.success) {
-        setActionError(result.error)
+        setActionError(deliverableCopy.errors.add)
         return false
       }
 
@@ -351,7 +357,7 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
       refreshProjectDetail()
       return true
     } catch {
-      setActionError("新增交付物失敗，請稍後再試")
+      setActionError(deliverableCopy.errors.add)
       return false
     } finally {
       setIsAdding(false)
@@ -375,7 +381,7 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
 
       if (!result.success) {
         setNodes((prev) => prev.map((item) => (item.id === id ? node : item)))
-        setActionError(result.error)
+        setActionError(deliverableCopy.errors.updateStatus)
         return
       }
 
@@ -383,7 +389,7 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
       refreshProjectDetail()
     } catch {
       setNodes((prev) => prev.map((item) => (item.id === id ? node : item)))
-      setActionError("更新交付物狀態失敗，請稍後再試")
+      setActionError(deliverableCopy.errors.updateStatus)
     } finally {
       setPendingNodeIds((prev) => {
         const next = new Set(prev)
@@ -412,7 +418,7 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
 
       if (!result.success) {
         setNodes((prev) => prev.map((item) => (item.id === id ? node : item)))
-        setActionError(result.error)
+        setActionError(deliverableCopy.errors.updateVisibility)
         return
       }
 
@@ -420,7 +426,7 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
       refreshProjectDetail()
     } catch {
       setNodes((prev) => prev.map((item) => (item.id === id ? node : item)))
-      setActionError("更新交付物可見性失敗，請稍後再試")
+      setActionError(deliverableCopy.errors.updateVisibility)
     } finally {
       setPendingNodeIds((prev) => {
         const next = new Set(prev)
@@ -440,12 +446,12 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
 
       {roots.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
-          <p className="text-sm text-muted-foreground mb-2">尚無交付物</p>
+          <p className="text-sm text-muted-foreground mb-2">{deliverableCopy.tree.empty}</p>
           <button
             onClick={() => handleAdd(null, "folder")}
             className="text-xs text-primary hover:underline"
           >
-            新增資料夾
+            {deliverableCopy.tree.addFolder}
           </button>
         </div>
       ) : (
@@ -485,14 +491,14 @@ export function DeliverableTree({ initialDeliverables, projectId }: DeliverableT
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <PlusIcon className="size-3" />
-          新增根目錄資料夾
+          {deliverableCopy.tree.addRootFolder}
         </button>
         <button
           onClick={() => handleAdd(null, "file")}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <PlusIcon className="size-3" />
-          新增文件
+          {deliverableCopy.tree.addFile}
         </button>
       </div>
 

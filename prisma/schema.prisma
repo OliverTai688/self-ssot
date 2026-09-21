@@ -36,6 +36,14 @@ enum VisibilityType {
   @@map("visibility_type")
 }
 
+/// 營運工作台的使用者設定分區。ORG 級設定另存於 OrganizationSetting。
+enum SettingScope {
+  BASIC
+  PERSONAL
+
+  @@map("setting_scope")
+}
+
 enum DeliverableStatus {
   DRAFT
   DELIVERED
@@ -148,6 +156,21 @@ enum ProjectHealth {
   RISK
 
   @@map("project_health")
+}
+
+enum ProjectPhaseNodeStatus {
+  UPCOMING
+  ACTIVE
+  DONE
+
+  @@map("project_phase_node_status")
+}
+
+enum ProjectMilestoneStatus {
+  UPCOMING
+  COMPLETED
+
+  @@map("project_milestone_status")
 }
 
 enum TaskStatus {
@@ -318,16 +341,152 @@ enum SourceRetentionClass {
   @@map("source_retention_class")
 }
 
+enum StorageProvider {
+  CLOUDFLARE_R2
+  SUPABASE_STORAGE
+
+  @@map("storage_provider")
+}
+
+enum FileScanStatus {
+  NOT_REQUIRED
+  PENDING
+  PASSED
+  FAILED
+
+  @@map("file_scan_status")
+}
+
+enum LibraryAssetVisibility {
+  PRIVATE
+  CLIENT_VISIBLE
+
+  @@map("library_asset_visibility")
+}
+
+
+enum SkillScope {
+  GLOBAL
+  WORKSPACE
+  PERSONAL
+
+  @@map("skill_scope")
+}
+
+enum SkillStatus {
+  ACTIVE
+  ARCHIVED
+  DRAFT
+
+  @@map("skill_status")
+}
+
+enum WorkspaceType {
+  PERSONAL
+  TEAM
+
+  @@map("workspace_type")
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+
+  @@map("workspace_status")
+}
+
+enum WorkspaceMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  GUEST
+
+  @@map("workspace_member_role")
+}
+
+enum WorkspaceMembershipStatus {
+  ACTIVE
+  SUSPENDED
+  LEFT
+  REMOVED
+
+  @@map("workspace_membership_status")
+}
+
+enum ProjectAccessMode {
+  PRIVATE
+  WORKSPACE_VISIBLE
+
+  @@map("project_access_mode")
+}
+
+enum ProjectAccessRole {
+  VIEWER
+  COMMENTER
+  EDITOR
+  MANAGER
+
+  @@map("project_access_role")
+}
+
+enum ProjectAccessGrantStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("project_access_grant_status")
+}
+
+enum CollaborationInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+
+  @@map("collaboration_invitation_status")
+}
+
+enum ProjectFeedbackTargetType {
+  PROJECT
+  TASK
+  NOTE
+  DELIVERABLE
+  FILE
+  MEDIA
+
+  @@map("project_feedback_target_type")
+}
+
+enum ProjectFeedbackStatus {
+  ACTIVE
+  RESOLVED
+  WITHDRAWN
+  DELETED
+
+  @@map("project_feedback_status")
+}
+
+enum ProjectMemoryCandidateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  INVALIDATED
+
+  @@map("project_memory_candidate_status")
+}
+
 // ─── MODELS ───────────────────────────────────────────────────────────────────
 
 model Profile {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email     String   @unique
-  fullName  String?  @map("full_name")
-  avatarUrl String?  @map("avatar_url")
-  role      UserRole @default(CLIENT)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authUserId String?  @unique @map("auth_user_id") @db.Uuid
+  email      String   @unique
+  fullName   String?  @map("full_name")
+  avatarUrl  String?  @map("avatar_url")
+  role       UserRole @default(CLIENT)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   permissions     UserModulePermission[]
   projects        Project[]
@@ -340,7 +499,22 @@ model Profile {
   dataUnitProposals DataUnitProposal[]
   moduleWriteIntents ModuleWriteIntent[] @relation("ModuleWriteIntentOwner")
   approvedModuleWriteIntents ModuleWriteIntent[] @relation("ModuleWriteIntentApprover")
+  academicPeople AcademicPerson[]
+  fileAssets FileAsset[]
+  mediaAssets MediaAsset[]
+  createdWorkspaces Workspace[] @relation("WorkspaceCreatedBy")
+  workspaceMemberships WorkspaceMembership[] @relation("WorkspaceMembershipProfile")
+  invitedWorkspaceMemberships WorkspaceMembership[] @relation("WorkspaceMembershipInvitedBy")
+  sentCollaborationInvitations CollaborationInvitation[] @relation("CollaborationInvitationInvitedBy")
+  acceptedCollaborationInvitations CollaborationInvitation[] @relation("CollaborationInvitationAcceptedBy")
+  grantedProjectAccess ProjectAccessGrant[] @relation("ProjectAccessGrantGrantedBy")
+  authoredProjectFeedback ProjectFeedback[] @relation("ProjectFeedbackAuthor")
+  editedProjectFeedbackVersions ProjectFeedbackVersion[] @relation("ProjectFeedbackVersionEditor")
+  reviewedProjectMemoryCandidates ProjectMemoryCandidate[] @relation("ProjectMemoryCandidateReviewer")
 
+  createdSkills Skill[] @relation("SkillCreatedBy")
+  operatingSettings UserSetting[] @relation("UserSettingProfile")
+  updatedOrganizationSettings OrganizationSetting[] @relation("OrganizationSettingUpdatedBy")
   @@map("profiles")
 }
 
@@ -358,37 +532,259 @@ model UserModulePermission {
 }
 
 model Project {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ownerId     String        @map("owner_id") @db.Uuid
-  owner       Profile       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String            @map("owner_id") @db.Uuid
+  owner       Profile           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  workspaceId String?           @map("workspace_id") @db.Uuid
+  workspace   Workspace?        @relation("WorkspaceProjects", fields: [workspaceId], references: [id], onDelete: Restrict)
+  accessMode  ProjectAccessMode @default(PRIVATE) @map("access_mode")
   name        String
-  clientName  String?       @map("client_name")
+  clientName  String?           @map("client_name")
   description String?
-  status      ProjectStatus @default(ACTIVE)
-  phase       ProjectPhase  @default(PLANNING)
-  health      ProjectHealth @default(GOOD)
-  visibility  VisibilityType @default(INTERNAL_ONLY)
-  clientToken String?       @map("client_token")
-  startedAt   DateTime?     @map("started_at")
-  dueAt       DateTime?     @map("due_at")
-  nextAction  String?       @map("next_action")
-  companyAxis String?       @map("company_axis")
-  tasksDone   Int           @default(0) @map("tasks_done")
-  tasksTotal  Int           @default(0) @map("tasks_total")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  status      ProjectStatus     @default(ACTIVE)
+  phase       ProjectPhase      @default(PLANNING)
+  health      ProjectHealth     @default(GOOD)
+  visibility  VisibilityType    @default(INTERNAL_ONLY)
+  clientToken String?           @map("client_token")
+  startedAt   DateTime?         @map("started_at")
+  dueAt       DateTime?         @map("due_at")
+  nextAction  String?           @map("next_action")
+  companyAxis String?           @map("company_axis")
+  tasksDone   Int               @default(0) @map("tasks_done")
+  tasksTotal  Int               @default(0) @map("tasks_total")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
   tasks        ProjectTask[]
   notes        ProjectNote[]
   deliverables ProjectDeliverable[]
+  phaseNodes   ProjectPhaseNode[]
+  occasions    Occasion[]           @relation("ProjectOccasions")
+  collaborationInvitations CollaborationInvitation[] @relation("CollaborationInvitationProject")
+  accessGrants ProjectAccessGrant[] @relation("ProjectAccessGrants")
+  feedback ProjectFeedback[] @relation("ProjectFeedbackProject")
+  memoryCandidates ProjectMemoryCandidate[] @relation("ProjectMemoryCandidateProject")
+
+  @@index([workspaceId, status], map: "projects_workspace_status_idx")
 
   @@map("projects")
+}
+
+model Workspace {
+  id                       String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type                     WorkspaceType
+  name                     String
+  slug                     String            @unique
+  status                   WorkspaceStatus   @default(ACTIVE)
+  defaultProjectAccessRole ProjectAccessRole @default(VIEWER) @map("default_project_access_role")
+  aiFeedbackMemoryEnabled  Boolean           @default(false) @map("ai_feedback_memory_enabled")
+  createdByProfileId       String            @map("created_by_profile_id") @db.Uuid
+  createdBy                Profile           @relation("WorkspaceCreatedBy", fields: [createdByProfileId], references: [id], onDelete: Restrict)
+  createdAt                DateTime           @default(now()) @map("created_at")
+  updatedAt                DateTime           @updatedAt @map("updated_at")
+
+  memberships     WorkspaceMembership[]     @relation("WorkspaceMembershipWorkspace")
+  invitations     CollaborationInvitation[] @relation("CollaborationInvitationWorkspace")
+  projects        Project[]                 @relation("WorkspaceProjects")
+  feedback        ProjectFeedback[]         @relation("ProjectFeedbackWorkspace")
+  memoryCandidates ProjectMemoryCandidate[] @relation("ProjectMemoryCandidateWorkspace")
+
+  skills          Skill[]                   @relation("WorkspaceSkills")
+
+  @@index([status, type], map: "workspaces_status_type_idx")
+  rhythms                  Rhythm[]          @relation("WorkspaceRhythms")
+  occasions                Occasion[]        @relation("WorkspaceOccasions")
+  timeSpine                TimeSpine[]       @relation("WorkspaceTimeSpine")
+
+  @@map("workspaces")
+}
+
+model WorkspaceMembership {
+  id                 String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId        String                    @map("workspace_id") @db.Uuid
+  workspace          Workspace                 @relation("WorkspaceMembershipWorkspace", fields: [workspaceId], references: [id], onDelete: Cascade)
+  profileId          String                    @map("profile_id") @db.Uuid
+  profile            Profile                   @relation("WorkspaceMembershipProfile", fields: [profileId], references: [id], onDelete: Cascade)
+  role               WorkspaceMemberRole       @default(MEMBER)
+  status             WorkspaceMembershipStatus @default(ACTIVE)
+  invitedByProfileId String?                   @map("invited_by_profile_id") @db.Uuid
+  invitedBy          Profile?                  @relation("WorkspaceMembershipInvitedBy", fields: [invitedByProfileId], references: [id], onDelete: SetNull)
+  joinedAt           DateTime?                 @map("joined_at")
+  suspendedAt        DateTime?                 @map("suspended_at")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+
+  projectGrants ProjectAccessGrant[] @relation("ProjectAccessGrantMembership")
+
+  @@unique([workspaceId, profileId], map: "workspace_memberships_workspace_profile_unique")
+  @@index([profileId, status], map: "workspace_memberships_profile_status_idx")
+  @@map("workspace_memberships")
+}
+
+model CollaborationInvitation {
+  id                  String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId         String                        @map("workspace_id") @db.Uuid
+  workspace           Workspace                     @relation("CollaborationInvitationWorkspace", fields: [workspaceId], references: [id], onDelete: Cascade)
+  normalizedEmail     String                        @map("normalized_email")
+  tokenDigest         String                        @unique @map("token_digest")
+  workspaceRole       WorkspaceMemberRole           @default(MEMBER) @map("workspace_role")
+  projectId           String?                       @map("project_id") @db.Uuid
+  project             Project?                      @relation("CollaborationInvitationProject", fields: [projectId], references: [id], onDelete: Restrict)
+  projectRole         ProjectAccessRole?            @map("project_role")
+  status              CollaborationInvitationStatus @default(PENDING)
+  invitedByProfileId  String                        @map("invited_by_profile_id") @db.Uuid
+  invitedBy           Profile                       @relation("CollaborationInvitationInvitedBy", fields: [invitedByProfileId], references: [id], onDelete: Restrict)
+  acceptedByProfileId String?                       @map("accepted_by_profile_id") @db.Uuid
+  acceptedBy          Profile?                      @relation("CollaborationInvitationAcceptedBy", fields: [acceptedByProfileId], references: [id], onDelete: Restrict)
+  expiresAt           DateTime                      @map("expires_at")
+  acceptedAt          DateTime?                     @map("accepted_at")
+  revokedAt           DateTime?                     @map("revoked_at")
+  createdAt           DateTime                      @default(now()) @map("created_at")
+  updatedAt           DateTime                      @updatedAt @map("updated_at")
+
+  @@index([workspaceId, normalizedEmail, status], map: "collaboration_invitations_workspace_email_status_idx")
+  @@index([expiresAt, status], map: "collaboration_invitations_expiry_status_idx")
+  @@map("collaboration_invitations")
+}
+
+model ProjectAccessGrant {
+  id                 String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId          String                   @map("project_id") @db.Uuid
+  project            Project                  @relation("ProjectAccessGrants", fields: [projectId], references: [id], onDelete: Cascade)
+  membershipId       String                   @map("membership_id") @db.Uuid
+  membership         WorkspaceMembership      @relation("ProjectAccessGrantMembership", fields: [membershipId], references: [id], onDelete: Cascade)
+  role               ProjectAccessRole
+  status             ProjectAccessGrantStatus @default(ACTIVE)
+  grantedByProfileId String                   @map("granted_by_profile_id") @db.Uuid
+  grantedBy          Profile                  @relation("ProjectAccessGrantGrantedBy", fields: [grantedByProfileId], references: [id], onDelete: Restrict)
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+
+  @@unique([projectId, membershipId], map: "project_access_grants_project_membership_unique")
+  @@index([membershipId, role, status], map: "project_access_grants_membership_role_status_idx")
+  @@map("project_access_grants")
+}
+
+model ProjectFeedback {
+  id               String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String                    @map("workspace_id") @db.Uuid
+  workspace        Workspace                 @relation("ProjectFeedbackWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
+  projectId        String                    @map("project_id") @db.Uuid
+  project          Project                   @relation("ProjectFeedbackProject", fields: [projectId], references: [id], onDelete: Cascade)
+  authorProfileId  String                    @map("author_profile_id") @db.Uuid
+  author           Profile                   @relation("ProjectFeedbackAuthor", fields: [authorProfileId], references: [id], onDelete: Restrict)
+  targetType       ProjectFeedbackTargetType @map("target_type")
+  targetId         String?                   @map("target_id") @db.Uuid
+  body             String
+  status           ProjectFeedbackStatus     @default(ACTIVE)
+  aiUseEligible    Boolean                   @default(false) @map("ai_use_eligible")
+  aiUseReason      String?                   @map("ai_use_reason")
+  currentVersion   Int                       @default(1) @map("current_version")
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
+  deletedAt        DateTime?                 @map("deleted_at")
+
+  versions         ProjectFeedbackVersion[] @relation("ProjectFeedbackVersions")
+
+  @@index([workspaceId, projectId, status], map: "project_feedback_workspace_project_status_idx")
+  @@index([authorProfileId, createdAt], map: "project_feedback_author_created_idx")
+  @@map("project_feedback")
+}
+
+model ProjectFeedbackVersion {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  feedbackId        String          @map("feedback_id") @db.Uuid
+  feedback          ProjectFeedback @relation("ProjectFeedbackVersions", fields: [feedbackId], references: [id], onDelete: Cascade)
+  version           Int
+  body              String
+  editedByProfileId String          @map("edited_by_profile_id") @db.Uuid
+  editedBy          Profile         @relation("ProjectFeedbackVersionEditor", fields: [editedByProfileId], references: [id], onDelete: Restrict)
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  memoryCandidates ProjectMemoryCandidate[] @relation("ProjectMemoryCandidateFeedbackVersion")
+
+  @@unique([feedbackId, version], map: "project_feedback_versions_feedback_version_unique")
+  @@map("project_feedback_versions")
+}
+
+model ProjectMemoryCandidate {
+  id                  String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId         String                       @map("workspace_id") @db.Uuid
+  workspace           Workspace                    @relation("ProjectMemoryCandidateWorkspace", fields: [workspaceId], references: [id], onDelete: Restrict)
+  projectId           String                       @map("project_id") @db.Uuid
+  project             Project                      @relation("ProjectMemoryCandidateProject", fields: [projectId], references: [id], onDelete: Restrict)
+  feedbackId          String                       @map("feedback_id") @db.Uuid
+  feedbackVersion     Int                          @map("feedback_version")
+  feedbackVersionRecord ProjectFeedbackVersion    @relation("ProjectMemoryCandidateFeedbackVersion", fields: [feedbackId, feedbackVersion], references: [feedbackId, version], onDelete: Restrict)
+  summary             String
+  proposedRule        String?                      @map("proposed_rule")
+  status              ProjectMemoryCandidateStatus @default(PENDING)
+  proposedByAgentId   String                       @map("proposed_by_agent_id")
+  reviewedByProfileId String?                      @map("reviewed_by_profile_id") @db.Uuid
+  reviewedBy          Profile?                     @relation("ProjectMemoryCandidateReviewer", fields: [reviewedByProfileId], references: [id], onDelete: Restrict)
+  reviewedAt          DateTime?                    @map("reviewed_at")
+  invalidatedAt       DateTime?                    @map("invalidated_at")
+  createdAt           DateTime                     @default(now()) @map("created_at")
+  updatedAt           DateTime                     @updatedAt @map("updated_at")
+
+  @@index([workspaceId, projectId, status], map: "project_memory_candidates_workspace_project_status_idx")
+  @@index([feedbackId, feedbackVersion], map: "project_memory_candidates_feedback_version_idx")
+  @@map("project_memory_candidates")
+}
+
+/// Cross-module append-only operating audit envelope from DBS-006. Persisted
+/// writers are limited by reviewed migration/service catalogs: the no-secret
+/// workspace creation event and TEAMCOLLAB-006 invitation lifecycle.
+model OperatingAuditEvent {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  occurredAt            DateTime @default(now()) @map("occurred_at")
+  receivedAt            DateTime @default(now()) @map("received_at")
+  actorType             String   @map("actor_type")
+  actorRef              String?  @map("actor_ref")
+  actorDisplay          String?  @map("actor_display")
+  sessionRef            String?  @map("session_ref")
+  requestRef            String?  @map("request_ref")
+  ipAddressHash         String?  @map("ip_address_hash")
+  userAgentHash         String?  @map("user_agent_hash")
+  moduleKey             String   @map("module_key")
+  action                String
+  targetType            String   @map("target_type")
+  targetRef             String?  @map("target_ref")
+  targetDisplay         String?  @map("target_display")
+  result                String
+  riskLevel             String   @map("risk_level")
+  approvalLevel         String   @map("approval_level")
+  humanApprovalRequired Boolean  @map("human_approval_required")
+  sourceKind            String   @map("source_kind")
+  sourceRef             String?  @map("source_ref")
+  agentRef              String?  @map("agent_ref")
+  operationId           String?  @map("operation_id")
+  proposalRef           String?  @map("proposal_ref")
+  proofRef              String?  @map("proof_ref")
+  beforeRef             String?  @map("before_ref")
+  afterRef              String?  @map("after_ref")
+  metadata              Json     @default("{}")
+  redactionVersion      String   @map("redaction_version")
+  retentionClass        String   @map("retention_class")
+  previousEventHash     String?  @map("previous_event_hash")
+  eventHash             String?  @map("event_hash")
+
+  @@unique([actorRef, action, requestRef], map: "operating_audit_events_actor_action_request_unique")
+  @@index([moduleKey, occurredAt], map: "operating_audit_events_module_occurred_idx")
+  @@index([actorType, occurredAt], map: "operating_audit_events_actor_occurred_idx")
+  @@index([action, occurredAt], map: "operating_audit_events_action_occurred_idx")
+  @@index([result, riskLevel, occurredAt], map: "operating_audit_events_result_risk_occurred_idx")
+  @@index([targetType, targetRef, occurredAt], map: "operating_audit_events_target_occurred_idx")
+  @@index([operationId, occurredAt], map: "operating_audit_events_operation_occurred_idx")
+  @@map("operating_audit_events")
 }
 
 model ProjectTask {
   id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   projectId   String         @map("project_id") @db.Uuid
   project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  objectiveId String?        @map("objective_id") @db.Uuid
+  objective   ProjectObjective? @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
   title       String
   body        String?
   status      TaskStatus     @default(TODO)
@@ -437,6 +833,88 @@ model ProjectDeliverable {
   updatedAt   DateTime            @updatedAt @map("updated_at")
 
   @@map("project_deliverables")
+}
+
+model ProjectPhaseNode {
+  id         String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId  String                 @map("project_id") @db.Uuid
+  project    Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phase      ProjectPhase
+  label      String
+  startDate  DateTime               @map("start_date")
+  endDate    DateTime               @map("end_date")
+  status     ProjectPhaseNodeStatus @default(UPCOMING)
+  createdAt  DateTime               @default(now()) @map("created_at")
+  updatedAt  DateTime               @updatedAt @map("updated_at")
+
+  milestones ProjectMilestone[]
+
+  @@index([projectId, startDate], map: "project_phase_nodes_project_start_idx")
+  @@map("project_phase_nodes")
+}
+
+model ProjectMilestone {
+  id          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phaseNodeId String                  @map("phase_node_id") @db.Uuid
+  phaseNode   ProjectPhaseNode        @relation(fields: [phaseNodeId], references: [id], onDelete: Cascade)
+  title       String
+  date        DateTime
+  status      ProjectMilestoneStatus  @default(UPCOMING)
+  acceptance  String?
+  derivedFrom String?                 @map("derived_from")
+  remind      String?
+
+  objectives  ProjectObjective[]
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  @@index([phaseNodeId, date], map: "project_milestones_phase_node_date_idx")
+  @@map("project_milestones")
+}
+
+model FileAsset {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String                 @map("owner_id") @db.Uuid
+  owner           Profile                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  displayName     String                 @map("display_name")
+  storageProvider StorageProvider        @default(CLOUDFLARE_R2) @map("storage_provider")
+  bucket          String
+  objectKey       String                 @map("object_key")
+  mimeType        String?                @map("mime_type")
+  sizeBytes       Int?                   @map("size_bytes")
+  contentHash     String?                @map("content_hash")
+  scanStatus      FileScanStatus         @default(NOT_REQUIRED) @map("scan_status")
+  visibility      LibraryAssetVisibility @default(PRIVATE)
+  deletedAt       DateTime?              @map("deleted_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  @@index([ownerId], map: "file_assets_owner_idx")
+  @@unique([bucket, objectKey], map: "file_assets_object_key_unique")
+  @@map("file_assets")
+}
+
+model MediaAsset {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String                 @map("owner_id") @db.Uuid
+  owner           Profile                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  displayName     String                 @map("display_name")
+  storageProvider StorageProvider        @default(CLOUDFLARE_R2) @map("storage_provider")
+  bucket          String
+  objectKey       String                 @map("object_key")
+  mimeType        String?                @map("mime_type")
+  sizeBytes       Int?                   @map("size_bytes")
+  contentHash     String?                @map("content_hash")
+  scanStatus      FileScanStatus         @default(NOT_REQUIRED) @map("scan_status")
+  visibility      LibraryAssetVisibility @default(PRIVATE)
+  durationSeconds Int?                   @map("duration_seconds")
+  deletedAt       DateTime?              @map("deleted_at")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  @@index([ownerId], map: "media_assets_owner_idx")
+  @@unique([bucket, objectKey], map: "media_assets_object_key_unique")
+  @@map("media_assets")
 }
 
 model SourceConnection {
@@ -889,6 +1367,10 @@ model AgentMessage {
 
 model AcademicPerson {
   id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // Nullable pending TENANT-003 backfill migration; every future write must set this.
+  // See ARC-033 and RES-020 — a global, ownerless row here would be visible to every tenant.
+  ownerId               String?  @db.Uuid @map("owner_id")
+  owner                 Profile? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name                  String
   academicRole          String?  @map("academic_role")
   affiliation           String?
@@ -904,4 +1386,305 @@ model AcademicPerson {
   updatedAt             DateTime @updatedAt @map("updated_at")
 
   @@map("academic_people")
+}
+
+enum AgentCommandType {
+  SINGLE_AGENT
+  TEAM_GROUP
+
+  @@map("agent_command_type")
+}
+
+model AgentCommand {
+  id                     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  operationId            String           @unique @map("operation_id")
+  label                  String
+  agentInstructionLabel  String           @map("agent_instruction_label")
+  moduleKey              String           @map("module_key")
+  ownerAgent             String           @map("owner_agent")
+  targetModule           String           @map("target_module")
+  riskLevel              String           @map("risk_level")
+  approvalLevel          String           @map("approval_level")
+  dataVisibilityLevel    String           @map("data_visibility_level")
+  scopes                 String[]         @default([])
+  allowedModes           String[]         @default(["dry_run"])
+  uiEntrySurface         String           @map("ui_entry_surface")
+  proposalOutputs        String[]         @default([]) @map("proposal_outputs")
+  agentProposalOutputs   String[]         @default([]) @map("agent_proposal_outputs")
+  blockedWrites          String[]         @default([]) @map("blocked_writes")
+  agentBlockedWrites     String[]         @default([]) @map("agent_blocked_writes")
+  sourceRefs             String[]         @default([]) @map("source_refs")
+  promptTemplate         String?          @map("prompt_template")
+  stages                 Json             @default("[]") @map("stages")
+  commandType            AgentCommandType @default(SINGLE_AGENT) @map("command_type")
+  participantAgents      String[]         @default([]) @map("participant_agents")
+  writeBlocked           Boolean          @default(true) @map("write_blocked")
+  externalRegisterable   Boolean          @default(false) @map("external_registerable")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+
+  @@index([moduleKey, commandType])
+  @@map("agent_commands")
+}
+
+model Skill {
+  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId        String?     @map("workspace_id") @db.Uuid
+  workspace          Workspace?  @relation("WorkspaceSkills", fields: [workspaceId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  instructions       String
+  scope              SkillScope  @default(WORKSPACE)
+  status             SkillStatus @default(ACTIVE)
+  createdByProfileId String      @map("created_by_profile_id") @db.Uuid
+  createdBy          Profile     @relation("SkillCreatedBy", fields: [createdByProfileId], references: [id], onDelete: Restrict)
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  @@index([workspaceId, status], map: "skills_workspace_status_idx")
+  @@map("skills")
+}
+
+/// 使用者自己的營運工作台設定（基礎／個人）。一列一個 key，值以 Json 保存，
+/// 可用的 key 與型別由 src/lib/settings/operating-settings.catalog.ts 定義。
+model UserSetting {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId String       @map("profile_id") @db.Uuid
+  profile   Profile      @relation("UserSettingProfile", fields: [profileId], references: [id], onDelete: Cascade)
+  scope     SettingScope
+  key       String
+  value     Json
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@unique([profileId, scope, key])
+  @@index([profileId, scope], map: "user_settings_profile_scope_idx")
+  @@map("user_settings")
+}
+
+/// 組織級設定：只有具負責人席位的帳號可以寫，所有成員都讀得到（這些值會影響他們看到什麼）。
+/// orgKey 目前固定為單一組織，保留欄位是為了之後真的多租戶時不用再改主鍵。
+model OrganizationSetting {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgKey      String   @map("org_key")
+  key         String
+  value       Json
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   Profile? @relation("OrganizationSettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([orgKey, key])
+  @@index([orgKey], map: "organization_settings_org_key_idx")
+  @@map("organization_settings")
+}
+
+// ─── 營運三軌與 time_spine（ARC-041 · PLN-073 T5）─────────────────────────────
+// 專案軌沿用既有的 Project → ProjectPhaseNode → ProjectMilestone，往下補 Objective；
+// 節奏軌與行政／活動軌是新的。time_spine 是衍生索引，由服務層單一 writer 維護。
+
+enum RhythmKind {
+  // 會議或習慣：standup / 1:1 / 回顧 / 學習日 —— 計入履行率
+  RITUAL
+  // 週期性行政義務：發薪 / 勞健保 / 報稅 —— 進日曆與提醒，但不計履行率
+  ADMIN
+
+  @@map("rhythm_kind")
+}
+
+enum RhythmScope {
+  COMPANY
+  PERSONAL
+
+  @@map("rhythm_scope")
+}
+
+enum RhythmSessionState {
+  DONE
+  SKIP
+  MOVED
+
+  @@map("rhythm_session_state")
+}
+
+enum OccasionCategory {
+  COMPANY_EVENT
+  CLIENT_MEETING
+  TRAVEL
+  BIRTHDAY
+  VISIT
+  ADMIN
+
+  @@map("occasion_category")
+}
+
+enum OperatingMediaKind {
+  AUDIO
+  PHOTO
+  DOC
+
+  @@map("operating_media_kind")
+}
+
+enum SpineTrack {
+  PROJECT
+  RHYTHM
+  OCCASION
+
+  @@map("spine_track")
+}
+
+enum SpineState {
+  PLANNED
+  DONE
+  LATE
+  MISSED
+  SKIPPED
+
+  @@map("spine_state")
+}
+
+/// 里程碑底下的「怎樣才算做到」。達成率由底下的 ProjectTask 推算。
+model ProjectObjective {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  milestoneId String           @map("milestone_id") @db.Uuid
+  milestone   ProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  title       String
+  sortOrder   Int              @default(0) @map("sort_order")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  tasks ProjectTask[]
+
+  @@index([milestoneId], map: "project_objectives_milestone_idx")
+  @@map("project_objectives")
+}
+
+/// 日常節奏的規則本體。未來實例不預存，查詢期由 RRULE 展開（ARC-041 §2.1）。
+model Rhythm {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String      @map("workspace_id") @db.Uuid
+  workspace   Workspace   @relation("WorkspaceRhythms", fields: [workspaceId], references: [id], onDelete: Cascade)
+  title       String
+  kind        RhythmKind  @default(RITUAL)
+  scope       RhythmScope @default(COMPANY)
+  ownerIds    String[]    @map("owner_ids") @db.Uuid
+  /// RFC 5545，例 FREQ=WEEKLY;INTERVAL=2;BYDAY=TU
+  rrule       String
+  /// 天粒度、當地日語意；夏令時間下「每週五 13:00」仍是當地的 13:00
+  dtstart     DateTime    @map("dtstart") @db.Date
+  until       DateTime?   @db.Date
+  timeOfDay   String?     @map("time_of_day")
+  timezone    String      @default("Asia/Taipei")
+  expectMedia String[]    @map("expect_media")
+  /// 由契約條文或法規推導 —— 帶值者不可編輯或刪除
+  derivedFrom String?     @map("derived_from")
+  remind      String?
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  sessions RhythmSession[]
+
+  @@index([workspaceId, kind, active], map: "rhythms_workspace_kind_idx")
+  @@map("rhythms")
+}
+
+/// 節奏的單次實例。只有「發生了事情」才落一筆 —— 等同 iCalendar 的 RECURRENCE-ID 覆寫。
+model RhythmSession {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rhythmId       String             @map("rhythm_id") @db.Uuid
+  rhythm         Rhythm             @relation(fields: [rhythmId], references: [id], onDelete: Cascade)
+  /// 規則算出的原始日期，也是覆寫鍵
+  occurrenceDate DateTime           @map("occurrence_date") @db.Date
+  state          RhythmSessionState
+  movedTo        DateTime?          @map("moved_to") @db.Date
+  note           String?
+  spawnedTaskIds String[]           @map("spawned_task_ids") @db.Uuid
+  recordedById   String?            @map("recorded_by_id") @db.Uuid
+  recordedAt     DateTime           @default(now()) @map("recorded_at")
+
+  mediaItems OperatingMedia[]
+
+  @@unique([rhythmId, occurrenceDate], map: "rhythm_sessions_occurrence_key")
+  @@index([rhythmId, occurrenceDate], map: "rhythm_sessions_rhythm_date_idx")
+  @@map("rhythm_sessions")
+}
+
+/// 行政／活動：一次性時間點或短區間，重點在事前準備與事後留下的素材。
+model Occasion {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String           @map("workspace_id") @db.Uuid
+  workspace      Workspace        @relation("WorkspaceOccasions", fields: [workspaceId], references: [id], onDelete: Cascade)
+  title          String
+  category       OccasionCategory @default(COMPANY_EVENT)
+  onDate         DateTime         @map("on_date") @db.Date
+  endOn          DateTime?        @map("end_on") @db.Date
+  startsAt       DateTime?        @map("starts_at")
+  endsAt         DateTime?        @map("ends_at")
+  place          String?
+  actorIds       String[]         @map("actor_ids") @db.Uuid
+  externalGuests String?          @map("external_guests")
+  star           Boolean          @default(false)
+  projectId      String?          @map("project_id") @db.Uuid
+  project        Project?         @relation("ProjectOccasions", fields: [projectId], references: [id], onDelete: SetNull)
+  /// [{ t, done, dueOn?, taskId? }]
+  prep           Json             @default("[]")
+  recap          String?
+  derivedFrom    String?          @map("derived_from")
+  remind         String?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  mediaItems OperatingMedia[]
+
+  @@index([workspaceId, onDate], map: "occasions_workspace_date_idx")
+  @@index([projectId], map: "occasions_project_idx")
+  @@map("occasions")
+}
+
+/// 節奏紀錄與活動的素材。檔案本體沿用 SCH-005 的 R2 儲存。
+model OperatingMedia {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind       OperatingMediaKind
+  url        String
+  filename   String
+  bytes      Int                @default(0)
+  transcript String?
+  sessionId  String?            @map("session_id") @db.Uuid
+  session    RhythmSession?     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  occasionId String?            @map("occasion_id") @db.Uuid
+  occasion   Occasion?          @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  @@index([sessionId], map: "operating_media_session_idx")
+  @@index([occasionId], map: "operating_media_occasion_idx")
+  @@map("operating_media")
+}
+
+/// 三軌匯流的扁平索引。只索引「已具體化」的東西；節奏的未來實例由查詢期展開後合併。
+/// 衍生資料，由 src/lib/services/operating-spine.service.ts 單一 writer 維護，
+/// 並由 scripts/reconcile-time-spine.ts 定期對帳（ARC-041 §3）。
+model TimeSpine {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String     @map("workspace_id") @db.Uuid
+  workspace   Workspace  @relation("WorkspaceTimeSpine", fields: [workspaceId], references: [id], onDelete: Cascade)
+  onDate      DateTime   @map("on_date") @db.Date
+  track       SpineTrack
+  refTable    String     @map("ref_table")
+  refId       String     @map("ref_id") @db.Uuid
+  title       String
+  actorIds    String[]   @map("actor_ids") @db.Uuid
+  /// 佔用強度，餵 heatmap 與衝期規則
+  weight      Int        @default(1)
+  state       SpineState @default(PLANNED)
+  star        Boolean    @default(false)
+  projectId   String?    @map("project_id") @db.Uuid
+  derivedFrom String?    @map("derived_from")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@unique([refTable, refId, onDate], map: "time_spine_ref_key")
+  @@index([workspaceId, onDate], map: "time_spine_workspace_date_idx")
+  @@index([workspaceId, track, onDate], map: "time_spine_workspace_track_idx")
+  @@map("time_spine")
 }

@@ -16,3 +16,32 @@ export const db =
   })
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db
+
+let databaseDisposal: Promise<void> | null = null
+
+/**
+ * Process-shutdown/test seam for callers that own the database lifecycle.
+ * PrismaPg receives an external pg Pool, so PrismaClient.$disconnect() alone
+ * does not close every socket. Runtime request paths must never call this.
+ */
+export function disposeDatabaseConnections(): Promise<void> {
+  const target = connectionString ? new URL(connectionString) : null
+  const loopbackTarget =
+    target?.hostname === "127.0.0.1" || target?.hostname === "::1"
+  if (
+    process.env.PERSONAL_OS_ALLOW_DATABASE_POOL_DISPOSAL !==
+      "self_created_disposable" ||
+    !loopbackTarget
+  ) {
+    throw new Error(
+      "Database pool disposal is limited to an explicitly owned loopback disposable target.",
+    )
+  }
+
+  databaseDisposal ??= (async () => {
+    await db.$disconnect()
+    await pool.end()
+  })()
+
+  return databaseDisposal
+}

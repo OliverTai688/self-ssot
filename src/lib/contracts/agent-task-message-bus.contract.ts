@@ -315,8 +315,8 @@ export const AGENT_BUS_OPERATION_BINDINGS = MODULE_AGENT_COMMAND_CATALOG.map(
     ownerAgent: command.ownerAgent,
     riskLevel: command.riskLevel,
     approvalLevel: command.approvalLevel,
-    proposalOutputs: command.proposalOutputs,
-    blockedActions: command.blockedWrites,
+    proposalOutputs: command.agentProposalOutputs,
+    blockedActions: command.agentBlockedWrites,
     writeBlocked: true,
     externalRegisterable: false,
   })
@@ -333,7 +333,7 @@ export const AGENT_BUS_HIGH_RISK_MODULES = [
 export const AGENT_BUS_TASK_TEMPLATES = MODULE_AGENT_COMMAND_CATALOG.map(
   (command): AgentBusTask => ({
     id: `agent-bus-task:${command.id}`,
-    title: `Internal proposal task for ${command.label}`,
+    title: `Internal proposal task for ${command.agentInstructionLabel}`,
     targetModule: command.moduleKey,
     operationId: command.id,
     state: "draft",
@@ -347,7 +347,7 @@ export const AGENT_BUS_TASK_TEMPLATES = MODULE_AGENT_COMMAND_CATALOG.map(
     ],
     sourceRefs: command.sourceRefs,
     auditRefs: [`agent.operation:${command.id}`, "DBS-006:internal_agent_bus"],
-    blockedActions: command.blockedWrites,
+    blockedActions: command.agentBlockedWrites,
   })
 ) satisfies readonly AgentBusTask[]
 
@@ -386,7 +386,7 @@ export const AGENT_BUS_PROPOSAL_POLICIES = MODULE_AGENT_COMMAND_CATALOG.map(
   (command): AgentBusProposal => ({
     proposalId: `agent-bus-proposal:${command.id}`,
     taskId: `agent-bus-task:${command.id}`,
-    summary: `Reviewable proposal output for ${command.label}.`,
+    summary: `Reviewable proposal output for ${command.agentInstructionLabel}.`,
     targetModule: command.moduleKey,
     riskLevel: command.riskLevel,
     approvalRequired: requiresOwnerApproval(command.riskLevel, command.approvalLevel),

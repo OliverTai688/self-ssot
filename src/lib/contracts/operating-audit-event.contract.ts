@@ -16,6 +16,7 @@ export type OperatingAuditModuleKey =
 
 export type OperatingAuditActorType =
   | "owner"
+  | "profile"
   | "system"
   | "internal_agent"
   | "public_token"
@@ -37,6 +38,7 @@ export type OperatingAuditRisk = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
 export type OperatingAuditApprovalLevel =
   | "none"
   | "owner_review"
+  | "workspace_manager"
   | "admin_review"
   | "human_required"
   | "external_approval_required"

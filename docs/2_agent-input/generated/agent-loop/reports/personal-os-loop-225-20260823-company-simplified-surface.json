@@ -1,0 +1,67 @@
+{
+  "id": "OWNEROS-UI-005",
+  "status": "PASS",
+  "generatedAt": "2026-08-22T20:54:35.655Z",
+  "route": "/company",
+  "companyPagePath": "src/app/(dashboard)/company/page.tsx",
+  "checkerCommand": "pnpm company:simplified:check",
+  "surface": {
+    "mode": "protected_owner_visible_prototype_company_strategy_surface",
+    "primaryJob": "Separate private thinking, formal knowledge, policies, contracts, and Company AI proposals.",
+    "commandBarIncludes": [
+      "New decision",
+      "Full Company list",
+      "Company Readiness",
+      "Manual Ops proof"
+    ],
+    "lanes": [
+      "Owner private thinking",
+      "Formal shared knowledge",
+      "Policy",
+      "Contract"
+    ],
+    "slots": [
+      "identity-mode-strip",
+      "attention-header",
+      "command-bar",
+      "resource-index",
+      "detail-pane",
+      "agent-proposal-pane",
+      "records-audit-timeline",
+      "settings-boundaries",
+      "manual-ops-handoff"
+    ]
+  },
+  "gateMapping": {
+    "gateA": "A4 Work/Research/Company owner path and A8 core no-mock usability prerequisite only",
+    "gateB": "B4 internal AI public-space/member pilot prerequisite only; no public output enabled",
+    "gateC": "C5 core journey UI hardening prerequisite only",
+    "gateAchieved": false
+  },
+  "nanda": {
+    "lifecycle": "protected_owner_visible_internal_company_ai_proposal_surface",
+    "protocols": [
+      "internal"
+    ],
+    "endpointChanged": false,
+    "providerRuntimeChanged": false,
+    "externalRegisterable": false,
+    "registrationStatus": "not_registered"
+  },
+  "safety": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "databaseReadAdded": false,
+    "databaseWriteAdded": false,
+    "providerCallAdded": false,
+    "publicOutputExpanded": false,
+    "companyPublicationRuntimeAdded": false,
+    "highRiskWriteAdded": false,
+    "clientVisibleRuntimeAdded": false,
+    "cLevelRuntimeAdded": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { ProjectStatus } from "@/types/work"
 
 export type StatusFilter = ProjectStatus | "all"
@@ -20,20 +21,22 @@ interface ProjectFilterBarProps {
   onSortChange: (v: SortKey) => void
 }
 
-const statusTabs: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "全部" },
-  { value: "active", label: "進行中" },
-  { value: "paused", label: "暫停" },
-  { value: "completed", label: "完成" },
-  { value: "archived", label: "封存" },
-]
-
 export function ProjectFilterBar({
   statusFilter,
   sortKey,
   onStatusChange,
   onSortChange,
 }: ProjectFilterBarProps) {
+  const { copy } = useProductLanguage()
+  const workCopy = copy.work
+  const statusTabs: { value: StatusFilter; label: string }[] = [
+    { value: "all", label: workCopy.projectFilter.status.all },
+    { value: "active", label: workCopy.projectFilter.status.active },
+    { value: "paused", label: workCopy.projectFilter.status.paused },
+    { value: "completed", label: workCopy.projectFilter.status.completed },
+    { value: "archived", label: workCopy.projectFilter.status.archived },
+  ]
+
   return (
     <div className="flex items-center justify-between gap-4">
       <Tabs value={statusFilter} onValueChange={(v) => onStatusChange(v as StatusFilter)}>
@@ -51,9 +54,9 @@ export function ProjectFilterBar({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="updatedAt">最近更新</SelectItem>
-          <SelectItem value="dueAt">截止日</SelectItem>
-          <SelectItem value="name">名稱</SelectItem>
+          <SelectItem value="updatedAt">{workCopy.projectFilter.sort.updatedAt}</SelectItem>
+          <SelectItem value="dueAt">{workCopy.projectFilter.sort.dueAt}</SelectItem>
+          <SelectItem value="name">{workCopy.projectFilter.sort.name}</SelectItem>
         </SelectContent>
       </Select>
     </div>

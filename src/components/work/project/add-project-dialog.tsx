@@ -24,11 +24,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import {
   parseProjectDocuments,
   type ProjectInitResult,
 } from "@/lib/ai/project-init"
 import { createProject } from "@/app/actions/work"
+import { requestFileUpload } from "@/app/actions/storage"
 import { useLibraryClassification } from "@/lib/context/library-classification-context"
 import { generateReferenceCode } from "@/lib/naming/reference-code"
 import type { FileAsset } from "@/types/file-library"
@@ -52,19 +54,62 @@ function makeSubModuleAssetId(): string {
   return `fa-work-upload-${Date.now()}-${subModuleUploadCounter}`
 }
 
-/** Builds a real `FileAsset` from a browser `File` (RES-019 §6/§8 `MODLIB-010`) — no more silently discarding upload content. */
-function toFileAsset(file: File): FileAsset {
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
+
+/**
+ * Builds a real `FileAsset` from a browser `File` and uploads its bytes to R2
+ * (RES-019 §6/§8 `MODLIB-010` stopped discarding metadata; `R2STORE-006`/`RES-022`
+ * §4 closes the remaining gap — the bytes themselves were still never persisted).
+ * Falls back to a metadata-only asset (no `objectKey`) if the R2 upload fails,
+ * so one failed upload does not block the rest of project creation.
+ */
+async function toFileAsset(file: File): Promise<FileAsset> {
   const now = new Date().toISOString()
   const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
   const id = makeSubModuleAssetId()
+  const mimeType = file.type || MIME_BY_EXT[ext] || "application/octet-stream"
+
+  let objectKey: string | undefined
+  let persistedAsset: FileAsset | undefined
+  try {
+    const requested = await requestFileUpload({
+      displayName: file.name,
+      mimeType,
+      sizeBytes: file.size,
+    })
+    if (requested.success) {
+      const putResponse = await fetch(requested.data.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": mimeType },
+        body: file,
+      })
+      if (putResponse.ok) {
+        objectKey = requested.data.objectKey
+        persistedAsset = requested.data.asset
+      }
+    }
+  } catch {
+    // Upload failed — fall through to a metadata-only asset, same as before R2STORE-006.
+  }
+
+  if (persistedAsset) return persistedAsset
+
   return {
     id,
     title: file.name,
     referenceCode: generateReferenceCode("FILE", "WORK", now),
-    mimeType: file.type || MIME_BY_EXT[ext] || "application/octet-stream",
+    mimeType,
     size: file.size,
     status: "active",
-    snapshots: [{ id: `${id}-snap-1`, versionNumber: 1, createdAt: now, referenceCount: 0 }],
+    source: objectKey
+      ? { provider: "r2", availability: "available", syncStatus: "synced", lastSyncedAt: now, lastCheckedAt: now }
+      : undefined,
+    snapshots: [{ id: `${id}-snap-1`, versionNumber: 1, createdAt: now, referenceCount: 0, objectKey }],
     processing: { extractionStatus: "not_started", indexed: false },
     references: { chats: 0, evidence: 0, observationUnits: 0, reports: 0, sprints: 0 },
     createdAt: now,
@@ -73,6 +118,8 @@ function toFileAsset(file: File): FileAsset {
 
 export function AddProjectDialog() {
   const router = useRouter()
+  const { copy } = useProductLanguage()
+  const dialogCopy = copy.work.addProject
   const { createFileAssetFromSubModuleUpload } = useLibraryClassification()
   const [open, setOpen] = React.useState(false)
   const [mode, setMode] = React.useState<Mode>("manual")
@@ -154,10 +201,11 @@ export function AddProjectDialog() {
       if (files.length > 0) {
         const project = result.data
         for (const file of files) {
-          createFileAssetFromSubModuleUpload(toFileAsset(file), "work", {
+          const asset = await toFileAsset(file)
+          createFileAssetFromSubModuleUpload(asset, "work", {
             contextType: "project",
             contextId: project.id,
-            contextLabel: `專案：${project.name}`,
+            contextLabel: `${dialogCopy.contextLabelPrefix}${project.name}`,
             href: `/work/${project.id}`,
           })
         }
@@ -170,7 +218,7 @@ export function AddProjectDialog() {
         setOpen(false)
       }, 700)
     } catch {
-      setSubmitError("建立專案失敗，請稍後再試")
+      setSubmitError(dialogCopy.fallbackError)
     } finally {
       setIsSubmitting(false)
     }
@@ -225,22 +273,22 @@ export function AddProjectDialog() {
         render={
           <Button size="sm" className="gap-1.5">
             <PlusIcon className="size-3.5" />
-            新增專案
+            {dialogCopy.trigger}
           </Button>
         }
       />
       <DialogContent className={cn(isPreview && "sm:max-w-lg")}>
         <DialogHeader>
-          <DialogTitle>新增專案</DialogTitle>
+          <DialogTitle>{dialogCopy.title}</DialogTitle>
         </DialogHeader>
 
         {submitted ? (
           <div className="py-4 text-center">
             <p className="text-sm text-emerald-600 dark:text-emerald-400">
-              ✓ 專案已建立
+              ✓ {dialogCopy.successTitle}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              正在重新整理專案列表
+              {dialogCopy.successBody}
             </p>
           </div>
         ) : (
@@ -257,7 +305,7 @@ export function AddProjectDialog() {
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                手動建立
+                {dialogCopy.manualMode}
               </button>
               <button
                 onClick={() => {
@@ -273,7 +321,7 @@ export function AddProjectDialog() {
                 )}
               >
                 <SparklesIcon className="size-3" />
-                AI 文件初始化
+                {dialogCopy.aiMode}
               </button>
             </div>
 
@@ -287,10 +335,10 @@ export function AddProjectDialog() {
             {mode === "manual" && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="project-name">專案名稱</Label>
+                  <Label htmlFor="project-name">{dialogCopy.name}</Label>
                   <Input
                     id="project-name"
-                    placeholder="例：Lisa Q3 報表設計"
+                    placeholder={dialogCopy.namePlaceholder}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) =>
@@ -300,10 +348,10 @@ export function AddProjectDialog() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="client-name">客戶名稱（選填）</Label>
+                  <Label htmlFor="client-name">{dialogCopy.clientName}</Label>
                   <Input
                     id="client-name"
-                    placeholder="例：Lisa Chen"
+                    placeholder={dialogCopy.clientPlaceholder}
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     disabled={isCreating}
@@ -317,7 +365,7 @@ export function AddProjectDialog() {
               <div className="flex flex-col gap-4">
                 {parseError && (
                   <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    解析失敗，請重試
+                    {dialogCopy.parseFailed}
                   </p>
                 )}
 
@@ -356,10 +404,10 @@ export function AddProjectDialog() {
                   />
                   <UploadIcon className="mx-auto mb-2 size-5 text-muted-foreground" />
                   <p className="text-sm text-muted-foreground">
-                    拖曳或點擊上傳需求書、合約等文件
+                    {dialogCopy.uploadPrompt}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground/70">
-                    支援 PDF、Word、TXT，最多 5 個檔案
+                    {dialogCopy.uploadHint}
                   </p>
                 </div>
 
@@ -383,7 +431,9 @@ export function AddProjectDialog() {
                           }}
                           disabled={isCreating}
                           className="shrink-0 text-muted-foreground hover:text-foreground"
-                          aria-label={`移除 ${file.name}`}
+                          aria-label={formatCopy(dialogCopy.removeFileAriaTemplate, {
+                            file: file.name,
+                          })}
                         >
                           <XIcon className="size-3.5" />
                         </button>
@@ -394,10 +444,10 @@ export function AddProjectDialog() {
 
                 {/* Optional name hint */}
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="name-hint">專案名稱提示（選填）</Label>
+                  <Label htmlFor="name-hint">{dialogCopy.nameHint}</Label>
                   <Input
                     id="name-hint"
-                    placeholder="例：品牌網站設計"
+                    placeholder={dialogCopy.nameHintPlaceholder}
                     value={nameHint}
                     onChange={(e) => setNameHint(e.target.value)}
                     disabled={isCreating}
@@ -410,9 +460,9 @@ export function AddProjectDialog() {
             {mode === "ai" && aiStep === "parsing" && (
               <div className="flex flex-col items-center gap-3 py-8">
                 <Loader2Icon className="size-8 animate-spin text-primary" />
-                <p className="text-sm font-medium">AI 正在解析文件…</p>
+                <p className="text-sm font-medium">{dialogCopy.parsingTitle}</p>
                 <p className="text-xs text-muted-foreground">
-                  擷取 timeline、交付物與里程碑
+                  {dialogCopy.parsingBody}
                 </p>
               </div>
             )}
@@ -423,34 +473,34 @@ export function AddProjectDialog() {
                 <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 dark:bg-emerald-950/30">
                   <CheckIcon className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span className="text-xs text-emerald-700 dark:text-emerald-400">
-                    AI 解析完成，來自 {files.length} 份文件，可編輯後建立
+                    {formatCopy(dialogCopy.previewReadyTemplate, { count: files.length })}
                   </span>
                 </div>
 
                 {/* Editable fields */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="preview-name">專案名稱</Label>
+                    <Label htmlFor="preview-name">{dialogCopy.previewName}</Label>
                     <Input
                       id="preview-name"
                       value={previewName}
                       onChange={(e) => setPreviewName(e.target.value)}
-                      placeholder="輸入專案名稱"
+                      placeholder={dialogCopy.previewNamePlaceholder}
                       disabled={isCreating}
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="preview-client">客戶名稱</Label>
+                    <Label htmlFor="preview-client">{dialogCopy.previewClient}</Label>
                     <Input
                       id="preview-client"
                       value={previewClient}
                       onChange={(e) => setPreviewClient(e.target.value)}
-                      placeholder="客戶名稱（選填）"
+                      placeholder={dialogCopy.previewClientPlaceholder}
                       disabled={isCreating}
                     />
                   </div>
                   <div className="col-span-2 flex flex-col gap-1.5">
-                    <Label htmlFor="preview-due">預計完成日期</Label>
+                    <Label htmlFor="preview-due">{dialogCopy.previewDue}</Label>
                     <Input
                       id="preview-due"
                       type="date"
@@ -464,7 +514,9 @@ export function AddProjectDialog() {
                 {/* Timeline phases */}
                 <div className="flex flex-col gap-2">
                   <p className="text-xs font-medium text-muted-foreground">
-                    專案 Timeline（{parseResult.phases.length} 個階段）
+                    {formatCopy(dialogCopy.timelineTitleTemplate, {
+                      count: parseResult.phases.length,
+                    })}
                   </p>
                   <div className="flex flex-col gap-1">
                     {parseResult.phases.map((phase) => (
@@ -480,7 +532,9 @@ export function AddProjectDialog() {
                           {phase.startDate} → {phase.endDate}
                         </span>
                         <span className="shrink-0 text-xs text-muted-foreground/60">
-                          {phase.milestones.length} 里程碑
+                          {formatCopy(dialogCopy.milestoneCountTemplate, {
+                            count: phase.milestones.length,
+                          })}
                         </span>
                       </div>
                     ))}
@@ -491,7 +545,7 @@ export function AddProjectDialog() {
                 {parseResult.keyDeliverables.length > 0 && (
                   <div className="flex flex-col gap-1.5">
                     <p className="text-xs font-medium text-muted-foreground">
-                      關鍵交付物
+                      {dialogCopy.keyDeliverables}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {parseResult.keyDeliverables.map((d) => (
@@ -520,7 +574,7 @@ export function AddProjectDialog() {
                 className="gap-1.5"
               >
                 {isCreating && <Loader2Icon className="size-3.5 animate-spin" />}
-                {isCreating ? "建立中" : "建立專案"}
+                {isCreating ? dialogCopy.creating : dialogCopy.create}
               </Button>
             )}
             {mode === "ai" && aiStep === "upload" && (
@@ -531,7 +585,7 @@ export function AddProjectDialog() {
                 className="gap-1.5"
               >
                 <SparklesIcon className="size-3.5" />
-                開始 AI 解析
+                {dialogCopy.startAiParse}
               </Button>
             )}
             {mode === "ai" && aiStep === "preview" && (
@@ -542,7 +596,7 @@ export function AddProjectDialog() {
                 className="gap-1.5"
               >
                 {isCreating && <Loader2Icon className="size-3.5 animate-spin" />}
-                {isCreating ? "建立中" : "建立專案"}
+                {isCreating ? dialogCopy.creating : dialogCopy.create}
               </Button>
             )}
           </DialogFooter>

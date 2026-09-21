@@ -4,6 +4,7 @@ import * as React from "react"
 import { PlusIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { requestFileDownloadByObjectKey, requestFileUpload } from "@/app/actions/storage"
 import type {
   FileAsset,
   FileAssetReferences,
@@ -41,8 +42,6 @@ function makeAssetId(prefix: string): string {
   return `${prefix}-${Date.now()}-${uploadCounter}`
 }
 
-const MOCK_UPLOAD_NAMES = ["系統需求規格書.pdf", "破產保護程序大綱.docx", "商業模式畫布.pdf", "產品開發時程表.xlsx"]
-
 export function FileLibraryPage({
   referencedTitles,
   onReferenceAsset,
@@ -61,6 +60,8 @@ export function FileLibraryPage({
     getOriginContextForAsset,
     getAssetIdsForModule,
     setAssetModuleKeys,
+    dataMode,
+    formalDataStatus,
     fileAssets: assets,
     setFileAssets: setAssets,
   } = useLibraryClassification()
@@ -117,15 +118,18 @@ export function FileLibraryPage({
   const hasSearch = search.trim().length > 0
 
   const emptyVariant: FileLibraryEmptyVariant = React.useMemo(() => {
+    if (dataMode === "formal" && formalDataStatus === "unavailable") {
+      return "formal_unavailable"
+    }
     if (tabAssets.length === 0) {
       if (tab === "recent") return "recent_empty"
       if (tab === "needs_attention") return "needs_attention_empty"
       if (tab === "archived") return "archived_empty"
-      return "no_files"
+      return dataMode === "formal" ? "formal_empty" : "no_files"
     }
     if (hasSearch) return "search_no_results"
     return "filter_no_results"
-  }, [tab, tabAssets.length, hasSearch])
+  }, [dataMode, formalDataStatus, tab, tabAssets.length, hasSearch])
 
   const detailAsset = assets.find((a) => a.id === detailAssetId) ?? null
   const versionHistoryAsset = assets.find((a) => a.id === versionHistoryAssetId) ?? null
@@ -152,9 +156,21 @@ export function FileLibraryPage({
     const now = new Date().toISOString()
 
     switch (actionId) {
-      case "download":
-        pushToast("尚未接上真實檔案內容（示範資料），暫時無法下載。")
+      case "download": {
+        const objectKey = latestSnapshot(asset)?.objectKey
+        if (!objectKey) {
+          pushToast("尚未接上真實檔案內容（示範資料），暫時無法下載。")
+          return
+        }
+        requestFileDownloadByObjectKey(objectKey).then((result) => {
+          if (result.success) {
+            window.open(result.data.downloadUrl, "_blank", "noopener,noreferrer")
+          } else {
+            pushToast(`下載失敗：${result.error}`)
+          }
+        })
         return
+      }
 
       case "open_source":
         pushToast("尚未接上 Google Drive API：暫時無法在此開啟原始檔（示範資料）。")
@@ -302,35 +318,50 @@ export function FileLibraryPage({
     pushToast(`「${asset.title}」的 ${label} 引用位置清單尚未接上真實查詢（示範資料）。`)
   }
 
-  function handleUpload() {
-    const name = MOCK_UPLOAD_NAMES[Math.floor(Math.random() * MOCK_UPLOAD_NAMES.length)]
-    const id = makeAssetId("fa-upload")
-    const now = new Date().toISOString()
-    const newAsset: FileAsset = {
-      id,
-      title: name,
-      referenceCode: generateReferenceCode("FILE", "AIINPUT", now),
-      mimeType: name.endsWith(".xlsx")
-        ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        : name.endsWith(".docx")
-          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          : "application/pdf",
-      size: 1_400_000,
-      status: "active",
-      snapshots: [{ id: makeAssetId("snap"), versionNumber: 1, createdAt: now, referenceCount: 0 }],
-      processing: { extractionStatus: "processing", indexed: false },
-      references: { chats: 0, evidence: 0, observationUnits: 0, reports: 0, sprints: 0 },
-      createdAt: now,
-      lastUsedAt: now,
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+  const [uploading, setUploading] = React.useState(false)
+
+  function triggerUpload() {
+    if (dataMode === "mock") {
+      pushToast("Mock 模式不會寫入正式資料；請先切換到正式模式再上傳。")
+      return
     }
-    setAssets((prev) => [newAsset, ...prev])
-    pushToast(`檔案「${name}」已上傳，AI 正在解析中…`)
-    setTimeout(() => {
-      updateAsset(id, (a) => ({
-        ...a,
-        processing: { extractionStatus: "completed", indexed: true, chunkCount: 9 },
-      }))
-    }, 1100)
+    fileInputRef.current?.click()
+  }
+
+  async function handleFileSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const requested = await requestFileUpload({
+        displayName: file.name,
+        mimeType: file.type || undefined,
+        sizeBytes: file.size,
+      })
+      if (!requested.success) {
+        pushToast(`上傳失敗：${requested.error}`)
+        return
+      }
+
+      const putResponse = await fetch(requested.data.uploadUrl, {
+        method: "PUT",
+        headers: file.type ? { "Content-Type": file.type } : undefined,
+        body: file,
+      })
+      if (!putResponse.ok) {
+        pushToast(`上傳失敗：${putResponse.status} ${putResponse.statusText}`)
+        return
+      }
+
+      const newAsset = requested.data.asset
+      setAssets((prev) => [newAsset, ...prev])
+      pushToast(`檔案「${file.name}」已上傳並保存至正式資料。`)
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -346,9 +377,20 @@ export function FileLibraryPage({
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <FileLibraryTabs active={tab} needsAttentionCount={needsAttentionCount} onChange={setTab} />
-            <Button size="sm" onClick={handleUpload} className="rounded-full shadow-sm text-xs gap-1.5 px-4 h-8">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+            <Button
+              size="sm"
+              onClick={triggerUpload}
+              disabled={uploading}
+              className="rounded-full shadow-sm text-xs gap-1.5 px-4 h-8"
+            >
               <PlusIcon className="size-4" />
-              <span>上傳新檔案</span>
+              <span>{uploading ? "上傳中…" : "上傳新檔案"}</span>
             </Button>
           </div>
 
@@ -371,7 +413,9 @@ export function FileLibraryPage({
             readOnly
               ? undefined
               : emptyVariant === "no_files"
-                ? { label: "上傳新檔案", onClick: handleUpload }
+                ? { label: "上傳新檔案", onClick: triggerUpload }
+                : emptyVariant === "formal_empty"
+                  ? { label: "上傳第一個檔案", onClick: triggerUpload }
                 : hasActiveFilters || hasSearch
                   ? { label: "清除全部篩選", onClick: () => { setFilters(DEFAULT_FILE_LIBRARY_FILTERS); setSearch("") } }
                   : undefined

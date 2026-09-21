@@ -1,0 +1,61 @@
+{
+  "id": "OWNEROS-UI-005",
+  "status": "PASS",
+  "generatedAt": "2026-08-22T10:31:02.482Z",
+  "route": "/work",
+  "workClientPath": "src/app/(dashboard)/work/work-client.tsx",
+  "workPagePath": "src/app/(dashboard)/work/page.tsx",
+  "checkerCommand": "pnpm work:simplified:check",
+  "surface": {
+    "mode": "protected_db_backed_owner_work_module_surface",
+    "primaryJob": "Open projects, tasks, client boundaries, and Work AI proposals.",
+    "commandBarIncludes": [
+      "Create project",
+      "Full Work list",
+      "Files",
+      "Work AI Proposal",
+      "Records / Audit",
+      "Settings / Boundary"
+    ],
+    "slots": [
+      "identity-mode-strip",
+      "attention-header",
+      "command-bar",
+      "resource-index",
+      "detail-pane",
+      "agent-proposal-pane",
+      "records-audit-timeline",
+      "settings-boundaries",
+      "manual-ops-handoff"
+    ]
+  },
+  "gateMapping": {
+    "gateA": "A4 Work real owner path and A8 core no-mock usability prerequisite only",
+    "gateB": "B2 shared Work visibility and role-enforcement UI prerequisite only",
+    "gateC": "C5 core journey UI hardening prerequisite only",
+    "gateAchieved": false
+  },
+  "nanda": {
+    "lifecycle": "protected_owner_visible_internal_agent_proposal_surface",
+    "protocols": [
+      "internal"
+    ],
+    "endpointChanged": false,
+    "externalRegisterable": false,
+    "registrationStatus": "not_registered"
+  },
+  "runtimeFlags": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "databaseRead": true,
+    "databaseWrite": false,
+    "providerCall": false,
+    "publicOutputExpanded": false,
+    "companyPublicationEnabled": false,
+    "highRiskWrite": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

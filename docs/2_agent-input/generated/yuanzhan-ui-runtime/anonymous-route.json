@@ -1,0 +1,7 @@
+{
+  "status": 307,
+  "location": "/login?next=%2Fcompany%2Foperating",
+  "bodyContainsFixture": false,
+  "scope": "Anonymous request to built full app, without auth env or business DB",
+  "result": "PASS"
+}

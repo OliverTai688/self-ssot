@@ -1,0 +1,75 @@
+Disposable integration build: /var/folders/qn/pqc95r_50cn_4kbdc4zs2zd80000gn/T/personal-os-ui-build-TTZsQC; env files are not copied; no migrations or seeds
+FONT_CACHE_FALLBACK: Next font test adapter reuses already downloaded local font bytes; external Google availability is not proven.
+▲ Next.js 16.2.4 (webpack)
+- Experiments (use with caution):
+  ✓ webpackBuildWorker
+  ✓ webpackMemoryOptimizations
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 110s
+  Running TypeScript ...
+  Finished TypeScript in 16.3s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/6) ...
+  Generating static pages using 9 workers (1/6) 
+  Generating static pages using 9 workers (2/6) 
+  Generating static pages using 9 workers (4/6) 
+✓ Generating static pages using 9 workers (6/6) in 108ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /admin
+├ ƒ /admin/ai-governance
+├ ƒ /admin/audit
+├ ƒ /admin/detail
+├ ƒ /admin/detail/[section]
+├ ƒ /admin/detail/all
+├ ƒ /admin/rbac
+├ ƒ /admin/system-readiness
+├ ƒ /agents
+├ ƒ /ai-input
+├ ƒ /api/agent-operations/dry-run
+├ ƒ /auth/callback
+├ ƒ /auth/google
+├ ƒ /auth/status
+├ ƒ /chamber
+├ ƒ /client/[token]
+├ ƒ /company
+├ ƒ /company/operating
+├ ƒ /dashboard
+├ ƒ /finance
+├ ƒ /inbox
+├ ƒ /life
+├ ƒ /login
+├ ƒ /research
+├ ƒ /research/[threadId]
+├ ƒ /research/events
+├ ƒ /research/exploration
+├ ƒ /research/graph
+├ ƒ /research/issues
+├ ƒ /research/issues/[issueId]
+├ ƒ /research/people
+├ ƒ /research/readiness
+├ ƒ /research/sources
+├ ƒ /research/writing
+├ ƒ /research/writing/[writingProjectId]
+├ ƒ /self
+├ ƒ /settings
+├ ƒ /settings/ai-sharing
+├ ƒ /settings/language
+├ ƒ /settings/members
+├ ƒ /settings/roles
+├ ƒ /settings/workspace
+├ ƒ /work
+├ ƒ /work/[projectId]
+└ ƒ /workflow
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -9,11 +9,20 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { NoteItem } from "@/components/work/note/note-item"
 import { AddNoteDialog, type AddNoteInput } from "@/components/work/note/add-note-dialog"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { ProjectNote, NoteOrigin, ProjectTimeline, ProjectPhaseNode } from "@/types/work"
 
 type SortMode = "newest" | "oldest" | "phase"
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (formatted, [key, value]) =>
+      formatted.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
 
 const phaseStatusConfig: Record<ProjectPhaseNode["status"], { icon: React.ReactNode; className: string }> = {
   done: {
@@ -47,11 +56,14 @@ function PhaseGroup({
   deletingNoteIds: Set<string>
   canToggleNotePin: (note: ProjectNote) => boolean
 }) {
+  const { copy, locale } = useProductLanguage()
+  const noteCopy = copy.work.notes
+  const dateLocale = locale === "zh-TW" ? "zh-TW" : "en-US"
   const [expanded, setExpanded] = React.useState(phaseNode.status !== "upcoming")
   const cfg = phaseStatusConfig[phaseNode.status]
 
-  const startLabel = new Date(phaseNode.startDate).toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" })
-  const endLabel = new Date(phaseNode.endDate).toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" })
+  const startLabel = new Date(phaseNode.startDate).toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" })
+  const endLabel = new Date(phaseNode.endDate).toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" })
 
   return (
     <div className={cn("rounded-lg border px-3 py-2.5 flex flex-col gap-2", cfg.className)}>
@@ -65,7 +77,9 @@ function PhaseGroup({
           {startLabel} – {endLabel}
         </span>
         <span className="text-[11px] text-muted-foreground/60 ml-1">
-          {notes.length > 0 ? `${notes.length} 則` : "無紀錄"}
+          {notes.length > 0
+            ? formatCopy(noteCopy.phaseNoteCountTemplate, { count: notes.length })
+            : noteCopy.noNotes}
         </span>
         {expanded ? (
           <ChevronDownIcon className="size-3.5 text-muted-foreground/60 shrink-0" />
@@ -91,7 +105,9 @@ function PhaseGroup({
       )}
 
       {expanded && notes.length === 0 && (
-        <p className="text-xs text-muted-foreground/50 pt-1 border-t border-border/50">此階段無紀錄</p>
+        <p className="text-xs text-muted-foreground/50 pt-1 border-t border-border/50">
+          {noteCopy.phaseEmpty}
+        </p>
       )}
     </div>
   )
@@ -104,6 +120,8 @@ interface NoteTimelineProps {
 }
 
 export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimelineProps) {
+  const { copy } = useProductLanguage()
+  const noteCopy = copy.work.notes
   const router = useRouter()
   const [notes, setNotes] = React.useState<ProjectNote[]>(initialNotes)
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -134,7 +152,7 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
     if (!note) return
 
     if (!canToggleNotePin(note)) {
-      setActionError("此紀錄尚未寫入 Work 資料庫，暫不支援釘選")
+      setActionError(noteCopy.errors.pinUnavailable)
       return
     }
 
@@ -155,7 +173,7 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
 
       if (!result.success) {
         setNotes((prev) => prev.map((n) => (n.id === id ? note : n)))
-        setActionError(result.error)
+        setActionError(noteCopy.errors.togglePin)
         return
       }
 
@@ -165,7 +183,7 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
       refreshProjectDetail()
     } catch {
       setNotes((prev) => prev.map((n) => (n.id === id ? note : n)))
-      setActionError("切換釘選狀態失敗，請稍後再試")
+      setActionError(noteCopy.errors.togglePin)
     } finally {
       setPendingNoteIds((prev) => {
         const next = new Set(prev)
@@ -190,13 +208,13 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
 
       if (!result.success) {
         setNotes((prev) => [note, ...prev])
-        setActionError(result.error)
+        setActionError(noteCopy.errors.delete)
       } else {
         refreshProjectDetail()
       }
     } catch {
       setNotes((prev) => [note, ...prev])
-      setActionError("刪除紀錄失敗，請稍後再試")
+      setActionError(noteCopy.errors.delete)
     } finally {
       setDeletingNoteIds((prev) => {
         const next = new Set(prev)
@@ -219,7 +237,7 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
       })
 
       if (!result.success) {
-        setActionError(result.error)
+        setActionError(noteCopy.errors.add)
         return false
       }
 
@@ -227,7 +245,7 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
       refreshProjectDetail()
       return true
     } catch {
-      setActionError("新增紀錄失敗，請稍後再試")
+      setActionError(noteCopy.errors.add)
       return false
     } finally {
       setIsAdding(false)
@@ -270,7 +288,9 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{filtered.length} 則紀錄</span>
+        <span className="text-xs text-muted-foreground">
+          {formatCopy(noteCopy.summaryTemplate, { count: filtered.length })}
+        </span>
         <Button
           size="sm"
           variant="outline"
@@ -281,14 +301,19 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
           }}
         >
           <PlusIcon className="size-3.5" />
-          新增紀錄
+          {noteCopy.actions.add}
         </Button>
       </div>
 
       {/* Origin filter tabs */}
       <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-0.5 w-fit">
         {(["all", "manual", "ai"] as const).map((o) => {
-          const label = o === "all" ? `全部 ${notes.length}` : o === "ai" ? `AI生成 ${aiCount}` : `手動 ${manualCount}`
+          const label =
+            o === "all"
+              ? formatCopy(noteCopy.filters.allTemplate, { count: notes.length })
+              : o === "ai"
+                ? formatCopy(noteCopy.filters.aiTemplate, { count: aiCount })
+                : formatCopy(noteCopy.filters.manualTemplate, { count: manualCount })
           return (
             <button
               key={o}
@@ -308,12 +333,12 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
 
       {/* Sort control */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground">排序：</span>
+        <span className="text-[11px] text-muted-foreground">{noteCopy.sort.label}</span>
         <div className="flex items-center gap-1">
           {([
-            { key: "newest", label: "最新" },
-            { key: "oldest", label: "最舊" },
-            ...(timeline ? [{ key: "phase", label: "依階段" }] : []),
+            { key: "newest", label: noteCopy.sort.newest },
+            { key: "oldest", label: noteCopy.sort.oldest },
+            ...(timeline ? [{ key: "phase", label: noteCopy.sort.phase }] : []),
           ] as { key: SortMode; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -334,8 +359,8 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
       {/* Notes list */}
       {filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
-          <p className="text-sm text-muted-foreground">還沒有紀錄</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">從 Cmd+K 擷取後歸入，或手動新增</p>
+          <p className="text-sm text-muted-foreground">{noteCopy.emptyTitle}</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">{noteCopy.emptyBody}</p>
         </div>
       ) : sortMode === "phase" && timeline ? (
         <div className="flex flex-col gap-2">
@@ -359,7 +384,9 @@ export function NoteTimeline({ initialNotes, projectId, timeline }: NoteTimeline
             if (orphans.length === 0) return null
             return (
               <div className="flex flex-col gap-2 pt-1">
-                <p className="text-[11px] text-muted-foreground/60 pl-1">階段外紀錄</p>
+                <p className="text-[11px] text-muted-foreground/60 pl-1">
+                  {noteCopy.outsidePhase}
+                </p>
                 {orphans.map((note) => (
                   <NoteItem
                     key={note.id}

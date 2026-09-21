@@ -363,8 +363,8 @@ export const RESEARCH_OWNER_READ_QUERY_PLAN_ROWS = [
     runtimeState: "blocked_owner_scope_missing",
     modelCandidates: ["AcademicPerson"],
     ownerScopePredicate:
-      "Blocked until public person metadata is separated from owner-private relationship notes or an owner relation is approved.",
-    relationPath: "AcademicPerson has no owner relation in the current schema",
+      "AcademicPerson.ownerId now exists in prisma/schema.prisma (TENANT-001) but is not yet migrated/backfilled — still blocked for runtime reads until TENANT-003 applies it.",
+    relationPath: "AcademicPerson.ownerId -> Profile.id (schema-only, not yet migrated — see ARC-033)",
     selectedFields: [
       "id",
       "name",

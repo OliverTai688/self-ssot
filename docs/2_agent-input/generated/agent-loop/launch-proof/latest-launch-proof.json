@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-06-23T07:57:47.268Z",
+  "generatedAt": "2026-08-21T14:37:39.562Z",
   "sourceCommand": "pnpm launch:check --json",
   "secretPolicy": {
     "printsSecrets": false,
@@ -16,11 +16,11 @@
     ]
   },
   "readiness": {
-    "generatedAt": "2026-06-23T07:57:47.263Z",
-    "overallStatus": "blocked",
+    "generatedAt": "2026-08-21T14:37:39.557Z",
+    "overallStatus": "warn",
     "checks": {
-      "supabasePublicUrlPresent": false,
-      "supabasePublishableOrAnonKeyPresent": false,
+      "supabasePublicUrlPresent": true,
+      "supabasePublishableOrAnonKeyPresent": true,
       "databaseUrlPresent": true,
       "databaseUrlParseable": true,
       "migrationDatabaseUrlPresent": true,
@@ -35,16 +35,16 @@
     },
     "rows": [
       {
-        "status": "blocked",
+        "status": "ready",
         "label": "Supabase public URL",
-        "signal": "NEXT_PUBLIC_SUPABASE_URL is missing.",
-        "nextAction": "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment."
+        "signal": "NEXT_PUBLIC_SUPABASE_URL is present.",
+        "nextAction": "No action."
       },
       {
-        "status": "blocked",
+        "status": "ready",
         "label": "Supabase publishable key",
-        "signal": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing.",
-        "nextAction": "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects."
+        "signal": "A publishable or legacy anon key is present.",
+        "nextAction": "No action."
       },
       {
         "status": "ready",
@@ -78,29 +78,22 @@
       }
     ],
     "nextActions": [
-      "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment.",
-      "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects.",
       "For deployed proof, run this check in the launch environment as well."
     ]
   },
   "proofSummary": {
-    "overallStatus": "blocked",
-    "blockedLabels": [
-      "Supabase public URL",
-      "Supabase publishable key"
-    ],
+    "overallStatus": "warn",
+    "blockedLabels": [],
     "warnLabels": [
       "Deployment marker"
     ],
-    "canRunAuth005": false,
+    "canRunAuth005": true,
     "canRunWork007": true,
     "canClaimL1": false,
-    "expectedStrictExitCode": 1,
+    "expectedStrictExitCode": 0,
     "loop20ReviewInput": "Review should keep launch level below L1 and prioritize remaining blocked labels."
   },
   "nextActions": [
-    "Set NEXT_PUBLIC_SUPABASE_URL in the launch environment.",
-    "Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; use NEXT_PUBLIC_SUPABASE_ANON_KEY only for legacy projects.",
     "For deployed proof, run this check in the launch environment as well."
   ]
 }

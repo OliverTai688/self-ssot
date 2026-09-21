@@ -1,7 +1,7 @@
 # Personal OS Aggressive Launch Development Strategy
 
-Date: 2026-06-21
-Status: ACTIVE_FOR_20_MIN_HEARTBEAT_LOOP
+Date: 2026-08-31
+Status: ACTIVE_10_MIN_GATE_HEARTBEAT
 
 ## 1. North Star
 
@@ -24,11 +24,20 @@ Complete experience means the user can operate the system through:
 ## 2. Automation
 
 - Automation id: `personal-os-20m-aggressive-launch-loop`
-- Cadence: every 20 minutes
-- Mode: Codex heartbeat on the current thread
+- Cadence: every 10 minutes (owner reset on 2026-08-18; automation id retained for continuity)
+- Mode: Codex heartbeat on the current task; `ACTIVE` after explicit Owner authorization
+- Release worktree: `/Users/pzps0964713/Documents/github/self-stucture-v1-gate-release`
+- Release branch/checkpoint: `codex/gate-loop-release-baseline-20260831`, descendant of `900620e1f4b324e1e817edb24415f25f634f2301`
 - Strategy: one reviewable implementation increment per wakeup
+- Gate sequence: Gate A owner-private AI Work Desktop → Gate B company team pilot → Gate C hardened internal rollout
+- Gate prompt: `docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md`
+- Gate state: `docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json`
+- Notification: one idempotent Gmail self-message with the Gate A report after verified first achievement; fail closed while Gmail is unavailable
 - Cadence review: every fifth loop runs a launch-level review
 - Research cadence: every third loop runs a research-to-task gap review against `RES-001` and the `RES-002` SaaS/OS surface standard; if it coincides with a fifth-loop launch review, combine both reviews
+- UI governance: `REF-003` is the only Screen ID source; no UI slice may begin without an owner-named UI ID and an approved `saas-ui-refactor-director` proposal
+
+Resume was explicitly authorized on 2026-08-31. Activation starts only the reviewable heartbeat; it does not send Gmail, deploy, apply migrations, or activate product providers.
 
 ## 3. Development Bias
 

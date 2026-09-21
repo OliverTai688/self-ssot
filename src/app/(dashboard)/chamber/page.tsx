@@ -3,6 +3,7 @@
 import { UsersIcon } from "lucide-react"
 import { AppHeader } from "@/components/layout/app-header"
 import { ModuleGuard } from "@/components/layout/module-guard"
+import { useIsDemoAccount } from "@/lib/context/demo-account-context"
 import {
   ModuleOperatingShell,
   type ModuleAgentProposal,
@@ -11,7 +12,7 @@ import {
   type ModuleSettingRow,
 } from "@/components/layout/module-operating-shell"
 
-const chamberRecords: ModuleOperatingRecord[] = [
+const exampleChamberRecords: ModuleOperatingRecord[] = [
   {
     id: "chamber-001",
     title: "王理事 ESG lunch follow-up",
@@ -90,7 +91,7 @@ const chamberRecords: ModuleOperatingRecord[] = [
   },
 ]
 
-const chamberProposals: ModuleAgentProposal[] = [
+const exampleChamberProposals: ModuleAgentProposal[] = [
   {
     id: "chamber-proposal-001",
     title: "把王理事 follow-up 轉成 Work 任務草稿",
@@ -111,7 +112,7 @@ const chamberProposals: ModuleAgentProposal[] = [
   },
 ]
 
-const chamberAuditRows: ModuleAuditRow[] = [
+const exampleChamberAuditRows: ModuleAuditRow[] = [
   {
     id: "chamber-audit-001",
     time: "今天 11:05",
@@ -161,6 +162,13 @@ const chamberSettings: ModuleSettingRow[] = [
 ]
 
 export default function ChamberPage() {
+  // AUTH-013: the illustrative CRM rows/proposals/audit trail above are
+  // demo-account-only content. Every other signed-in account starts blank.
+  const isDemoAccount = useIsDemoAccount()
+  const chamberRecords = isDemoAccount ? exampleChamberRecords : []
+  const chamberProposals = isDemoAccount ? exampleChamberProposals : []
+  const chamberAuditRows = isDemoAccount ? exampleChamberAuditRows : []
+
   return (
     <ModuleGuard moduleKey="chamber">
       <div className="flex flex-col h-full overflow-hidden">
@@ -170,11 +178,15 @@ export default function ChamberPage() {
             icon={UsersIcon}
             operationLabel="理事聯絡人"
             operationDescription="理事名單、關係狀態與互動記錄"
-            overviewItems={[
-              { label: "待跟進聯絡人", placeholder: "王理事需要明天 follow-up；3 位講者候選待確認。" },
-              { label: "即將舉辦活動", placeholder: "7/18 活動處於 planning，講者與出席名單待整理。" },
-              { label: "關係強度概覽", placeholder: "warm 1、trusted 1、review 2；全部 owner-only。" },
-            ]}
+            overviewItems={
+              isDemoAccount
+                ? [
+                    { label: "待跟進聯絡人", placeholder: "王理事需要明天 follow-up；3 位講者候選待確認。" },
+                    { label: "即將舉辦活動", placeholder: "7/18 活動處於 planning，講者與出席名單待整理。" },
+                    { label: "關係強度概覽", placeholder: "warm 1、trusted 1、review 2；全部 owner-only。" },
+                  ]
+                : []
+            }
             operationPlaceholder="介面已可操作聯絡人 queue、活動籌備、Agent 摘要提案與隱私邊界。"
             records={chamberRecords}
             agentProposals={chamberProposals}
@@ -182,6 +194,7 @@ export default function ChamberPage() {
             settings={chamberSettings}
             privacyNote="聯絡人資料不對 Client Portal 或 Research 公開。外部共享前需明確標記。"
             moduleKey="chamber"
+            agentLabel="商會AI"
           />
         </main>
       </div>

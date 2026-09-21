@@ -9,6 +9,7 @@ import {
   FileClockIcon,
   FilterIcon,
   FolderIcon,
+  FolderKanbanIcon,
   ImageIcon,
   LockIcon,
   PlusIcon,
@@ -28,7 +29,11 @@ import type { ModuleKey } from "@/types/module-permission"
 import { FileLibraryPage } from "@/components/ai/file-library/file-library-page"
 import { MediaLibraryPage } from "@/components/ai/media-library/media-library-page"
 
-type ShellTab = "overview" | "operation" | "library" | "agent" | "records" | "settings"
+/**
+ * ARC-038: every module surface uses this fixed top-level tab order —
+ * 專案(project) / 檔案‧媒體(library) / {module} AI(agent) / 紀錄(records) / 邊界(boundaries).
+ */
+type ShellTab = "project" | "library" | "agent" | "records" | "boundaries"
 type RecordStatus = "active" | "review" | "blocked" | "done"
 type Tone = "good" | "warn" | "blocked" | "neutral"
 
@@ -86,23 +91,25 @@ interface ModuleOperatingShellProps {
   highRisk?: boolean
   highRiskNote?: string
   privacyNote?: string
-  /** RES-016 §6.1/ARC-012 §5A: when provided, adds a read-only 檔案庫/媒體庫 tab filtered to this module. */
+  /** RES-016 §6.1/ARC-012 §5A/ARC-038: filters the 檔案/媒體 tab to this module. Every module should pass this. */
   moduleKey?: ModuleKey
+  /**
+   * ARC-038: label for the module-AI tab, e.g. 工作AI (work), 學術AI (research), 公司AI (company),
+   * 商會AI (chamber), 財務AI (finance), 生活AI (life), 自我AI (self). Falls back to 工作AI.
+   */
+  agentLabel?: string
   children?: React.ReactNode
 }
 
-const baseTabItems: { key: ShellTab; label: string; icon?: React.ElementType }[] = [
-  { key: "overview", label: "總覽" },
-  { key: "operation", label: "操作" },
-  { key: "agent", label: "代理人", icon: BotIcon },
-  { key: "records", label: "紀錄", icon: FileClockIcon },
-  { key: "settings", label: "設定", icon: SlidersIcon },
-]
-
-const libraryTabItem: { key: ShellTab; label: string; icon?: React.ElementType } = {
-  key: "library",
-  label: "檔案庫/媒體庫",
-  icon: FolderIcon,
+/** ARC-038: fixed 5-tab order used by every module operating surface. */
+function buildTabItems(agentLabel: string): { key: ShellTab; label: string; icon?: React.ElementType }[] {
+  return [
+    { key: "project", label: "專案", icon: FolderKanbanIcon },
+    { key: "library", label: "檔案/媒體", icon: FolderIcon },
+    { key: "agent", label: agentLabel, icon: BotIcon },
+    { key: "records", label: "紀錄", icon: FileClockIcon },
+    { key: "boundaries", label: "邊界", icon: SlidersIcon },
+  ]
 }
 
 const defaultAuditRows: ModuleAuditRow[] = [
@@ -257,12 +264,10 @@ export function ModuleOperatingShell({
   highRiskNote,
   privacyNote,
   moduleKey,
+  agentLabel = "工作AI",
   children,
 }: ModuleOperatingShellProps) {
-  const visibleTabItems = React.useMemo(() => {
-    if (!moduleKey) return baseTabItems
-    return [baseTabItems[0], baseTabItems[1], libraryTabItem, ...baseTabItems.slice(2)]
-  }, [moduleKey])
+  const visibleTabItems = React.useMemo(() => buildTabItems(agentLabel), [agentLabel])
   const [libraryKind, setLibraryKind] = React.useState<"file" | "media">("file")
   const initialRecords = React.useMemo(
     () => records ?? defaultRecords(operationLabel),
@@ -273,7 +278,7 @@ export function ModuleOperatingShell({
     [agentProposals, operationLabel]
   )
 
-  const [tab, setTab] = React.useState<ShellTab>("overview")
+  const [tab, setTab] = React.useState<ShellTab>("project")
   const [query, setQuery] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState<RecordStatus | "all">("all")
   const [localRecords, setLocalRecords] = React.useState<ModuleOperatingRecord[]>(initialRecords)
@@ -349,7 +354,7 @@ export function ModuleOperatingShell({
     setSelectedId(nextRecord.id)
     setDraftTitle("")
     setDraftNote("")
-    setTab("operation")
+    setTab("project")
   }
 
   function updateSetting(id: string) {
@@ -465,7 +470,8 @@ export function ModuleOperatingShell({
         ))}
       </div>
 
-      {tab === "overview" && (
+      {tab === "project" && (
+        <>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <section className="rounded-lg border bg-background">
             <div className="border-b px-4 py-3">
@@ -515,10 +521,8 @@ export function ModuleOperatingShell({
 
           {children ? <div className="xl:col-span-2">{children}</div> : null}
         </div>
-      )}
 
-      {tab === "operation" && (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
           <section className="rounded-lg border bg-background">
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
               <h3 className="text-sm font-semibold">{operationLabel} queue</h3>
@@ -601,9 +605,10 @@ export function ModuleOperatingShell({
             </div>
           </section>
         </div>
+        </>
       )}
 
-      {tab === "library" && moduleKey && (
+      {tab === "library" && (
         <section className="rounded-lg border bg-background p-4">
           <div className="mb-4 flex items-center gap-1 rounded-lg border bg-muted/30 p-1 w-fit">
             <button
@@ -652,7 +657,7 @@ export function ModuleOperatingShell({
           <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <BotIcon className="size-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Agent proposal queue</h3>
+              <h3 className="text-sm font-semibold">{agentLabel} proposal queue</h3>
             </div>
             <Badge variant="outline">proposal-only</Badge>
           </div>
@@ -728,7 +733,7 @@ export function ModuleOperatingShell({
         </section>
       )}
 
-      {tab === "settings" && (
+      {tab === "boundaries" && (
         <section className="rounded-lg border bg-background">
           <div className="flex items-center gap-2 border-b px-4 py-3">
             <SlidersIcon className="size-4 text-muted-foreground" />

@@ -1,0 +1,32 @@
+{
+  "id": "OWNEROS-UI-001",
+  "status": "PASS",
+  "generatedAt": "2026-08-21T08:13:52.732Z",
+  "contractPath": "src/lib/contracts/simplified-saas-operating-surface.contract.ts",
+  "architectureDoc": "docs/02_architecture-and-rules/ARC-036_simplified-saas-operating-surface-design-pattern.md",
+  "checkerCommand": "pnpm ui:simplified-saas:check",
+  "gateMapping": {
+    "gateA": "Owner-private UI operability prerequisite only",
+    "gateB": "Member/team surface consistency prerequisite only",
+    "gateC": "Core journey UI hardening prerequisite for C5 only",
+    "gateAchieved": false
+  },
+  "counts": {
+    "rules": 6,
+    "targets": 9,
+    "sourceRefs": 5,
+    "issues": 0
+  },
+  "runtimeFlags": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "databaseRead": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "publicOutputExpanded": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

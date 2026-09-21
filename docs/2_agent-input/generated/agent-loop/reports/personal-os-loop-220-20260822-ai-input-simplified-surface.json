@@ -1,0 +1,58 @@
+{
+  "id": "OWNEROS-AIINPUT-UI-001",
+  "status": "PASS",
+  "generatedAt": "2026-08-22T08:05:31.191Z",
+  "aiInputClientPath": "src/app/(dashboard)/ai-input/ai-input-client.tsx",
+  "aiInputPagePath": "src/app/(dashboard)/ai-input/page.tsx",
+  "checkerCommand": "pnpm ai-input:simplified:check",
+  "surface": {
+    "mode": "protected_server_component_loader_with_client_interaction",
+    "primaryJob": "Capture, review, route",
+    "commandBarIncludes": [
+      "Capture",
+      "Review",
+      "Sources",
+      "Context",
+      "Manual Ops"
+    ],
+    "slots": [
+      "identity-mode-strip",
+      "attention-header",
+      "command-bar",
+      "resource-index",
+      "source-conversation-index",
+      "detail-pane",
+      "agent-proposal-pane",
+      "settings-boundaries",
+      "records-audit",
+      "manual-ops-handoff"
+    ]
+  },
+  "gateMapping": {
+    "gateA": "Owner-private AI Work Desktop usability prerequisite only",
+    "gateB": "No member/team claim",
+    "gateC": "C5 UI hardening prerequisite only",
+    "gateAchieved": false
+  },
+  "nanda": {
+    "lifecycle": "protected_owner_visible_ui_only",
+    "protocols": [
+      "internal"
+    ],
+    "endpointChanged": false,
+    "externalRegisterable": false,
+    "registrationStatus": "not_registered"
+  },
+  "runtimeFlags": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "databaseReadAdded": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "publicOutputExpanded": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

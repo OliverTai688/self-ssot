@@ -3,6 +3,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 
 export type FileLibraryEmptyVariant =
   | "no_files"
+  | "formal_empty"
+  | "formal_unavailable"
   | "search_no_results"
   | "filter_no_results"
   | "recent_empty"
@@ -16,6 +18,16 @@ const VARIANTS: Record<
   no_files: {
     title: "尚無任何檔案",
     description: "上傳檔案，或從 Google Drive 引用文件，開始建立系統檔案庫。",
+    icon: FolderOpenIcon,
+  },
+  formal_empty: {
+    title: "尚無正式檔案",
+    description: "目前沒有任何正式資料。上傳第一個檔案後，檔案會保存至 R2 並在重新整理後保留。",
+    icon: FolderOpenIcon,
+  },
+  formal_unavailable: {
+    title: "正式檔案資料暫時無法載入",
+    description: "系統沒有改用示範資料。請稍後重新整理，或確認資料庫連線狀態。",
     icon: FolderOpenIcon,
   },
   search_no_results: {

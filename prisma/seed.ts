@@ -1,4 +1,8 @@
-import "dotenv/config"
+// `dotenv/config` only loads `.env`, but this repo's real DATABASE_URL lives
+// in `.env.local` (see scripts/load-local-env.ts, already used by
+// scripts/provision-team-profiles.ts). Load the same way so `pnpm db:seed`
+// connects to the configured database instead of falling back to nothing.
+import "../scripts/load-local-env"
 import crypto from "crypto"
 import type {
   DeliverableNodeType,
@@ -21,12 +25,23 @@ import { mockNotes } from "../src/lib/mock/work/mock-notes"
 import { mockDeliverables } from "../src/lib/mock/work/mock-deliverables"
 import type { ProjectDeliverable } from "../src/types/work"
 
-const DEMO_PROFILE_EMAIL = "admin@example.com"
-const DEMO_PROFILE_NAME = "Admin User"
+// AUTH-013: the seeded Work demo dataset lives under the public demo login
+// account (see src/lib/auth/demo-login.ts), not a real person's Profile.
+// Project/task/note/deliverable ids below are deterministic (independent of
+// this email), so changing this constant re-parents the existing rows to
+// the new profile on the next `pnpm db:seed` instead of duplicating them.
+const DEMO_PROFILE_EMAIL = "test@yzedtech.com"
+const DEMO_PROFILE_NAME = "Demo Account"
 const DEMO_PROFILE_ROLE: UserRole = "OWNER"
 const DEMO_SEED_NAMESPACE = "personal-os:v0.1:work-demo"
 
-type SeedEntityKind = "project" | "task" | "note" | "deliverable"
+type SeedEntityKind =
+  | "workspace"
+  | "membership"
+  | "project"
+  | "task"
+  | "note"
+  | "deliverable"
 
 function deterministicUuid(kind: SeedEntityKind, sourceId: string) {
   const bytes = crypto
@@ -157,12 +172,70 @@ async function main() {
 
   const ownerId = profile.id
 
+  // Keep the seeded Work dataset inside the demo owner's personal workspace.
+  // TEAMCOLLAB-004 intentionally does not seed team members or invitations.
+  const preferredWorkspaceId = seedUuid("workspace", DEMO_PROFILE_EMAIL)
+  const personalWorkspaceSlug = `personal-${ownerId.replaceAll("-", "")}`
+
+  const workspace = await prisma.workspace.upsert({
+    where: { slug: personalWorkspaceSlug },
+    update: {
+      type: "PERSONAL",
+      name: `${DEMO_PROFILE_NAME}'s workspace`,
+      slug: personalWorkspaceSlug,
+      status: "ACTIVE",
+      defaultProjectAccessRole: "VIEWER",
+      aiFeedbackMemoryEnabled: false,
+      createdByProfileId: ownerId,
+    },
+    create: {
+      id: preferredWorkspaceId,
+      type: "PERSONAL",
+      name: `${DEMO_PROFILE_NAME}'s workspace`,
+      slug: personalWorkspaceSlug,
+      status: "ACTIVE",
+      defaultProjectAccessRole: "VIEWER",
+      aiFeedbackMemoryEnabled: false,
+      createdByProfileId: ownerId,
+    },
+  })
+
+  const workspaceId = workspace.id
+  const membershipId = seedUuid("membership", `${workspaceId}:${ownerId}`)
+
+  await prisma.workspaceMembership.upsert({
+    where: {
+      workspaceId_profileId: {
+        workspaceId,
+        profileId: ownerId,
+      },
+    },
+    update: {
+      workspaceId,
+      profileId: ownerId,
+      role: "OWNER",
+      status: "ACTIVE",
+      joinedAt: profile.createdAt,
+      suspendedAt: null,
+    },
+    create: {
+      id: membershipId,
+      workspaceId,
+      profileId: ownerId,
+      role: "OWNER",
+      status: "ACTIVE",
+      joinedAt: profile.createdAt,
+    },
+  })
+
   // 1. Projects
   console.log(`Seeding ${mockProjectsFull.length} projects...`)
   for (const project of mockProjectsFull) {
     const projectId = seedUuid("project", project.id)
     const data = {
       ownerId,
+      workspaceId,
+      accessMode: "PRIVATE" as const,
       name: project.name,
       clientName: project.clientName ?? null,
       description: project.description ?? null,

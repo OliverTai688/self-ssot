@@ -4,6 +4,8 @@ import * as React from "react"
 import { PlusIcon } from "lucide-react"
 import { AppHeader } from "@/components/layout/app-header"
 import { Button } from "@/components/ui/button"
+import { useProductLanguage } from "@/lib/context/product-language-context"
+import { useIsDemoAccount } from "@/lib/context/demo-account-context"
 import { AgentRegistryPanel } from "./components/agent-registry-panel"
 import { FlowVisualizer } from "./components/flow-visualizer"
 import { RuleList } from "./components/rule-list"
@@ -14,8 +16,21 @@ import type { AgentId, WorkflowRule } from "@/lib/workflow/types"
 
 type BottomTab = "rules" | "audit"
 
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
+
 export default function WorkflowPage() {
-  const [rules, setRules] = React.useState<WorkflowRule[]>(MOCK_RULES)
+  const { copy } = useProductLanguage()
+  const workflowCopy = copy.workflow
+  // AUTH-013: the illustrative rules/messages are demo-account-only content.
+  // Every other signed-in account starts with no rules and no message trail.
+  const isDemoAccount = useIsDemoAccount()
+  const seedMessages = React.useMemo(() => (isDemoAccount ? MOCK_MESSAGES : []), [isDemoAccount])
+  const [rules, setRules] = React.useState<WorkflowRule[]>(isDemoAccount ? MOCK_RULES : [])
   const [selectedAgent, setSelectedAgent] = React.useState<AgentId | null>(null)
   const [activeTab, setActiveTab] = React.useState<BottomTab>("rules")
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -61,50 +76,47 @@ export default function WorkflowPage() {
   }
 
   const enabledCount = rules.filter((r) => r.enabled).length
-  const totalMessages = MOCK_MESSAGES.length
+  const totalMessages = seedMessages.length
 
   return (
     <div className="flex flex-col h-full">
       <AppHeader
-        title="Workflow"
-        description={`${enabledCount} 條規則啟用 · ${totalMessages} 則訊息`}
+        title={workflowCopy.title}
+        description={formatCopy(workflowCopy.descriptionTemplate, {
+          rules: enabledCount,
+          messages: totalMessages,
+        })}
       />
 
-      {/* Action bar */}
       <div className="flex items-center justify-end border-b px-4 py-2 bg-card/20">
         <Button size="sm" onClick={handleAddRule} className="gap-1.5 h-7 text-xs">
           <PlusIcon className="size-3" />
-          新增規則
+          {workflowCopy.addRule}
         </Button>
       </div>
 
       <div className="flex flex-1 min-h-0 gap-4 p-4">
-        {/* Left: Agent Registry */}
         <AgentRegistryPanel
           selectedAgent={selectedAgent}
           onSelectAgent={setSelectedAgent}
-          messages={MOCK_MESSAGES}
+          messages={seedMessages}
           rules={rules}
         />
 
-        {/* Center + Bottom */}
         <div className="flex flex-col flex-1 min-w-0 gap-4">
-          {/* Flow Visualizer */}
           <FlowVisualizer
             rules={rules}
-            messages={MOCK_MESSAGES}
+            messages={seedMessages}
             selectedAgent={selectedAgent}
             onSelectAgent={setSelectedAgent}
           />
 
-          {/* Bottom panel with tabs */}
           <div className="flex flex-col rounded-2xl border border-border/50 bg-card/20 overflow-hidden min-h-[280px] max-h-[340px]">
-            {/* Tab bar */}
             <div className="flex border-b border-border/40 px-4 gap-1 bg-card/30">
               {(
                 [
-                  { key: "rules", label: "規則列表" },
-                  { key: "audit", label: "事件日誌" },
+                  { key: "rules", label: workflowCopy.tabs.rules },
+                  { key: "audit", label: workflowCopy.tabs.audit },
                 ] as const
               ).map(({ key, label }) => (
                 <button
@@ -121,7 +133,6 @@ export default function WorkflowPage() {
               ))}
             </div>
 
-            {/* Tab content */}
             <div className="flex-1 overflow-y-auto p-4">
               {activeTab === "rules" ? (
                 <RuleList
@@ -134,7 +145,7 @@ export default function WorkflowPage() {
                 />
               ) : (
                 <AuditTrail
-                  messages={MOCK_MESSAGES}
+                  messages={seedMessages}
                   filterAgent={selectedAgent}
                 />
               )}

@@ -4,12 +4,15 @@ import * as React from "react"
 import { CheckIcon, CopyIcon, LinkIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 
 interface ShareLinkButtonProps {
   token?: string
 }
 
 export function ShareLinkButton({ token }: ShareLinkButtonProps) {
+  const { copy } = useProductLanguage()
+  const shareCopy = copy.work.shareLink
   const [copied, setCopied] = React.useState(false)
 
   const url = token ? `${typeof window !== "undefined" ? window.location.origin : ""}/client/${token}` : null
@@ -25,7 +28,7 @@ export function ShareLinkButton({ token }: ShareLinkButtonProps) {
     return (
       <Button variant="outline" size="sm" disabled className="gap-1.5">
         <LinkIcon className="size-3.5" />
-        未設定分享連結
+        {shareCopy.unavailable}
       </Button>
     )
   }
@@ -42,9 +45,9 @@ export function ShareLinkButton({ token }: ShareLinkButtonProps) {
         onClick={handleCopy}
       >
         {copied ? (
-          <><CheckIcon className="size-3.5 text-emerald-500" />已複製</>
+          <><CheckIcon className="size-3.5 text-emerald-500" />{shareCopy.copied}</>
         ) : (
-          <><CopyIcon className="size-3.5" />複製連結</>
+          <><CopyIcon className="size-3.5" />{shareCopy.copy}</>
         )}
       </Button>
     </div>

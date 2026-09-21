@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { NoteSource } from "@/types/work"
 
 export interface AddNoteInput {
@@ -46,6 +47,8 @@ export function AddNoteDialog({
   isSaving = false,
   error,
 }: AddNoteDialogProps) {
+  const { copy } = useProductLanguage()
+  const noteCopy = copy.work.notes
   const [title, setTitle] = React.useState("")
   const [body, setBody] = React.useState("")
   const [source, setSource] = React.useState<NoteSource>("internal")
@@ -79,7 +82,7 @@ export function AddNoteDialog({
       <DialogTrigger className="hidden" />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>新增紀錄</DialogTitle>
+          <DialogTitle>{noteCopy.dialog.title}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -90,10 +93,10 @@ export function AddNoteDialog({
           )}
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="note-title">標題（選填）</Label>
+            <Label htmlFor="note-title">{noteCopy.dialog.titleLabel}</Label>
             <Input
               id="note-title"
-              placeholder="例：Lisa 5/6 會議紀錄"
+              placeholder={noteCopy.dialog.titlePlaceholder}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isSaving}
@@ -101,11 +104,11 @@ export function AddNoteDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="note-body">內容</Label>
+            <Label htmlFor="note-body">{noteCopy.dialog.bodyLabel}</Label>
             <textarea
               id="note-body"
               className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 min-h-[100px]"
-              placeholder="記下任何脈絡、反饋、備忘…"
+              placeholder={noteCopy.dialog.bodyPlaceholder}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               autoFocus
@@ -114,16 +117,16 @@ export function AddNoteDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label>來源</Label>
+            <Label>{noteCopy.dialog.sourceLabel}</Label>
             <Select value={source} onValueChange={(v) => setSource(v as NoteSource)} disabled={isSaving}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="internal">內部備忘</SelectItem>
-                <SelectItem value="line">LINE</SelectItem>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="meeting">會議</SelectItem>
+                <SelectItem value="internal">{noteCopy.dialog.internalSource}</SelectItem>
+                <SelectItem value="line">{noteCopy.sources.line}</SelectItem>
+                <SelectItem value="email">{noteCopy.sources.email}</SelectItem>
+                <SelectItem value="meeting">{noteCopy.sources.meeting}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -136,14 +139,14 @@ export function AddNoteDialog({
             onClick={onClose}
             disabled={isSaving}
           >
-            取消
+            {noteCopy.dialog.cancel}
           </Button>
           <Button
             size="sm"
             onClick={() => void handleSave()}
             disabled={!body.trim() || isSaving}
           >
-            {isSaving ? "新增中" : "新增紀錄"}
+            {isSaving ? noteCopy.dialog.saving : noteCopy.dialog.save}
           </Button>
         </DialogFooter>
       </DialogContent>

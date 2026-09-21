@@ -100,6 +100,8 @@ export type AgentCommandCenterGroup = {
 
 export type AgentCommandCenterCommandRow = {
   operationId: string
+  commandType: "SINGLE_AGENT" | "TEAM_GROUP"
+  stages: any[]
   label: string
   moduleKey: ModuleAgentCommandModule
   ownerAgent: string
@@ -118,16 +120,20 @@ export type AgentCommandCenterCommandRow = {
     path: "/api/agent-operations/dry-run"
     mode: "dry_run"
     operationId: string
+  commandType: "SINGLE_AGENT" | "TEAM_GROUP"
+  stages: any[]
     targetModule: string
   }
-  writeBlocked: true
-  externalRegisterable: false
+  writeBlocked: boolean
+  externalRegisterable: boolean
 }
 
 export type AgentCommandCenterModuleReadinessRow = {
   moduleKey: ModuleAgentCommandModule
   moduleLabel: string
   operationId: string
+  commandType: "SINGLE_AGENT" | "TEAM_GROUP"
+  stages: any[]
   ownerAgent: string
   targetModule: string
   riskLevel: AgentOperationApiRisk
@@ -139,6 +145,8 @@ export type AgentCommandCenterModuleReadinessRow = {
     path: "/api/agent-operations/dry-run"
     mode: "dry_run"
     operationId: string
+  commandType: "SINGLE_AGENT" | "TEAM_GROUP"
+  stages: any[]
     targetModule: string
   }
   internalBus: {
@@ -164,8 +172,8 @@ export type AgentCommandCenterModuleReadinessRow = {
   }
   proposalOutputs: readonly string[]
   blockedWrites: readonly string[]
-  writeBlocked: true
-  externalRegisterable: false
+  writeBlocked: boolean
+  externalRegisterable: boolean
 }
 
 export type OwnerAgentCommandCenterContract = {

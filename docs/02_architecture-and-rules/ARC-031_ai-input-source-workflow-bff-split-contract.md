@@ -3,7 +3,7 @@
 **Document ID:** `ARC-031`
 **Status:** Active contract
 **Last updated:** 2026-06-23
-**Related tasks:** `DATTR-024-SPLIT`, `DATTR-024`, `DATTR-024A`, `DATTR-024B`, `DATTR-024C`, `DATTR-024D`, `DATTR-024E`, `DATTR-024F`, `DATTR-024G`, `DATTR-024H`, `DATTR-024I`, `DATTR-024J`, `DATTR-024K`, `DATTR-024L`, `AIINPUT-OPS-002`
+**Related tasks:** `DATTR-024-SPLIT`, `DATTR-024`, `DATTR-024A`, `DATTR-024B`, `DATTR-024C`, `DATTR-024D`, `DATTR-024E`, `DATTR-024F`, `DATTR-024G`, `DATTR-024H`, `DATTR-024I`, `DATTR-024J`, `DATTR-024K`, `DATTR-024L`, `AIINPUT-OPS-002`, `AIINPUT-CONN-004`
 
 ## Purpose
 
@@ -40,6 +40,7 @@ This contract splits `DATTR-024` into reviewed slices that can loop safely:
 - `docs/02_architecture-and-rules/AUT-006_ai-input-source-workflow-rls-audit-storage.md` and `src/lib/contracts/ai-input-source-workflow-rls-audit-storage.contract.ts` complete `DATTR-024K-RLS-AUDIT-STORAGE` as the RLS/audit storage review gate before DB read/write runtime.
 - `docs/02_architecture-and-rules/AUT-007_ai-input-source-workflow-connector-runtime-approval.md` and `src/lib/contracts/ai-input-source-workflow-connector-runtime-approval.contract.ts` complete `DATTR-024L-CONNECTOR-RUNTIME` as the connector runtime approval package before OAuth, webhook, polling, provider API, secret write, DB read/write, or external registration activation.
 - `src/lib/services/ai-input-readiness.service.ts` completes `AIINPUT-OPS-002` as the formal source control matrix contract before SourceConnection persistence or connector runtime.
+- `src/types/ai-input-source-connection-catalog.ts`, `src/lib/contracts/ai-input-source-connection-catalog.contract.ts`, and `src/lib/services/ai-input-source-connection-catalog.service.ts` complete `AIINPUT-CONN-004` as the protected typed provider-step catalog before any provider account, scope discovery, test, activation, secret, or persistence runtime.
 - `AUT-001_source-intake-security-privacy.md` defines consent, retention, deletion, high-risk source handling, and external-agent restrictions.
 - `ARC-015_source-connection-adapter-contract.md` defines SourceConnection / InputAdapter lifecycle and connector stop conditions.
 - `ARC-028_nanda-agent-protocol-alignment.md` keeps agent-facing source workflow capabilities internal/protected and `externalRegisterable: false`.
@@ -238,6 +239,32 @@ Official references used for the connector boundary:
 - This slice does not add route handlers, OAuth callbacks, webhook endpoints, polling jobs, provider API calls, file ingestion, OCR/transcription, raw adapter payload handling, secret writes, schema/migration apply, DB reads/writes, public output, module final writes, external agent database access, or external registration.
 - The next anti-repeat implementation slice is `AIINPUT-OPS-003`, which should make H/I/J/K/L gate state visible in protected AI Input/admin/settings if `AUTH-005` and `WORK-009` proof prerequisites remain absent.
 - NANDA posture remains protected-owner/internal approval capability only; `externalRegisterable=false`.
+
+## AIINPUT-CONN-004 Provider Setup Catalog Boundary
+
+`AIINPUT-CONN-004` adds a protected catalog read between the Server Component and setup wizard:
+
+```txt
+/ai-input Server Component
+  -> loadAIInputSourceConnectionCatalog()
+  -> requireUser()
+  -> validate six provider manifests and six ordered steps
+  -> return redacted no-secret UI DTO
+  -> AIInputClient
+  -> SourceConnectionWizard manifest consumer
+```
+
+Only `list_provider_manifests` is an allowed static read. Account listing, persisted setup sessions, provider scope discovery/preview, connection tests, dependency-impact reads, and activation are contract entries with `allowedNow=false`. Invalid manifests return zero providers; the client may not invent a formal fallback. Duplicate scope identity remains a future server-generated hash with no native provider id or fingerprint exposed. No route handler, Server Action, OAuth, callback, webhook, polling, secret, provider API, DB read/write, public output, final module write, external agent database access, or external registration is part of this slice.
+
+Concrete artifacts:
+
+- `src/types/ai-input-source-connection-catalog.ts`
+- `src/lib/contracts/ai-input-source-connection-catalog.contract.ts`
+- `src/lib/services/ai-input-source-connection-catalog.service.ts`
+- `scripts/check-ai-input-connection-manifest-bff.mjs`
+- `pnpm ai-input:connection-manifest:check`
+
+NANDA posture is protected-owner-visible contract-only, protocols remain internal, internal connector runtime is disabled, and `externalRegisterable=false`.
 
 ## Formal-Mode Rule
 

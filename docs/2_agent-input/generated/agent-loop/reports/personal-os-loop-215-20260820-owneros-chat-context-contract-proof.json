@@ -1,0 +1,31 @@
+{
+  "id": "OWNEROS-002A",
+  "status": "PASS",
+  "generatedAt": "2026-08-21T07:25:05.094Z",
+  "contractPath": "src/lib/contracts/owner-ai-work-desktop-chat-context.contract.ts",
+  "architectureDoc": "docs/02_architecture-and-rules/ARC-035_owner-ai-work-desktop-chat-context-package-contract.md",
+  "gateCriterion": "A2_DURABLE_AUTHORIZED_CHAT_CONTEXT",
+  "contractOnly": true,
+  "gateAchieved": false,
+  "runtimeFlags": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "runtimePersistenceEnabled": false,
+    "databaseRead": false,
+    "databaseWrite": false,
+    "aiProviderExecutionEnabled": false,
+    "sendsEmail": false,
+    "publicOutputEnabled": false,
+    "externalRuntimeEnabled": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "counts": {
+    "sourceTypes": 11,
+    "visibilityLevels": 5,
+    "authzChecks": 7,
+    "issues": 0
+  },
+  "issues": []
+}

@@ -7,12 +7,21 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AddDeliverableDialog } from "@/components/work/deliverable/add-deliverable-dialog"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { ProjectDeliverable, DeliverableStatus } from "@/types/work"
 
-const statusConfig: Record<DeliverableStatus, { label: string; Icon: React.ElementType; className: string }> = {
-  draft: { label: "草稿", Icon: CircleIcon, className: "text-muted-foreground" },
-  delivered: { label: "已交付", Icon: ClockIcon, className: "text-blue-600 dark:text-blue-400" },
-  approved: { label: "已核准", Icon: CheckCircleIcon, className: "text-emerald-600 dark:text-emerald-400" },
+const statusConfig: Record<DeliverableStatus, { Icon: React.ElementType; className: string }> = {
+  draft: { Icon: CircleIcon, className: "text-muted-foreground" },
+  delivered: { Icon: ClockIcon, className: "text-blue-600 dark:text-blue-400" },
+  approved: { Icon: CheckCircleIcon, className: "text-emerald-600 dark:text-emerald-400" },
+}
+
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (formatted, [key, value]) =>
+      formatted.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
 }
 
 interface DeliverableTableProps {
@@ -21,6 +30,9 @@ interface DeliverableTableProps {
 }
 
 export function DeliverableTable({ initialDeliverables, projectId }: DeliverableTableProps) {
+  const { copy, locale } = useProductLanguage()
+  const deliverableCopy = copy.work.deliverables
+  const dateLocale = locale === "zh-TW" ? "zh-TW" : "en-US"
   const [deliverables, setDeliverables] = React.useState<ProjectDeliverable[]>(initialDeliverables)
   const [dialogOpen, setDialogOpen] = React.useState(false)
 
@@ -34,21 +46,25 @@ export function DeliverableTable({ initialDeliverables, projectId }: Deliverable
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{deliverables.length} 個交付物</span>
+        <span className="text-xs text-muted-foreground">
+          {formatCopy(deliverableCopy.table.summaryTemplate, {
+            count: deliverables.length,
+          })}
+        </span>
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDialogOpen(true)}>
           <PlusIcon className="size-3.5" />
-          新增交付物
+          {deliverableCopy.table.add}
         </Button>
       </div>
 
       {deliverables.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
-          <p className="text-sm text-muted-foreground">還沒有交付物</p>
+          <p className="text-sm text-muted-foreground">{deliverableCopy.table.empty}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
           {deliverables.map((d) => {
-            const { label, Icon, className } = statusConfig[d.status]
+            const { Icon, className } = statusConfig[d.status]
             return (
               <div
                 key={d.id}
@@ -62,22 +78,27 @@ export function DeliverableTable({ initialDeliverables, projectId }: Deliverable
                   )}
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={cn("text-[10px] h-4", className)}>
-                      {label}
+                      {deliverableCopy.statuses[d.status]}
                     </Badge>
                     {d.visibility === "client_visible" ? (
                       <span className="flex items-center gap-0.5 text-[11px] text-blue-600 dark:text-blue-400">
                         <EyeIcon className="size-2.5" />
-                        客戶可見
+                        {deliverableCopy.visibility.client_visible}
                       </span>
                     ) : (
                       <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground/60">
                         <LockIcon className="size-2.5" />
-                        內部
+                        {deliverableCopy.visibility.internal}
                       </span>
                     )}
                     {d.deliveredAt && (
                       <span className="text-[11px] text-muted-foreground">
-                        交付於 {new Date(d.deliveredAt).toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" })}
+                        {formatCopy(deliverableCopy.table.deliveredAtTemplate, {
+                          date: new Date(d.deliveredAt).toLocaleDateString(dateLocale, {
+                            month: "numeric",
+                            day: "numeric",
+                          }),
+                        })}
                       </span>
                     )}
                   </div>

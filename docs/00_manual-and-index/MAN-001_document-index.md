@@ -1,7 +1,7 @@
 # Personal OS Document Index
 
 **Document ID:** `MAN-001`
-**Last updated:** 2026-06-25
+**Last updated:** 2026-09-13
 **Purpose:** Master navigation index for the formal Personal OS documentation library.
 
 ---
@@ -10,6 +10,8 @@
 
 | Need | File |
 |---|---|
+| 帳號與正式上線規劃（2026-09-15 owner priority） | [PLN-071](../05_execution-plans/PLN-071_yuanzhan-account-and-private-launch-plan.md) · [AUT-009](../02_architecture-and-rules/AUT-009_yuanzhan-email-otp-account-boundary.md)；六碼 OTP、個人帳號／公司管理、三帳號分期驗收 |
+| 圓展 UI 階段（2026-09-13 已完成） | [PLN-070](../05_execution-plans/PLN-070_yuanzhan-team-ui-implementation-plan.md) · [PRD-006](../01_product-requirements/PRD-006_yuanzhan-team-ui-phase.md) · [HTML 與情境來源](../03_feature-reference/REF-004_yuanzhan-operating-interface-sources.md) · [目前 v5 操作／預覽](../03_feature-reference/REF-004_yuanzhan-operating-interface/v5-preview-guide.md) |
 | Documentation rules | [MAN-000_docs-usage-manual.md](MAN-000_docs-usage-manual.md) |
 | Agent rules | [AGENTS.md](../../AGENTS.md) |
 | Development loop | [MAN-002_development-loop.md](MAN-002_development-loop.md) |
@@ -50,6 +52,7 @@
 | [PRD-003_personal-os-technical-prd.md](../01_product-requirements/PRD-003_personal-os-technical-prd.md) | Technical PRD |
 | [PRD-004_next-stage-development-plan.md](../01_product-requirements/PRD-004_next-stage-development-plan.md) | Primary working PRD |
 | [PRD-005_situation-driven-prd.md](../01_product-requirements/PRD-005_situation-driven-prd.md) | Situation-driven PRD and module value propositions |
+| [PRD-006](../01_product-requirements/PRD-006_yuanzhan-team-ui-phase.md) | 圓展雙空間與情境工作台 UI 階段需求 |
 
 ## 02 Architecture And Rules
 
@@ -87,6 +90,10 @@
 | [ARC-030_module-resource-index-bff-contract.md](../02_architecture-and-rules/ARC-030_module-resource-index-bff-contract.md) | Shared module resource index BFF contract for search, filters, sort, selection, actions, detail panels, states, and audit refs |
 | [ARC-031_ai-input-source-workflow-bff-split-contract.md](../02_architecture-and-rules/ARC-031_ai-input-source-workflow-bff-split-contract.md) | AI Input Source Workflow BFF split contract for protected read DTOs, schema review, disposable proof, proposal actions, connector boundaries, and audit mapping |
 | [ARC-032_internal-multi-agent-task-message-bus-contract.md](../02_architecture-and-rules/ARC-032_internal-multi-agent-task-message-bus-contract.md) | Internal multi-agent task/message bus contract for tasks, participants, lifecycle, proposals, audit mapping, and AGENT-011 implementation boundaries |
+| [ARC-035_owner-ai-work-desktop-chat-context-package-contract.md](../02_architecture-and-rules/ARC-035_owner-ai-work-desktop-chat-context-package-contract.md) | Owner AI Work Desktop chat ContextPackage contract for `OWNEROS-002A`: durable chat/context DTOs, BFF authorization, Personal Private visibility, audit, NANDA boundary, and no-runtime checker |
+| [ARC-036_simplified-saas-operating-surface-design-pattern.md](../02_architecture-and-rules/ARC-036_simplified-saas-operating-surface-design-pattern.md) | Simplified SaaS operating surface design pattern for Gate A/B/C UI convergence: one primary job, command bar, resource index, detail/proposal pane, records/audit, settings/boundaries, concise copy, honest state language, and checker-backed follow-up tasks |
+| [ARC-037_owneros-core-surface-bff-view-model-contract.md](../02_architecture-and-rules/ARC-037_owneros-core-surface-bff-view-model-contract.md) | OwnerOS core surface BFF/view-model contract for `OWNEROS-BFF-001` and the `OWNEROS-UI-003` foundation: dashboard, AI Input, settings, and admin shared layout slots, UI-safe DTO boundaries, BFF invariants, NANDA posture, runtime-disabled flags, and checker-backed follow-up tasks |
+| [ARC-038_module-shell-tab-standardization.md](../02_architecture-and-rules/ARC-038_module-shell-tab-standardization.md) | Fixed 5-tab order for every `ModuleOperatingShell` module surface — 專案/檔案‧媒體/{module}AI/紀錄/邊界 — with the overview+operation merge, always-on library tab, per-module Agent tab label mapping (工作AI, 學術AI, 公司AI, 商會AI, 財務AI, 生活AI, 自我AI), and 設定→邊界 rename |
 | [AUT-001_source-intake-security-privacy.md](../02_architecture-and-rules/AUT-001_source-intake-security-privacy.md) | Source intake security and privacy policy |
 | [AUT-002_auth-runtime-strategy.md](../02_architecture-and-rules/AUT-002_auth-runtime-strategy.md) | Auth runtime strategy and fail-closed mock boundary |
 | [AUT-003_module-permission-source.md](../02_architecture-and-rules/AUT-003_module-permission-source.md) | Hybrid module permission source and UI-safe snapshot contract |
@@ -107,6 +114,7 @@
 | [SCH-001_agent-team-os-schema-proposal.md](../02_architecture-and-rules/SCH-001_agent-team-os-schema-proposal.md) | Agent Team OS schema proposal |
 | [SCH-002_source-asset-registry-schema-proposal.md](../02_architecture-and-rules/SCH-002_source-asset-registry-schema-proposal.md) | Source Asset Registry schema proposal |
 | [SCH-003_ai-input-source-workflow-schema-review.md](../02_architecture-and-rules/SCH-003_ai-input-source-workflow-schema-review.md) | AI Input Source Workflow proposal-only schema review packet and no-write migration boundary |
+| [ARC-040](../02_architecture-and-rules/ARC-040_yuanzhan-ui-data-mode-contract.md) | showcase／empty env 與 UI 記憶體資料契約（UI-088 已實作） |
 
 ## 03 Feature Reference
 
@@ -114,6 +122,8 @@
 |---|---|
 | [REF-001_one-month-fitness-plan.md](../03_feature-reference/REF-001_one-month-fitness-plan.md) | Fitness plan reference |
 | [REF-002_bni-share/](../03_feature-reference/REF-002_bni-share/) | BNI share reference material |
+| [REF-003_ui-screen-registry.md](../03_feature-reference/REF-003_ui-screen-registry.md) | Single authoritative UI Screen ID registry, route/source map, refactor status, and confirmed global UI decisions |
+| [REF-004](../03_feature-reference/REF-004_yuanzhan-operating-interface-sources.md) | 17 份原型／提案來源、情境與已確認決定 |
 
 ## 04 Playbook
 
@@ -152,6 +162,10 @@
 | [PLN-061_current-sprint.md](../05_execution-plans/PLN-061_current-sprint.md) | Current sprint |
 | [PLN-062_phase-plan.md](../05_execution-plans/PLN-062_phase-plan.md) | Phase plan |
 | [PLN-063_thirty-loop-launch-automation-plan.md](../05_execution-plans/PLN-063_thirty-loop-launch-automation-plan.md) | 30-loop aggressive launch automation plan |
+| [PLN-068_chinese-first-simplified-saas-ui-convergence-plan.md](../05_execution-plans/PLN-068_chinese-first-simplified-saas-ui-convergence-plan.md) | Chinese-first simplified SaaS UI convergence target and staged plan |
+| [PLN-069_saas-ui-convergence-schedule-and-governance-report.md](../05_execution-plans/PLN-069_saas-ui-convergence-schedule-and-governance-report.md) | Multi-stage SaaS UI convergence schedule with RBAC, AI governance, browser verification, and owner acceptance plan |
+| [PLN-070](../05_execution-plans/PLN-070_yuanzhan-team-ui-implementation-plan.md) | 圓展 UI 優先開發順序、範圍與雙模式任務 |
+| [PLN-071](../05_execution-plans/PLN-071_yuanzhan-account-and-private-launch-plan.md) | 三帳號 Email 六碼登入、我的帳號／公司管理與正式使用分期 |
 
 ## 06 Audits And Reports
 
@@ -218,6 +232,12 @@
 | [RPT-059_loop-185-launch-level-review.md](../06_audits-and-reports/RPT-059_loop-185-launch-level-review.md) | Loop 185 launch-level review after admin overview loader split, fresh proof-chain decision, Manual Ops/C3 confirmation, and LOOP-186 research-to-task routing |
 | [RPT-060_loop-186-admin-detail-route-maturity-gap-review.md](../06_audits-and-reports/RPT-060_loop-186-admin-detail-route-maturity-gap-review.md) | Loop 186 RES-001/RES-002 admin detail route maturity gap review and ADMIN-007 loading/section-index routing |
 | [RPT-061_loop-188-admin-detail-section-loader-split-gap-review.md](../06_audits-and-reports/RPT-061_loop-188-admin-detail-section-loader-split-gap-review.md) | Loop 188 admin detail section loader split gap review and ADMIN-009 section route split routing |
+| [RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md](../06_audits-and-reports/RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md) | Owner AI Work Desktop scenario-system contraction audit, internal company-sharing gap matrix, v1 agent set, and company rollout acceptance gates |
+| [RPT-063_loop-219-launch-level-review-and-next-phase-routing.md](../06_audits-and-reports/RPT-063_loop-219-launch-level-review-and-next-phase-routing.md) | Loop 219 launch-level review, fresh proof-chain decision, no-upgrade reasons, Manual Ops separation, and next-phase UI/BFF routing to OWNEROS-AIINPUT-UI-001 |
+| [RPT-064_loop-227-short-launch-review-and-owner-conversation-routing.md](../06_audits-and-reports/RPT-064_loop-227-short-launch-review-and-owner-conversation-routing.md) | Loop 227 short launch-level review and OWNEROS-002B OwnerConversation BFF/runtime contract routing for durable chat plus Inbox return path |
+| [RPT-065_pln-069-saas-ui-convergence-completion-report.md](../06_audits-and-reports/RPT-065_pln-069-saas-ui-convergence-completion-report.md) | PLN-069 UI-L4 local protected SaaS interface convergence completion report with PersonalOS product summary, RBAC route/API inventory, and next development recommendations |
+| [RPT-066_simplified-saas-ui-handoff-report.md](../06_audits-and-reports/RPT-066_simplified-saas-ui-handoff-report.md) | Corrective Simplified SaaS UI handoff report reopening PLN-069 after owner UX rejection, with route-by-route redesign targets and prompt for Claude or the next UI agent |
+| [RPT-067_gate-loop-release-baseline-preflight.md](../06_audits-and-reports/RPT-067_gate-loop-release-baseline-preflight.md) | Paused Gate A/B/C release-baseline preflight, dedicated worktree contract, Owner-decision promotion, freshness reset, automation safety, and resume blockers |
 
 ## 07 Research And Design
 
@@ -242,6 +262,8 @@
 | [RES-017_human-ai-chat-and-inbox-collaboration-scenarios-research.md](../07_research-and-design/RES-017_human-ai-chat-and-inbox-collaboration-scenarios-research.md) | Human-AI Chat and Inbox Collaboration Scenarios Research: refactors the mermaid interaction diagram to support synchronous and asynchronous human intervention; maps owner-AI collaboration scenarios via Chat Room and Inbox; outlines Inbox-to-Chat navigation, draft synchronization, and deadlock dispute triage, converting findings into backlog rows `AICHAT-010..013` |
 | [RES-018_dual-naming-model-human-display-name-and-iso9001-style-ai-reference-code-research.md](../07_research-and-design/RES-018_dual-naming-model-human-display-name-and-iso9001-style-ai-reference-code-research.md) | Dual naming model research: audits `ChatThread`/`FileAsset`/`MediaAsset` against the owner's ask for two name tiers everywhere (human display name, manual or AI-suggested; and a separate ISO 9001-style AI reference code); grounds the design in ISO 9001 clause 7.5.2/7.5.3 (identification/control, deliberately non-prescriptive on syntax) and in this repo's own `MAN-000` `TYPE-NNN` doc-numbering precedent; distinguishes the new `referenceCode` (assign-once, never-regenerated citation key) from `ARC-011`'s existing `canonicalName` (semantic grouping label, a different problem); converts findings into backlog rows `NAMECODE-001..005` |
 | [RES-019_sub-module-upload-sync-and-origin-reference-research.md](../07_research-and-design/RES-019_sub-module-upload-sync-and-origin-reference-research.md) | Sub-module upload sync and origin-reference research: audits the owner's forward-looking ask (future task/discussion-thread uploads should sync to the central library with a backlink) and finds the exact gap already shipped in `add-project-dialog.tsx` (real upload UI, `parseProjectDocuments` silently discards file content); rejects a "sync-copy" model in favor of one canonical store plus an additive `LibraryAssetOriginContext` on `RES-016`'s existing `LibraryAssetModuleLink`; amends `ARC-012` §5A.1 from "no module upload" to "single source of truth, not single capture surface"; converts findings into backlog rows `MODLIB-008..012` |
+| [RES-029](../07_research-and-design/RES-029_yuanzhan-ui-phase-and-data-mode-research.md) | 工作日誌與雙模式接合的三輪研究 |
+| [RES-030](../07_research-and-design/RES-030_yuanzhan-ui-implementation-rounds.md) | 圓展全部情境三輪研究、元件與 UI-memory 實作契約 |
 
 ## 08 Acceptance And QA
 
@@ -254,6 +276,7 @@
 | [ACC-005_supabase-session-proof-checklist.md](../08_acceptance-and-qa/ACC-005_supabase-session-proof-checklist.md) | Supabase session proof collector and AUTH-005 readiness checklist |
 | [ACC-006_ai-input-source-workflow-proof-target.md](../08_acceptance-and-qa/ACC-006_ai-input-source-workflow-proof-target.md) | AI Input Source Workflow disposable proof target boundary and no-write acceptance contract |
 | [ACC-007_manual-ops-conditional-launch-gate.md](../08_acceptance-and-qa/ACC-007_manual-ops-conditional-launch-gate.md) | Manual Ops conditional launch gate for converting no-upgrade reasons into owner/operator actions without claiming formal L1 |
+| [ACC-008](../08_acceptance-and-qa/ACC-008_yuanzhan-ui-dual-mode-acceptance.md) | 12 情境的展示／空白驗收矩陣（雙模式 UI 驗證通過） |
 
 ## Agent Input And Generated Evidence
 

@@ -128,3 +128,233 @@
     @apply font-sans;
   }
 }
+/* 登入頁的工作區配色提示：公司＝冷調藍，個人＝暖調紫。 */
+.login-shell {
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--workspace-glow), transparent 70%),
+    var(--background);
+}
+
+.login-shell[data-workspace="company"] {
+  --workspace-accent: oklch(0.55 0.15 250);
+  --workspace-accent-foreground: oklch(0.99 0 0);
+  --workspace-glow: oklch(0.88 0.07 250 / 55%);
+}
+
+.login-shell[data-workspace="personal"] {
+  --workspace-accent: oklch(0.56 0.16 305);
+  --workspace-accent-foreground: oklch(0.99 0 0);
+  --workspace-glow: oklch(0.89 0.07 320 / 55%);
+}
+
+.dark .login-shell[data-workspace="company"] {
+  --workspace-accent: oklch(0.62 0.14 250);
+  --workspace-accent-foreground: oklch(0.16 0.02 250);
+  --workspace-glow: oklch(0.42 0.11 250 / 45%);
+}
+
+.dark .login-shell[data-workspace="personal"] {
+  --workspace-accent: oklch(0.64 0.15 305);
+  --workspace-accent-foreground: oklch(0.17 0.03 310);
+  --workspace-glow: oklch(0.43 0.12 315 / 45%);
+}
+
+/* ==========================================================================
+   Company / Operating 佈景主題（白 / 橘 / 黑 / 品牌）
+   色值對應 lib/theme/company-theme.ts；只作用在 .company-scope 底下，
+   personalOS 其他頁面的 light / dark 不受影響。
+   ========================================================================== */
+
+.company-scope {
+  color-scheme: light;
+}
+
+[data-company-theme="white"] .company-scope {
+  --background: #ffffff;
+  --foreground: #16181c;
+  --card: #f7f7f8;
+  --card-foreground: #16181c;
+  --popover: #ffffff;
+  --popover-foreground: #16181c;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f1f3;
+  --secondary-foreground: #16181c;
+  --muted: #f0f1f3;
+  --muted-foreground: #555b64;
+  --accent: #e7e9ec;
+  --accent-foreground: #16181c;
+  --destructive: #dc2626;
+  --border: #e3e5e8;
+  --input: #e3e5e8;
+  --ring: #2563eb;
+  --chart-1: #2563eb;
+  --chart-2: #c2410c;
+  --chart-3: #15803d;
+  --chart-4: #a16207;
+  --chart-5: #6d3fd4;
+  --sidebar: #f7f7f8;
+  --sidebar-foreground: #16181c;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7e9ec;
+  --sidebar-accent-foreground: #16181c;
+  --sidebar-border: #e3e5e8;
+  --sidebar-ring: #2563eb;
+  --av-yz-bg: #dbeafe;
+  --av-yz-fg: #1d4ed8;
+  --av-yz-br: #bfdbfe;
+  --av-lily-bg: #f3e8ff;
+  --av-lily-fg: #7e22ce;
+  --av-lily-br: #e9d5ff;
+}
+
+[data-company-theme="orange"] .company-scope {
+  --background: #fff8f1;
+  --foreground: #2a1a0e;
+  --card: #ffffff;
+  --card-foreground: #2a1a0e;
+  --popover: #ffffff;
+  --popover-foreground: #2a1a0e;
+  --primary: #ea580c;
+  --primary-foreground: #ffffff;
+  --secondary: #fdf0e3;
+  --secondary-foreground: #2a1a0e;
+  --muted: #fdf0e3;
+  --muted-foreground: #6b4a33;
+  --accent: #f9e3cd;
+  --accent-foreground: #2a1a0e;
+  --destructive: #dc2626;
+  --border: #f1d9c2;
+  --input: #f1d9c2;
+  --ring: #ea580c;
+  --chart-1: #ea580c;
+  --chart-2: #2563eb;
+  --chart-3: #15803d;
+  --chart-4: #a16207;
+  --chart-5: #6d3fd4;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2a1a0e;
+  --sidebar-primary: #ea580c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f9e3cd;
+  --sidebar-accent-foreground: #2a1a0e;
+  --sidebar-border: #f1d9c2;
+  --sidebar-ring: #ea580c;
+  --av-yz-bg: #ffedd5;
+  --av-yz-fg: #c2410c;
+  --av-yz-br: #fed7aa;
+  --av-lily-bg: #fae8ff;
+  --av-lily-fg: #86198f;
+  --av-lily-br: #f5d0fe;
+}
+
+[data-company-theme="black"] .company-scope {
+  color-scheme: dark;
+  --background: #0a0c0f;
+  --foreground: #e9ecf1;
+  --card: #111418;
+  --card-foreground: #e9ecf1;
+  --popover: #161a20;
+  --popover-foreground: #e9ecf1;
+  --primary: #6cb6ff;
+  --primary-foreground: #0a0c0f;
+  --secondary: #1d232b;
+  --secondary-foreground: #e9ecf1;
+  --muted: #161a20;
+  --muted-foreground: #99a2af;
+  --accent: #1d232b;
+  --accent-foreground: #e9ecf1;
+  --destructive: #ef8a82;
+  --border: #232931;
+  --input: #333b45;
+  --ring: #6cb6ff;
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #a78bf5;
+  --sidebar: #111418;
+  --sidebar-foreground: #e9ecf1;
+  --sidebar-primary: #6cb6ff;
+  --sidebar-primary-foreground: #0a0c0f;
+  --sidebar-accent: #1d232b;
+  --sidebar-accent-foreground: #e9ecf1;
+  --sidebar-border: #232931;
+  --sidebar-ring: #6cb6ff;
+  --av-yz-bg: #2b4a63;
+  --av-yz-fg: #9ecbf5;
+  --av-yz-br: #365d7c;
+  --av-lily-bg: #3d3357;
+  --av-lily-fg: #c4a2f5;
+  --av-lily-br: #4e416d;
+}
+
+[data-company-theme="brand"] .company-scope {
+  color-scheme: dark;
+  --background: #0b1f3a;
+  --foreground: #f8fafc;
+  --card: #13294a;
+  --card-foreground: #f8fafc;
+  --popover: #16335c;
+  --popover-foreground: #f8fafc;
+  --primary: #f59e0b;
+  --primary-foreground: #0b1f3a;
+  --secondary: #16335c;
+  --secondary-foreground: #f8fafc;
+  --muted: #13294a;
+  --muted-foreground: #c4d0e4;
+  --accent: #1e4a82;
+  --accent-foreground: #f8fafc;
+  --destructive: #ef8a82;
+  --border: #1c3a68;
+  --input: #2b5286;
+  --ring: #f59e0b;
+  --chart-1: #f59e0b;
+  --chart-2: #6da7ec;
+  --chart-3: #5fd09a;
+  --chart-4: #fbbf24;
+  --chart-5: #9db0cc;
+  --sidebar: #13294a;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #f59e0b;
+  --sidebar-primary-foreground: #0b1f3a;
+  --sidebar-accent: #1e4a82;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #1c3a68;
+  --sidebar-ring: #f59e0b;
+  --av-yz-bg: #1e3f6e;
+  --av-yz-fg: #fbbf24;
+  --av-yz-br: #2a528e;
+  --av-lily-bg: #2e254d;
+  --av-lily-fg: #c084fc;
+  --av-lily-br: #3f3366;
+}
+
+/* company 系列頁面的標籤配色：一律以 token 推導，四種佈景自動跟著換。 */
+.company-tone {
+  border-color: color-mix(in oklab, var(--tone) 40%, transparent);
+  background-color: color-mix(in oklab, var(--tone) 12%, var(--background));
+  color: color-mix(in oklab, var(--tone) 82%, var(--foreground));
+}
+
+.company-tone-a { --tone: var(--chart-5); }
+.company-tone-b { --tone: var(--chart-1); }
+.company-tone-c { --tone: var(--chart-4); }
+.company-tone-d { --tone: var(--muted-foreground); }
+.company-tone-danger { --tone: var(--destructive); }
+.company-tone-warn { --tone: var(--chart-4); }
+.company-tone-ok { --tone: var(--chart-3); }
+
+/* 人物頭像：四種佈景主題連動 */
+.company-scope .av-yz {
+  background-color: var(--av-yz-bg);
+  color: var(--av-yz-fg);
+  box-shadow: inset 0 0 0 1px var(--av-yz-br, transparent);
+}
+.company-scope .av-lily {
+  background-color: var(--av-lily-bg);
+  color: var(--av-lily-fg);
+  box-shadow: inset 0 0 0 1px var(--av-lily-br, transparent);
+}
+

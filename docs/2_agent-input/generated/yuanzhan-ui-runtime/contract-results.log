@@ -1,0 +1,29 @@
+
+> self-stucture-v1@0.1.0 ui:yuanzhan:check /Users/pzps0964713/Documents/github/self-stucture-v1
+> tsx scripts/check-yuanzhan-ui.ts
+
+{
+  "task": "YZUI-002..010",
+  "result": "PASS",
+  "checks": 17,
+  "details": [
+    "mode: explicit showcase/empty, default empty, invalid fails",
+    "empty has zero business/audit/dismissed records",
+    "fixture factories are independent and deterministic",
+    "showcase graph references and version pointers resolve",
+    "personal, restricted project and payroll preview visibility",
+    "author body and assignee progress are distinct",
+    "administrator cannot edit another author's journal",
+    "first create/edit/delete restores empty records",
+    "invalid titles, references and illegal reassignment are rejected",
+    "comments inherit the parent read boundary",
+    "linked deletions block; snapshot content cannot drift",
+    "formula arithmetic, references and aggregates",
+    "formula invalid refs, cycles, divide-by-zero and script input fail",
+    "flow metrics use completed records and show insufficiency",
+    "calendar rejects impossible dates and retains obligation events",
+    "manager pairs visible member transactions without editing authorship",
+    "repeated formula dependencies share bounded computation"
+  ],
+  "scope": "UI-only contract; no DB/provider/network writes"
+}

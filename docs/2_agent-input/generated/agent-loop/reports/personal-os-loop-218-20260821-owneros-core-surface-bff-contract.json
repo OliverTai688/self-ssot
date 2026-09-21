@@ -1,0 +1,39 @@
+{
+  "id": "OWNEROS-BFF-001",
+  "uiContractId": "OWNEROS-UI-003",
+  "status": "PASS",
+  "generatedAt": "2026-08-21T09:12:40.174Z",
+  "contractPath": "src/lib/contracts/owneros-core-surface-bff.contract.ts",
+  "architectureDoc": "docs/02_architecture-and-rules/ARC-037_owneros-core-surface-bff-view-model-contract.md",
+  "checkerCommand": "pnpm owneros:surface-bff:check",
+  "surfaces": [
+    "/dashboard",
+    "/ai-input",
+    "/settings",
+    "/admin"
+  ],
+  "counts": {
+    "surfaces": 4,
+    "components": 7,
+    "invariants": 4,
+    "issues": 0
+  },
+  "gateMapping": {
+    "gateA": "A2/A8 contract prerequisite only",
+    "gateB": "B1/B2/B4 future permission and shared surface prerequisite only",
+    "gateC": "C2/C3/C5 operator and UI hardening prerequisite only",
+    "gateAchieved": false
+  },
+  "runtimeFlags": {
+    "routeHandlerCreated": false,
+    "serverActionCreated": false,
+    "schemaMigrationIncluded": false,
+    "databaseRead": false,
+    "databaseWrite": false,
+    "providerCall": false,
+    "publicOutputExpanded": false,
+    "externalAgentDatabaseAccess": false,
+    "externalRegisterable": false
+  },
+  "issues": []
+}

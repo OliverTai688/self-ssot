@@ -1,12 +1,17 @@
-import { CheckCircle2Icon, KeyRoundIcon, MailIcon, ShieldCheckIcon } from "lucide-react"
+import { FlaskConicalIcon, KeyRoundIcon, MailIcon, RotateCcwIcon, ShieldCheckIcon } from "lucide-react"
+import { headers } from "next/headers"
+import Link from "next/link"
 import { redirect } from "next/navigation"
 
-import { requestMagicLink } from "@/app/actions/auth"
-import { DEFAULT_AUTHENTICATED_PATH, normalizeNextPath } from "@/lib/auth/redirect"
+import { requestEmailOtp, requestMagicLink, verifyEmailOtp } from "@/app/actions/auth"
+import { isDemoLoginConfigured } from "@/lib/auth/demo-login"
+import { DEFAULT_DEV_OTP_LOGIN_CODE, isDevOtpLoginAllowedForUrl } from "@/lib/auth/dev-otp"
+import { WORKSPACE_META, resolveWorkspaceSelection } from "@/lib/auth/workspace"
 import { isMockAuthEnabled } from "@/lib/auth/runtime"
-import { buildOwnerAccessReadinessContract } from "@/lib/contracts/owner-access-readiness.contract"
 import { getCurrentUser } from "@/lib/services/auth.service"
 import { getSupabasePublicConfig } from "@/lib/supabase/env"
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button"
+import { WorkspaceTabs } from "@/components/auth/workspace-tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,19 +19,92 @@ import { Label } from "@/components/ui/label"
 
 type LoginSearchParams = Promise<{
   next?: string | string[]
+  ws?: string | string[]
   status?: string | string[]
   email?: string | string[]
+  method?: string | string[]
 }>
 
 export const dynamic = "force-dynamic"
+
+const tokenInputClassName =
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 font-mono text-lg tracking-[0.35em]"
+
+function GoogleLogoIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path
+        fill="#4285F4"
+        d="M23.52 12.27c0-.85-.08-1.66-.22-2.45H12v4.63h6.46c-.28 1.5-1.13 2.77-2.4 3.62v3.01h3.88c2.27-2.09 3.58-5.17 3.58-8.81Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.07 7.94-2.92l-3.88-3.01c-1.08.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.94H1.28v3.1C3.26 21.3 7.31 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.29 14.28A7.19 7.19 0 0 1 4.91 12c0-.79.14-1.56.38-2.28v-3.1H1.28A11.96 11.96 0 0 0 0 12c0 1.94.47 3.77 1.28 5.38l4.01-3.1Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.94 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.28 6.62l4.01 3.1c.94-2.83 3.59-4.95 6.71-4.95Z"
+      />
+    </svg>
+  )
+}
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
+async function getLoginRequestUrl() {
+  const headerStore = await headers()
+  const host = headerStore.get("host")
+
+  if (!host) {
+    return null
+  }
+
+  const protocol = headerStore.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")
+
+  return `${protocol}://${host}`
+}
+
 function getStatusMessage(status: string | undefined, email: string | undefined) {
   if (status === "sent") {
     return `已送出登入連結${email ? `到 ${email}` : ""}。`
+  }
+
+  if (status === "otp-sent") {
+    return `六碼驗證碼已寄到 ${email ?? "你的信箱"}。請輸入信件中的驗證碼。`
+  }
+
+  if (status === "otp-request-failed") {
+    return "驗證碼沒有成功寄出。請確認這是已允許的登入信箱，並等待 60 秒後重試。"
+  }
+
+  if (status === "otp-missing-email") {
+    return "請輸入有效的登入信箱。"
+  }
+
+  if (status === "otp-format-invalid") {
+    return "請輸入信件中的六位數字驗證碼。"
+  }
+
+  if (status === "otp-invalid") {
+    return "驗證碼不正確或已失效。請重新確認，必要時寄送新驗證碼。"
+  }
+
+  if (status === "dev-otp-unavailable") {
+    return "本機固定六碼只允許在非 production 的 localhost 使用。"
+  }
+
+  if (status === "google-request-failed") {
+    return "Google 登入沒有成功啟動。請確認 Supabase 已啟用 Google provider 後再試一次。"
+  }
+
+  if (status === "google_not_allowed") {
+    return "這個 Google 帳號沒有被允許登入 Personal OS。請改用被允許的信箱，或聯絡系統擁有者加入允許清單。"
   }
 
   if (status === "request-failed") {
@@ -64,158 +142,312 @@ function getStatusMessage(status: string | undefined, email: string | undefined)
   return null
 }
 
-function getReadinessBadgeLabel(state: "ready" | "blocked" | "dev_only" | "owner_run") {
-  if (state === "ready") return "Ready"
-  if (state === "blocked") return "Blocked"
-  if (state === "owner_run") return "Owner-run"
-  return "Dev only"
-}
-
-function getReadinessBadgeClass(state: "ready" | "blocked" | "dev_only" | "owner_run") {
-  if (state === "ready") {
-    return "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200"
-  }
-
-  if (state === "blocked") {
-    return "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200"
-  }
-
-  if (state === "owner_run") {
-    return "border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-900/70 dark:bg-sky-950/30 dark:text-sky-200"
-  }
-
-  return "border-border bg-muted/40 text-muted-foreground"
-}
-
 export default async function LoginPage({ searchParams }: { searchParams: LoginSearchParams }) {
   const resolvedSearchParams = await searchParams
-  const nextPath = normalizeNextPath(firstParam(resolvedSearchParams.next) ?? DEFAULT_AUTHENTICATED_PATH)
+  const { workspace, nextPath } = resolveWorkspaceSelection({
+    workspaceParam: firstParam(resolvedSearchParams.ws),
+    nextParam: firstParam(resolvedSearchParams.next),
+  })
+  const workspaceMeta = WORKSPACE_META[workspace]
   const status = firstParam(resolvedSearchParams.status)
   const email = firstParam(resolvedSearchParams.email)
+  const method = firstParam(resolvedSearchParams.method)
+  const devOtpAvailable = isDevOtpLoginAllowedForUrl(await getLoginRequestUrl())
+  const demoLoginAvailable = isDemoLoginConfigured()
   const currentUser = await getCurrentUser()
   const hasSupabaseConfig = Boolean(getSupabasePublicConfig())
   const mockAuthEnabled = isMockAuthEnabled()
-  const ownerAccessReadinessContract = buildOwnerAccessReadinessContract({
-    hasSupabaseConfig,
-    isMockAuthEnabled: mockAuthEnabled,
-    requestedNextPath: nextPath,
-  })
   const statusMessage = getStatusMessage(status, email)
+  const canVerifyEmailOtp = hasSupabaseConfig || devOtpAvailable
+  const isOtpVerificationStep =
+    Boolean(email) &&
+    (devOtpAvailable ||
+      (method === "otp" && ["otp-sent", "otp-format-invalid", "otp-invalid"].includes(status ?? "")))
 
   if (currentUser) {
     redirect(nextPath)
   }
 
   return (
-    <main className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-4xl flex-col justify-center gap-6">
+    <main
+      id="login-shell"
+      data-workspace={workspace}
+      className="login-shell min-h-screen px-6 py-10 text-foreground transition-colors duration-300"
+    >
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col justify-center gap-6">
         <div className="flex flex-col gap-3">
           <div className="flex size-10 items-center justify-center rounded-lg border bg-muted/40">
             <ShieldCheckIcon className="size-5 text-muted-foreground" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Personal OS</h1>
-            <p className="text-sm text-muted-foreground">登入後進入你的私人工作系統。</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{workspaceMeta.title}</h1>
+            <p className="text-sm text-muted-foreground">{workspaceMeta.description}</p>
           </div>
         </div>
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <form action={requestMagicLink} className="rounded-lg border bg-card p-4 shadow-sm">
-            <input type="hidden" name="next" defaultValue={nextPath} />
+        <div className="flex flex-col gap-2">
+          <WorkspaceTabs value={workspace} />
+          <p className="text-xs text-muted-foreground">{workspaceMeta.hint}</p>
+        </div>
 
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-medium">Magic link</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">只允許既有 Supabase 使用者登入。</p>
-                </div>
-                <Badge variant="outline" className="shrink-0 text-[10px]">
-                  {mockAuthEnabled ? "Dev mock" : "Supabase"}
-                </Badge>
+        {statusMessage && (
+          <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {statusMessage}
+          </div>
+        )}
+
+        <section className="rounded-lg border bg-card p-4 shadow-sm">
+          <div className="grid gap-2">
+            {hasSupabaseConfig ? (
+              <Button
+                variant="outline"
+                className="w-full"
+                render={
+                  <Link
+                    id="workspace-google-login"
+                    href={`/auth/google?next=${encodeURIComponent(nextPath)}`}
+                    prefetch={false}
+                  />
+                }
+              >
+                <GoogleLogoIcon className="size-4" />
+                使用 Google 登入
+              </Button>
+            ) : (
+              <Button variant="outline" className="w-full" disabled>
+                <GoogleLogoIcon className="size-4" />
+                使用 Google 登入
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">
+              僅限被允許的信箱；每個帳號登入後會有各自獨立的 Personal OS 資料。
+            </p>
+          </div>
+        </section>
+
+        {demoLoginAvailable && (
+          <section className="rounded-lg border bg-card p-4 shadow-sm">
+            <form action={verifyEmailOtp} className="grid gap-3">
+              <input type="hidden" name="next" value={nextPath} />
+              <div className="flex items-center gap-2">
+                <FlaskConicalIcon className="size-4 text-muted-foreground" />
+                <h2 className="text-sm font-medium">示範帳號</h2>
               </div>
 
-              {statusMessage && (
-                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                  {statusMessage}
-                </div>
-              )}
+              <div className="grid gap-2">
+                <Label htmlFor="demo-email">Email</Label>
+                <Input id="demo-email" name="email" type="email" autoComplete="email" required />
+              </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  defaultValue={email}
-                  disabled={!hasSupabaseConfig}
+                <Label htmlFor="demo-token">六碼驗證碼</Label>
+                <input
+                  id="demo-token"
+                  name="token"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  minLength={6}
+                  maxLength={6}
+                  placeholder="000000"
+                  className={tokenInputClassName}
                   required
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={!hasSupabaseConfig}>
-                <MailIcon className="size-4" />
-                送出登入連結
-              </Button>
-            </div>
-          </form>
+              <AuthSubmitButton variant="outline" className="w-full" pendingLabel="登入中...">
+                <FlaskConicalIcon className="size-4" />
+                以示範帳號登入
+              </AuthSubmitButton>
+              <p className="text-xs text-muted-foreground">
+                只能用於指定的示範信箱與固定驗證碼；示範資料與其他帳號完全隔離。
+              </p>
+            </form>
+          </section>
+        )}
 
-          <section className="rounded-lg border bg-card p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
+        <section className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <KeyRoundIcon className="size-4 text-muted-foreground" />
-                  <h2 className="text-sm font-medium">Owner access readiness</h2>
+                  <h2 className="text-sm font-medium">Email 驗證</h2>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  目前入口：{ownerAccessReadinessContract.summary.primaryPath === "supabase" ? "Supabase" : "Explicit dev mock"}
-                </p>
+                <Badge variant="outline" className="shrink-0 text-[10px]">
+                  {mockAuthEnabled ? "Dev mock" : devOtpAvailable ? "Local code" : "Supabase"}
+                </Badge>
               </div>
-              <Badge
-                variant="outline"
-                className={`text-[10px] ${getReadinessBadgeClass(
-                  ownerAccessReadinessContract.summary.blockedCount > 0 ? "blocked" : "ready"
-                )}`}
-              >
-                {ownerAccessReadinessContract.summary.blockedCount > 0 ? "Blocked" : "Ready"}
-              </Badge>
-            </div>
 
-            <div className="mt-4 divide-y">
-              {ownerAccessReadinessContract.rows.map((row) => (
-                <div key={row.id} className="grid gap-2 py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-medium">
-                        {row.state === "ready" && <CheckCircle2Icon className="size-4 text-emerald-600" />}
-                        <span>{row.label}</span>
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">{row.signal}</p>
+              {isOtpVerificationStep ? (
+                <div className="grid gap-3">
+                  <form action={verifyEmailOtp} className="grid gap-3">
+                    <input type="hidden" name="next" value={nextPath} />
+                    <input type="hidden" name="email" value={email} />
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="token">六碼驗證碼</Label>
+                      {devOtpAvailable ? (
+                        <>
+                          <input type="hidden" name="token" value={DEFAULT_DEV_OTP_LOGIN_CODE} />
+                          <div
+                            id="token"
+                            aria-label="六碼驗證碼"
+                            className={`${tokenInputClassName} flex items-center`}
+                          >
+                            {DEFAULT_DEV_OTP_LOGIN_CODE}
+                          </div>
+                        </>
+                      ) : (
+                        <input
+                          id="token"
+                          name="token"
+                          type="text"
+                          data-slot="input"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          pattern="[0-9]{6}"
+                          minLength={6}
+                          maxLength={6}
+                          placeholder="000000"
+                          className={tokenInputClassName}
+                          autoFocus
+                          required
+                        />
+                      )}
+                      {devOtpAvailable && (
+                        <p className="text-xs text-muted-foreground">
+                          本機固定驗證碼已預填；送出後會用這個 email 對應既有 Profile。
+                        </p>
+                      )}
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={`shrink-0 text-[10px] ${getReadinessBadgeClass(row.state)}`}
+
+                    <AuthSubmitButton
+                      className="w-full"
+                      disabled={!canVerifyEmailOtp}
+                      pendingLabel="驗證中..."
                     >
-                      {getReadinessBadgeLabel(row.state)}
-                    </Badge>
-                  </div>
-                  <div className="grid gap-1 text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{row.status}</span>
-                    <span>{row.nextAction}</span>
-                    <code className="block break-all rounded-md bg-muted/50 px-2 py-1 font-mono text-[11px] text-foreground">
-                      {row.command}
-                    </code>
-                  </div>
+                      <KeyRoundIcon className="size-4" />
+                      驗證並登入
+                    </AuthSubmitButton>
+                  </form>
+
+                  <form action={requestEmailOtp}>
+                    <input type="hidden" name="next" value={nextPath} />
+                    <input type="hidden" name="email" value={email} />
+                    <AuthSubmitButton
+                      variant="outline"
+                      className="w-full"
+                      disabled={!hasSupabaseConfig}
+                      pendingLabel="重新寄送中..."
+                    >
+                      <RotateCcwIcon className="size-4" />
+                      重新寄送驗證碼
+                    </AuthSubmitButton>
+                  </form>
                 </div>
-              ))}
+              ) : devOtpAvailable ? (
+                <form action={verifyEmailOtp} className="grid gap-3">
+                  <input type="hidden" name="next" value={nextPath} />
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dev-otp-email">Email</Label>
+                    <Input
+                      id="dev-otp-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      defaultValue={email}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="dev-token">本機六碼驗證</Label>
+                    <input type="hidden" name="token" value={DEFAULT_DEV_OTP_LOGIN_CODE} />
+                    <div
+                      id="dev-token"
+                      aria-label="本機六碼驗證"
+                      className={`${tokenInputClassName} flex items-center`}
+                    >
+                      {DEFAULT_DEV_OTP_LOGIN_CODE}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      只在 localhost 非 production 可用；不寄信、不建立 Supabase session。
+                    </p>
+                  </div>
+
+                  <AuthSubmitButton className="w-full" pendingLabel="登入中...">
+                    <KeyRoundIcon className="size-4" />
+                    用本機六碼登入
+                  </AuthSubmitButton>
+                </form>
+              ) : (
+                <form action={requestEmailOtp} className="grid gap-3">
+                  <input type="hidden" name="next" value={nextPath} />
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="otp-email">Email</Label>
+                    <Input
+                      id="otp-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      defaultValue={email}
+                      disabled={!hasSupabaseConfig}
+                      required
+                    />
+                  </div>
+
+                  <AuthSubmitButton
+                    className="w-full"
+                    disabled={!hasSupabaseConfig}
+                    pendingLabel="寄送中..."
+                  >
+                    <MailIcon className="size-4" />
+                    寄送六碼驗證碼
+                  </AuthSubmitButton>
+                </form>
+              )}
+
+              <div className="border-t pt-4">
+                <form action={requestMagicLink} className="grid gap-3">
+                  <input type="hidden" name="next" value={nextPath} />
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="magic-link-email">或使用 Magic link</Label>
+                    <Input
+                      id="magic-link-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      defaultValue={email}
+                      disabled={!hasSupabaseConfig}
+                      required
+                    />
+                  </div>
+
+                  <AuthSubmitButton
+                    variant="outline"
+                    className="w-full"
+                    disabled={!hasSupabaseConfig}
+                    pendingLabel="寄送中..."
+                  >
+                    <MailIcon className="size-4" />
+                    寄送登入連結
+                  </AuthSubmitButton>
+                </form>
+              </div>
             </div>
-          </section>
         </section>
 
         {!hasSupabaseConfig && (
           <div className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-200">
-            需要設定 `NEXT_PUBLIC_SUPABASE_URL` 與 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 後才能寄送登入連結。
+            尚未設定登入服務。
+            {devOtpAvailable ? ` 本機開發可使用 ${DEFAULT_DEV_OTP_LOGIN_CODE} 登入。` : ""}
           </div>
         )}
       </div>

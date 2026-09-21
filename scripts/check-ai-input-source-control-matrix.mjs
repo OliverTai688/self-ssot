@@ -35,13 +35,14 @@ const SERVICE_MARKERS = [
   "sourceControlRows",
   "formal_source_control_matrix_active",
   "protected_read_no_connector_runtime",
-  "Manual import and local files",
-  "LINE chamber messages",
-  "Google Docs project documents",
-  "RSS research feeds",
-  "Gmail client threads",
-  "GitHub repo and Markdown references",
-  "Telegram research discussion",
+  "手動匯入與本機檔案",
+  "LINE 商會群組訊息",
+  "Google Drive 專案資料夾",
+  "Google Docs、Sheets 與 Slides 僅是 Drive 資料夾內的檔案子類型",
+  "RSS 研究訂閱",
+  "Gmail 客戶信件",
+  "GitHub 儲存庫文件",
+  "Telegram 研究討論群",
   "OAuth runtime",
   "webhook runtime",
   "polling runtime",
@@ -53,12 +54,16 @@ const SERVICE_MARKERS = [
 const CLIENT_MARKERS = [
   "SourceInputMatrixRow",
   "formalReadiness.sourceControlMatrix",
-  "AIINPUT-OPS-002",
-  "來源輸入矩陣",
-  "protected source-control matrix row",
-  "provider 讀取",
-  "file ingestion",
-  "DB 寫入",
+  "來源設定與同步管理面板",
+  "Google Drive 專案資料夾",
+  "Docs / Sheets / Slides 來源已保留",
+  "這裡不執行：直接寫入資料庫或覆寫外部來源檔案",
+]
+
+const FORBIDDEN_STANDALONE_GOOGLE_DOCS_MARKERS = [
+  'provider: "Google Docs"',
+  'source: "Google Docs 專案文件"',
+  '"Google Docs · Document": "Google Docs · 文件"',
 ]
 
 const ADMIN_SERVICE_MARKERS = [
@@ -145,6 +150,14 @@ for (const key of ["acceptance", "backlog", "sprint", "completedLog", "tasks"]) 
 }
 
 validateMarkers({ label: FILES.packageJson, text: contents.packageJson, markers: PACKAGE_MARKERS, errors })
+
+for (const key of ["service", "client"]) {
+  for (const marker of FORBIDDEN_STANDALONE_GOOGLE_DOCS_MARKERS) {
+    if (contents[key]?.includes(marker)) {
+      errors.push(`${FILES[key]} still exposes standalone Google Docs source marker: ${marker}`)
+    }
+  }
+}
 
 for (const mode of REQUIRED_INPUT_MODES) {
   if (!contents.service?.includes(`inputMode: "${mode}"`)) {

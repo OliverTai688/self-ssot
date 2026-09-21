@@ -23,6 +23,12 @@ const PROFILES = {
     forbiddenMarkers: WRONG_LOCAL_APP_MARKERS,
     allowRedirect: false,
   },
+  dashboard: {
+    path: "/dashboard",
+    requiredMarkers: ["Owner Command", "OWNEROS-UI-002-DASHBOARD-SURFACE", "Choose the next owner action", "AI Work Desktop"],
+    forbiddenMarkers: WRONG_LOCAL_APP_MARKERS,
+    allowRedirect: false,
+  },
   frontstage: {
     path: "/",
     requiredMarkers: ["Personal OS"],

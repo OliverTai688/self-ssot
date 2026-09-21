@@ -18,7 +18,10 @@ export type ModuleAgentCommandModule =
 
 export type ModuleAgentCommand = {
   id: string
+  /** Owner-facing display label. Always Traditional Chinese — this is what renders in the AI Command Center UI. */
   label: string
+  /** Machine/agent-facing task label. Always English — embedded into internal agent-bus task titles and proposal summaries, never rendered directly to the owner. */
+  agentInstructionLabel: string
   moduleKey: ModuleAgentCommandModule
   ownerAgent: string
   targetModule: string
@@ -28,8 +31,14 @@ export type ModuleAgentCommand = {
   scopes: readonly string[]
   allowedModes: readonly ["dry_run"]
   uiEntrySurface: string
+  /** Owner-facing proposal output list. Always Traditional Chinese. */
   proposalOutputs: readonly string[]
+  /** Agent-bus-facing proposal output list. Always English. */
+  agentProposalOutputs: readonly string[]
+  /** Owner-facing blocked-write list. Always Traditional Chinese. */
   blockedWrites: readonly string[]
+  /** Agent-bus-facing blocked-action list. Always English. */
+  agentBlockedWrites: readonly string[]
   sourceRefs: readonly string[]
   httpDryRunPayload: {
     operationId: string
@@ -42,7 +51,8 @@ export type ModuleAgentCommand = {
 export const MODULE_AGENT_COMMAND_CATALOG = [
   {
     id: "work.proof.preflight",
-    label: "Plan Work proof preflight",
+    label: "規劃工作資料檢查",
+    agentInstructionLabel: "Plan Work proof-data preflight check",
     moduleKey: "work",
     ownerAgent: "WorkAgent",
     targetModule: "work",
@@ -52,11 +62,17 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["work:proof:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/work agent workspace",
-    proposalOutputs: ["proof preflight checklist", "safe target readiness notes", "next proof command"],
+    proposalOutputs: ["檢查前清單", "安全目標準備說明", "下一步檢查命令"],
+    agentProposalOutputs: ["pre-check checklist", "safe target preparation notes", "next check command"],
     blockedWrites: [
-      "DB write without WORK-009 confirmations",
-      "valuable database mutation",
-      "browser write smoke without approval",
+      "未完成正式工作資料確認前不寫入 DB",
+      "不自動改動重要資料",
+      "未核准前不執行瀏覽器寫入檢查",
+    ],
+    agentBlockedWrites: [
+      "no DB write before formal work data confirmation is complete",
+      "no automatic mutation of critical data",
+      "no browser write check execution before approval",
     ],
     sourceRefs: [
       "docs/08_acceptance-and-qa/ACC-004_work-refresh-proof-harness.md",
@@ -71,7 +87,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "research.workspace.plan",
-    label: "Plan Research workspace synthesis",
+    label: "規劃研究工作區整合",
+    agentInstructionLabel: "Plan Research workspace synthesis",
     moduleKey: "research",
     ownerAgent: "ResearchAgent",
     targetModule: "research",
@@ -81,8 +98,10 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["research:workspace:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/research agent workspace",
-    proposalOutputs: ["source clustering plan", "issue synthesis outline", "writing next-step proposal"],
-    blockedWrites: ["publish research output", "mutate source records", "send external collaboration packets"],
+    proposalOutputs: ["來源分群計畫", "議題整合大綱", "寫作下一步提案"],
+    agentProposalOutputs: ["source clustering plan", "issue synthesis outline", "writing next-step proposal"],
+    blockedWrites: ["發布研究成果", "修改來源紀錄", "寄送外部協作封包"],
+    agentBlockedWrites: ["publish research output", "mutate source records", "send external collaboration packets"],
     sourceRefs: [
       "docs/01_product-requirements/PRD-005_situation-driven-prd.md",
       "docs/02_architecture-and-rules/ARC-012_frontend-operating-surface.md",
@@ -96,7 +115,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "ai-input.source-workflow.review",
-    label: "Review AI Input source workflow readiness",
+    label: "檢查 AI 輸入來源工作流就緒狀態",
+    agentInstructionLabel: "Review AI Input source workflow readiness",
     moduleKey: "ai-input",
     ownerAgent: "IngestionAgent",
     targetModule: "ai-input",
@@ -106,8 +126,15 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["ai-input:source-workflow:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/ai-input formal source workflow agent panel",
-    proposalOutputs: ["connector boundary review", "proposal action checklist", "proof target readiness notes"],
+    proposalOutputs: ["連接器邊界檢查", "提案行動清單", "驗證目標就緒說明"],
+    agentProposalOutputs: ["connector boundary review", "proposal action checklist", "proof target readiness notes"],
     blockedWrites: [
+      "連接器 OAuth 或 webhook runtime",
+      "來源工作流 DB 寫入",
+      "provider 內容讀取",
+      "對外 agent 上下文封包",
+    ],
+    agentBlockedWrites: [
       "connector OAuth or webhook runtime",
       "source workflow DB write",
       "provider payload read",
@@ -126,7 +153,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "workflow.queue.plan",
-    label: "Plan Workflow queue and automation boundary",
+    label: "規劃自動化佇列與邊界",
+    agentInstructionLabel: "Plan Workflow queue and automation boundary",
     moduleKey: "workflow",
     ownerAgent: "WorkflowAgent",
     targetModule: "workflow",
@@ -136,8 +164,10 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["workflow:queue:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/workflow agent workspace",
-    proposalOutputs: ["automation sequence proposal", "task routing notes", "approval lane checklist"],
-    blockedWrites: ["autonomous workflow execution", "schedule/provider mutation", "cross-module final write"],
+    proposalOutputs: ["自動化流程提案", "任務路由說明", "核准流程清單"],
+    agentProposalOutputs: ["automation sequence proposal", "task routing notes", "approval lane checklist"],
+    blockedWrites: ["自動執行工作流", "排程／provider 修改", "跨模組正式寫入"],
+    agentBlockedWrites: ["autonomous workflow execution", "schedule/provider mutation", "cross-module final write"],
     sourceRefs: [
       "docs/02_architecture-and-rules/ARC-023_agent-team-os-operating-contract.md",
       "docs/06_audits-and-reports/RPT-011_loop-68-research-gap-review.md",
@@ -151,7 +181,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "life.routine.propose",
-    label: "Propose Life routine next action",
+    label: "提出生活作息下一步行動",
+    agentInstructionLabel: "Propose Life routine next action",
     moduleKey: "life",
     ownerAgent: "LifeAgent",
     targetModule: "life",
@@ -161,8 +192,10 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["life:proposal:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/life agent proposals tab",
-    proposalOutputs: ["routine proposal", "habit review notes", "manual approval checklist"],
-    blockedWrites: ["health or life data final write", "external sharing", "calendar/provider mutation"],
+    proposalOutputs: ["作息提案", "習慣檢視說明", "人工核准清單"],
+    agentProposalOutputs: ["routine proposal", "habit review notes", "manual approval checklist"],
+    blockedWrites: ["健康或生活資料正式寫入", "對外分享", "行事曆／provider 修改"],
+    agentBlockedWrites: ["health or life data final write", "external sharing", "calendar/provider mutation"],
     sourceRefs: [
       "docs/07_research-and-design/RES-003_interface-completion-operating-surface-research.md",
       "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
@@ -176,7 +209,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "finance.review-draft",
-    label: "Review Finance draft and risk boundary",
+    label: "檢查財務草案與風險邊界",
+    agentInstructionLabel: "Review Finance draft and risk boundary",
     moduleKey: "finance",
     ownerAgent: "FinanceAgent",
     targetModule: "finance",
@@ -186,8 +220,10 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["finance:proposal:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/finance agent proposals tab",
-    proposalOutputs: ["finance draft review", "risk note", "manual approval checklist"],
-    blockedWrites: ["financial final write", "transaction", "external sharing", "provider mutation"],
+    proposalOutputs: ["財務草案檢視", "風險說明", "人工核准清單"],
+    agentProposalOutputs: ["finance draft review", "risk note", "manual approval checklist"],
+    blockedWrites: ["財務正式寫入", "交易", "對外分享", "provider 修改"],
+    agentBlockedWrites: ["financial final write", "transaction", "external sharing", "provider mutation"],
     sourceRefs: [
       "docs/05_execution-plans/PLN-026_finance-draft-only-mvp.md",
       "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
@@ -201,7 +237,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "chamber.relationship.plan",
-    label: "Plan Chamber relationship follow-up",
+    label: "規劃商會關係後續追蹤",
+    agentInstructionLabel: "Plan Chamber relationship follow-up",
     moduleKey: "chamber",
     ownerAgent: "ChamberAgent",
     targetModule: "chamber",
@@ -211,8 +248,10 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["chamber:proposal:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/chamber agent proposals tab",
-    proposalOutputs: ["follow-up proposal", "relationship context checklist", "manual send boundary"],
-    blockedWrites: ["send message", "publish contact detail", "external CRM sync"],
+    proposalOutputs: ["後續追蹤提案", "關係脈絡清單", "人工發送邊界"],
+    agentProposalOutputs: ["follow-up proposal", "relationship context checklist", "manual send boundary"],
+    blockedWrites: ["發送訊息", "發布聯絡資訊", "對外 CRM 同步"],
+    agentBlockedWrites: ["send message", "publish contact detail", "external CRM sync"],
     sourceRefs: [
       "docs/05_execution-plans/PLN-027_chamber-crm-mvp.md",
       "docs/07_research-and-design/RES-003_interface-completion-operating-surface-research.md",
@@ -226,7 +265,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "company.strategy.review",
-    label: "Review Company strategy proposal",
+    label: "檢查公司策略提案",
+    agentInstructionLabel: "Review Company strategy proposal",
     moduleKey: "company",
     ownerAgent: "CompanyAgent",
     targetModule: "company",
@@ -236,8 +276,10 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["company:proposal:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/company agent proposals tab",
-    proposalOutputs: ["strategy option review", "decision risk note", "manual approval checklist"],
-    blockedWrites: ["company strategy final write", "public commitment", "external sharing"],
+    proposalOutputs: ["策略選項檢視", "決策風險說明", "人工核准清單"],
+    agentProposalOutputs: ["strategy option review", "decision risk note", "manual approval checklist"],
+    blockedWrites: ["公司策略正式寫入", "對外承諾", "對外分享"],
+    agentBlockedWrites: ["company strategy final write", "public commitment", "external sharing"],
     sourceRefs: [
       "docs/05_execution-plans/PLN-028_company-strategy-mvp.md",
       "docs/02_architecture-and-rules/ARC-019_agent-boundary-policy.md",
@@ -251,7 +293,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "client-portal.visibility.preflight",
-    label: "Preflight Client Portal visibility boundary",
+    label: "檢查客戶入口可見性邊界",
+    agentInstructionLabel: "Preflight Client Portal visibility boundary",
     moduleKey: "client-portal",
     ownerAgent: "ClientPortalAgent",
     targetModule: "client-portal",
@@ -261,8 +304,10 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["client-portal:visibility:read", "agent:operation:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/admin client portal readiness panel",
-    proposalOutputs: ["visibility checklist", "public output risk note", "token-gate review"],
-    blockedWrites: ["public output expansion", "token lifecycle mutation", "client-visible data change"],
+    proposalOutputs: ["可見性清單", "對外輸出風險說明", "token 權限檢視"],
+    agentProposalOutputs: ["visibility checklist", "public output risk note", "token-gate review"],
+    blockedWrites: ["擴大對外輸出", "token 生命週期修改", "客戶可見資料變更"],
+    agentBlockedWrites: ["public output expansion", "token lifecycle mutation", "client-visible data change"],
     sourceRefs: [
       "docs/02_architecture-and-rules/ARC-025_client-portal-public-bff.md",
       "docs/02_architecture-and-rules/AUT-004_client-portal-public-storage-policy.md",
@@ -276,7 +321,8 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
   },
   {
     id: "agent.ops.describe-contract",
-    label: "Describe Agent Team OS operation contract",
+    label: "說明 Agent Team OS 操作合約",
+    agentInstructionLabel: "Describe Agent Team OS operation contract",
     moduleKey: "agent-team-os",
     ownerAgent: "WorkflowAgent",
     targetModule: "agent-team-os",
@@ -286,8 +332,16 @@ export const MODULE_AGENT_COMMAND_CATALOG = [
     scopes: ["agent:operation:read", "agent:manifest:read"],
     allowedModes: ["dry_run"],
     uiEntrySurface: "/admin or /settings agent protocol readiness surface",
-    proposalOutputs: ["operation contract summary", "trust boundary notes", "next protocol task"],
+    proposalOutputs: ["操作合約摘要", "信任邊界說明", "下一個協議任務"],
+    agentProposalOutputs: ["operation contract summary", "trust boundary notes", "next protocol task"],
     blockedWrites: [
+      "執行 runtime agent",
+      "自動寫入",
+      "對外 endpoint 暴露",
+      "外部登錄寫入",
+      "外部 agent 直接存取資料庫",
+    ],
+    agentBlockedWrites: [
       "runtime agent execution",
       "autonomous write",
       "public endpoint exposure",

@@ -1,5 +1,12 @@
-import type { Project as DbProject, ProjectTask as DbProjectTask, ProjectNote as DbProjectNote, ProjectDeliverable as DbProjectDeliverable } from "@prisma/client"
-import type { Project, ProjectTask, ProjectNote, ProjectDeliverable } from "@/types/work"
+import type {
+  Project as DbProject,
+  ProjectTask as DbProjectTask,
+  ProjectNote as DbProjectNote,
+  ProjectDeliverable as DbProjectDeliverable,
+  ProjectPhaseNode as DbProjectPhaseNode,
+  ProjectMilestone as DbProjectMilestone,
+} from "@prisma/client"
+import type { Project, ProjectTask, ProjectNote, ProjectDeliverable, ProjectMilestone, ProjectPhaseNode, ProjectTimeline } from "@/types/work"
 
 type ProjectProgressSource = {
   tasks?: Pick<DbProjectTask, "status">[]
@@ -100,5 +107,42 @@ export function toDeliverableViewModel(d: DbProjectDeliverable): ProjectDelivera
     visibility: d.visibility === "CLIENT_VISIBLE" ? "client_visible" : "internal",
     deliveredAt: d.deliveredAt?.toISOString() || undefined,
     createdAt: d.createdAt.toISOString(),
+  }
+}
+
+function toIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+export function toMilestoneViewModel(m: DbProjectMilestone): ProjectMilestone {
+  return {
+    id: m.id,
+    title: m.title,
+    date: toIsoDate(m.date),
+    status: m.status.toLowerCase() as ProjectMilestone["status"],
+  }
+}
+
+export function toPhaseNodeViewModel(
+  n: DbProjectPhaseNode & { milestones: DbProjectMilestone[] }
+): ProjectPhaseNode {
+  return {
+    phase: n.phase.toLowerCase() as ProjectPhaseNode["phase"],
+    label: n.label,
+    startDate: toIsoDate(n.startDate),
+    endDate: toIsoDate(n.endDate),
+    status: n.status.toLowerCase() as ProjectPhaseNode["status"],
+    milestones: n.milestones.map(toMilestoneViewModel),
+  }
+}
+
+export function toProjectTimelineViewModel(
+  projectId: string,
+  phaseNodes: (DbProjectPhaseNode & { milestones: DbProjectMilestone[] })[]
+): ProjectTimeline {
+  return {
+    projectId,
+    phases: phaseNodes.map(toPhaseNodeViewModel),
+    generatedAt: new Date().toISOString(),
   }
 }

@@ -1,0 +1,210 @@
+
+// ─── 營運三軌與 time_spine（ARC-041 · PLN-073 T5）─────────────────────────────
+// 專案軌沿用既有的 Project → ProjectPhaseNode → ProjectMilestone，往下補 Objective；
+// 節奏軌與行政／活動軌是新的。time_spine 是衍生索引，由服務層單一 writer 維護。
+
+enum RhythmKind {
+  // 會議或習慣：standup / 1:1 / 回顧 / 學習日 —— 計入履行率
+  RITUAL
+  // 週期性行政義務：發薪 / 勞健保 / 報稅 —— 進日曆與提醒，但不計履行率
+  ADMIN
+
+  @@map("rhythm_kind")
+}
+
+enum RhythmScope {
+  COMPANY
+  PERSONAL
+
+  @@map("rhythm_scope")
+}
+
+enum RhythmSessionState {
+  DONE
+  SKIP
+  MOVED
+
+  @@map("rhythm_session_state")
+}
+
+enum OccasionCategory {
+  COMPANY_EVENT
+  CLIENT_MEETING
+  TRAVEL
+  BIRTHDAY
+  VISIT
+  ADMIN
+
+  @@map("occasion_category")
+}
+
+enum OperatingMediaKind {
+  AUDIO
+  PHOTO
+  DOC
+
+  @@map("operating_media_kind")
+}
+
+enum SpineTrack {
+  PROJECT
+  RHYTHM
+  OCCASION
+
+  @@map("spine_track")
+}
+
+enum SpineState {
+  PLANNED
+  DONE
+  LATE
+  MISSED
+  SKIPPED
+
+  @@map("spine_state")
+}
+
+/// 里程碑底下的「怎樣才算做到」。達成率由底下的 ProjectTask 推算。
+model ProjectObjective {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  milestoneId String           @map("milestone_id") @db.Uuid
+  milestone   ProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  title       String
+  sortOrder   Int              @default(0) @map("sort_order")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  tasks ProjectTask[]
+
+  @@index([milestoneId], map: "project_objectives_milestone_idx")
+  @@map("project_objectives")
+}
+
+/// 日常節奏的規則本體。未來實例不預存，查詢期由 RRULE 展開（ARC-041 §2.1）。
+model Rhythm {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String      @map("workspace_id") @db.Uuid
+  workspace   Workspace   @relation("WorkspaceRhythms", fields: [workspaceId], references: [id], onDelete: Cascade)
+  title       String
+  kind        RhythmKind  @default(RITUAL)
+  scope       RhythmScope @default(COMPANY)
+  ownerIds    String[]    @map("owner_ids") @db.Uuid
+  /// RFC 5545，例 FREQ=WEEKLY;INTERVAL=2;BYDAY=TU
+  rrule       String
+  /// 天粒度、當地日語意；夏令時間下「每週五 13:00」仍是當地的 13:00
+  dtstart     DateTime    @map("dtstart") @db.Date
+  until       DateTime?   @db.Date
+  timeOfDay   String?     @map("time_of_day")
+  timezone    String      @default("Asia/Taipei")
+  expectMedia String[]    @map("expect_media")
+  /// 由契約條文或法規推導 —— 帶值者不可編輯或刪除
+  derivedFrom String?     @map("derived_from")
+  remind      String?
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  sessions RhythmSession[]
+
+  @@index([workspaceId, kind, active], map: "rhythms_workspace_kind_idx")
+  @@map("rhythms")
+}
+
+/// 節奏的單次實例。只有「發生了事情」才落一筆 —— 等同 iCalendar 的 RECURRENCE-ID 覆寫。
+model RhythmSession {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rhythmId       String             @map("rhythm_id") @db.Uuid
+  rhythm         Rhythm             @relation(fields: [rhythmId], references: [id], onDelete: Cascade)
+  /// 規則算出的原始日期，也是覆寫鍵
+  occurrenceDate DateTime           @map("occurrence_date") @db.Date
+  state          RhythmSessionState
+  movedTo        DateTime?          @map("moved_to") @db.Date
+  note           String?
+  spawnedTaskIds String[]           @map("spawned_task_ids") @db.Uuid
+  recordedById   String?            @map("recorded_by_id") @db.Uuid
+  recordedAt     DateTime           @default(now()) @map("recorded_at")
+
+  mediaItems OperatingMedia[]
+
+  @@unique([rhythmId, occurrenceDate], map: "rhythm_sessions_occurrence_key")
+  @@index([rhythmId, occurrenceDate], map: "rhythm_sessions_rhythm_date_idx")
+  @@map("rhythm_sessions")
+}
+
+/// 行政／活動：一次性時間點或短區間，重點在事前準備與事後留下的素材。
+model Occasion {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String           @map("workspace_id") @db.Uuid
+  workspace      Workspace        @relation("WorkspaceOccasions", fields: [workspaceId], references: [id], onDelete: Cascade)
+  title          String
+  category       OccasionCategory @default(COMPANY_EVENT)
+  onDate         DateTime         @map("on_date") @db.Date
+  endOn          DateTime?        @map("end_on") @db.Date
+  startsAt       DateTime?        @map("starts_at")
+  endsAt         DateTime?        @map("ends_at")
+  place          String?
+  actorIds       String[]         @map("actor_ids") @db.Uuid
+  externalGuests String?          @map("external_guests")
+  star           Boolean          @default(false)
+  projectId      String?          @map("project_id") @db.Uuid
+  project        Project?         @relation("ProjectOccasions", fields: [projectId], references: [id], onDelete: SetNull)
+  /// [{ t, done, dueOn?, taskId? }]
+  prep           Json             @default("[]")
+  recap          String?
+  derivedFrom    String?          @map("derived_from")
+  remind         String?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  mediaItems OperatingMedia[]
+
+  @@index([workspaceId, onDate], map: "occasions_workspace_date_idx")
+  @@index([projectId], map: "occasions_project_idx")
+  @@map("occasions")
+}
+
+/// 節奏紀錄與活動的素材。檔案本體沿用 SCH-005 的 R2 儲存。
+model OperatingMedia {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind       OperatingMediaKind
+  url        String
+  filename   String
+  bytes      Int                @default(0)
+  transcript String?
+  sessionId  String?            @map("session_id") @db.Uuid
+  session    RhythmSession?     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  occasionId String?            @map("occasion_id") @db.Uuid
+  occasion   Occasion?          @relation(fields: [occasionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  @@index([sessionId], map: "operating_media_session_idx")
+  @@index([occasionId], map: "operating_media_occasion_idx")
+  @@map("operating_media")
+}
+
+/// 三軌匯流的扁平索引。只索引「已具體化」的東西；節奏的未來實例由查詢期展開後合併。
+/// 衍生資料，由 src/lib/services/operating-spine.service.ts 單一 writer 維護，
+/// 並由 scripts/reconcile-time-spine.ts 定期對帳（ARC-041 §3）。
+model TimeSpine {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String     @map("workspace_id") @db.Uuid
+  workspace   Workspace  @relation("WorkspaceTimeSpine", fields: [workspaceId], references: [id], onDelete: Cascade)
+  onDate      DateTime   @map("on_date") @db.Date
+  track       SpineTrack
+  refTable    String     @map("ref_table")
+  refId       String     @map("ref_id") @db.Uuid
+  title       String
+  actorIds    String[]   @map("actor_ids") @db.Uuid
+  /// 佔用強度，餵 heatmap 與衝期規則
+  weight      Int        @default(1)
+  state       SpineState @default(PLANNED)
+  star        Boolean    @default(false)
+  projectId   String?    @map("project_id") @db.Uuid
+  derivedFrom String?    @map("derived_from")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@unique([refTable, refId, onDate], map: "time_spine_ref_key")
+  @@index([workspaceId, onDate], map: "time_spine_workspace_date_idx")
+  @@index([workspaceId, track, onDate], map: "time_spine_workspace_track_idx")
+  @@map("time_spine")
+}

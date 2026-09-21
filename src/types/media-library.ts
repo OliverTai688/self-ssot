@@ -18,6 +18,8 @@ export interface MediaAsset {
   date: string
   /** Formatted duration for video/audio kinds, e.g. "3:24". */
   duration?: string
+  /** R2 object key for real uploads. Absent on mock/seed rows. See RES-022. */
+  objectKey?: string
 }
 
 export type MediaLibraryTab = "all" | MediaKind

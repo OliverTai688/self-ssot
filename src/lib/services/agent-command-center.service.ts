@@ -1,45 +1,47 @@
 import "server-only"
 
 import {
-  AGENT_BUS_OPERATION_BINDINGS,
   AGENT_BUS_TASK_TEMPLATES,
   AGENT_TASK_MESSAGE_BUS_CONTRACT,
   type AgentBusTask,
 } from "@/lib/contracts/agent-task-message-bus.contract"
-import {
-  MODULE_AGENT_COMMAND_CATALOG,
-  type ModuleAgentCommand,
-} from "@/lib/contracts/module-agent-command-catalog.contract"
+import { MODULE_AGENT_COMMAND_CATALOG } from "@/lib/contracts/module-agent-command-catalog.contract"
 import type {
   AgentCommandCenterCommandRow,
   AgentCommandCenterGroup,
   AgentCommandCenterModuleReadinessRow,
   OwnerAgentCommandCenterContract,
 } from "@/types/agent-command-center"
+import { db as prisma } from "@/lib/db"
+import type { AgentCommand } from "@prisma/client"
 
 const HIGH_RISK_LEVELS = ["HIGH", "CRITICAL"] as const
 
+// The groups can eventually be moved to DB, but for now we keep them here as hardcoded,
+// or we can build them dynamically from TEAM_GROUP commands.
+// The user asked for Single/Team split in CRUD, so team skills could just be commands with commandType = "TEAM_GROUP".
+// For now, let's just use COMMAND_CENTER_GROUPS for the UI groups, or adapt the UI to group by TEAM_GROUP skills.
 const COMMAND_CENTER_GROUPS = [
   {
     id: "launch-proof-squad",
-    label: "Launch proof squad",
-    description: "Auth, Work, QA, and DevOps review the shortest path to launch proof.",
+    label: "上線驗證小組",
+    description: "Auth、Work、QA、DevOps 共同檢視上線驗證的最短路徑。",
     participantAgentLabels: ["AuthPermissionAgent", "WorkAgent", "QAAgent", "DevOpsAgent"],
     recommendedOperationIds: ["work.proof.preflight", "agent.ops.describe-contract"],
     boundary: "Proof planning only; no Supabase, DB, browser, or deployment mutation.",
   },
   {
     id: "source-workflow-squad",
-    label: "Source workflow squad",
-    description: "Ingestion, Workflow, and QA inspect source intake and automation boundaries.",
+    label: "來源工作流小組",
+    description: "Ingestion、Workflow、QA 共同檢視來源匯入與自動化邊界。",
     participantAgentLabels: ["IngestionAgent", "WorkflowAgent", "QAAgent"],
     recommendedOperationIds: ["ai-input.source-workflow.review", "workflow.queue.plan"],
     boundary: "Connector and workflow recommendations only; no OAuth, webhook, provider, or DB writes.",
   },
   {
     id: "high-risk-review-board",
-    label: "High-risk review board",
-    description: "Finance, Life, Company, Client Portal, Auth, and QA review sensitive proposals.",
+    label: "高風險審查小組",
+    description: "Finance、Life、Company、Client Portal、Auth、QA 共同檢視敏感提案。",
     participantAgentLabels: [
       "FinanceAgent",
       "LifeAgent",
@@ -58,31 +60,34 @@ const COMMAND_CENTER_GROUPS = [
   },
   {
     id: "relationship-growth-cell",
-    label: "Relationship growth cell",
-    description: "Chamber, Research, and Product agents shape relationship and knowledge proposals.",
+    label: "關係經營小組",
+    description: "Chamber、Research、Product 共同形成關係與知識相關提案。",
     participantAgentLabels: ["ChamberAgent", "ResearchAgent", "ProductManagerAgent"],
     recommendedOperationIds: ["chamber.relationship.plan", "research.workspace.plan"],
     boundary: "Proposal drafting only; owner reviews before messages, publishing, or CRM sync.",
   },
 ] as const satisfies readonly AgentCommandCenterGroup[]
 
-function requiresApproval(command: ModuleAgentCommand) {
+function requiresApproval(command: Pick<AgentCommand, 'approvalLevel' | 'riskLevel'>) {
   return (
     command.approvalLevel === "HUMAN_APPROVAL_REQUIRED" ||
     HIGH_RISK_LEVELS.includes(command.riskLevel as "HIGH" | "CRITICAL")
   )
 }
 
-function findTaskTemplate(command: ModuleAgentCommand): AgentBusTask | null {
+function findTaskTemplate(operationId: string): AgentBusTask | null {
   return (
-    AGENT_BUS_TASK_TEMPLATES.find((task) => task.operationId === command.id) ??
+    AGENT_BUS_TASK_TEMPLATES.find((task) => task.operationId === operationId) ??
     null
   )
 }
 
-function findParticipantLabels(command: ModuleAgentCommand) {
-  const group = findCommandGroupByOperationId(command.id)
+function findParticipantLabels(command: Pick<AgentCommand, 'operationId' | 'ownerAgent' | 'participantAgents' | 'commandType'>) {
+  if (command.commandType === "TEAM_GROUP") {
+     return Array.from(new Set([command.ownerAgent, ...command.participantAgents]))
+  }
 
+  const group = findCommandGroupByOperationId(command.operationId)
   if (!group) {
     return [command.ownerAgent, "QAAgent"]
   }
@@ -106,36 +111,37 @@ function toModuleLabel(moduleKey: string) {
     .join(" ")
 }
 
-function toCommandRow(command: ModuleAgentCommand): AgentCommandCenterCommandRow {
-  const busBinding = AGENT_BUS_OPERATION_BINDINGS.find(
-    (binding) => binding.operationId === command.id
-  )
-  const taskTemplate = findTaskTemplate(command)
+function toCommandRow(command: AgentCommand): AgentCommandCenterCommandRow {
+  const taskTemplate = findTaskTemplate(command.operationId)
 
   return {
-    operationId: command.id,
+    operationId: command.operationId,
+    commandType: command.commandType as "SINGLE_AGENT" | "TEAM_GROUP",
+    stages: command.stages as any[],
     label: command.label,
-    moduleKey: command.moduleKey,
+    moduleKey: command.moduleKey as any,
     ownerAgent: command.ownerAgent,
     targetModule: command.targetModule,
-    riskLevel: command.riskLevel,
-    approvalLevel: command.approvalLevel,
+    riskLevel: command.riskLevel as any,
+    approvalLevel: command.approvalLevel as any,
     approvalRequired: requiresApproval(command),
     taskTemplateId: taskTemplate?.id ?? null,
     lifecycleState: taskTemplate?.state ?? "draft",
     participantAgentLabels: findParticipantLabels(command),
-    proposalOutputs: busBinding?.proposalOutputs ?? command.proposalOutputs,
-    blockedActions: busBinding?.blockedActions ?? command.blockedWrites,
+    proposalOutputs: command.proposalOutputs,
+    blockedActions: command.blockedWrites,
     sourceRefs: command.sourceRefs,
-    cliDryRunCommand: command.cliDryRunCommand,
+    cliDryRunCommand: `pnpm agent:op -- --operation ${command.operationId} --json`,
     httpDryRun: {
       path: "/api/agent-operations/dry-run",
       mode: "dry_run",
-      operationId: command.httpDryRunPayload.operationId,
-      targetModule: command.httpDryRunPayload.targetModule,
+      operationId: command.operationId,
+    commandType: command.commandType as "SINGLE_AGENT" | "TEAM_GROUP",
+    stages: command.stages as any[],
+      targetModule: command.targetModule,
     },
-    writeBlocked: true,
-    externalRegisterable: false,
+    writeBlocked: command.writeBlocked,
+    externalRegisterable: command.externalRegisterable,
   }
 }
 
@@ -145,13 +151,15 @@ function toModuleReadinessRow(
   const group = findCommandGroupByOperationId(command.operationId)
 
   return {
-    moduleKey: command.moduleKey,
+    moduleKey: command.moduleKey as any,
     moduleLabel: toModuleLabel(command.moduleKey),
     operationId: command.operationId,
+    commandType: command.commandType as "SINGLE_AGENT" | "TEAM_GROUP",
+    stages: command.stages as any[],
     ownerAgent: command.ownerAgent,
     targetModule: command.targetModule,
-    riskLevel: command.riskLevel,
-    approvalLevel: command.approvalLevel,
+    riskLevel: command.riskLevel as any,
+    approvalLevel: command.approvalLevel as any,
     approvalRequired: command.approvalRequired,
     lifecycleState: command.lifecycleState,
     cliDryRunCommand: command.cliDryRunCommand,
@@ -179,13 +187,51 @@ function toModuleReadinessRow(
     },
     proposalOutputs: command.proposalOutputs,
     blockedWrites: command.blockedActions,
-    writeBlocked: true,
-    externalRegisterable: false,
+    writeBlocked: command.writeBlocked,
+    externalRegisterable: command.externalRegisterable,
   }
 }
 
-export function buildOwnerAgentCommandCenterContract(): OwnerAgentCommandCenterContract {
-  const commands = MODULE_AGENT_COMMAND_CATALOG.map(toCommandRow)
+export async function buildOwnerAgentCommandCenterContract(): Promise<OwnerAgentCommandCenterContract> {
+  const count = await prisma.agentCommand.count()
+  
+  if (count === 0) {
+    // Seed initial commands from the old catalog
+    const seedData = MODULE_AGENT_COMMAND_CATALOG.map((cmd) => {
+       return {
+          operationId: cmd.id,
+          label: cmd.label,
+          agentInstructionLabel: cmd.agentInstructionLabel,
+          moduleKey: cmd.moduleKey,
+          ownerAgent: cmd.ownerAgent,
+          targetModule: cmd.targetModule,
+          riskLevel: cmd.riskLevel,
+          approvalLevel: cmd.approvalLevel,
+          dataVisibilityLevel: cmd.dataVisibilityLevel,
+          scopes: [...cmd.scopes],
+          allowedModes: [...cmd.allowedModes],
+          uiEntrySurface: cmd.uiEntrySurface,
+          proposalOutputs: [...cmd.proposalOutputs],
+          agentProposalOutputs: [...cmd.agentProposalOutputs],
+          blockedWrites: [...cmd.blockedWrites],
+          agentBlockedWrites: [...cmd.agentBlockedWrites],
+          sourceRefs: [...cmd.sourceRefs],
+          commandType: "SINGLE_AGENT" as const,
+          promptTemplate: null,
+       }
+    })
+    
+    await prisma.agentCommand.createMany({
+       data: seedData,
+       skipDuplicates: true
+    })
+  }
+
+  const agentCommands = await prisma.agentCommand.findMany({
+    orderBy: { createdAt: "desc" }
+  })
+  
+  const commands = agentCommands.map(toCommandRow)
   const moduleReadinessRows = commands.map(toModuleReadinessRow)
 
   return {
@@ -201,19 +247,19 @@ export function buildOwnerAgentCommandCenterContract(): OwnerAgentCommandCenterC
       operationCount: commands.length,
       groupCount: COMMAND_CENTER_GROUPS.length,
       moduleReadinessCount: moduleReadinessRows.length,
-      highRiskOperationCount: commands.filter((command) => command.approvalRequired).length,
+      highRiskOperationCount: commands.filter((command: AgentCommandCenterCommandRow) => command.approvalRequired).length,
       externalRegisterableCount: 0,
     },
     modes: [
       {
         id: "single_agent",
-        label: "Single agent",
-        description: "Route a bounded command to one module owner agent and return proposal output.",
+        label: "單一 Agent",
+        description: "將受控指令路由至單一模組擁有者 Agent，並回傳提案輸出。",
       },
       {
         id: "group_agent",
-        label: "Group agents",
-        description: "Route a bounded command to an internal review group and return a joint proposal packet.",
+        label: "群組 Agent",
+        description: "將受控指令路由至內部審查群組，並回傳共同提案封包。",
       },
     ],
     groups: COMMAND_CENTER_GROUPS,

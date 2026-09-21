@@ -1,8 +1,8 @@
 # Thirty Loop Launch Automation Plan
 
 **Document ID:** `PLN-063`
-**Last updated:** 2026-06-22
-**Status:** Active
+**Last updated:** 2026-08-31
+**Status:** Active after explicit Product Owner resume authorization
 
 ---
 
@@ -24,12 +24,25 @@ The target complete experience includes:
 - Verification, evidence, and launch readiness reviews
 - NANDA-aligned AI/agent identity, capability, trust, observability, and registration readiness
 
-The automation runs every 20 minutes through Codex heartbeat automation:
+The automation originally ran every 20 minutes and was later accelerated to three minutes. On 2026-08-18 the owner reset the same heartbeat to a sustainable 10-minute Gate A/B/C delivery cadence; the existing id is retained so history and task continuity are not split:
 
 - Automation id: `personal-os-20m-aggressive-launch-loop`
 - Kind: heartbeat
-- Cadence: every 20 minutes
-- Scope: current thread and current workspace
+- Cadence: every 10 minutes
+- Scope: current task and dedicated release worktree `/Users/pzps0964713/Documents/github/self-stucture-v1-gate-release`
+- Release branch/checkpoint: `codex/gate-loop-release-baseline-20260831`, descendant of `900620e1f4b324e1e817edb24415f25f634f2301`
+- Active prompt: `docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md`
+- Machine-readable gate state: `docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json`
+
+The ordered delivery targets are:
+
+1. Gate A — owner-private AI Work Desktop with real auth, durable chat/context/files, Work/Research/Company, Inbox reply, diary/skill loop, LINE/Drive/Gmail proof, and private deployment evidence.
+2. Gate B — owner plus every active company member, with at least one invited non-owner, using roles, Personal/Team workspaces, C-level isolation, Public Space, offboarding, and negative authorization proof.
+3. Gate C — hardened internal rollout with migration/recovery, operations, audit/retention, adversarial isolation, UI hardening, and pilot blocker closure.
+
+Gate A's first verified transition authorizes one Gmail self-notification with the final report. Provider failure never counts as delivery and is retried idempotently from gate state.
+
+The Product Owner explicitly authorized resume on 2026-08-31 after the release-worktree preflight, dependency runtime, and Gmail profile checks passed. The existing automation is now `ACTIVE`; this does not authorize production DB/provider/deployment/public-output actions outside the Gate prompt.
 
 ## 2. Operating Strategy
 

@@ -41,8 +41,15 @@ const WorkflowContext = React.createContext<WorkflowContextValue | null>(null)
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-export function WorkflowProvider({ children }: { children: React.ReactNode }) {
-  const [rules, setRules] = React.useState<WorkflowRule[]>(MOCK_RULES)
+export function WorkflowProvider({
+  children,
+  allowMockSeed = false,
+}: {
+  children: React.ReactNode
+  /** Only the AUTH-013 demo account should pass true; everyone else starts with no rules. */
+  allowMockSeed?: boolean
+}) {
+  const [rules, setRules] = React.useState<WorkflowRule[]>(allowMockSeed ? MOCK_RULES : [])
   const [liveMessages, setLiveMessages] = React.useState<AgentMessage[]>([])
   const [lastTrace, setLastTrace] = React.useState<AgentMessage[] | null>(null)
 

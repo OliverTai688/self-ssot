@@ -2,6 +2,7 @@
 
 import { CheckIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 
 export type LineageStage = "raw" | "normalized" | "evidence" | "proposal" | "decision"
 
@@ -11,12 +12,12 @@ interface DataLineagePipelineProps {
   className?: string
 }
 
-const STAGES: { key: LineageStage; label: string }[] = [
-  { key: "raw", label: "原始" },
-  { key: "normalized", label: "標準化" },
-  { key: "evidence", label: "證據" },
-  { key: "proposal", label: "提案" },
-  { key: "decision", label: "決策" },
+const STAGES: { key: LineageStage }[] = [
+  { key: "raw" },
+  { key: "normalized" },
+  { key: "evidence" },
+  { key: "proposal" },
+  { key: "decision" },
 ]
 
 const STAGE_ORDER: Record<LineageStage, number> = {
@@ -25,6 +26,7 @@ const STAGE_ORDER: Record<LineageStage, number> = {
 
 export function DataLineagePipeline({ reachedStage, className }: DataLineagePipelineProps) {
   const reachedIndex = STAGE_ORDER[reachedStage]
+  const { copy } = useProductLanguage()
 
   return (
     <div className={cn("flex items-center gap-0.5", className)}>
@@ -44,7 +46,7 @@ export function DataLineagePipeline({ reachedStage, className }: DataLineagePipe
               )}
             >
               {done && !current && <CheckIcon className="size-2.5 shrink-0" />}
-              {stage.label}
+              {copy.inbox.badges.lineage[stage.key]}
             </div>
             {i < STAGES.length - 1 && (
               <span className={cn(

@@ -163,6 +163,8 @@ export default function SelfPage() {
             agentProposals={dynamicProposals}
             auditRows={activeAuditRows}
             settings={selfSettings}
+            moduleKey="self"
+            agentLabel="自我AI"
           />
         </main>
       </div>

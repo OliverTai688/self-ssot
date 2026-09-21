@@ -3,9 +3,8 @@
 import * as React from "react"
 import {
   CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   ClockIcon,
+  InfoIcon,
   LinkIcon,
   PencilIcon,
   SparklesIcon,
@@ -14,37 +13,54 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { DetailDrawer } from "@/components/owneros/detail-drawer"
 import { EvidenceList } from "@/components/ingestion/evidence-list"
 import { SourceTypeBadge } from "@/components/ingestion/source-type-badge"
+import { useProductLanguage } from "@/lib/context/product-language-context"
 import type { AITriageProposal, DecisionType, Evidence, RawSourceItem } from "@/types/ingestion"
 import type { Confidence } from "@/types/ai"
 
 // ─── AI type labels ────────────────────────────────────────────────────────────
 
-const AI_TYPE_LABELS: Record<AITriageProposal["aiType"], { label: string; className: string }> = {
-  triage: { label: "待分類", className: "bg-muted text-muted-foreground" },
-  project_context: { label: "專案情境", className: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
-  research_mapping: { label: "研究對應", className: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300" },
-  finance_draft: { label: "財務草稿", className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
-  life_care: { label: "生活照護", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
-  memory_capture: { label: "關係記憶", className: "bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300" },
+const AI_TYPE_CLASSES: Record<AITriageProposal["aiType"], string> = {
+  triage: "bg-muted text-muted-foreground",
+  project_context: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  research_mapping: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+  finance_draft: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  life_care: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  memory_capture: "bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300",
+}
+
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
+    template
+  )
+}
+
+function getConfidenceBarClass(confidence: Confidence) {
+  const map: Record<Confidence, { width: string; className: string }> = {
+    high: { width: "w-full", className: "bg-emerald-500" },
+    medium: { width: "w-2/3", className: "bg-amber-400" },
+    low: { width: "w-1/3", className: "bg-muted-foreground/30" },
+  }
+  return map[confidence]
 }
 
 // ─── Confidence indicator ──────────────────────────────────────────────────────
 
 function ConfidenceBar({ confidence }: { confidence: Confidence }) {
-  const map = {
-    high: { width: "w-full", label: "高", className: "bg-emerald-500" },
-    medium: { width: "w-2/3", label: "中", className: "bg-amber-400" },
-    low: { width: "w-1/3", label: "低", className: "bg-muted-foreground/30" },
-  }
-  const { width, label, className } = map[confidence]
+  const { copy } = useProductLanguage()
+  const { width, className } = getConfidenceBarClass(confidence)
+  const label = copy.inbox.proposalCard.confidenceLabels[confidence]
   return (
     <div className="flex items-center gap-2">
       <div className="h-1 w-16 rounded-full bg-muted overflow-hidden">
         <div className={cn("h-full rounded-full", width, className)} />
       </div>
-      <span className="text-xs text-muted-foreground">置信度：{label}</span>
+      <span className="text-xs text-muted-foreground">
+        {formatCopy(copy.inbox.proposalCard.confidenceLabelTemplate, { label })}
+      </span>
     </div>
   )
 }
@@ -55,10 +71,14 @@ function InlineEdit({
   initialValue,
   onSave,
   onCancel,
+  cancelLabel,
+  saveLabel,
 }: {
   initialValue: string
   onSave: (value: string) => void
   onCancel: () => void
+  cancelLabel: string
+  saveLabel: string
 }) {
   const [value, setValue] = React.useState(initialValue)
   return (
@@ -71,8 +91,8 @@ function InlineEdit({
         autoFocus
       />
       <div className="flex gap-2 justify-end">
-        <Button variant="ghost" size="sm" onClick={onCancel}>取消</Button>
-        <Button size="sm" onClick={() => onSave(value)}>儲存並確認</Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>{cancelLabel}</Button>
+        <Button size="sm" onClick={() => onSave(value)}>{saveLabel}</Button>
       </div>
     </div>
   )
@@ -95,11 +115,11 @@ export function TriageProposalCard({
   onDecision,
   className,
 }: TriageProposalCardProps) {
-  const [reasoningOpen, setReasoningOpen] = React.useState(false)
-  const [evidenceOpen, setEvidenceOpen] = React.useState(false)
   const [editing, setEditing] = React.useState(false)
+  const { copy } = useProductLanguage()
+  const proposalCopy = copy.inbox.proposalCard
 
-  const typeConfig = AI_TYPE_LABELS[proposal.aiType]
+  const typeClassName = AI_TYPE_CLASSES[proposal.aiType]
   const isResolved = proposal.status !== "pending" && proposal.status !== "deferred"
 
   function handleDecision(decision: DecisionType, editedSummary?: string) {
@@ -119,7 +139,7 @@ export function TriageProposalCard({
       {/* AI origin header */}
       <div className="flex items-center gap-2 border-b border-border/50 bg-muted/20 px-4 py-2 flex-wrap">
         <SparklesIcon className="size-3 text-muted-foreground flex-shrink-0" />
-        <span className="text-[11px] text-muted-foreground flex-shrink-0">AI 從以下來源解讀</span>
+        <span className="text-[11px] text-muted-foreground flex-shrink-0">{proposalCopy.aiOrigin}</span>
         <div className="flex items-center gap-1.5 flex-wrap">
           {linkedSources.map((src) => {
             const groupName  = src.metadata?.lineGroupName  as string | undefined
@@ -147,10 +167,10 @@ export function TriageProposalCard({
           <span
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-              typeConfig.className
+              typeClassName
             )}
           >
-            {typeConfig.label}
+            {proposalCopy.aiTypeLabels[proposal.aiType]}
           </span>
           <ConfidenceBar confidence={proposal.confidence} />
         </div>
@@ -164,6 +184,8 @@ export function TriageProposalCard({
             initialValue={proposal.summary}
             onSave={(val) => handleDecision("edit", val)}
             onCancel={() => setEditing(false)}
+            cancelLabel={proposalCopy.cancel}
+            saveLabel={proposalCopy.saveAndConfirm}
           />
         ) : (
           <p className="text-sm leading-relaxed text-foreground/90">{proposal.summary}</p>
@@ -187,7 +209,7 @@ export function TriageProposalCard({
         {/* Suggested placement */}
         {proposal.suggestedPlacement && !editing && (
           <p className="text-xs text-muted-foreground">
-            建議放置：<span className="text-foreground">{proposal.suggestedPlacement}</span>
+            {proposalCopy.suggestedPlacement}<span className="text-foreground">{proposal.suggestedPlacement}</span>
           </p>
         )}
 
@@ -198,38 +220,29 @@ export function TriageProposalCard({
           </div>
         )}
 
-        {/* Toggles */}
-        {!editing && (
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setReasoningOpen((v) => !v)}
-            >
-              {reasoningOpen ? <ChevronUpIcon className="size-3" /> : <ChevronDownIcon className="size-3" />}
-              AI 判斷依據
-            </button>
-            {evidences.length > 0 && (
+        {/* Reasoning + evidence, collapsed behind one drawer */}
+        {!editing && (proposal.reasoning || evidences.length > 0) && (
+          <DetailDrawer
+            title={proposalCopy.reasoning}
+            trigger={
               <button
                 type="button"
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setEvidenceOpen((v) => !v)}
+                className="flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                {evidenceOpen ? <ChevronUpIcon className="size-3" /> : <ChevronDownIcon className="size-3" />}
-                原文依據（{evidences.length} 段）
+                <InfoIcon className="size-3" />
+                {evidences.length > 0
+                  ? formatCopy(proposalCopy.evidenceToggleTemplate, { count: evidences.length })
+                  : proposalCopy.reasoning}
               </button>
-            )}
-          </div>
-        )}
-
-        {reasoningOpen && !editing && (
-          <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-border pl-3">
-            {proposal.reasoning}
-          </p>
-        )}
-
-        {evidenceOpen && !editing && (
-          <EvidenceList evidences={evidences} />
+            }
+          >
+            <div className="space-y-4">
+              {proposal.reasoning && (
+                <p className="text-xs leading-relaxed text-muted-foreground">{proposal.reasoning}</p>
+              )}
+              {evidences.length > 0 && <EvidenceList evidences={evidences} />}
+            </div>
+          </DetailDrawer>
         )}
       </div>
 
@@ -243,7 +256,7 @@ export function TriageProposalCard({
             onClick={() => handleDecision("confirm")}
           >
             <CheckIcon className="size-3.5" />
-            確認
+            {proposalCopy.confirm}
           </Button>
           <Button
             size="sm"
@@ -252,7 +265,7 @@ export function TriageProposalCard({
             onClick={() => setEditing(true)}
           >
             <PencilIcon className="size-3.5" />
-            編輯
+            {proposalCopy.edit}
           </Button>
           <Button
             size="sm"
@@ -261,7 +274,7 @@ export function TriageProposalCard({
             onClick={() => handleDecision("defer")}
           >
             <ClockIcon className="size-3.5" />
-            稍後
+            {proposalCopy.defer}
           </Button>
           <Button
             size="sm"
@@ -270,7 +283,7 @@ export function TriageProposalCard({
             onClick={() => handleDecision("dismiss")}
           >
             <XIcon className="size-3.5" />
-            略過
+            {proposalCopy.dismiss}
           </Button>
         </div>
       )}
@@ -278,9 +291,9 @@ export function TriageProposalCard({
       {isResolved && (
         <div className="border-t border-border/50 px-4 py-2">
           <p className="text-xs text-muted-foreground">
-            {proposal.status === "confirmed" && "✓ 已確認"}
-            {proposal.status === "edited" && "✓ 已編輯並確認"}
-            {proposal.status === "dismissed" && "已略過"}
+            {proposal.status === "confirmed" && proposalCopy.status.confirmed}
+            {proposal.status === "edited" && proposalCopy.status.edited}
+            {proposal.status === "dismissed" && proposalCopy.status.dismissed}
           </p>
         </div>
       )}

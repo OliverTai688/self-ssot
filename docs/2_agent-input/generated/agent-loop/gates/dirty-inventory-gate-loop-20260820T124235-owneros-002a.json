@@ -1,0 +1,848 @@
+{
+  "runId": "gate-loop-20260820T124235-owneros-002a",
+  "recordedAt": "2026-08-20T12:42:35+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "count": 168,
+  "files": [
+    {
+      "status": " M",
+      "file": "AGENTS.md",
+      "sha": "f97158c3553482235c3a4cb02c3cd99fd934f0bf"
+    },
+    {
+      "status": " M",
+      "file": "docs/00_manual-and-index/MAN-001_document-index.md",
+      "sha": "0c7fb4693303c385e7257d00e225baf5aa54e3ce"
+    },
+    {
+      "status": " M",
+      "file": "docs/01_product-requirements/PRD-004_next-stage-development-plan.md",
+      "sha": "3a205367975c9bae1ae87f2baf6d255bbab3baf9"
+    },
+    {
+      "status": " M",
+      "file": "docs/02_architecture-and-rules/ARC-031_ai-input-source-workflow-bff-split-contract.md",
+      "sha": "6e601ed230c78c82725f39da15bc7f483b1e4654"
+    },
+    {
+      "status": " M",
+      "file": "docs/02_architecture-and-rules/AUT-002_auth-runtime-strategy.md",
+      "sha": "2b18ab692e61b791bea48b8ba42cde179c796672"
+    },
+    {
+      "status": " M",
+      "file": "docs/02_architecture-and-rules/AUT-007_ai-input-source-workflow-connector-runtime-approval.md",
+      "sha": "c0742d49ddecc8c7e89bd6abda9e630007c5ae9d"
+    },
+    {
+      "status": " M",
+      "file": "docs/02_architecture-and-rules/DBS-006_operating-audit-event-schema-contract.md",
+      "sha": "8f7f370df3a78a4640c2359ace8f2993ff0126f6"
+    },
+    {
+      "status": " M",
+      "file": "docs/02_architecture-and-rules/MIG-003_ai-input-source-workflow-create-only-migration-draft.md",
+      "sha": "e32c61e445b5d9e88f56c77e17e61056808ef51c"
+    },
+    {
+      "status": " M",
+      "file": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "sha": "7ed96f3a77d0dd97597eda70c61ce1cb8bab575d"
+    },
+    {
+      "status": " M",
+      "file": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "sha": "808b8a73414821434d14264d7ab62a5baeaf70fe"
+    },
+    {
+      "status": " M",
+      "file": "docs/05_execution-plans/PLN-063_thirty-loop-launch-automation-plan.md",
+      "sha": "a621c4afd998d1269344dd943d390a294fbcfd5a"
+    },
+    {
+      "status": " M",
+      "file": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "sha": "c369fbba0c373928678cecdb2caae63be8e87f06"
+    },
+    {
+      "status": " M",
+      "file": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "sha": "2fc7b5b94c51d99db8c604e5edd50bb608df9dbe"
+    },
+    {
+      "status": " M",
+      "file": "docs/2_agent-input/generated/agent-loop/auth-session-proof/latest-auth-session-proof.json",
+      "sha": "d669c264cb5e1218de7275702d8dd6b2298a24ff"
+    },
+    {
+      "status": " M",
+      "file": "docs/2_agent-input/generated/agent-loop/development-strategy.md",
+      "sha": "e6e2cb9481ff0a4a8c42af03b412e1a433809e31"
+    },
+    {
+      "status": " M",
+      "file": "docs/2_agent-input/generated/agent-loop/launch-proof/latest-launch-proof.json",
+      "sha": "37dc83bfebe7868d3b8f327dce0b6b5fb0e504a7"
+    },
+    {
+      "status": " M",
+      "file": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "sha": "47440a0d14b8fcc868eeaca289bbb66974c1fbb0"
+    },
+    {
+      "status": " M",
+      "file": "docs/2_agent-input/generated/agent-loop/manual-ops/latest-manual-ops-docker-readiness.json",
+      "sha": "d7f01cf748206fce98b132b73c93a9d87d32e702"
+    },
+    {
+      "status": " M",
+      "file": "docs/2_agent-input/generated/agent-loop/manual-ops/latest-manual-ops-launch-gate.json",
+      "sha": "9ed9d0492c9fcc800c577ca44fce9eeed8d74f1c"
+    },
+    {
+      "status": " M",
+      "file": "package.json",
+      "sha": "fb784bc6774ab288c00e3c3cd7f5f5758aab8e01"
+    },
+    {
+      "status": " M",
+      "file": "pnpm-lock.yaml",
+      "sha": "85be1e4194c4d8513305cd23554eb5d13b8a893b"
+    },
+    {
+      "status": " M",
+      "file": "prisma/migrations/migration_lock.toml",
+      "sha": "044d57cdb0d5b5bff3475112359a4ee70439bf78"
+    },
+    {
+      "status": " M",
+      "file": "prisma/schema.prisma",
+      "sha": "a1fe30fdeccfd305ee32128b48fe9e13c14bf7c3"
+    },
+    {
+      "status": " M",
+      "file": "prisma/seed.ts",
+      "sha": "357691c65dba86c4e3acd03b1e84142ca7f4e712"
+    },
+    {
+      "status": " M",
+      "file": "scripts/check-ai-input-source-control-matrix.mjs",
+      "sha": "1dedbd21cd90911ee6fef5e200c9c1419cb4a38d"
+    },
+    {
+      "status": " M",
+      "file": "scripts/check-interface-operability.mjs",
+      "sha": "8a89e2c504552ee8214b9e1078488e42b093f134"
+    },
+    {
+      "status": " M",
+      "file": "scripts/check-owner-access-readiness.mjs",
+      "sha": "ac19f4bf880a1310b9f7c0603efb794a03ead2bf"
+    },
+    {
+      "status": " M",
+      "file": "src/app/(auth)/login/page.tsx",
+      "sha": "94e1edbf2eeb8686cd12c9b591eac0fbfa1b4874"
+    },
+    {
+      "status": " M",
+      "file": "src/app/(dashboard)/ai-input/ai-input-client.tsx",
+      "sha": "b82f65d5e7220ce5a68e020ae3667e20a57223ec"
+    },
+    {
+      "status": " M",
+      "file": "src/app/(dashboard)/ai-input/page.tsx",
+      "sha": "2237b6052d5a4650359b4fba98ad52436d524e70"
+    },
+    {
+      "status": " M",
+      "file": "src/app/(dashboard)/layout.tsx",
+      "sha": "03cde6148d35160fb775b5cdd53e29d6e8721e71"
+    },
+    {
+      "status": " M",
+      "file": "src/app/(dashboard)/work/page.tsx",
+      "sha": "1e25b467762be60d5d74e50fa1a5055430a31bcf"
+    },
+    {
+      "status": " M",
+      "file": "src/app/(dashboard)/work/work-client.tsx",
+      "sha": "3364c634bc9d30bd13df48c95c36d4c089335561"
+    },
+    {
+      "status": " M",
+      "file": "src/app/actions/auth.ts",
+      "sha": "8ddc319c3bcd9685f840c9061848da308bcf91c6"
+    },
+    {
+      "status": " M",
+      "file": "src/components/ai/file-library/file-empty-state.tsx",
+      "sha": "d7703597033858a8530c73aec01804dc08c26da0"
+    },
+    {
+      "status": " M",
+      "file": "src/components/ai/file-library/file-library-page.tsx",
+      "sha": "79ce40129392d38bc302c1e24325eaf727001b12"
+    },
+    {
+      "status": " M",
+      "file": "src/components/ai/media-library/media-library-page.tsx",
+      "sha": "e81d6bf1771ce9391417c66d6acda1a4039b3cf0"
+    },
+    {
+      "status": " M",
+      "file": "src/components/work/project/add-project-dialog.tsx",
+      "sha": "4e771b8ccb9ea080ee78eba9a0189d981cb85453"
+    },
+    {
+      "status": " M",
+      "file": "src/components/work/project/project-card.tsx",
+      "sha": "7b1a4ca51dc2d0438ee83de4c4d6e67818ac2674"
+    },
+    {
+      "status": " M",
+      "file": "src/components/work/project/project-focus-card.tsx",
+      "sha": "6711898f3f18b6af72dbe6acd41873f0f7365d4e"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/context/library-classification-context.tsx",
+      "sha": "778e261b467611173512a9d250cc1300972763ca"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/contracts/operating-audit-event.contract.ts",
+      "sha": "284913b731fd3e374ab32fda7e5cd78afc6b3770"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/contracts/owner-access-readiness.contract.ts",
+      "sha": "2037c33a951f6337bf848ab408d8e0bd5722a784"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/contracts/research-owner-read-adapter-authz.contract.ts",
+      "sha": "7fdb4630559c7b56a0ed5941f03e49f26d314a01"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/contracts/research-owner-read-query-plan.contract.ts",
+      "sha": "e4d8eaff24b9e9c8358b1c5dc6f601a29159f8a3"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/db.ts",
+      "sha": "0c1e99d531c557e1d0a0d251e6a95fa5bab4a35a"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/mappers/work.mapper.ts",
+      "sha": "3a166e2b12346c074c99713bb7a49ac33b1693ae"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/services/ai-input-readiness.service.ts",
+      "sha": "4e8fd4449e0a6c8cfaac733431fb099c0e81b089"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/services/auth.service.ts",
+      "sha": "fcd9af631f228fc5e4d09760f31d012ca5fd9510"
+    },
+    {
+      "status": " M",
+      "file": "src/lib/services/operating-audit-event-builder.ts",
+      "sha": "806dd289d0847af392880c5582fa14c4731d9dae"
+    },
+    {
+      "status": " M",
+      "file": "src/types/ai-input-readiness.ts",
+      "sha": "45b693f0094f9bb65207a1ded2b2d83a2f3e382e"
+    },
+    {
+      "status": " M",
+      "file": "src/types/media-library.ts",
+      "sha": "05c66dc87ad7ec12282335db42214c608c31747a"
+    },
+    {
+      "status": " M",
+      "file": "tasks.md",
+      "sha": "9b6a3521264372cc6d48cc9150b66ce708522282"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/ARC-033_tenant-owner-isolation-invariant.md",
+      "sha": "d9e4165403cb0f8dd3ca4a536757612f9bfb7a0e"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/ARC-034_ai-development-team-os-contract.md",
+      "sha": "5716460c3347495ab304afa5ebeff35bcb794dc6"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/AUT-008_team-membership-project-role-invitation-and-ai-feedback-boundary.md",
+      "sha": "466dde3bc121097b544cc53fc9a9a4318b7b1c11"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/MIG-004_team-workspace-collaboration-additive-migration-draft.md",
+      "sha": "f1b1c136e52ca50feb6f6bb55a5bdfdb1e253f8d"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/MIG-005_team-workspace-migration-history-reconciliation.md",
+      "sha": "eb11bfa1f551fe379c54df437bfc3c50dfc92c7f"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/MIG-006_team-workspace-creation-audit-migration.md",
+      "sha": "2017a15a25f525fa2480d06510116907a403fe93"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/MIG-007_configured-db-push-team-workspace-activation.md",
+      "sha": "c586ada545a9d4b9f9d1782ac0c56e0f4de508b6"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/MIG-008_team-workspace-invitation-audit-catalog-activation.md",
+      "sha": "1e55626db317e3081f1b4e03c0916b19add1a68a"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/SCH-004_tenant-workspace-schema-proposal.md",
+      "sha": "e0bfc8929a13da8fbf0972a5eb37af15e9965702"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/SCH-005_cloudflare-r2-storage-schema-proposal.md",
+      "sha": "34aa4c57001ea9997b81243cdb1a390859fc3849"
+    },
+    {
+      "status": "??",
+      "file": "docs/02_architecture-and-rules/SCH-006_team-workspace-project-collaboration-schema-proposal.md",
+      "sha": "e5e74484cfca5bdf973a478ca0786d9e532baf97"
+    },
+    {
+      "status": "??",
+      "file": "docs/05_execution-plans/PLN-064_cloudflare-r2-storage-multi-stage-implementation-plan.md",
+      "sha": "8e3b4f9f66e10b3e1973d229001fdae204235fdf"
+    },
+    {
+      "status": "??",
+      "file": "docs/05_execution-plans/PLN-065_ai-development-team-os-research-plan.md",
+      "sha": "939f4fef94d802a180240b0df1fd16a1142dd3e5"
+    },
+    {
+      "status": "??",
+      "file": "docs/05_execution-plans/PLN-066_team-workspace-collaboration-implementation-plan.md",
+      "sha": "23c0adb724e9d3d016ed94a7236ced5cca4ea209"
+    },
+    {
+      "status": "??",
+      "file": "docs/05_execution-plans/PLN-067_owner-ai-work-desktop-and-company-sharing-contraction-plan.md",
+      "sha": "26f5aee105e82f19b600b6c4b6ef66cde30f4d56"
+    },
+    {
+      "status": "??",
+      "file": "docs/06_audits-and-reports/RPT-062_scenario-system-contraction-and-internal-sharing-gap-audit.md",
+      "sha": "881a6628723f58918741b6bdf7c807a2cb4c8db7"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-020_multi-tenant-team-workspace-isolation-research.md",
+      "sha": "f36f414ac6449ecd4bbbae589d5882f8c971615d"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-021_work-portfolio-import-phase-staffing-calendar-and-diary-gap-research.md",
+      "sha": "dcea05553c489d1d2d0089530836726508154739"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-022_cloudflare-r2-file-media-storage-integration-gap-research.md",
+      "sha": "6d3ca45aa1917e54a95a2885e49bfe3bce76bd3c"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-023_ai-development-team-os-structural-research.md",
+      "sha": "350c5e75f5cca3c8c430512a68c684511ab5b9fb"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-024_shared-team-os-trust-plane-and-independent-ai-development-team-interface-research.md",
+      "sha": "a8ec91eb2d3962a5e39e4d7bfe39971d30ee2127"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-025_github-reference-repositories-for-ai-development-team-os-research.md",
+      "sha": "edc7485b9000b53f134cf35bc1df86c0c81c26f0"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-026_team-workspace-project-collaboration-and-ai-feedback-memory-research.md",
+      "sha": "74f4cb0c6960ebe09f3fdff48968ed3e9c9dc47f"
+    },
+    {
+      "status": "??",
+      "file": "docs/07_research-and-design/RES-027_external-source-connection-multistep-and-multi-account-management-research.md",
+      "sha": "c81d3ddc6046983b561d009cd344860e1cec9e04"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/ai-development-team-os-discussion-brief.zh.md",
+      "sha": "a85e1788566dda3ec15b610f026dc0fad564c451"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/gates/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/github-reference-repositories-for-ai-development-team-os.zh.md",
+      "sha": "db079fb6713d8581d40b9c1bfec1c974373181fc"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/prompts/owner-ai-work-desktop-gate-loop.md",
+      "sha": "2ddff6e57c52e6dae2e0da740e88566b0f3b3a12"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-195-20260722-ai-development-team-os-research.md",
+      "sha": "6632d1b3d1de659ba40ce6530e18cc02e74ad95c"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-196-20260722-shared-team-os-trust-plane-independent-interface-research.md",
+      "sha": "db39456a611ec8dde5e46c98298a04daa73565c9"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-197-20260722-github-reference-repos-ai-development-team-os.md",
+      "sha": "3e33562a88b7ed9e6b11669269eb5285a22d6d5c"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-198-20260724-ai-development-team-os-contract.md",
+      "sha": "8f830d351fbd4585fc7263fa7711e46c9cc78973"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-199-20260727-email-otp-login.md",
+      "sha": "cbe67ecb14dca495b096f4ef6f88f73654d1457e"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-200-20260727-launch-level-review.md",
+      "sha": "a50dc0ed4c145ce39781d289454d6d1f213efc3d"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-201-20260727-team-workspace-capability-resolver.md",
+      "sha": "889813e3b2fdfa9e6a137f1fbb03bbc32585080e"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-202-20260727-formal-library-real-data-cutover.md",
+      "sha": "c481bd9caf8a2974e11d568701088dd03efca876"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-203-20260727-team-workspace-additive-schema-disposable-proof.md",
+      "sha": "09f6d5050dfc051042679ed3b6fd86928834c6b1"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-204-20260727-protected-workspace-project-index.md",
+      "sha": "b1d03e2cdbdddf492703f9f81f93c5374dd3af87"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-205-20260727-team-workspace-migration-reconciliation.md",
+      "sha": "1da81d75d81cad0093fe13a4e9a5c7a1a4d62976"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-206-20260727-external-source-connection-research.md",
+      "sha": "b9f1e8f76b193551da2bdb42bdf869d9e275f445"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-206-20260727-launch-level-review.md",
+      "sha": "02de691050156782499b52dee6cf733b401ed54c"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-207-20260727-audit-backed-team-workspace-creation.md",
+      "sha": "d0dd685e4b915c5e4ad5c5999632c1c026a07d90"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-208-20260727-ai-input-connection-wizard.md",
+      "sha": "d5414fa2d5c23b910762d7c93e57de2ac7f95f07"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-209-20260727-configured-team-workspace-activation.md",
+      "sha": "1e2a8df83d9fa5c854e155d66694c4e355b54802"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-210-20260727-ai-input-connection-manifest-bff.md",
+      "sha": "ae3598177f023096c07b41152e59ad575b94642e"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-auth-proof.json",
+      "sha": "c553168eaa1d3b652b62f73166ffae63d3886efc"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-level-review.md",
+      "sha": "566ad32e5404561522cc607f599d656527a228c1"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-owner-proof-plan.json",
+      "sha": "76076780eadd8418fe214cbb75485f85d7f48a06"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-preemption-router.json",
+      "sha": "7dc47835af1d4ea93832714926ec5eed0e9a553b"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-launch-proof.json",
+      "sha": "5696bf31aef375309d866485eb9b51e6ba625380"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-211-20260727-work-proof-target-readiness.json",
+      "sha": "79af0e8e1311d269c732292959a6155437ef952e"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-212-20260727-team-workspace-invitation-lifecycle.md",
+      "sha": "b573828850e4a074be5b4d5583a6b9ea29b91a6b"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-213-20260727-interface-smoke-semantic-tab-checker.md",
+      "sha": "40f9d0260158301b7ed200043a6fb75e80cb7d07"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-214-20260818-gate-all-proof.json",
+      "sha": "b14963010d847ebbcec88bb6c4d602e55f2b0132"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-214-20260818-owneros-gate-aggregate-checkers.json",
+      "sha": "8f595b5ca03a8d6e624dd72d3fd017976d3d2bf6"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-214-20260818-owneros-gate-aggregate-checkers.md",
+      "sha": "b4ce3aa4bc83fc017b675a9a3a56099142c7c9b6"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260818-scenario-system-contraction-docs.md",
+      "sha": "d3e44132a30de8daae02e5729363f17d10acab43"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260818-ten-minute-gate-automation.md",
+      "sha": "b6188a0fb592bb8d52c60a6f658cac2708c99fe8"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/res015-vs-independent-ai-dev-teams-comparison-research.en.md",
+      "sha": "40bf3129d6cfc77cd75a76e082c2a1226ca42f23"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/res015-vs-independent-ai-dev-teams-comparison-research.zh.md",
+      "sha": "4e76504e509c23406f66c125af58a80900d17e13"
+    },
+    {
+      "status": "??",
+      "file": "docs/2_agent-input/generated/agent-loop/shared-team-os-trust-plane-independent-interface-research.zh.md",
+      "sha": "4ebfb6b8cb2d02375253db26ae37db376f6885ae"
+    },
+    {
+      "status": "??",
+      "file": "prisma/migration-drafts/20260727_teamcollab_004_workspace_collaboration_additive/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "prisma/migration-drafts/20260727_teamcollab_005a_configured_drift_repair/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "prisma/migration-drafts/20260727_teamcollab_005b_configured_db_push_activation/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "prisma/migrations/20260722084811_add_file_media_assets/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "prisma/migrations/20260727150000_team_workspace_collaboration/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "prisma/migrations/20260727170000_team_workspace_creation_audit/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "prisma/migrations/20260727183000_team_workspace_invitation_audit_catalog/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-ai-development-team-os-contract.mjs",
+      "sha": "3a06d47d593c2a1b6eb8ce6f2677589bc03f37ce"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-ai-input-connection-manifest-bff.mjs",
+      "sha": "7efd23a7cdabfacecf1a6268a1559a1f0dc4aca6"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-ai-input-connection-wizard.mjs",
+      "sha": "70b641f9cd7bfcca1416d2251a194cebe7a33fbd"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-email-otp-auth.mjs",
+      "sha": "ce86e5b13c2c15d145c3345749175777dc95bd23"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-library-formal-mode.mjs",
+      "sha": "10ad152f5b6671668a199c027a8c308b48b22c26"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-owner-ai-work-desktop-gates.mjs",
+      "sha": "4cc0df725a9b93f87143f500d7d975b6c40d322a"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-team-workspace-capability.ts",
+      "sha": "7c27a318ea6a1c7524f987e00b5e07cbe8d10859"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-team-workspace-configured-activation.mjs",
+      "sha": "ebf879b40c1dae53fe5757bf7d263a954f83c3c8"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-team-workspace-create.mjs",
+      "sha": "65ca03166d6f27221693f9f4bae51ce1ae165c4c"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-team-workspace-invitation.mjs",
+      "sha": "da09c98a3af7e6a106dd6cd0a5b9d7e4d8eee199"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-team-workspace-migration-draft.mjs",
+      "sha": "08b6b5be6eb1c1dfe9b09ac918b062ecad65bc04"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-team-workspace-migration-reconciliation.mjs",
+      "sha": "1e8828328431679eb0746aca223be9e613abfbe1"
+    },
+    {
+      "status": "??",
+      "file": "scripts/check-team-workspace-project-index.mjs",
+      "sha": "1d58abe5a9273dfb4e20e3600cfcec4ede13ae42"
+    },
+    {
+      "status": "??",
+      "file": "scripts/load-local-env.ts",
+      "sha": "56744f3943869a607edd9e098e72987168c7db4e"
+    },
+    {
+      "status": "??",
+      "file": "scripts/provision-team-profiles.ts",
+      "sha": "32fd14b35c7139b101c935f73b0ca1c5a2e66cf4"
+    },
+    {
+      "status": "??",
+      "file": "scripts/r2-storage-smoke-test.ts",
+      "sha": "f8ecff352eb4d9ff342eb8c342a84740d08023d5"
+    },
+    {
+      "status": "??",
+      "file": "scripts/team-workspace-create-disposable-proof.ts",
+      "sha": "354c9651cea2c40a0b9abc4ad38ec67808aed008"
+    },
+    {
+      "status": "??",
+      "file": "scripts/team-workspace-disposable-proof.ts",
+      "sha": "5f01427c394720f053b4c5476c0c28a7076254c7"
+    },
+    {
+      "status": "??",
+      "file": "scripts/team-workspace-invitation-disposable-proof.ts",
+      "sha": "7ef7a246efc6d5e51e542e311b02e34e117f96f8"
+    },
+    {
+      "status": "??",
+      "file": "scripts/team-workspace-migration-reconciliation-proof.ts",
+      "sha": "fa5b430eff3e85dd09dcd6eb8f5c9255d9bfbccc"
+    },
+    {
+      "status": "??",
+      "file": "src/app/(dashboard)/work/loading.tsx",
+      "sha": "7928e5a6bcdd565bdc01a5800553d27f667ff6f8"
+    },
+    {
+      "status": "??",
+      "file": "src/app/actions/storage.ts",
+      "sha": "ed7091d7799637d8358ed1a674bef7208eecf344"
+    },
+    {
+      "status": "??",
+      "file": "src/app/actions/team-workspace-invitation.ts",
+      "sha": "6eb81fd191e8237ed8d5a3d4af0502e6b1b26c0d"
+    },
+    {
+      "status": "??",
+      "file": "src/app/actions/team-workspace.ts",
+      "sha": "a2abc0bfb692bd0156fef2b24bed96aeace4771b"
+    },
+    {
+      "status": "??",
+      "file": "src/components/ai/source-connections/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "src/components/auth/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "src/components/work/workspace/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "src/lib/contracts/ai-development-team-os.contract.ts",
+      "sha": "c2faaa0c551b05ffedbd896126aa6cc26b0db55b"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/contracts/ai-input-source-connection-catalog.contract.ts",
+      "sha": "3c2237d5d07453452d481e01ae1aa2855b5ac699"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/contracts/owner-ai-work-desktop-gate.contract.ts",
+      "sha": "59f3e7cd442adee278eb8da153440e79fdf6eef0"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/contracts/team-workspace-capability.contract.ts",
+      "sha": "0e7206fb28dd3ffc8c7bd12cda53801134e6c608"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/mappers/library-asset.mapper.ts",
+      "sha": "998fc25aff82daab30a598f45ae8eb26bc067541"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/mappers/team-workspace.mapper.ts",
+      "sha": "e2d6d0616c3cb77af2bd0af988cec57284f7aadf"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/ai-input-source-connection-catalog.service.ts",
+      "sha": "a2081bcbc457fdb0c44ca5a1ebed85ab39d0318f"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/library-asset-index.service.ts",
+      "sha": "f9abc9387a5a7a64766d1767b5fea7f8d9d2eeb1"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/project-timeline.service.ts",
+      "sha": "7f2792634a5efb423748612c9bb04a691d99ebe8"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/storage.service.ts",
+      "sha": "2d490956d5f2fbf56a9c625fde3945dbc1b23b5e"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/team-workspace-audit-readiness.service.ts",
+      "sha": "218fa331a211e38a5b87946c9bc87b165b6da651"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/team-workspace-command.service.ts",
+      "sha": "4429df383e6c3341ff264c43e91ea0ca92ca716f"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/team-workspace-invitation.service.ts",
+      "sha": "b82e723cb28ca8eba7d9001713bd4505adc800bb"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/services/team-workspace.service.ts",
+      "sha": "5f2125a9dc2c9b4de90c5abf3d799ab4d01af99d"
+    },
+    {
+      "status": "??",
+      "file": "src/lib/storage/",
+      "sha": null
+    },
+    {
+      "status": "??",
+      "file": "src/types/ai-input-source-connection-catalog.ts",
+      "sha": "ed7db6a1c44085e59ab8280028159464fb0a7ab3"
+    },
+    {
+      "status": "??",
+      "file": "src/types/library-asset-index.ts",
+      "sha": "5d89800121421a4bbc3ed59887b7e741ca56a4a7"
+    },
+    {
+      "status": "??",
+      "file": "src/types/team-workspace-command.ts",
+      "sha": "23238a8758f6ee36c41a0445e652074135fc7389"
+    },
+    {
+      "status": "??",
+      "file": "src/types/team-workspace-invitation.ts",
+      "sha": "9539740ecb378b99ae0f77782bfa29ac46fa300b"
+    },
+    {
+      "status": "??",
+      "file": "src/types/workspace-project-index.ts",
+      "sha": "5d4dfc0437b97f459a3944c4861617a655685578"
+    }
+  ]
+}

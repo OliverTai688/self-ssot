@@ -1,0 +1,61 @@
+{
+  "schema": "personal-os.dirty-inventory.v1",
+  "runId": "gate-loop-20260821T173000-launch-level-review",
+  "capturedAt": "2026-08-21T17:30:00+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "purpose": "Loop 219 launch-level review and next-phase routing after OWNEROS-BFF-001.",
+  "dirtyOverlapDecision": "SAFE_FOR_DOC_STATE_REVIEW_ONLY",
+  "selectedTask": "LOOP-219-LAUNCH-LEVEL-AND-NEXT-PHASE-REVIEW",
+  "ownedEditScope": [
+    "docs/06_audits-and-reports/RPT-063_loop-219-launch-level-review-and-next-phase-routing.md",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-219-20260821-launch-level-review.md",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-219-20260821-launch-level-review.json",
+    "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-219-20260821-gate-a-incomplete-launch-review.json",
+    "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+    "docs/2_agent-input/generated/agent-loop/loop-state.json",
+    "docs/00_manual-and-index/MAN-001_document-index.md",
+    "docs/05_execution-plans/PLN-060_task-backlog.md",
+    "docs/05_execution-plans/PLN-061_current-sprint.md",
+    "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    "docs/06_audits-and-reports/RPT-007_completed-log.md",
+    "tasks.md"
+  ],
+  "observedDirtyClasses": [
+    {
+      "class": "pre_existing_runtime_and_service_work",
+      "examples": [
+        "src/app/(dashboard)/ai-input/page.tsx",
+        "src/app/(dashboard)/ai-input/ai-input-client.tsx",
+        "src/app/(dashboard)/settings/page.tsx",
+        "src/app/(dashboard)/admin/page.tsx",
+        "src/app/(dashboard)/work/page.tsx",
+        "src/lib/services/*"
+      ],
+      "decision": "Do not edit runtime or service files in this review loop."
+    },
+    {
+      "class": "pre_existing_formal_doc_deletions",
+      "examples": [
+        "docs/01_product-requirements/PRD-004_next-stage-development-plan.md",
+        "docs/07_research-and-design/RES-007_source-triggered-thinking-node-pipeline-and-action-fanout-research.md",
+        "docs/07_research-and-design/RES-012_source-settings-operating-surface-redesign-research.md",
+        "docs/07_research-and-design/RES-013_ai-input-workbench-operating-surface-redesign-research.md"
+      ],
+      "decision": "Do not restore or delete further documents without owner direction; record PRD-004 absence as governance risk."
+    },
+    {
+      "class": "large_pre_existing_raw_dataset_deletions",
+      "examples": [
+        "docs/2_agent-input/raw/R-RAW-001_enron-mail-analysis/maildir/*"
+      ],
+      "decision": "Do not touch raw dataset changes."
+    }
+  ],
+  "overlapAvoidance": {
+    "runtimePagesEdited": false,
+    "databaseOrProviderMutation": false,
+    "publicOutputEnabled": false,
+    "externalAgentRegistration": false,
+    "gmailSendAttempted": false
+  }
+}

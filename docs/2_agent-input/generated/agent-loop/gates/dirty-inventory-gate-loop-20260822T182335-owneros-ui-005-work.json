@@ -1,0 +1,86 @@
+{
+  "runId": "gate-loop-20260822T182335-owneros-ui-005-work",
+  "createdAt": "2026-08-22T18:23:35+08:00",
+  "startCommit": "463c6a15f7c95f28c334b61d139748e9ee554bb0",
+  "selectedTask": "OWNEROS-UI-005-WORK-FIRST",
+  "statusShortForTouchedPaths": [
+    " M docs/05_execution-plans/PLN-060_task-backlog.md",
+    " M docs/05_execution-plans/PLN-061_current-sprint.md",
+    " M docs/06_audits-and-reports/RPT-007_completed-log.md",
+    " M docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+    " M docs/2_agent-input/generated/agent-loop/loop-state.json",
+    " M package.json",
+    " M src/app/(dashboard)/work/page.tsx",
+    " M src/app/(dashboard)/work/work-client.tsx",
+    " M tasks.md",
+    "?? docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json"
+  ],
+  "files": [
+    {
+      "path": "src/app/(dashboard)/work/work-client.tsx",
+      "exists": true,
+      "sha256": "3aa9212d20fda28a11605798f31c3937b6e64bef3320dea665d3c59a21a0a923"
+    },
+    {
+      "path": "src/app/(dashboard)/work/page.tsx",
+      "exists": true,
+      "sha256": "496f369d01b9371d6822fd19bdc93f7fac67b52f3aece20d643caac975472081"
+    },
+    {
+      "path": "scripts/check-owneros-work-simplified-surface.mjs",
+      "exists": false,
+      "sha256": null
+    },
+    {
+      "path": "package.json",
+      "exists": true,
+      "sha256": "bffb5e3250730795e0459a42f098856d486d999aa8bf7f54e005d20b748dbdee"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-060_task-backlog.md",
+      "exists": true,
+      "sha256": "189bdc5e9bbef746ff789a7415f5d313ffa7dfd4c885742646331f3b6d56660a"
+    },
+    {
+      "path": "docs/05_execution-plans/PLN-061_current-sprint.md",
+      "exists": true,
+      "sha256": "f47e79ac58a28493422bff9bec972f305dcfc2d944196c3a1966e79615af6879"
+    },
+    {
+      "path": "docs/08_acceptance-and-qa/ACC-002_module-acceptance-criteria.md",
+      "exists": true,
+      "sha256": "d5c90308237dfa8029b1241c33fb99aa8cf7574de7e1c8e63846ea6d7d43e04f"
+    },
+    {
+      "path": "docs/06_audits-and-reports/RPT-007_completed-log.md",
+      "exists": true,
+      "sha256": "ec8d19fc51b368baf5aa11246663b5784b9f2d1941da5c71f00e679c01f03eca"
+    },
+    {
+      "path": "tasks.md",
+      "exists": true,
+      "sha256": "772c3860162747a581937f15fe387728784265ac5d7918a2469c9f015baf2733"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/loop-state.json",
+      "exists": true,
+      "sha256": "aa17168fe42c636e6d95dd83074147d8c574e36e7a19dbf42b14ccc30bf4972b"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/gates/owner-ai-work-desktop-gate-state.json",
+      "exists": true,
+      "sha256": "7bee5346aff1ed01ad0ec6d8614911cb1485ee376e94d3a8d009d48d3bb87135"
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-223-20260822-work-simplified-surface.md",
+      "exists": false,
+      "sha256": null
+    },
+    {
+      "path": "docs/2_agent-input/generated/agent-loop/reports/personal-os-loop-223-20260822-work-simplified-surface.json",
+      "exists": false,
+      "sha256": null
+    }
+  ],
+  "note": "Dirty overlap gate inventory for Work-first simplified module surface slice. Existing unrelated dirty tree is not reverted or included."
+}

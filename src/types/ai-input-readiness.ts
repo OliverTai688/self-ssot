@@ -335,6 +335,7 @@ export type AIInputSourceControlMatrixRow = {
   reviewRule: string
   nextAction: string
   missingPermissions: string | null
+  provenanceNote?: string | null
   boundary: string
   auditRefs: string[]
   tone: AIInputFormalReadinessTone
