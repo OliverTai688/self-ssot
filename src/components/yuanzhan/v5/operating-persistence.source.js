@@ -19,8 +19,34 @@ let OP_SENDING = false;
 let OP_STATUS = 'idle';
 let OP_STATUS_NOTE = '';
 
+/**
+ * 滾動基準線：最後一次成功排入佇列時的樣子。
+ *
+ * commit() 走的是明確的前後快照，日誌自動保存走的是「與基準線比對」——
+ * 兩條路徑共用同一個 diff 與同一個佇列，差別只在快照從哪裡來。
+ */
+let OP_BASELINE = null;
+let OP_TOUCH_TIMER = null;
+
 function opSnapshot() {
   return OP_LIVE ? snapshotCollections(DB, OP_WRITE_ENABLED) : null;
+}
+
+/**
+ * 日誌是連續輸入，不會每個字都觸發 commit()。render() 之後排一個延遲比對，
+ * 讓打完字停下來就保存，而不是等到下一次 commit 才順便被帶上去。
+ */
+function opTouch() {
+  if (!OP_LIVE) return;
+  if (OP_TOUCH_TIMER) clearTimeout(OP_TOUCH_TIMER);
+  OP_TOUCH_TIMER = setTimeout(() => {
+    OP_TOUCH_TIMER = null;
+    if (!OP_BASELINE) {
+      OP_BASELINE = opSnapshot();
+      return;
+    }
+    opEnqueue('update', '日誌', '自動保存', OP_BASELINE);
+  }, 1500);
 }
 
 function opRef() {
@@ -51,6 +77,8 @@ function opEnqueue(op, ent, label, before) {
   }
 
   OP_QUEUE.push({ clientRef: opRef(), op, ent, label, changes });
+  // 已經排進佇列的內容就是新的基準線，否則下一次比對會把同樣的變更再送一次。
+  OP_BASELINE = snapshotCollections(DB, OP_WRITE_ENABLED);
   opFlush();
 }
 
@@ -130,6 +158,7 @@ function opPaintStatus() {
 // 先取一次伺服器版本，否則第一次送出就會撞 409（本地從 0 起算，伺服器不一定）。
 // 取不到就維持 0：那樣第一次送出會收到 409 並顯示衝突，比靜默覆寫安全。
 if (OP_LIVE) {
+  OP_BASELINE = opSnapshot();
   fetch(OPERATING_COMMANDS_ENDPOINT)
     .then(res => (res.ok ? res.json() : null))
     .then(payload => {

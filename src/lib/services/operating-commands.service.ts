@@ -268,10 +268,202 @@ async function applySession(change: RowChange, ctx: ApplyContext): Promise<void>
   await syncSession(db, saved.id)
 }
 
+
+/* ------------------------------------------------------------------ */
+/* M2：日常協作資料                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 工作台的狀態字串對 Work 模組的兩個列舉。
+ *
+ * 「驗收中」在 ProjectStatus 裡沒有對應值，但在 ProjectPhase 裡有（REVIEW），
+ * 所以它拆成 status=ACTIVE + phase=REVIEW。原始字串一律存進側表的 operatingStatus，
+ * 工作台讀回來看到的還是自己那一個字，不會因為往返而變。
+ */
+const PROJECT_STATUS_MAP: Record<string, { status: "EXPLORING" | "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED"; phase: "DISCOVERY" | "PLANNING" | "EXECUTION" | "REVIEW" | "MAINTENANCE" }> = {
+  商機: { status: "EXPLORING", phase: "DISCOVERY" },
+  進行中: { status: "ACTIVE", phase: "EXECUTION" },
+  驗收中: { status: "ACTIVE", phase: "REVIEW" },
+  已完成: { status: "COMPLETED", phase: "MAINTENANCE" },
+  暫停: { status: "PAUSED", phase: "PLANNING" },
+}
+
+const TASK_STATUS_MAP: Record<string, "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED"> = {
+  Todo: "TODO",
+  Doing: "IN_PROGRESS",
+  // TaskStatus 沒有 REVIEW；原字串保留在 operatingStatus，列舉取最接近的。
+  Review: "IN_PROGRESS",
+  Done: "DONE",
+}
+
+function toJson(value: unknown, fallback: Prisma.InputJsonValue): Prisma.InputJsonValue {
+  return (value === undefined || value === null ? fallback : value) as Prisma.InputJsonValue
+}
+
+async function applyProject(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("projects", change.id)
+
+  if (change.op === "delete") {
+    await db.project.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const operatingStatus = str(row.status) ?? "商機"
+  const mapped = PROJECT_STATUS_MAP[operatingStatus] ?? PROJECT_STATUS_MAP["商機"]
+  const ownerId = (typeof row.owner === "string" ? ctx.actors.get(row.owner) : undefined) ?? ctx.profileId
+
+  const core = {
+    ownerId,
+    workspaceId: ctx.workspaceId,
+    name: str(row.t) ?? "（未命名專案）",
+    clientName: str(row.client),
+    status: mapped.status,
+    phase: mapped.phase,
+    startedAt: toDateOnly(row.start),
+  }
+
+  await db.project.upsert({ where: { id }, create: { id, ...core }, update: core })
+
+  const profile = {
+    client: str(row.client),
+    goalId: typeof row.goal === "string" && row.goal ? rowUuid("goals", row.goal) : null,
+    engagementType: str(row.type),
+    operatingStatus,
+    bonusRatePct: Number.isFinite(Number(row.rate)) ? Math.trunc(Number(row.rate)) : 0,
+    bonusCapPct: Number.isFinite(Number(row.cap)) ? Math.trunc(Number(row.cap)) : 0,
+    budgetAmount: Number.isFinite(Number(row.budget)) ? Math.trunc(Number(row.budget)) : 0,
+    evidenceRepoTag: str(row.repo),
+    startedOn: toDateOnly(row.start),
+  }
+
+  await db.operatingProjectProfile.upsert({
+    where: { projectId: id },
+    create: { projectId: id, ...profile },
+    update: profile,
+  })
+}
+
+async function applyIssue(change: RowChange, _ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("issues", change.id)
+
+  if (change.op === "delete") {
+    await db.projectTask.deleteMany({ where: { id } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectRef = str(row.p)
+  if (!projectRef) throw new Error(`issue ${change.id} has no project`)
+
+  const projectId = rowUuid("projects", projectRef)
+  const exists = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  // 工作項不先於專案存在。缺專案就讓這一筆被拒，而不是造一個空殼專案出來。
+  if (!exists) throw new Error(`issue ${change.id} references a project that is not saved yet`)
+
+  const operatingStatus = str(row.st) ?? "Todo"
+  const data = {
+    projectId,
+    title: str(row.t) ?? "（未命名）",
+    status: TASK_STATUS_MAP[operatingStatus] ?? ("TODO" as const),
+    operatingStatus,
+    priority: Number.isFinite(Number(row.pri)) ? Math.trunc(Number(row.pri)) : 2,
+    dueAt: toDateOnly(row.due),
+    completedAt: toDateOnly(row.done),
+    sizeClass: str(row.size),
+    blocker: str(row.blocker),
+    expectation: str(row.exp),
+    evidenceCount: Number.isFinite(Number(row.ev)) ? Math.trunc(Number(row.ev)) : 0,
+    relations: toJson(row.rel, []),
+    customFields: toJson(row.cf, {}),
+    subtasks: toJson(row.sub, []),
+  }
+
+  await db.projectTask.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyGoal(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("goals", change.id)
+
+  if (change.op === "delete") {
+    await db.operatingGoal.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    title: str(row.t) ?? "（未命名目標）",
+    period: str(row.period) ?? "",
+    progressPct: Number.isFinite(Number(row.pct)) ? Math.trunc(Number(row.pct)) : 0,
+    warning: str(row.warn),
+  }
+
+  await db.operatingGoal.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyDecision(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("decisions", change.id)
+
+  if (change.op === "delete") {
+    await db.operatingDecision.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    authorId: ctx.profileId,
+    title: str(row.t) ?? "（未命名決議）",
+    body: str(row.body) ?? str(row.why),
+    decidedOn: toDateOnly(row.d),
+  }
+
+  await db.operatingDecision.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+/**
+ * 日誌以日期為鍵，一人一天一筆。
+ *
+ * 不用 rowUuid：唯一鍵是 (workspace, author, onDate)，讓資料庫自己認人，
+ * 這樣同一天兩個席位各寫各的，不會因為推導出同一個 id 而互相覆蓋。
+ */
+async function applyJournal(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const onDate = toDateOnly(change.id)
+  if (!onDate) throw new Error(`journal ${change.id} is not a date key`)
+
+  const key = { workspaceId_authorId_onDate: { workspaceId: ctx.workspaceId, authorId: ctx.profileId, onDate } }
+
+  if (change.op === "delete") {
+    await db.operatingJournalEntry.deleteMany({
+      where: { workspaceId: ctx.workspaceId, authorId: ctx.profileId, onDate },
+    })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    title: str(row.title),
+    blocks: toJson(row.blocks, []),
+    visibility: str(row.visibility) ?? "company",
+  }
+
+  await db.operatingJournalEntry.upsert({
+    where: key,
+    create: { workspaceId: ctx.workspaceId, authorId: ctx.profileId, onDate, ...data },
+    update: data,
+  })
+}
+
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
   occasions: applyOccasion,
   rhythms: applyRhythm,
   sessions: applySession,
+  projects: applyProject,
+  issues: applyIssue,
+  goals: applyGoal,
+  decisions: applyDecision,
+  journal: applyJournal,
 }
 
 /* ------------------------------------------------------------------ */

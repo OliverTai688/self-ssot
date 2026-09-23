@@ -100,8 +100,11 @@ for (const collection of HIGH_RISK_COLLECTIONS) {
   )
 }
 
-const M1_EXPECTED: PersistedCollection[] = ['rhythms', 'sessions', 'occasions']
-eq('M1 opens exactly the project-independent tracks', [...WRITE_ENABLED_COLLECTIONS].sort(), [...M1_EXPECTED].sort())
+const OPEN_EXPECTED: PersistedCollection[] = [
+  'rhythms', 'sessions', 'occasions',
+  'journal', 'projects', 'issues', 'goals', 'decisions',
+]
+eq('write-enabled set is M1 tracks plus M2 daily collaboration', [...WRITE_ENABLED_COLLECTIONS].sort(), [...OPEN_EXPECTED].sort())
 
 // 專案軌要等 SCH-008 §3 的模型決定；在那之前開放它們會寫出指向不存在專案的列。
 for (const collection of ['phases', 'milestones', 'objectives'] as PersistedCollection[]) {
@@ -109,6 +112,35 @@ for (const collection of ['phases', 'milestones', 'objectives'] as PersistedColl
 }
 
 check('the per-command change cap is a real bound', MAX_CHANGES_PER_COMMAND > 0 && MAX_CHANGES_PER_COMMAND <= 1000)
+
+/* -- 以 key 索引的集合（journal） -------------------------------------- */
+
+const jbase = { journal: { '2026-09-22': { title: '9/22', blocks: [{ id: 'b1', text: '' }] } } }
+const jbefore = snapshotCollections(jbase)
+
+eq('an untouched journal produces no changes', diffCollections(jbefore, snapshotCollections(jbase)), [])
+
+const jtyped = { journal: { '2026-09-22': { title: '9/22', blocks: [{ id: 'b1', text: '寫了一段' }] } } }
+eq('editing a journal block is an update keyed by date', diffCollections(jbefore, snapshotCollections(jtyped)), [
+  {
+    collection: 'journal',
+    id: '2026-09-22',
+    op: 'update',
+    after: { title: '9/22', blocks: [{ id: 'b1', text: '寫了一段' }] },
+  },
+])
+
+const jnewday = {
+  journal: { ...jbase.journal, '2026-09-23': { title: '9/23', blocks: [] } },
+}
+eq('a new journal day is a create', diffCollections(jbefore, snapshotCollections(jnewday)), [
+  { collection: 'journal', id: '2026-09-23', op: 'create', after: { title: '9/23', blocks: [] } },
+])
+
+check(
+  'a journal held as an array is ignored rather than mis-read',
+  diffCollections(snapshotCollections({ journal: [] }), snapshotCollections({ journal: [] })).length === 0,
+)
 
 /* -- 結果 ------------------------------------------------------------ */
 

@@ -1,0 +1,109 @@
+/**
+ * operating-commands.service.ts ↔ prisma/schema.prisma 的欄位契約。
+ *
+ * 為什麼需要這支：`prisma generate` 需要下載 engine，而 binaries.prisma.sh 在這個
+ * 環境被擋（403），所以 tsc 看到的 PrismaClient 型別永遠是舊的，拼錯的欄位名不會被抓到。
+ * 這支用解析 schema 的方式補上那一段：服務層依賴的每一個 model 與欄位都必須真的存在。
+ *
+ * 它同時是一道防漂移的護欄 —— 之後有人改欄位名，這裡會先紅，而不是等執行期炸掉。
+ */
+import fs from 'node:fs'
+
+const schema = fs.readFileSync('prisma/schema.prisma', 'utf8')
+
+/** model 名 → { fields:Set, uniques:[string[]] } */
+const models = new Map()
+for (const [, name, body] of schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {
+  const fields = new Set()
+  const uniques = []
+  for (const raw of body.split('\n')) {
+    const line = raw.trim()
+    if (!line || line.startsWith('//') || line.startsWith('///')) continue
+    const unique = line.match(/^@@unique\(\[([^\]]+)\]/)
+    if (unique) {
+      uniques.push(unique[1].split(',').map(part => part.trim()))
+      continue
+    }
+    if (line.startsWith('@@')) continue
+    const field = line.match(/^(\w+)\s+\S/)
+    if (field) fields.add(field[1])
+  }
+  models.set(name, { fields, uniques })
+}
+
+/** 服務層實際寫入的欄位。改 handler 就要同步改這裡 —— 那是刻意的。 */
+const DEPENDENCIES = {
+  Workspace: ['id', 'type', 'name', 'slug', 'createdByProfileId'],
+  Profile: ['id', 'email'],
+  OrganizationSetting: ['orgKey', 'key', 'value', 'updatedById'],
+  OperatingAuditEvent: [
+    'actorType', 'actorRef', 'actorDisplay', 'requestRef', 'moduleKey', 'action',
+    'targetType', 'targetRef', 'targetDisplay', 'result', 'riskLevel', 'approvalLevel',
+    'humanApprovalRequired', 'sourceKind', 'metadata', 'redactionVersion', 'retentionClass',
+  ],
+  Occasion: [
+    'id', 'workspaceId', 'title', 'category', 'onDate', 'endOn', 'place',
+    'actorIds', 'star', 'prep', 'recap', 'derivedFrom', 'remind',
+  ],
+  Rhythm: [
+    'id', 'workspaceId', 'title', 'kind', 'scope', 'ownerIds', 'rrule', 'dtstart',
+    'until', 'timeOfDay', 'timezone', 'expectMedia', 'derivedFrom', 'remind', 'active',
+  ],
+  RhythmSession: ['id', 'rhythmId', 'occurrenceDate', 'state', 'movedTo', 'note', 'recordedById'],
+  Project: ['id', 'ownerId', 'workspaceId', 'name', 'clientName', 'status', 'phase', 'startedAt'],
+  OperatingProjectProfile: [
+    'projectId', 'client', 'goalId', 'engagementType', 'operatingStatus',
+    'bonusRatePct', 'bonusCapPct', 'budgetAmount', 'evidenceRepoTag', 'startedOn',
+  ],
+  ProjectTask: [
+    'id', 'projectId', 'title', 'status', 'operatingStatus', 'priority', 'dueAt', 'completedAt',
+    'sizeClass', 'blocker', 'expectation', 'evidenceCount', 'relations', 'customFields', 'subtasks',
+  ],
+  OperatingGoal: ['id', 'workspaceId', 'title', 'period', 'progressPct', 'warning'],
+  OperatingDecision: ['id', 'workspaceId', 'authorId', 'title', 'body', 'decidedOn'],
+  OperatingJournalEntry: ['workspaceId', 'authorId', 'onDate', 'title', 'blocks', 'visibility'],
+}
+
+/** 服務層用到的複合唯一鍵；Prisma 的 where 鍵名由這些欄位組出來。 */
+const COMPOSITE_KEYS = {
+  OrganizationSetting: ['orgKey', 'key'],
+  RhythmSession: ['rhythmId', 'occurrenceDate'],
+  OperatingJournalEntry: ['workspaceId', 'authorId', 'onDate'],
+}
+
+let failed = 0
+let checked = 0
+
+for (const [model, fields] of Object.entries(DEPENDENCIES)) {
+  const found = models.get(model)
+  if (!found) {
+    console.error(`FAIL  model missing from schema: ${model}`)
+    failed += 1
+    continue
+  }
+  for (const field of fields) {
+    checked += 1
+    if (!found.fields.has(field)) {
+      console.error(`FAIL  ${model}.${field} is written by the service but absent from the schema`)
+      failed += 1
+    }
+  }
+}
+
+for (const [model, key] of Object.entries(COMPOSITE_KEYS)) {
+  checked += 1
+  const found = models.get(model)
+  const match = found?.uniques.some(
+    unique => unique.length === key.length && key.every(part => unique.includes(part)),
+  )
+  if (!match) {
+    console.error(`FAIL  ${model} has no @@unique([${key.join(', ')}]) for the upsert key the service uses`)
+    failed += 1
+  }
+}
+
+if (failed > 0) {
+  console.error(`\noperating command fields: ${failed} problem(s) across ${checked} checks`)
+  process.exit(1)
+}
+console.log(`operating command fields: ${checked} checks PASS against prisma/schema.prisma`)

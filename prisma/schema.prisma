@@ -559,6 +559,7 @@ model Project {
   notes        ProjectNote[]
   deliverables ProjectDeliverable[]
   phaseNodes   ProjectPhaseNode[]
+  operatingProfile OperatingProjectProfile?
   occasions    Occasion[]           @relation("ProjectOccasions")
   collaborationInvitations CollaborationInvitation[] @relation("CollaborationInvitationProject")
   accessGrants ProjectAccessGrant[] @relation("ProjectAccessGrants")
@@ -795,6 +796,23 @@ model ProjectTask {
   completedAt DateTime?      @map("completed_at")
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  // ── 營運工作台欄位（SCH-008 §4）──────────────────────────────────────────
+  /// 工作台的原始狀態字串（Todo / Doing / Review / Done）。TaskStatus 沒有 REVIEW，
+  /// 而把 Review 併進 IN_PROGRESS 會讓工作台顯示的狀態在往返後改變，所以原值另存一欄。
+  operatingStatus String? @map("operating_status")
+  /// S / M / L，餵 Throughput 與 Cycle Time 的樣本分組
+  sizeClass       String? @map("size_class")
+  blocker         String?
+  /// 「做完長什麼樣」——驗收判準，不是描述
+  expectation     String?
+  evidenceCount   Int     @default(0) @map("evidence_count")
+  /// [{ ty, id, t }]：wait / block / doc 等關聯。形狀仍在演進，先不正規化。
+  relations       Json    @default("[]")
+  /// { 交付形式: "PR + 測試", … } 自訂欄位
+  customFields    Json    @default("{}") @map("custom_fields")
+  /// 純文字子項；升級成正式 Task 之前不需要自己的列
+  subtasks        Json    @default("[]")
 
   @@map("project_tasks")
 }
@@ -1665,6 +1683,104 @@ model OperatingMedia {
 /// 三軌匯流的扁平索引。只索引「已具體化」的東西；節奏的未來實例由查詢期展開後合併。
 /// 衍生資料，由 src/lib/services/operating-spine.service.ts 單一 writer 維護，
 /// 並由 scripts/reconcile-time-spine.ts 定期對帳（ARC-041 §3）。
+// ─── 營運工作台的日常協作資料（SCH-008 · PLN-074 M2）────────────────────────
+// Project 由 Work 模組擁有；營運專屬欄位放 1:1 側表（SCH-008 §3 決定 C）。
+
+/// 圓展營運專案的專屬欄位。主鍵即 projectId：1:1 共用主鍵，沒有第二個 id 要對齊。
+model OperatingProjectProfile {
+  projectId       String         @id @map("project_id") @db.Uuid
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client          String?
+  goalId          String?        @map("goal_id") @db.Uuid
+  goal            OperatingGoal? @relation("OperatingGoalProjects", fields: [goalId], references: [id], onDelete: SetNull)
+  /// 產品交付型 / 行銷服務型 / 未確認
+  engagementType  String?        @map("engagement_type")
+  /// 工作台的原始狀態（商機 / 進行中 / 驗收中）；ProjectStatus 是給 Work 模組的粗分類
+  operatingStatus String         @default("商機") @map("operating_status")
+  /// 獎金率與上限是專案設定，不是帳務憑證；M4 之前不據以產生任何應付金額
+  bonusRatePct    Int            @default(0) @map("bonus_rate_pct")
+  bonusCapPct     Int            @default(0) @map("bonus_cap_pct")
+  budgetAmount    Int            @default(0) @map("budget_amount")
+  evidenceRepoTag String?        @map("evidence_repo_tag")
+  startedOn       DateTime?      @map("started_on") @db.Date
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@index([goalId], map: "operating_project_profiles_goal_idx")
+  @@map("operating_project_profiles")
+}
+
+/// 年度／季目標。公司層級（SCH-008 §8）。
+model OperatingGoal {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  title       String
+  period      String
+  progressPct Int      @default(0) @map("progress_pct")
+  warning     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  projects OperatingProjectProfile[] @relation("OperatingGoalProjects")
+
+  @@index([workspaceId], map: "operating_goals_workspace_idx")
+  @@map("operating_goals")
+}
+
+/// 書寫式日誌。一人一天一筆。
+model OperatingJournalEntry {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  /// Profile.id，與 rhythm_sessions.recorded_by_id 一樣不設外鍵：停用成員時保留歷史作者
+  authorId    String   @map("author_id") @db.Uuid
+  onDate      DateTime @map("on_date") @db.Date
+  title       String?
+  /// typed block 陣列。block 種類仍在演進，早期正規化會讓每次 UI 調整都變成 migration。
+  blocks      Json     @default("[]")
+  /// company | private —— private 只有作者讀得到，即使同 workspace（契約 §18）
+  visibility  String   @default("company")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, authorId, onDate], map: "operating_journal_author_day_key")
+  @@index([workspaceId, onDate], map: "operating_journal_workspace_date_idx")
+  @@map("operating_journal_entries")
+}
+
+/// 日誌行內留言、物件留言、一般留言合一。
+model OperatingComment {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  authorId    String    @map("author_id") @db.Uuid
+  /// journal | line | object
+  targetType  String    @map("target_type")
+  targetRef   String    @map("target_ref")
+  parentId    String?   @map("parent_id") @db.Uuid
+  body        String
+  createdAt   DateTime  @default(now()) @map("created_at")
+  /// 軟刪除：留言被引用過就不能真的消失，否則被引用的那一頭會指向空白
+  deletedAt   DateTime? @map("deleted_at")
+
+  @@index([workspaceId, targetType, targetRef], map: "operating_comments_target_idx")
+  @@index([parentId], map: "operating_comments_parent_idx")
+  @@map("operating_comments")
+}
+
+/// 決議紀錄。
+model OperatingDecision {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  authorId    String?  @map("author_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  title       String
+  body        String?
+  decidedOn   DateTime? @map("decided_on") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, decidedOn], map: "operating_decisions_workspace_date_idx")
+  @@map("operating_decisions")
+}
+
 model TimeSpine {
   id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String     @map("workspace_id") @db.Uuid

@@ -7,7 +7,7 @@ export function patchSource(source) {
  // ARC-042：commit() 是唯一的寫入入口，所以持久化只接這一個點，不是 97 個呼叫點。
  // 快照在 apply() 之前取，比對在之後做；prototype 模式下 opSnapshot() 回 null，整段等於 no-op。
  rep('const eff=apply()||[];','const __opBefore=opSnapshot(); const eff=apply()||[]; stampAuthors(); saveJournalDraft(); recalcLedger(); opEnqueue(op,ent,label,__opBefore);');
- rep('function render(){','function render(){\n  saveJournalDraft(); normalizeSelection();');
+ rep('function render(){','function render(){\n  saveJournalDraft(); normalizeSelection(); opTouch();');
  rep('renderRail();\n  if(runtime._afterRender)','renderRail(); enhanceView();\n  if(runtime._afterRender)');
  rep('function nav(wb,tab){S.wb=wb;','function nav(wb,tab){saveJournalDraft();S.wb=wb;');
  // PLN-073 T4：舊模組下架後，指向它們的既有連結要先重導，否則 S.wb 會指到不存在的模組。

@@ -21,6 +21,7 @@
  * 在能處理之前列進來只會產生假的變更。
  */
 export const PERSISTED_COLLECTIONS = [
+  'journal',
   'phases',
   'milestones',
   'objectives',
@@ -43,6 +44,12 @@ export const PERSISTED_COLLECTIONS = [
 export type PersistedCollection = (typeof PERSISTED_COLLECTIONS)[number]
 
 /**
+ * 以 key 索引的集合：`DB.journal` 是 `{ '2026-09-22': { title, blocks } }` 而不是陣列。
+ * 比對時把 key 當作列的 id，其餘與陣列集合完全相同。
+ */
+export const KEYED_COLLECTIONS: readonly PersistedCollection[] = ['journal']
+
+/**
  * PLN-074 M1 開放寫入的集合。
  *
  * 選它們先行不是因為重要，是因為 Prisma 表已經存在且形狀正確（PLN-073 T1–T5），
@@ -57,6 +64,12 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   'rhythms',
   'sessions',
   'occasions',
+  // M2：日常協作資料。專案側表定案後（SCH-008 §3 決定 C）專案軌才接得上。
+  'journal',
+  'projects',
+  'issues',
+  'goals',
+  'decisions',
 ]
 
 /**
@@ -133,11 +146,23 @@ export function snapshotCollections(
   const out: CollectionSnapshot = {}
 
   for (const collection of collections) {
-    const rows = db[collection]
-    if (!Array.isArray(rows)) continue
+    const source = db[collection]
+
+    if (KEYED_COLLECTIONS.includes(collection)) {
+      if (!source || typeof source !== 'object' || Array.isArray(source)) continue
+      const byKey: Record<string, string> = {}
+      for (const [key, row] of Object.entries(source as Record<string, unknown>)) {
+        if (!row || typeof row !== 'object') continue
+        byKey[key] = stableStringify(row)
+      }
+      out[collection] = byKey
+      continue
+    }
+
+    if (!Array.isArray(source)) continue
 
     const byId: Record<string, string> = {}
-    for (const row of rows) {
+    for (const row of source) {
       if (!row || typeof row !== 'object') continue
       const id = identifyRow(collection, row as Record<string, unknown>)
       if (!id) continue
