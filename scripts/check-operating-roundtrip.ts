@@ -9,7 +9,17 @@
  * 安全護欄沿用 work-refresh-proof 的形狀：預設拒絕執行，要三個環境變數同時到齊，
  * 而且只接受本機／明確標示為可拋棄的目標。正式資料庫不是測試場。
  *
- *   OPERATING_PROOF_DATABASE_URL=postgresql://localhost:5432/operating_proof \
+ * 先準備一個可拋棄的資料庫（三選一）：
+ *   docker run -d --name operating-proof -e POSTGRES_PASSWORD=proof -p 5433:5432 postgres:16
+ *   brew install postgresql@16 && brew services start postgresql@16 && createdb operating_proof
+ *   supabase start            （另一個 Supabase 專案也可以，那是真的可拋棄的遠端）
+ *
+ * 然後把 schema 推上去。注意這一步吃的是 DATABASE_URL —— prisma migrate 不認
+ * OPERATING_PROOF_DATABASE_URL，用錯變數它會安靜地對正式庫執行：
+ *   DATABASE_URL=postgresql://postgres:proof@localhost:5433/postgres pnpm prisma migrate deploy
+ *
+ * 最後跑測試：
+ *   OPERATING_PROOF_DATABASE_URL=postgresql://postgres:proof@localhost:5433/postgres \
  *   PERSONAL_OS_OPERATING_PROOF_ALLOW_WRITES=1 \
  *   PERSONAL_OS_OPERATING_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA \
  *   pnpm ops:roundtrip
@@ -26,8 +36,8 @@ const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1", "host.docker.internal", "p
 function refuse(reasons: string[]): never {
   console.error("operating roundtrip proof refused to run:\n")
   for (const reason of reasons) console.error("  - " + reason)
-  console.error("\n請對可拋棄的資料庫執行：")
-  console.error("  OPERATING_PROOF_DATABASE_URL=postgresql://localhost:5432/operating_proof \\")
+  console.error("\n請對可拋棄的資料庫執行（見本檔頭部的三種起法）：")
+  console.error("  OPERATING_PROOF_DATABASE_URL=postgresql://postgres:proof@localhost:5433/postgres \\")
   console.error("  PERSONAL_OS_OPERATING_PROOF_ALLOW_WRITES=1 \\")
   console.error(`  PERSONAL_OS_OPERATING_PROOF_CONFIRM=${CONFIRMATION_TEXT} \\`)
   console.error("  pnpm ops:roundtrip")
@@ -115,7 +125,45 @@ const SLUG = `operating-roundtrip-proof-${Date.now()}`
 // 所以任何以 workspaceId 為條件的 deleteMany 都等於清空正式資料。
 // 收尾只刪本次寫入的那幾列，用 workbenchRef 精確定位 —— 見 main() 的 finally。
 
+/**
+ * 先確認連得上。
+ *
+ * 不做這一步的話，第一個失敗會是某個 findUnique 丟出 ECONNREFUSED 的堆疊，
+ * 而真正的原因（沒有資料庫在跑、或 schema 還沒推上去）要從堆疊裡猜。
+ */
+async function preflight(url: string) {
+  try {
+    await db.$queryRaw`SELECT 1`
+  } catch (error) {
+    const code = (error as { code?: string }).code
+    const host = new URL(url).host
+    console.error(`連不上 proof 資料庫（${host}）。`)
+    if (code === "ECONNREFUSED" || code === "P1001") {
+      console.error("\n那個位址沒有東西在聽。先起一個可拋棄的資料庫：")
+      console.error("  docker run -d --name operating-proof -e POSTGRES_PASSWORD=proof -p 5433:5432 postgres:16")
+      console.error("  # 或：brew install postgresql@16 && brew services start postgresql@16")
+      console.error("\n再把 schema 推上去（這一步吃 DATABASE_URL，不是 PROOF 變數）：")
+      console.error("  DATABASE_URL=<proof url> pnpm prisma migrate deploy")
+    } else {
+      console.error("\n" + String(error))
+    }
+    await db.$disconnect().catch(() => {})
+    process.exit(1)
+  }
+
+  try {
+    await db.workspace.count()
+  } catch {
+    console.error("連得上，但 schema 還沒推上去。先執行：")
+    console.error("  DATABASE_URL=<proof url> pnpm prisma migrate deploy")
+    await db.$disconnect().catch(() => {})
+    process.exit(1)
+  }
+}
+
 async function main() {
+  await preflight(target)
+
   const { applyOperatingCommands, OPERATING_WORKSPACE_SLUG } = await import(
     "../src/lib/services/operating-commands.service"
   )
