@@ -118,8 +118,6 @@ function eq(name: string, actual: unknown, expected: unknown) {
   check(name, JSON.stringify(actual) === JSON.stringify(expected), `got ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`)
 }
 
-const SLUG = `operating-roundtrip-proof-${Date.now()}`
-
 // 這裡刻意沒有一個「清空 workspace」的函式。
 //
 // 這支測試跑在正式的 yzedtech workspace 上（服務用固定 slug，不接受注入），
@@ -171,33 +169,23 @@ async function main() {
   const { loadOperatingStore } = await import("../src/lib/services/operating-store.service")
   const { DEFAULT_ORG_KEY } = await import("../src/lib/services/operating-settings.service")
 
-  // 找到服務真正使用的 workspace（yzedtech）
-  const ws = await db.workspace.findUnique({
-    where: { slug: OPERATING_WORKSPACE_SLUG },
-    select: { id: true },
-  })
-  if (!ws) {
-    console.error(`operating workspace "${OPERATING_WORKSPACE_SLUG}" not found — run the app first to initialize it.`)
-    process.exit(1)
-  }
-  const workspaceId = ws.id
-
-  // 找到 yz 這個 actor 對應的 profile（服務的 buildActorMap 也是這樣做）
+  // 服務的 buildActorMap 用席位 email 找 Profile，所以測試要用同一個身分。
   const { getYuanzhanSeats } = await import("../src/lib/auth/yuanzhan-actor")
-  const seats = getYuanzhanSeats()
-  const yzSeat = seats.find((s) => s.actor === "yz")
+  const yzSeat = getYuanzhanSeats().find((s) => s.actor === "yz")
   if (!yzSeat) {
     console.error('yuanzhan seat "yz" not found in getYuanzhanSeats()')
     process.exit(1)
   }
-  const yzProfile = await db.profile.findFirst({
+
+  // 乾淨的 proof 資料庫沒有 Profile，也沒有 workspace —— 那不是錯誤，是第一次使用。
+  // 這裡補上 Profile；workspace 交給服務的 ensureOperatingWorkspace 在第一次寫入時建立，
+  // 這樣測試順帶驗到了「首次使用」那條路徑，而不是繞過它。
+  const yzProfile = await db.profile.upsert({
     where: { email: yzSeat.email },
+    create: { email: yzSeat.email, fullName: "Roundtrip Proof", role: "OWNER" },
+    update: {},
     select: { id: true, email: true },
   })
-  if (!yzProfile) {
-    console.error(`profile for yz seat (${yzSeat.email}) not found in DB — seed data needed.`)
-    process.exit(1)
-  }
 
   // 讀取當前真實版本，避免 version conflict
   const versionRow = await db.organizationSetting.findUnique({
@@ -220,6 +208,8 @@ async function main() {
   const TXN_ID = `T-RT-${ts}`
   const JOURNAL_DATE = `2026-10-18` // 日誌 key 固定；只驗資料，不驗 count
 
+  // finally 需要它來精確刪除本次寫入的列，所以宣告在 try 之外。
+  let workspaceId = ""
   const user = { id: yzProfile.id, email: yzProfile.email, role: "OWNER" as const }
   const seat = { email: yzProfile.email, actor: "yz" as const, role: "owner" as const, canSwitchActor: false }
 
@@ -296,6 +286,12 @@ async function main() {
         ],
       },
     ])
+
+    // 第一批命令會建立 workspace（首次使用），所以在這之後才拿得到 id。
+    const ws = await db.workspace.findUnique({ where: { slug: OPERATING_WORKSPACE_SLUG }, select: { id: true } })
+    check("the service created the operating workspace on first write", Boolean(ws))
+    if (!ws) throw new Error("operating workspace was not created by the first command batch")
+    workspaceId = ws.id
 
     eq("all four commands applied", result.applied.length, 4)
     eq("nothing was rejected", result.rejected, [])
@@ -380,6 +376,8 @@ async function main() {
     const afterDelete = (await loadOperatingStore(workspaceId, yzProfile.id)) as Record<string, Row[]>
     check("deleted goal is gone on read", !(afterDelete.goals ?? []).some((g) => g.id === GOAL_ID))
   } finally {
+    // workspaceId 為空代表第一批命令就失敗了，沒有東西需要收拾。
+    if (workspaceId) {
     // cleanup：只刪本次測試寫入的 goal/occasion/txn/journal 資料行
     await db.operatingGoal.deleteMany({
       where: { workspaceId, workbenchRef: GOAL_ID },
@@ -400,6 +398,7 @@ async function main() {
     await db.operatingTransaction.deleteMany({
       where: { workspaceId, workbenchRef: TXN_ID },
     }).catch(() => {})
+    }
     await db.$disconnect()
     await _pool.end().catch(() => {})
   }
