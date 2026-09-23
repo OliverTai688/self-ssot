@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { resolveCurrentUser } from "@/lib/services/auth.service"
 import { createLoginPath } from "@/lib/auth/redirect"
 import { resolveYuanzhanSeat } from "@/lib/auth/yuanzhan-actor"
+import { readOperatingDataSource } from "@/lib/config/operating-data-source"
 import { readUiDataMode } from "@/lib/config/ui-data-mode"
 import { operatingSettingsCatalog, loadOperatingSettings } from "@/lib/services/operating-settings.service"
 import { parseUiDataMode } from "@/lib/ui-data/yuanzhan/mode"
@@ -53,13 +54,18 @@ export default async function OperatingPage() {
       ? parseUiDataMode(configuredMode)
       : readUiDataMode()
 
+  // 資料來源與資料模式是兩件事：mode 決定畫面上有沒有範例，dataSource 決定輸入的東西會不會留下。
+  const dataSource = readOperatingDataSource()
+
   return (
     <V5Desktop
-      key={`${auth.user.id}:${seat.actor}:${mode}`}
-      initialState={createV5State(mode, seat, {
-        ...settings,
-        catalog: operatingSettingsCatalog().all,
-      })}
+      key={`${auth.user.id}:${seat.actor}:${mode}:${dataSource}`}
+      initialState={createV5State(
+        mode,
+        seat,
+        { ...settings, catalog: operatingSettingsCatalog().all },
+        dataSource,
+      )}
     />
   )
 }

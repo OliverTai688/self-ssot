@@ -4,6 +4,7 @@ import { attachOperatingTracks, type V5Data } from './operating-tracks-seed'
 import type { YuanzhanSeat } from '@/lib/auth/yuanzhan-actor'
 import type { SettingField, SettingValue } from '@/lib/settings/operating-settings.catalog'
 import type { OperatingSettingsSnapshot } from '@/lib/services/operating-settings.service'
+import { DEFAULT_OPERATING_DATA_SOURCE, type OperatingDataSource } from './data-source'
 import type { UiDataMode } from '@/types/yuanzhan-ui'
 
 /** 誰在看這個工作台。由登入身分決定，序列化後交給 v5 runtime。 */
@@ -33,6 +34,11 @@ export interface V5Settings {
 /** Serializable, synthetic-only contract for the faithfully ported v5 workbench. */
 export interface V5State {
   mode: UiDataMode
+  /**
+   * 資料來源（ARC-042 §8）。prototype 代表這一份 store 只活在記憶體裡，
+   * 工作台必須把這件事顯示出來，而不是讓人以為輸入的東西被保存了。
+   */
+  dataSource: OperatingDataSource
   fixtureVersion: string
   referenceDate: string
   /** null = 預覽／展示模式，沒有登入身分，維持原型的自由切換行為。 */
@@ -47,6 +53,7 @@ export function createV5State(
   mode: UiDataMode,
   seat?: YuanzhanSeat | null,
   settings?: (OperatingSettingsSnapshot & { catalog: SettingField[] }) | null,
+  dataSource: OperatingDataSource = DEFAULT_OPERATING_DATA_SOURCE,
 ): V5State {
   parseUiDataMode(mode)
   // 三軌在清空迴圈之前掛上，empty 模式才會一併被清成空陣列（ARC-040）。
@@ -85,6 +92,7 @@ export function createV5State(
 
   return {
     mode,
+    dataSource,
     fixtureVersion: 'yz-v5-20260913.1',
     referenceDate: data.today,
     viewer,
