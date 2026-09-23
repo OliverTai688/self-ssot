@@ -968,6 +968,18 @@ export async function applyOperatingCommands(
   const rejected: CommandRejection[] = []
 
   for (const command of commands) {
+    // 冪等：同一個 clientRef 已經套用過就直接回報成功，不重放它的變更。
+    // 雜湊而不是原值：clientRef 由客戶端生成，不該原樣落進資料庫。
+    const clientRefHash = createHash("sha256").update(command.clientRef).digest("hex")
+    const seen = await db.operatingCommandLog.findUnique({
+      where: { workspaceId_clientRefHash: { workspaceId, clientRefHash } },
+      select: { id: true },
+    })
+    if (seen) {
+      applied.push(command.clientRef)
+      continue
+    }
+
     const blocked = command.changes.map((change) => ({ change, code: screen(change) })).find((r) => r.code)
     if (blocked) {
       rejected.push({
@@ -987,6 +999,23 @@ export async function applyOperatingCommands(
         await HANDLERS[change.collection]!(change, ctx)
       }
       applied.push(command.clientRef)
+
+      // 紀錄寫在變更之後：套用失敗的命令不該留下「做過了」的痕跡，
+      // 否則重試會被冪等檢查擋下，變成永遠補不回來的一筆。
+      await db.operatingCommandLog.create({
+        data: {
+          workspaceId,
+          clientRefHash,
+          actorProfileId: user.id,
+          actorKey: seat.actor,
+          op: command.op,
+          entity: command.ent,
+          label: command.label,
+          collections: [...new Set(command.changes.map((change) => change.collection))],
+          changeCount: command.changes.length,
+          riskLevel: riskLevelFor(command.changes),
+        },
+      })
     } catch (error) {
       console.warn("[operating] command failed", { clientRef: command.clientRef, error })
       rejected.push({

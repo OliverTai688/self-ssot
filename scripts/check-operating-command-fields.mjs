@@ -93,6 +93,10 @@ const DEPENDENCIES = {
     'id', 'workspaceId', 'workbenchRef', 'name', 'category', 'tags',
     'space', 'authorKey', 'versions',
   ],
+  OperatingCommandLog: [
+    'id', 'workspaceId', 'clientRefHash', 'actorProfileId', 'actorKey',
+    'op', 'entity', 'label', 'collections', 'changeCount', 'riskLevel',
+  ],
   OperatingDocObject: [
     'id', 'workspaceId', 'workbenchRef', 'kind', 'subKind', 'title',
     'titleAuto', 'onDate', 'authorKey', 'payload', 'createdAt', 'updatedAt',
@@ -117,6 +121,7 @@ const COMPOSITE_KEYS = {
   OrganizationSetting: ['orgKey', 'key'],
   RhythmSession: ['rhythmId', 'occurrenceDate'],
   OperatingJournalEntry: ['workspaceId', 'authorId', 'onDate'],
+  OperatingCommandLog: ['workspaceId', 'clientRefHash'],
   OperatingCapacityPlan: ['workspaceId', 'actorKey'],
   OperatingTimesheet: ['workspaceId', 'actorKey'],
   OperatingPayrollDraft: ['workspaceId', 'actorKey'],

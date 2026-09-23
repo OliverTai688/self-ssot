@@ -2066,6 +2066,38 @@ model OperatingDocObject {
   @@map("operating_doc_objects")
 }
 
+/// 營運工作台的命令紀錄（PLN-074 M7）。
+///
+/// 為什麼不寫 operating_audit_events：那張表是 teamcollab 的高風險稽核目錄，
+/// CHECK constraint 只允許 workspace.created 這類具名動作，且強制 module_key='work'、
+/// risk_level='HIGH'、human_approval_required=true。工作台的一般命令塞不進去，
+/// 而把它們硬塞或乾脆不記錄都是錯的答案 —— 前者污染高風險目錄，後者讓每一次寫入都無跡可循。
+///
+/// 這張表同時是冪等的依據：client_ref_hash 唯一，重送同一個 clientRef 不會二次套用。
+model OperatingCommandLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  /// clientRef 的 SHA256。存雜湊而不是原值：它由客戶端生成，不該原樣落進資料庫。
+  clientRefHash  String   @map("client_ref_hash")
+  actorProfileId String?  @map("actor_profile_id") @db.Uuid
+  actorKey       String?  @map("actor_key")
+  op             String
+  /// 稽核顯示用的中文物種名與這一筆的名字
+  entity         String
+  label          String
+  /// 這次命令碰到的集合，查帳時用來定位
+  collections    String[]
+  changeCount    Int      @default(0) @map("change_count")
+  /// low | high —— 帳務集合的變更要與一般編輯分得開
+  riskLevel      String   @default("low") @map("risk_level")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([workspaceId, clientRefHash], map: "operating_command_log_client_ref_key")
+  @@index([workspaceId, createdAt], map: "operating_command_log_workspace_time_idx")
+  @@index([workspaceId, riskLevel, createdAt], map: "operating_command_log_risk_idx")
+  @@map("operating_command_logs")
+}
+
 model TimeSpine {
   id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String     @map("workspace_id") @db.Uuid

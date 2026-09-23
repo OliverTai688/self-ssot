@@ -14,6 +14,8 @@
  *   PERSONAL_OS_OPERATING_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA \
  *   pnpm ops:roundtrip
  */
+import { createHash } from "node:crypto"
+
 import { PrismaClient } from "@prisma/client"
 import { Pool } from "pg"
 import { PrismaPg } from "@prisma/adapter-pg"
@@ -57,8 +59,23 @@ function resolveTarget(): string {
       // 遠端目標幾乎都是正式庫。要打遠端必須再明說一次。
       reasons.push(`target host "${host}" is not local; set PERSONAL_OS_OPERATING_PROOF_ALLOW_REMOTE=1 only for a disposable remote database.`)
     }
-    if (url === process.env.DATABASE_URL) {
-      reasons.push("OPERATING_PROOF_DATABASE_URL equals DATABASE_URL; the runtime database is not a test target.")
+    // 比對主機＋資料庫名，而不是整串 URL：同一個資料庫換一個環境變數名
+    // （DIRECT_DATABASE_URL 之類）字串就不同，而那正是這道防線第一次被繞過的方式。
+    // 這一條刻意不受 ALLOW_REMOTE 影響 —— 「可拋棄的遠端」和「正式庫」是兩回事。
+    const identity = (value: string | undefined) => {
+      if (!value) return null
+      try {
+        const parsed = new URL(value)
+        return `${parsed.hostname}${parsed.pathname}`
+      } catch {
+        return null
+      }
+    }
+    const proofIdentity = identity(url)
+    for (const name of ["DATABASE_URL", "DIRECT_URL", "DIRECT_DATABASE_URL"]) {
+      if (proofIdentity && identity(process.env[name]) === proofIdentity) {
+        reasons.push(`OPERATING_PROOF_DATABASE_URL points at the same database as ${name}; the runtime database is not a test target.`)
+      }
     }
   }
 
@@ -92,44 +109,11 @@ function eq(name: string, actual: unknown, expected: unknown) {
 
 const SLUG = `operating-roundtrip-proof-${Date.now()}`
 
-async function cleanup(workspaceId: string | null, profileId: string | null) {
-  if (workspaceId) {
-    // ── 依外鍵順序清，留下的殘骸會讓下一次執行從髒狀態開始 ──────────────────
-    // Operating 層（全部含 workspaceId）
-    await db.operatingComment.deleteMany({ where: { workspaceId } })
-    await db.operatingRequest.deleteMany({ where: { workspaceId } })
-    await db.operatingLibraryFile.deleteMany({ where: { workspaceId } })
-    await db.operatingDocObject.deleteMany({ where: { workspaceId } })
-    await db.operatingTransaction.deleteMany({ where: { workspaceId } })
-    await db.operatingReimbursement.deleteMany({ where: { workspaceId } })
-    await db.operatingBankEntry.deleteMany({ where: { workspaceId } })
-    await db.operatingPayrollDraft.deleteMany({ where: { workspaceId } })
-    await db.operatingCapacityPlan.deleteMany({ where: { workspaceId } })
-    await db.operatingTimesheet.deleteMany({ where: { workspaceId } })
-    await db.operatingCommitment.deleteMany({ where: { workspaceId } })
-    await db.operatingDocument.deleteMany({ where: { workspaceId } })
-    await db.operatingThread.deleteMany({ where: { workspaceId } })
-    await db.operatingDecision.deleteMany({ where: { workspaceId } })
-    await db.operatingJournalEntry.deleteMany({ where: { workspaceId } })
-    await db.occasion.deleteMany({ where: { workspaceId } })
-    await db.rhythm.deleteMany({ where: { workspaceId } })
-    await db.operatingEvidenceRepo.deleteMany({ where: { workspaceId } })
-    await db.operatingGoal.deleteMany({ where: { workspaceId } })
-    // Project 關聯子表（含 workspace Restrict FK，須先於 project 清）
-    //   - ProjectFeedbackVersion 是 ProjectFeedback Cascade，隨 feedback 一起刪
-    //   - ProjectMemoryCandidate 同時有 workspace Restrict + project Restrict
-    await db.projectMemoryCandidate.deleteMany({ where: { workspaceId } })
-    await db.projectFeedback.deleteMany({ where: { workspaceId } })
-    // project.deleteMany 會透過 onDelete:Cascade 自動清掉：
-    //   ProjectTask / ProjectNote / ProjectDeliverable / ProjectPhaseNode /
-    //   ProjectMilestone / ProjectObjective / ProjectAccessGrant
-    await db.project.deleteMany({ where: { workspaceId } })
-    // WorkspaceMembership（onDelete:Cascade 也會由 workspace 串聯，顯式清更安全）
-    await db.workspaceMembership.deleteMany({ where: { workspaceId } })
-    await db.workspace.deleteMany({ where: { id: workspaceId } })
-  }
-  if (profileId) await db.profile.deleteMany({ where: { id: profileId } })
-}
+// 這裡刻意沒有一個「清空 workspace」的函式。
+//
+// 這支測試跑在正式的 yzedtech workspace 上（服務用固定 slug，不接受注入），
+// 所以任何以 workspaceId 為條件的 deleteMany 都等於清空正式資料。
+// 收尾只刪本次寫入的那幾列，用 workbenchRef 精確定位 —— 見 main() 的 finally。
 
 async function main() {
   const { applyOperatingCommands, OPERATING_WORKSPACE_SLUG } = await import(
@@ -320,6 +304,18 @@ async function main() {
       await db.operatingGoal.count({ where: { workspaceId, workbenchRef: GOAL_ID } }),
       1,
     )
+    // ARC-042 §5 承諾「重送同一個 clientRef 不會產生第二列」，而那句話的實質內容是
+    // 「不會被重放」。上面只驗了列數，upsert 本來就不會多一列 —— 真正要驗的是
+    // 重送的內容沒有蓋掉原本的值。
+    const replayedGoal = await db.operatingGoal.findFirst({ where: { workspaceId, workbenchRef: GOAL_ID } })
+    eq("a replayed command does not overwrite the original", replayedGoal?.title, "整合測試目標")
+    eq(
+      "a replayed command is logged only once",
+      await db.operatingCommandLog.count({
+        where: { workspaceId, clientRefHash: createHash("sha256").update(REF_GOAL).digest("hex") },
+      }),
+      1,
+    )
 
     // 刪除也要能往返
     const deleted = await applyOperatingCommands(user, seat, replay.version, [
@@ -341,6 +337,16 @@ async function main() {
     }).catch(() => {})
     await db.occasion.deleteMany({
       where: { workspaceId, workbenchRef: OCC_ID },
+    }).catch(() => {})
+    await db.operatingCommandLog.deleteMany({
+      where: {
+        workspaceId,
+        clientRefHash: {
+          in: [REF_GOAL, REF_OCC, REF_TXN, REF_JOURNAL, REF_REPLAY, REF_DELETE].map((ref) =>
+            createHash("sha256").update(ref).digest("hex"),
+          ),
+        },
+      },
     }).catch(() => {})
     await db.operatingTransaction.deleteMany({
       where: { workspaceId, workbenchRef: TXN_ID },
