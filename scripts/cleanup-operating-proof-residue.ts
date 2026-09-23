@@ -10,9 +10,10 @@
  *   pnpm ops:cleanup-residue            # 只列出
  *   pnpm ops:cleanup-residue -- --apply # 真的刪
  */
-import { PrismaClient } from "@prisma/client"
+// 用 app 自己的 client，不自己 new 一個：Prisma 7 需要 adapter（PrismaPg + pg Pool），
+// 而那份設定已經在 src/lib/db 裡。重造一個只會多一份會走樣的設定。
+import { db } from "../src/lib/db"
 
-const db = new PrismaClient()
 const apply = process.argv.includes("--apply")
 
 /** 由驗收當下實際讀到的 store 逐筆確認過，不是推測。 */
@@ -26,6 +27,10 @@ const RESIDUE = {
 }
 
 async function main() {
+  // 這支會刪正式資料。打到哪個資料庫必須是看得見的事，而不是從環境變數推測出來的。
+  const target = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null
+  console.log(`target: ${target ? target.host + target.pathname : "(DATABASE_URL 未設定)"}\n`)
+
   const { OPERATING_WORKSPACE_SLUG } = await import("../src/lib/services/operating-commands.service")
   const ws = await db.workspace.findUnique({ where: { slug: OPERATING_WORKSPACE_SLUG }, select: { id: true } })
   if (!ws) {
@@ -85,4 +90,9 @@ main()
     console.error(error)
     process.exitCode = 1
   })
-  .finally(() => db.$disconnect())
+  .finally(async () => {
+    await db.$disconnect()
+    // PrismaPg 拿的是外部的 pg Pool，$disconnect 不會把 socket 全關掉，
+    // 所以這裡明確結束行程，否則腳本跑完會掛著不退。
+    process.exit(process.exitCode ?? 0)
+  })
