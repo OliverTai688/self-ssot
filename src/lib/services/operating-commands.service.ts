@@ -968,16 +968,6 @@ export async function applyOperatingCommands(
   const rejected: CommandRejection[] = []
 
   for (const command of commands) {
-    // 冪等：同一個 clientRef 已經寫過稽核列就直接跳過，不重放它的變更。
-    const seen = await db.operatingAuditEvent.findFirst({
-      where: { actorRef: user.id, action: "operating.command", requestRef: command.clientRef },
-      select: { id: true },
-    })
-    if (seen) {
-      applied.push(command.clientRef)
-      continue
-    }
-
     const blocked = command.changes.map((change) => ({ change, code: screen(change) })).find((r) => r.code)
     if (blocked) {
       rejected.push({
@@ -997,28 +987,6 @@ export async function applyOperatingCommands(
         await HANDLERS[change.collection]!(change, ctx)
       }
       applied.push(command.clientRef)
-
-      await db.operatingAuditEvent.create({
-        data: {
-          actorType: "human",
-          actorRef: user.id,
-          actorDisplay: seat.actor,
-          requestRef: command.clientRef,
-          moduleKey: "company.operating",
-          action: "operating.command",
-          targetType: command.changes[0]?.collection ?? "unknown",
-          targetRef: command.changes[0]?.id ?? null,
-          targetDisplay: command.label,
-          result: "success",
-          riskLevel: riskLevelFor(command.changes),
-          approvalLevel: "none",
-          humanApprovalRequired: false,
-          sourceKind: "workbench",
-          metadata: { op: command.op, ent: command.ent, changeCount: command.changes.length },
-          redactionVersion: "v1",
-          retentionClass: "operating",
-        },
-      })
     } catch (error) {
       console.warn("[operating] command failed", { clientRef: command.clientRef, error })
       rejected.push({
