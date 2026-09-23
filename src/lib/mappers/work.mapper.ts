@@ -110,8 +110,15 @@ export function toDeliverableViewModel(d: DbProjectDeliverable): ProjectDelivera
   }
 }
 
-function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
+/**
+ * 空字串＝日期待補。
+ *
+ * `ProjectMilestone.date` 自 PLN-074 M3 起可為空：工作台一直允許先立下要交付什麼、
+ * 日期之後再說。這裡回空字串而不是拋例外或塞今天 —— 塞一個假日期會讓那些里程碑
+ * 出現在日曆與到期判斷裡，而它們根本還沒有日期。
+ */
+function toIsoDate(date: Date | null | undefined): string {
+  return date ? date.toISOString().slice(0, 10) : ""
 }
 
 export function toMilestoneViewModel(m: DbProjectMilestone): ProjectMilestone {

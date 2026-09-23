@@ -100,7 +100,8 @@ async function opFlush() {
       // 另一個席位先寫了。保留佇列裡尚未送出的內容，讓人決定，不靜默覆寫。
       const payload = await res.json().catch(() => ({}));
       OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
-      opSetStatus('conflict', '另一個裝置已更新這些紀錄，請重新整理後確認');
+      // 佇列刻意不清空：裡面是還沒被接受的編輯，丟掉等於替使用者放棄他剛打的字。
+      opSetStatus('conflict', '另一個裝置先改了同一批紀錄。這裡有 ' + OP_QUEUE.length + ' 筆尚未保存，請重新整理後重做');
       return;
     }
 
@@ -137,28 +138,83 @@ function opSetStatus(status, note) {
   opPaintStatus();
 }
 
-/** 保存狀態要看得見，否則「沒存到」只能等下次重整才發現。 */
+/**
+ * 保存狀態要看得見，否則「沒存到」只能等下次重整才發現。
+ *
+ * 徽章由這裡自己建立而不是改原型的 shell：shell 是凍結的生成物，
+ * 為了一個狀態指示去加一條 source patch 不划算，而且那條 patch 會在原型更新時斷掉。
+ */
+function opStatusBadge() {
+  let el = root.querySelector('#opSaveState');
+  if (el) return el;
+
+  el = doc.createElement('div');
+  el.id = 'opSaveState';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.style.cssText = [
+    'position:absolute', 'right:14px', 'bottom:14px', 'z-index:60',
+    'display:none', 'align-items:center', 'gap:6px',
+    'padding:6px 10px', 'border-radius:8px',
+    'font-size:12px', 'line-height:1.4',
+    'border:1px solid var(--line, #2a313b)',
+    'background:var(--surface-2, #161a20)',
+    'color:var(--text-2, #99a2af)',
+    'box-shadow:0 2px 8px rgba(0,0,0,.25)'
+  ].join(';');
+  root.appendChild(el);
+  return el;
+}
+
 function opPaintStatus() {
   if (!OP_LIVE) return;
-  const el = getById('opSaveState');
-  if (!el) return;
+  const el = opStatusBadge();
 
   const text = {
     idle: '已保存',
     sending: '保存中…',
     error: '未保存',
-    conflict: '有衝突'
+    conflict: '有衝突',
+    stale: '有新變更'
   }[OP_STATUS] || '';
 
   el.textContent = OP_STATUS_NOTE ? text + '：' + OP_STATUS_NOTE : text;
   el.dataset.state = OP_STATUS;
+  el.style.color =
+    OP_STATUS === 'error' ? 'var(--st-crit, #d03b3b)' :
+    OP_STATUS === 'conflict' || OP_STATUS === 'stale' ? 'var(--st-warn, #fab219)' :
+    'var(--text-2, #99a2af)';
   el.style.display = OP_STATUS === 'idle' && !OP_QUEUE.length ? 'none' : 'inline-flex';
+}
+
+/**
+ * 另一個席位改了東西時，這一頁不會自己知道。
+ *
+ * 完整的 refetch-and-merge 還沒做（會動到整個 store 的替換與未送出內容的保護），
+ * 所以先做到「看得出來」：回到這個分頁時比對伺服器版本，落後就提示。
+ * 這比靜靜地讓兩份資料分岔好，也比自動覆蓋安全。
+ */
+async function opCheckRemoteVersion() {
+  if (!OP_LIVE || OP_SENDING || OP_QUEUE.length) return;
+  try {
+    const res = await fetch(OPERATING_COMMANDS_ENDPOINT);
+    if (!res.ok) return;
+    const payload = await res.json();
+    if (typeof payload.version === 'number' && payload.version > OP_VERSION) {
+      opSetStatus('stale', '其他裝置已更新，重新整理以取得最新內容');
+    }
+  } catch {
+    /* 離線時不打擾；下一次回到分頁再看 */
+  }
 }
 
 // 先取一次伺服器版本，否則第一次送出就會撞 409（本地從 0 起算，伺服器不一定）。
 // 取不到就維持 0：那樣第一次送出會收到 409 並顯示衝突，比靜默覆寫安全。
 if (OP_LIVE) {
   OP_BASELINE = opSnapshot();
+  doc.addEventListener('visibilitychange', () => {
+    if (doc.visibilityState === 'visible') opCheckRemoteVersion();
+  }, { signal: controller.signal });
   fetch(OPERATING_COMMANDS_ENDPOINT)
     .then(res => (res.ok ? res.json() : null))
     .then(payload => {

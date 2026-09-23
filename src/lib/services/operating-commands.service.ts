@@ -22,7 +22,8 @@ import {
 
 /** 版本存在既有的 organization_settings，M1 因此不需要 migration。 */
 const VERSION_SETTING_KEY = "operating.version"
-const WORKSPACE_SLUG = DEFAULT_ORG_KEY
+export const OPERATING_WORKSPACE_SLUG = DEFAULT_ORG_KEY
+const WORKSPACE_SLUG = OPERATING_WORKSPACE_SLUG
 
 export class OperatingWriteDisabledError extends Error {}
 export class OperatingConflictError extends Error {
@@ -192,7 +193,7 @@ async function applyOccasion(change: RowChange, ctx: ApplyContext): Promise<void
     remind: str(row.remind),
   }
 
-  await db.occasion.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.occasion.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
   await syncOccasion(db, id)
 }
 
@@ -226,7 +227,7 @@ async function applyRhythm(change: RowChange, ctx: ApplyContext): Promise<void> 
     active: row.active !== false,
   }
 
-  await db.rhythm.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.rhythm.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applySession(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -339,8 +340,8 @@ async function applyProject(change: RowChange, ctx: ApplyContext): Promise<void>
 
   await db.operatingProjectProfile.upsert({
     where: { projectId: id },
-    create: { projectId: id, ...profile },
-    update: profile,
+    create: { projectId: id, ...profile, workbenchRef: change.id },
+    update: { ...profile, workbenchRef: change.id },
   })
 }
 
@@ -379,7 +380,7 @@ async function applyIssue(change: RowChange, _ctx: ApplyContext): Promise<void> 
     subtasks: toJson(row.sub, []),
   }
 
-  await db.projectTask.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.projectTask.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyGoal(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -399,7 +400,7 @@ async function applyGoal(change: RowChange, ctx: ApplyContext): Promise<void> {
     warning: str(row.warn),
   }
 
-  await db.operatingGoal.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingGoal.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyDecision(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -419,7 +420,7 @@ async function applyDecision(change: RowChange, ctx: ApplyContext): Promise<void
     decidedOn: toDateOnly(row.d),
   }
 
-  await db.operatingDecision.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingDecision.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 /**
@@ -506,7 +507,7 @@ async function applyPhase(change: RowChange, _ctx: ApplyContext): Promise<void> 
     startDate: start,
     endDate: toDateOnly(row.endOn) ?? start,
   }
-  await db.projectPhaseNode.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.projectPhaseNode.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyMilestone(change: RowChange, _ctx: ApplyContext): Promise<void> {
@@ -536,7 +537,7 @@ async function applyMilestone(change: RowChange, _ctx: ApplyContext): Promise<vo
     derivedFrom: str(row.derivedFrom),
     remind: str(row.remind),
   }
-  await db.projectMilestone.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.projectMilestone.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
   await syncMilestone(db, id)
 }
 
@@ -555,7 +556,7 @@ async function applyObjective(change: RowChange, _ctx: ApplyContext): Promise<vo
   if (!exists) throw new Error(`objective ${change.id} references a milestone that is not saved yet`)
 
   const data = { milestoneId, title: str(row.title) ?? "（未命名判準）" }
-  await db.projectObjective.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.projectObjective.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 /* ------------------------------------------------------------------ */
@@ -575,7 +576,7 @@ async function applyDocument(change: RowChange, ctx: ApplyContext): Promise<void
     title: str(row.t) ?? "（未命名文件）",
     clauses: toJson(row.clauses, []),
   }
-  await db.operatingDocument.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingDocument.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyCommitment(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -596,7 +597,7 @@ async function applyCommitment(change: RowChange, ctx: ApplyContext): Promise<vo
     cadence: str(row.due),
     logs: toJson(row.logs, []),
   }
-  await db.operatingCommitment.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingCommitment.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyThread(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -616,7 +617,7 @@ async function applyThread(change: RowChange, ctx: ApplyContext): Promise<void> 
     closeNote: (row.close ?? null) as Prisma.InputJsonValue,
     files: Array.isArray(row.files) ? row.files.filter((f): f is string => typeof f === "string") : [],
   }
-  await db.operatingThread.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingThread.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 /** repos 以 projectId 為鍵，change.id 就是工作台的專案 id。 */
@@ -637,8 +638,8 @@ async function applyEvidenceRepo(change: RowChange, ctx: ApplyContext): Promise<
   }
   await db.operatingEvidenceRepo.upsert({
     where: { projectId },
-    create: { projectId, ...data },
-    update: data,
+    create: { projectId, ...data, workbenchRef: change.id },
+    update: { ...data, workbenchRef: change.id },
   })
 }
 
@@ -703,7 +704,7 @@ async function applyTransaction(change: RowChange, ctx: ApplyContext): Promise<v
     vouchers: Array.isArray(row.v) ? row.v.filter((x): x is string => typeof x === "string") : [],
     note: str(row.note),
   }
-  await db.operatingTransaction.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingTransaction.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyReimbursement(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -721,7 +722,7 @@ async function applyReimbursement(change: RowChange, ctx: ApplyContext): Promise
     status: str(row.st) ?? "待送",
     onDate: toDateOnly(row.d),
   }
-  await db.operatingReimbursement.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingReimbursement.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyBankEntry(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -741,7 +742,7 @@ async function applyBankEntry(change: RowChange, ctx: ApplyContext): Promise<voi
     amount: toAmount(row.amt),
     matchedRef: str(row.m),
   }
-  await db.operatingBankEntry.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await db.operatingBankEntry.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
 async function applyPayrollDraft(change: RowChange, ctx: ApplyContext): Promise<void> {
@@ -762,6 +763,81 @@ async function applyPayrollDraft(change: RowChange, ctx: ApplyContext): Promise<
     create: { workspaceId: ctx.workspaceId, actorKey: change.id, ...data },
     update: data,
   })
+}
+
+
+/* ------------------------------------------------------------------ */
+/* M5：留言與請求                                                       */
+/* ------------------------------------------------------------------ */
+
+const COMMENT_TARGET_TYPE: Record<string, string> = {
+  lineComments: "line",
+  journalComments: "journal",
+  objectComments: "object",
+}
+
+/**
+ * 三種留言共用一張表。作者同時記 Profile uuid 與席位字串：
+ * uuid 用來做權限，席位字串是工作台顯示的那個名字，對不到人時它仍然在。
+ */
+async function applyComment(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid(change.collection, change.id)
+  const targetType = COMMENT_TARGET_TYPE[change.collection] ?? "object"
+
+  if (change.op === "delete") {
+    // 留言可能已被引用，引用的那一頭不該指向空白 —— 所以是軟刪除。
+    await db.operatingComment.updateMany({
+      where: { id, workspaceId: ctx.workspaceId },
+      data: { deletedAt: new Date() },
+    })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const authorKey = str(row.w) ?? str(row.author)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    authorId: (authorKey ? ctx.actors.get(authorKey) : undefined) ?? null,
+    authorKey,
+    workbenchRef: change.id,
+    targetType,
+    targetRef: str(row.parent) ?? str(row.blockId) ?? "",
+    body: str(row.x) ?? "",
+    meta: toJson({ ts: row.ts ?? null, day: row.day ?? null, blockId: row.blockId ?? null }, {}),
+    deletedAt: null,
+  }
+
+  await db.operatingComment.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyRequest(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("requests", change.id)
+
+  if (change.op === "delete") {
+    await db.operatingRequest.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const sentAt = Number(row.sentAt)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    fromKey: str(row.from),
+    toKey: str(row.to),
+    onDate: toDateOnly(row.day),
+    blockId: str(row.blockId),
+    text: str(row.text) ?? "",
+    kind: str(row.kind) ?? "ask",
+    sentAt: Number.isFinite(sentAt) && sentAt > 0 ? new Date(sentAt) : null,
+    // options／replies／nudges／pinged 形狀仍在演進，整包存比拆表安全
+    payload: toJson(
+      { options: row.options ?? [], replies: row.replies ?? [], nudges: row.nudges ?? [], pinged: row.pinged ?? {} },
+      {},
+    ),
+  }
+
+  await db.operatingRequest.upsert({ where: { id }, create: { id, ...data }, update: data })
 }
 
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
@@ -786,6 +862,10 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   reimb: applyReimbursement,
   bank: applyBankEntry,
   payroll: applyPayrollDraft,
+  lineComments: applyComment,
+  journalComments: applyComment,
+  objectComments: applyComment,
+  requests: applyRequest,
 }
 
 /* ------------------------------------------------------------------ */

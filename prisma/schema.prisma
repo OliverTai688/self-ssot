@@ -814,6 +814,8 @@ model ProjectTask {
   /// 純文字子項；升級成正式 Task 之前不需要自己的列
   subtasks        Json    @default("[]")
 
+  workbenchRef String? @map("workbench_ref")
+
   @@map("project_tasks")
 }
 
@@ -859,6 +861,8 @@ model ProjectPhaseNode {
   project    Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
   phase      ProjectPhase
   label      String
+  workbenchRef String? @map("workbench_ref")
+
   startDate  DateTime               @map("start_date")
   endDate    DateTime               @map("end_date")
   status     ProjectPhaseNodeStatus @default(UPCOMING)
@@ -876,6 +880,8 @@ model ProjectMilestone {
   phaseNodeId String                  @map("phase_node_id") @db.Uuid
   phaseNode   ProjectPhaseNode        @relation(fields: [phaseNodeId], references: [id], onDelete: Cascade)
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   /// 可為空＝日期待補（由 delivery[] 轉來的里程碑），不進日曆。
   /// 原本是 NOT NULL，但工作台一直允許「先立下要交付什麼，日期之後再說」，
   /// 逼一個假日期進來會讓那些里程碑出現在日曆上。
@@ -1571,6 +1577,8 @@ model ProjectObjective {
   milestoneId String           @map("milestone_id") @db.Uuid
   milestone   ProjectMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   sortOrder   Int              @default(0) @map("sort_order")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
@@ -1587,6 +1595,8 @@ model Rhythm {
   workspaceId String      @map("workspace_id") @db.Uuid
   workspace   Workspace   @relation("WorkspaceRhythms", fields: [workspaceId], references: [id], onDelete: Cascade)
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   kind        RhythmKind  @default(RITUAL)
   scope       RhythmScope @default(COMPANY)
   ownerIds    String[]    @map("owner_ids") @db.Uuid
@@ -1638,6 +1648,10 @@ model Occasion {
   workspaceId    String           @map("workspace_id") @db.Uuid
   workspace      Workspace        @relation("WorkspaceOccasions", fields: [workspaceId], references: [id], onDelete: Cascade)
   title          String
+  /// 工作台的業務 id（PRJ-2026-004 之類）。主鍵是由它推導的 UUIDv5，而那是單向的——
+  /// 沒有這一欄就讀不回工作台需要的 id，關聯（issue.p、milestone.projectId）也接不回去。
+  workbenchRef String? @map("workbench_ref")
+
   category       OccasionCategory @default(COMPANY_EVENT)
   onDate         DateTime         @map("on_date") @db.Date
   endOn          DateTime?        @map("end_on") @db.Date
@@ -1694,6 +1708,8 @@ model OperatingProjectProfile {
   projectId       String         @id @map("project_id") @db.Uuid
   project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   client          String?
+  workbenchRef String? @map("workbench_ref")
+
   goalId          String?        @map("goal_id") @db.Uuid
   goal            OperatingGoal? @relation("OperatingGoalProjects", fields: [goalId], references: [id], onDelete: SetNull)
   /// 產品交付型 / 行銷服務型 / 未確認
@@ -1718,6 +1734,8 @@ model OperatingGoal {
   workspaceId String   @map("workspace_id") @db.Uuid
   title       String
   period      String
+  workbenchRef String? @map("workbench_ref")
+
   progressPct Int      @default(0) @map("progress_pct")
   warning     String?
   createdAt   DateTime @default(now()) @map("created_at")
@@ -1753,12 +1771,18 @@ model OperatingJournalEntry {
 model OperatingComment {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String    @map("workspace_id") @db.Uuid
-  authorId    String    @map("author_id") @db.Uuid
+  /// Profile.id；對不到人時留空，作者身分仍由 authorKey 保住
+  authorId    String?   @map("author_id") @db.Uuid
+  /// 席位字串（yz / lily）。工作台顯示的是這個，不是 uuid
+  authorKey   String?   @map("author_key")
+  workbenchRef String?  @map("workbench_ref")
   /// journal | line | object
   targetType  String    @map("target_type")
   targetRef   String    @map("target_ref")
   parentId    String?   @map("parent_id") @db.Uuid
   body        String
+  /// 工作台顯示用的時間字串（'10:20'）與 line 留言的 blockId／day
+  meta        Json      @default("{}")
   createdAt   DateTime  @default(now()) @map("created_at")
   /// 軟刪除：留言被引用過就不能真的消失，否則被引用的那一頭會指向空白
   deletedAt   DateTime? @map("deleted_at")
@@ -1769,12 +1793,34 @@ model OperatingComment {
 }
 
 /// 決議紀錄。
+/// 日誌裡的請求與回覆流。options／replies／nudges 形狀仍在演進，先整包存。
+model OperatingRequest {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  workbenchRef String?  @map("workbench_ref")
+  fromKey      String?  @map("from_key")
+  toKey        String?  @map("to_key")
+  onDate       DateTime? @map("on_date") @db.Date
+  blockId      String?  @map("block_id")
+  text         String
+  kind         String   @default("ask")
+  sentAt       DateTime? @map("sent_at")
+  payload      Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, onDate], map: "operating_requests_workspace_date_idx")
+  @@map("operating_requests")
+}
+
 model OperatingDecision {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
   authorId    String?  @map("author_id") @db.Uuid
   projectId   String?  @map("project_id") @db.Uuid
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   body        String?
   decidedOn   DateTime? @map("decided_on") @db.Date
   createdAt   DateTime @default(now()) @map("created_at")
@@ -1793,6 +1839,8 @@ model OperatingDocument {
   /// 內部 / 外部
   direction   String
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   /// [{ id, ref, text }]
   clauses     Json     @default("[]")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -1811,6 +1859,8 @@ model OperatingCommitment {
   clauseRef   String?  @map("clause_ref")
   direction   String
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   ownerKey    String?  @map("owner_key")
   status      String
   cadence     String?
@@ -1829,6 +1879,8 @@ model OperatingThread {
   workspaceId String   @map("workspace_id") @db.Uuid
   projectId   String?  @map("project_id") @db.Uuid
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   closed      Boolean  @default(false)
   /// [{ w, ts, x }]
   messages    Json     @default("[]")
@@ -1846,6 +1898,8 @@ model OperatingEvidenceRepo {
   projectId   String   @id @map("project_id") @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
   version     String   @default("v0.1")
+  workbenchRef String? @map("workbench_ref")
+
   frozen      Boolean  @default(false)
   readme      String?
   /// [{ v, t, st }]
@@ -1895,6 +1949,8 @@ model OperatingTransaction {
   workspaceId String   @map("workspace_id") @db.Uuid
   onDate      DateTime @map("on_date") @db.Date
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   projectRef  String?  @map("project_ref")
   category    String?
   /// 未稅金額，支出為負。整數避免浮點誤差累積在對帳上。
@@ -1918,6 +1974,8 @@ model OperatingReimbursement {
   workspaceId String   @map("workspace_id") @db.Uuid
   actorKey    String?  @map("actor_key")
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   amount      Int      @default(0)
   /// 待送 / 已核 / 已付
   status      String   @default("待送")
@@ -1936,6 +1994,8 @@ model OperatingBankEntry {
   workspaceId String   @map("workspace_id") @db.Uuid
   onDate      DateTime @map("on_date") @db.Date
   title       String
+  workbenchRef String? @map("workbench_ref")
+
   amount      Int      @default(0)
   matchedRef  String?  @map("matched_ref")
   createdAt   DateTime @default(now()) @map("created_at")

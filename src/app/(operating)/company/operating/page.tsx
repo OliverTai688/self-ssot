@@ -4,6 +4,8 @@ import { resolveCurrentUser } from "@/lib/services/auth.service"
 import { createLoginPath } from "@/lib/auth/redirect"
 import { resolveYuanzhanSeat } from "@/lib/auth/yuanzhan-actor"
 import { readOperatingDataSource } from "@/lib/config/operating-data-source"
+import { findOperatingWorkspaceId, loadOperatingStore } from "@/lib/services/operating-store.service"
+import { OPERATING_WORKSPACE_SLUG } from "@/lib/services/operating-commands.service"
 import { readUiDataMode } from "@/lib/config/ui-data-mode"
 import { operatingSettingsCatalog, loadOperatingSettings } from "@/lib/services/operating-settings.service"
 import { parseUiDataMode } from "@/lib/ui-data/yuanzhan/mode"
@@ -57,6 +59,20 @@ export default async function OperatingPage() {
   // 資料來源與資料模式是兩件事：mode 決定畫面上有沒有範例，dataSource 決定輸入的東西會不會留下。
   const dataSource = readOperatingDataSource()
 
+  // database 模式才讀資料庫。讀取不建立 workspace —— 打開頁面不該在資料庫留下東西；
+  // 還沒有 workspace 就是第一次使用，那時的空白是真的空白。
+  let store = null
+  if (dataSource === "database") {
+    try {
+      const workspaceId = await findOperatingWorkspaceId(OPERATING_WORKSPACE_SLUG)
+      store = workspaceId ? await loadOperatingStore(workspaceId, auth.user.id) : null
+    } catch (error) {
+      // 不退回 showcase／empty：靜默降級會讓人以為資料是空的，而不是讀取失敗了。
+      console.error("[operating] failed to load the operating store", error)
+      throw new Error("營運資料讀取失敗，請重新整理；若持續發生請檢查資料庫連線。")
+    }
+  }
+
   return (
     <V5Desktop
       key={`${auth.user.id}:${seat.actor}:${mode}:${dataSource}`}
@@ -65,6 +81,7 @@ export default async function OperatingPage() {
         seat,
         { ...settings, catalog: operatingSettingsCatalog().all },
         dataSource,
+        store,
       )}
     />
   )

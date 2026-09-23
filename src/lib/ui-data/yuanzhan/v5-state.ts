@@ -54,11 +54,15 @@ export function createV5State(
   seat?: YuanzhanSeat | null,
   settings?: (OperatingSettingsSnapshot & { catalog: SettingField[] }) | null,
   dataSource: OperatingDataSource = DEFAULT_OPERATING_DATA_SOURCE,
+  /** database 模式下由 operating-store.service 讀回來的實際資料。 */
+  store?: Record<string, unknown> | null,
 ): V5State {
   parseUiDataMode(mode)
   // 三軌在清空迴圈之前掛上，empty 模式才會一併被清成空陣列（ARC-040）。
   const data = attachOperatingTracks(referenceSeed())
-  if (mode === 'empty') {
+  // database 模式一律先清空再覆蓋：UI_DATA_MODE 不得把 fixture 注入正式資料（ARC-042 §8）。
+  // 沒清空的話，資料庫裡沒有的那些集合會保留 showcase 的假資料，看起來像真的。
+  if (mode === 'empty' || dataSource === 'database') {
     for (const key of Object.keys(data)) {
       const k = key as keyof typeof data
       if (Array.isArray(data[k])) (data as unknown as Record<string, unknown>)[key] = []
@@ -67,6 +71,10 @@ export function createV5State(
     data.repos = {} as typeof data.repos
     data.capacity = { yz: [], lily: [] }
     data.timesheet = { yz: [], lily: [] }
+  }
+
+  if (dataSource === 'database' && store) {
+    Object.assign(data as unknown as Record<string, unknown>, store)
   }
 
   let viewer: V5Viewer | null = null

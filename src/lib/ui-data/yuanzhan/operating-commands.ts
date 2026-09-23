@@ -38,6 +38,10 @@ export const PERSISTED_COLLECTIONS = [
   'repos',
   'capacity',
   'timesheet',
+  'lineComments',
+  'journalComments',
+  'objectComments',
+  'requests',
   'txns',
   'reimb',
   'bank',
@@ -89,6 +93,11 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   'repos',
   'capacity',
   'timesheet',
+  // M5：留言與請求
+  'lineComments',
+  'journalComments',
+  'objectComments',
+  'requests',
   // M4：帳務
   'txns',
   'reimb',
@@ -130,6 +139,13 @@ export function identifyRow(collection: PersistedCollection, row: Record<string,
   // 薪資試算一人一列，沒有 id；席位字串就是它的身分。
   if (collection === 'payroll') {
     return typeof row.who === 'string' && row.who.length > 0 ? row.who : null
+  }
+
+  // 物件留言沒有 id：它的身分是「誰、在哪個物件上、什麼時候說的」。
+  if (collection === 'objectComments') {
+    const { parent, w, ts } = row
+    if (typeof parent !== 'string' || typeof w !== 'string' || typeof ts !== 'string') return null
+    return `${parent}|${w}|${ts}`
   }
 
   if (collection === 'sessions') {

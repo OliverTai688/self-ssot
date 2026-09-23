@@ -104,6 +104,7 @@ export interface ProjectDeliverable {
 export interface ProjectMilestone {
   id: string
   title: string
+  /** YYYY-MM-DD，空字串＝日期待補（PLN-074 M3 起里程碑可以先於日期存在）。 */
   date: string
   status: "upcoming" | "completed"
 }

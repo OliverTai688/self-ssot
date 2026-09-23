@@ -81,7 +81,28 @@ const DEPENDENCIES = {
   OperatingReimbursement: ['id', 'workspaceId', 'actorKey', 'title', 'amount', 'status', 'onDate'],
   OperatingBankEntry: ['id', 'workspaceId', 'onDate', 'title', 'amount', 'matchedRef'],
   OperatingPayrollDraft: ['workspaceId', 'actorKey', 'baseAmount', 'overtime', 'milestone', 'separate'],
+  OperatingComment: [
+    'id', 'workspaceId', 'authorId', 'authorKey', 'workbenchRef',
+    'targetType', 'targetRef', 'body', 'meta', 'deletedAt',
+  ],
+  OperatingRequest: [
+    'id', 'workspaceId', 'workbenchRef', 'fromKey', 'toKey', 'onDate',
+    'blockId', 'text', 'kind', 'sentAt', 'payload',
+  ],
 }
+
+/**
+ * 讀取路徑（operating-store.service）靠 workbench_ref 把資料庫的列還原成
+ * 工作台的業務 id。少一個欄位，那張表的資料就讀不回來 —— 而畫面只會顯示「空的」，
+ * 不會顯示「讀不到」。所以這裡逐表檢查。
+ */
+const REVERSE_LOOKUP_MODELS = [
+  'Occasion', 'Rhythm', 'ProjectPhaseNode', 'ProjectMilestone', 'ProjectObjective',
+  'ProjectTask', 'OperatingProjectProfile', 'OperatingGoal', 'OperatingDecision',
+  'OperatingDocument', 'OperatingCommitment', 'OperatingThread', 'OperatingTransaction',
+  'OperatingReimbursement', 'OperatingBankEntry', 'OperatingEvidenceRepo',
+  'OperatingComment', 'OperatingRequest',
+]
 
 /** 服務層用到的複合唯一鍵；Prisma 的 where 鍵名由這些欄位組出來。 */
 const COMPOSITE_KEYS = {
@@ -120,6 +141,25 @@ for (const [model, key] of Object.entries(COMPOSITE_KEYS)) {
   )
   if (!match) {
     console.error(`FAIL  ${model} has no @@unique([${key.join(', ')}]) for the upsert key the service uses`)
+    failed += 1
+  }
+}
+
+for (const model of REVERSE_LOOKUP_MODELS) {
+  checked += 1
+  const found = models.get(model)
+  if (!found?.fields.has('workbenchRef')) {
+    console.error(`FAIL  ${model} has no workbenchRef, so the read path cannot restore its workbench ids`)
+    failed += 1
+  }
+}
+
+// 留言的作者必須可空：席位對不到 Profile 時，整筆留言仍要存得進來。
+{
+  checked += 1
+  const body = schema.match(/^model\s+OperatingComment\s*\{([\s\S]*?)^\}/m)?.[1] ?? ''
+  if (!/^\s*authorId\s+String\?/m.test(body)) {
+    console.error('FAIL  OperatingComment.authorId must be optional so an unmapped seat does not lose the comment')
     failed += 1
   }
 }
