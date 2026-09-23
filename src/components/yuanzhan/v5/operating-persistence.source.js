@@ -69,6 +69,13 @@ function opEnqueue(op, ent, label, before) {
   }
   if (!changes.length) return;
 
+  const payloadBytes = JSON.stringify(changes).length;
+  if (payloadBytes > OP_MAX_BYTES) {
+    // 幾乎一定是有 bytes 混進了某個欄位。檔案要走 R2，不是走這條。
+    opSetStatus('error', '這次變更過大（' + Math.round(payloadBytes / 1024) + ' KB），未送出');
+    return;
+  }
+
   if (changes.length > OP_MAX_CHANGES) {
     // 單次 commit 動了這麼多列，比較可能是比對出錯而不是真的批次操作。
     // 寧可擋下來，也不要把一堆可疑的列送上伺服器。
@@ -195,17 +202,99 @@ function opPaintStatus() {
  * 這比靜靜地讓兩份資料分岔好，也比自動覆蓋安全。
  */
 async function opCheckRemoteVersion() {
-  if (!OP_LIVE || OP_SENDING || OP_QUEUE.length) return;
+  if (!OP_LIVE || OP_SENDING) return;
   try {
     const res = await fetch(OPERATING_COMMANDS_ENDPOINT);
     if (!res.ok) return;
     const payload = await res.json();
     if (typeof payload.version === 'number' && payload.version > OP_VERSION) {
-      opSetStatus('stale', '其他裝置已更新，重新整理以取得最新內容');
+      await opMergeRemote();
     }
   } catch {
     /* 離線時不打擾；下一次回到分頁再看 */
   }
+}
+
+/** 佇列裡還沒被接受的列：合併時這些一律以本地為準。 */
+function opPendingKeys() {
+  const pending = new Set();
+  for (const command of OP_QUEUE) {
+    for (const change of command.changes) pending.add(change.collection + '\u0000' + change.id);
+  }
+  return pending;
+}
+
+/**
+ * 逐列合併，而不是整份替換。
+ *
+ * 整份替換會把「已經打了但還沒送出」的編輯連同舊資料一起蓋掉 —— 那是使用者
+ * 最無法接受的一種資料遺失，因為他明明看著畫面上有。所以：佇列裡有的那幾列
+ * 保留本地版本，其餘採用伺服器版本。粒度是列，不是集合，也不是整個 store。
+ */
+async function opMergeRemote() {
+  const pending = opPendingKeys();
+  let payload;
+  try {
+    const res = await fetch('/api/company/operating/store');
+    if (!res.ok) return;
+    payload = await res.json();
+  } catch {
+    return;
+  }
+  if (!payload || !payload.store) return;
+
+  let merged = 0;
+  let kept = 0;
+
+  for (const [collection, incoming] of Object.entries(payload.store)) {
+    if (!OP_WRITE_ENABLED.includes(collection)) continue;
+
+    if (Array.isArray(incoming)) {
+      const local = Array.isArray(DB[collection]) ? DB[collection] : [];
+      const localById = new Map();
+      for (const row of local) {
+        const id = identifyRow(collection, row);
+        if (id) localById.set(id, row);
+      }
+      const next = [];
+      for (const row of incoming) {
+        const id = identifyRow(collection, row);
+        const key = collection + '\u0000' + id;
+        if (id && pending.has(key)) { next.push(localById.get(id) ?? row); kept += 1; }
+        else { next.push(row); merged += 1; }
+      }
+      // 伺服器沒有、但本地還沒送出的列要留著，否則它會在眼前消失。
+      for (const [id, row] of localById) {
+        const key = collection + '\u0000' + id;
+        if (pending.has(key) && !incoming.some(r => identifyRow(collection, r) === id)) {
+          next.push(row); kept += 1;
+        }
+      }
+      DB[collection] = next;
+      continue;
+    }
+
+    if (incoming && typeof incoming === 'object') {
+      const local = DB[collection] && typeof DB[collection] === 'object' ? DB[collection] : {};
+      const next = {};
+      for (const [key, row] of Object.entries(incoming)) {
+        const pendingKey = collection + '\u0000' + key;
+        if (pending.has(pendingKey) && local[key] !== undefined) { next[key] = local[key]; kept += 1; }
+        else { next[key] = row; merged += 1; }
+      }
+      for (const [key, row] of Object.entries(local)) {
+        if (pending.has(collection + '\u0000' + key) && next[key] === undefined) { next[key] = row; kept += 1; }
+      }
+      DB[collection] = next;
+    }
+  }
+
+  OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
+  OP_BASELINE = snapshotCollections(DB, OP_WRITE_ENABLED);
+  render();
+
+  if (kept) opSetStatus('conflict', '已取得其他裝置的更新；你有 ' + kept + ' 筆尚未保存的編輯被保留');
+  else opSetStatus(OP_QUEUE.length ? 'sending' : 'idle', merged ? '已同步其他裝置的更新' : '');
 }
 
 // 先取一次伺服器版本，否則第一次送出就會撞 409（本地從 0 起算，伺服器不一定）。

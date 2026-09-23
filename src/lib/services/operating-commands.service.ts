@@ -840,6 +840,70 @@ async function applyRequest(change: RowChange, ctx: ApplyContext): Promise<void>
   await db.operatingRequest.upsert({ where: { id }, create: { id, ...data }, update: data })
 }
 
+
+/* ------------------------------------------------------------------ */
+/* M6：文件庫與文件物件                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 版本陣列裡不該出現 bytes。
+ *
+ * 上傳器在 database 模式已經把二進位送去 R2、只留 objectKey，但這是伺服器這一側的
+ * 第二道：舊資料、其他客戶端或未來的改動都可能把 data URL 帶回來，
+ * 存進去就等於把 base64 永久寫進資料庫。
+ */
+function stripFileBytes(versions: unknown): Prisma.InputJsonValue {
+  if (!Array.isArray(versions)) return []
+  return versions.map((version) => {
+    if (!version || typeof version !== "object") return version
+    const { data: _data, ...rest } = version as Record<string, unknown>
+    return rest
+  }) as Prisma.InputJsonValue
+}
+
+async function applyLibraryFile(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("files", change.id)
+  if (change.op === "delete") {
+    await db.operatingLibraryFile.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    name: str(row.name) ?? "（未命名檔案）",
+    category: str(row.category) ?? "material",
+    tags: str(row.tags) ?? "",
+    space: str(row.space) ?? "team",
+    authorKey: str(row.author),
+    versions: stripFileBytes(row.versions),
+  }
+  await db.operatingLibraryFile.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyDocObject(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("docObjects", change.id)
+  if (change.op === "delete") {
+    await db.operatingDocObject.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    kind: str(row.type) ?? "note",
+    subKind: str(row.subType),
+    title: str(row.title) ?? "（未命名）",
+    titleAuto: row.titleAuto !== false,
+    onDate: toDateOnly(row.day),
+    authorKey: str(row.author),
+    payload: toJson({ collapsed: row.collapsed === true, secs: row.secs ?? [] }, {}),
+  }
+  await db.operatingDocObject.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
   occasions: applyOccasion,
   rhythms: applyRhythm,
@@ -866,6 +930,8 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   journalComments: applyComment,
   objectComments: applyComment,
   requests: applyRequest,
+  files: applyLibraryFile,
+  docObjects: applyDocObject,
 }
 
 /* ------------------------------------------------------------------ */

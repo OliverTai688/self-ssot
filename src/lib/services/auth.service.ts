@@ -208,11 +208,32 @@ async function resolveSupabaseCurrentUser(): Promise<AuthResolution> {
     }
   }
 
+  // YZLIVE-003：身分由已驗證的 Auth UID 決定，email 只是登入地址。
+  // 先用 UID 找；找不到才退回 email，並在那時把 UID 綁上去。這樣使用者日後
+  // 改了登入信箱，Profile 不會變成孤兒，也不會有人用同名信箱接收既有身分。
+  const authUserId = typeof data.claims.sub === "string" ? data.claims.sub : null
+
   try {
-    const profile = await db.profile.findUnique({
-      where: { email: data.claims.email },
-      select: { id: true, email: true, role: true },
-    })
+    let profile = authUserId
+      ? await db.profile.findUnique({ where: { authUserId }, select: { id: true, email: true, role: true } })
+      : null
+
+    if (!profile) {
+      profile = await db.profile.findUnique({
+        where: { email: data.claims.email },
+        select: { id: true, email: true, role: true },
+      })
+
+      if (profile && authUserId) {
+        // 一次性綁定。只在尚未綁定時寫，已綁定的不動 —— 兩個 UID 搶同一個 Profile
+        // 應該失敗（authUserId 是 unique），而不是悄悄改掉。
+        await db.profile
+          .updateMany({ where: { id: profile.id, authUserId: null }, data: { authUserId } })
+          .catch((bindError) => {
+            console.warn("[auth] could not bind authUserId to the profile", bindError)
+          })
+      }
+    }
 
     return {
       mode: "supabase",
@@ -283,6 +304,7 @@ export async function requireUser() {
  */
 export async function ensureGoogleAllowlistedProfile(
   email: string,
+  authUserId?: string | null,
 ): Promise<GoogleAllowlistResult> {
   // An unset PERSONAL_OS_TEAM_PROFILES rejects every account, which on a fresh
   // deployment looks exactly like "my Google account is not allowed". Separate
@@ -303,7 +325,7 @@ export async function ensureGoogleAllowlistedProfile(
   try {
     const existing = await db.profile.findUnique({
       where: { email: entry.email },
-      select: { id: true },
+      select: { id: true, authUserId: true },
     })
 
     if (!existing) {
@@ -312,8 +334,13 @@ export async function ensureGoogleAllowlistedProfile(
           email: entry.email,
           fullName: entry.fullName,
           role: entry.role,
+          authUserId: authUserId ?? null,
         },
       })
+    } else if (authUserId && !existing.authUserId) {
+      // 既有 Profile 第一次用這個 Auth 身分登入時綁上去。角色與姓名不動：
+      // 手工整理過的 Profile 不該被 env 的舊值悄悄覆寫。
+      await db.profile.updateMany({ where: { id: existing.id, authUserId: null }, data: { authUserId } })
     }
 
     return { ok: true }

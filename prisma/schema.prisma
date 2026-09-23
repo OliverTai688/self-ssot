@@ -2020,6 +2020,52 @@ model OperatingPayrollDraft {
   @@map("operating_payroll_drafts")
 }
 
+// ─── 文件庫與文件物件（PLN-074 M6）──────────────────────────────────────────
+
+/// 文件庫檔案。版本陣列存 Json，bytes 不在這裡 —— 走 R2，只留 objectKey。
+model OperatingLibraryFile {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  workbenchRef String?  @map("workbench_ref")
+  name         String
+  category     String   @default("material")
+  tags         String   @default("")
+  /// team = 公司文件庫；personal = 私人文件，只有作者讀得到
+  space        String   @default("team")
+  authorKey    String?  @map("author_key")
+  /// [{ id, name, type, text, objectKey, bytes, at }]
+  /// 文字檔內容留在 text（小、且讓搜尋可用）；二進位檔只留 objectKey。
+  versions     Json     @default("[]")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, space], map: "operating_library_files_workspace_space_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_library_files_ref_idx")
+  @@map("operating_library_files")
+}
+
+/// 日誌裡召喚出來的結構化文件物件（會議紀錄、訪談稿之類）。
+model OperatingDocObject {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  workbenchRef String?  @map("workbench_ref")
+  kind         String
+  subKind      String?  @map("sub_kind")
+  title        String
+  /// 系統自動命名；使用者改過標題後關閉
+  titleAuto    Boolean  @default(true) @map("title_auto")
+  onDate       DateTime? @map("on_date") @db.Date
+  authorKey    String?  @map("author_key")
+  /// { collapsed, secs: [{ title, blocks }] } —— 區段形狀仍在演進
+  payload      Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, onDate], map: "operating_doc_objects_workspace_date_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_doc_objects_ref_idx")
+  @@map("operating_doc_objects")
+}
+
 model TimeSpine {
   id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String     @map("workspace_id") @db.Uuid

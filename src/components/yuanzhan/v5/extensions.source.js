@@ -136,14 +136,53 @@ function enhanceTimesheet(){const table=$('table.ts');if(!table)return;const who
 function newAttendanceWeek(who){if(who!==DB.me)return deny();openForm({crumb:'出勤',title:'新增出勤週次',fields:[{k:'from',label:'週一日期',type:'date',req:true}],values:{from:TODAY},onSave:v=>{const date=new Date(v.from+'T00:00:00Z');if(date.getUTCDay()!==1)throw Error('請選擇週一');if(tsWeeks(who).some(w=>w.from===v.from))throw Error('此週已存在');commit('create','出勤週次',v.from,()=>{DB.timesheet[who].push({wk:v.from,from:v.from,days:Array(7).fill(0),est:Array(7).fill(0),st:'draft',conf:''});return['逐日填寫後由本人確認']})}})}
 const originalSetDay=setDay;
 setDay=function(who,wi,di,value){if(who!==DB.me)return deny();if(value&&!/^(?:\d{1,2}:[0-5]\d|\d+(?:\.\d+)?)$/.test(value)){toast('請填 H:MM 或小時數');render();return}const parts=value.split(':');const minutes=parts.length===2?+parts[0]*60+(+parts[1]):+value*60;if(minutes>1440||minutes<0){toast('每日時間須在 0–24 小時');render();return}originalSetDay(who,wi,di,value);render()};
-// Real local file bytes and fixed versions, all in memory. No upload/provider requests.
+// 文件庫：文字內容留在紀錄裡，二進位 bytes 走 R2 預簽網址（PLN-074 M6）。
+// prototype 模式維持原本的 data URL 行為，那時本來就沒有要保存。
 function openFiles(){openDrawer('files','all',true)}
 function fileList(){return DB.files.filter(f=>f.space===space&&(space==='team'||f.author===DB.me))}
-DRAWERS.files=()=>({crumb:'文件',title:space==='team'?'公司文件庫':'私人文件',sub:'分類、標籤、版本與引用',body:`<div class="frow"><input id="fileSearch" aria-label="搜尋文件" placeholder="搜尋名稱或標籤…" oninput="filterFiles(this.value)"></div><div class="rows" id="fileList">${fileRows()}</div>`,foot:`<button class="btn pri" onclick="uploadFile()">${svg('plus')} 上傳文件</button><span class="note">本頁記憶體 · 重整重置</span>`});
+DRAWERS.files=()=>({crumb:'文件',title:space==='team'?'公司文件庫':'私人文件',sub:'分類、標籤、版本與引用',body:`<div class="frow"><input id="fileSearch" aria-label="搜尋文件" placeholder="搜尋名稱或標籤…" oninput="filterFiles(this.value)"></div><div class="rows" id="fileList">${fileRows()}</div>`,foot:`<button class="btn pri" onclick="uploadFile()">${svg('plus')} 上傳文件</button><span class="note">${OP_LIVE?'已連線保存':'本頁記憶體 · 重整重置'}</span>`});
 function fileRows(q=''){return fileList().filter(f=>(f.name+' '+f.tags).toLowerCase().includes(q.toLowerCase())).map(f=>`<div class="row" onclick="openDrawer('file','${f.id}')"><span class="chip c-i">${esc(f.category)}</span><span class="t">${esc(f.name)}</span><span class="m">v${f.versions.length}</span></div>`).join('')||'<div class="empty">尚無符合的文件</div>'}
 function filterFiles(q){$('#fileList').innerHTML=fileRows(q)}
-function uploadFile(existingId,after){const input=doc.createElement('input');input.type='file';input.accept='.md,.txt,.csv,.json,.png,.jpg,.jpeg,.webp,.pdf';input.setAttribute('aria-label','選擇本機文件');input.style.display='none';root.append(input);input.onchange=async()=>{const file=input.files?.[0];if(!file){input.remove();return}try{if(file.size>5*1024*1024)throw Error('檔案上限 5 MB');if(!/\.(md|txt|csv|json|png|jpe?g|webp|pdf)$/i.test(file.name))throw Error('不支援此格式');const isText=/\.(md|txt|csv|json)$/i.test(file.name);const data=isText?await file.text():await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)});if(!active)return;let record=DB.files.find(f=>f.id===existingId);if(record&&record.author!==DB.me)throw Error('僅作者可新增版本');if(!record){record={id:nid('FILE'),name:file.name,category:'material',tags:'',space,author:DB.me,versions:[]};DB.files.push(record)}record.versions.push({id:nid('FV'),name:file.name,type:file.type,text:isText?data:'',data:isText?'':data,at:nowts()});audit('文件',record.name,'版本','',record.versions.length);if(after)after(record);else openDrawer('file',record.id,true);toast('文件已加入本頁記憶體')}catch(e){toast(esc(e.message))}finally{input.remove()}};input.click()}
-DRAWERS.file=id=>{const f=fileList().find(f=>f.id===id);if(!f)return{crumb:'文件',title:'找不到文件',body:'',foot:''};const index=S.fileVersion?.id===id?S.fileVersion.index:f.versions.length-1;const v=f.versions[index];return{crumb:f.name,title:esc(f.name),sub:'v'+(index+1)+' · '+v.at,body:`<div class="seg">${f.versions.map((v,i)=>`<button class="${index===i?'on':''}" onclick="S.fileVersion={id:'${id}',index:${i}};paintDrawer()">v${i+1}</button>`).join('')}</div><div class="frow" style="margin-top:12px"><label class="flab" for="fileTags">標籤</label><input id="fileTags" value="${esc(f.tags)}" ${f.author===DB.me?'':'disabled'} onchange="setFileTags('${id}',this.value)"></div><div class="frow"><label class="flab" for="fileCategory">分類</label><select id="fileCategory" ${f.author===DB.me?'':'disabled'} onchange="setFileCategory('${id}',this.value)">${['contract','proposal','material','yzedtech_brand'].map(c=>`<option ${c===f.category?'selected':''}>${c}</option>`).join('')}</select></div>${v.data?.startsWith('data:image/')?`<img class="file-preview" src="${v.data}" alt="${esc(f.name)}">`:v.data?.startsWith('data:application/pdf')?`<object class="file-pdf" data="${v.data}" type="application/pdf"><p>此瀏覽器不支援 PDF 內嵌預覽</p></object>`:`<pre class="file-text">${esc(v.text)}</pre>`}<div class="flab">反向引用</div>${DB.txns.filter(t=>(t.fileIds||[]).includes(id)).map(t=>`<div class="row" onclick="selectTxn('${t.id}',true)">${esc(t.t)}</div>`).join('')||'<div class="note">無交易引用</div>'}`,foot:f.author===DB.me?`<button class="btn pri" onclick="S.fileVersion=null;uploadFile('${id}')">上傳新版本</button>`:''}};
+async function presignUpload(file){
+ const res=await fetch('/api/company/operating/uploads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:file.name,contentType:file.type,bytes:file.size})});
+ if(!res.ok){const p=await res.json().catch(()=>({}));throw Error(p.error||'取得上傳網址失敗')}
+ return res.json()
+}
+/** bytes 直接送 R2，不經過應用伺服器，也不進 diff。 */
+async function putToR2(uploadUrl,file){
+ const res=await fetch(uploadUrl,{method:'PUT',headers:file.type?{'Content-Type':file.type}:undefined,body:file});
+ if(!res.ok)throw Error('上傳失敗（HTTP '+res.status+'）')
+}
+function uploadFile(existingId,after){const input=doc.createElement('input');input.type='file';input.accept='.md,.txt,.csv,.json,.png,.jpg,.jpeg,.webp,.pdf';input.setAttribute('aria-label','選擇本機文件');input.style.display='none';root.append(input);input.onchange=async()=>{const file=input.files?.[0];if(!file){input.remove();return}try{if(file.size>5*1024*1024)throw Error('檔案上限 5 MB');if(!/\.(md|txt|csv|json|png|jpe?g|webp|pdf)$/i.test(file.name))throw Error('不支援此格式');const isText=/\.(md|txt|csv|json)$/i.test(file.name);
+ let text='',data='',objectKey='';
+ if(isText){text=await file.text()}
+ else if(OP_LIVE){toast('上傳中…');const signed=await presignUpload(file);await putToR2(signed.uploadUrl,file);objectKey=signed.objectKey}
+ else{data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+ if(!active)return;let record=DB.files.find(f=>f.id===existingId);if(record&&record.author!==DB.me)throw Error('僅作者可新增版本');if(!record){record={id:nid('FILE'),name:file.name,category:'material',tags:'',space,author:DB.me,versions:[]};DB.files.push(record)}
+ record.versions.push({id:nid('FV'),name:file.name,type:file.type,text,data,objectKey,bytes:file.size,at:nowts()});
+ audit('文件',record.name,'版本','',record.versions.length);if(after)after(record);else openDrawer('file',record.id,true);toast(OP_LIVE?'文件已上傳':'文件已加入本頁記憶體')}catch(e){toast(esc(e.message))}finally{input.remove()}};input.click()}
+/** 下載網址只有 5 分鐘，所以是要看的時候才換一張，不存進紀錄。 */
+async function paintFilePreview(elementId,objectKey){
+ try{const res=await fetch('/api/company/operating/uploads?key='+encodeURIComponent(objectKey));if(!res.ok)return;const {downloadUrl}=await res.json();const el=root.querySelector('#'+elementId);if(!el)return;
+  if(el.tagName==='IMG')el.src=downloadUrl;else el.data=downloadUrl}
+ catch{/* 離線或網址過期：維持佔位，不擋住抽屜其餘內容 */}
+}
+
+/** 預覽有三種來源：R2 物件、舊的 data URL、純文字。 */
+function filePreviewHtml(f,v,index){
+ if(v?.objectKey){
+  const pid='filePrev-'+f.id+'-'+index;
+  const isImage=/^image\//.test(v.type||'');
+  setTimeout(()=>paintFilePreview(pid,v.objectKey),0);
+  return isImage
+   ? `<img id="${pid}" class="file-preview" alt="${esc(f.name)}">`
+   : `<object id="${pid}" class="file-pdf" type="${esc(v.type||'application/pdf')}"><p>載入中…若未顯示，請重新開啟此文件</p></object>`;
+ }
+ if(v?.data?.startsWith('data:image/'))return `<img class="file-preview" src="${v.data}" alt="${esc(f.name)}">`;
+ if(v?.data?.startsWith('data:application/pdf'))return `<object class="file-pdf" data="${v.data}" type="application/pdf"><p>此瀏覽器不支援 PDF 內嵌預覽</p></object>`;
+ return `<pre class="file-text">${esc(v?.text||'')}</pre>`;
+}
+DRAWERS.file=id=>{const f=fileList().find(f=>f.id===id);if(!f)return{crumb:'文件',title:'找不到文件',body:'',foot:''};const index=S.fileVersion?.id===id?S.fileVersion.index:f.versions.length-1;const v=f.versions[index];return{crumb:f.name,title:esc(f.name),sub:'v'+(index+1)+' · '+v.at,body:`<div class="seg">${f.versions.map((v,i)=>`<button class="${index===i?'on':''}" onclick="S.fileVersion={id:'${id}',index:${i}};paintDrawer()">v${i+1}</button>`).join('')}</div><div class="frow" style="margin-top:12px"><label class="flab" for="fileTags">標籤</label><input id="fileTags" value="${esc(f.tags)}" ${f.author===DB.me?'':'disabled'} onchange="setFileTags('${id}',this.value)"></div><div class="frow"><label class="flab" for="fileCategory">分類</label><select id="fileCategory" ${f.author===DB.me?'':'disabled'} onchange="setFileCategory('${id}',this.value)">${['contract','proposal','material','yzedtech_brand'].map(c=>`<option ${c===f.category?'selected':''}>${c}</option>`).join('')}</select></div>${filePreviewHtml(f,v,index)}<div class="flab">反向引用</div>${DB.txns.filter(t=>(t.fileIds||[]).includes(id)).map(t=>`<div class="row" onclick="selectTxn('${t.id}',true)">${esc(t.t)}</div>`).join('')||'<div class="note">無交易引用</div>'}`,foot:f.author===DB.me?`<button class="btn pri" onclick="S.fileVersion=null;uploadFile('${id}')">上傳新版本</button>`:''}};
 function setFileTags(id,tags){const f=fileList().find(f=>f.id===id);if(f?.author===DB.me)f.tags=tags}
 function setFileCategory(id,category){const f=fileList().find(f=>f.id===id);if(f?.author===DB.me)f.category=category}
 const originalVoucher=pickVoucher;

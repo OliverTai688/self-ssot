@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
   if (wasGoogleUsedForThisSignIn(data.user)) {
     const email = data.user?.email ?? null
     const allowlist: GoogleAllowlistResult = email
-      ? await ensureGoogleAllowlistedProfile(email)
+      ? await ensureGoogleAllowlistedProfile(email, data.user?.id ?? null)
       : { ok: false, reason: "not_allowed" }
 
     if (!allowlist.ok) {

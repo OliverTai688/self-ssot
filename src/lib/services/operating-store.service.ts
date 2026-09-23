@@ -75,6 +75,7 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     select: { id: true, email: true },
   })
   const seatByProfile = seatKeyMap(profiles)
+  const viewerSeatKeys = [seatByProfile.get(viewerProfileId)].filter((key): key is string => Boolean(key))
 
   const [
     goals,
@@ -100,6 +101,8 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     reimbRows,
     bankRows,
     payrollRows,
+    fileRows,
+    docObjectRows,
   ] = await Promise.all([
     db.operatingGoal.findMany({ where: { workspaceId } }),
     db.operatingProjectProfile.findMany({ include: { project: true } }),
@@ -127,6 +130,11 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     db.operatingReimbursement.findMany({ where: { workspaceId } }),
     db.operatingBankEntry.findMany({ where: { workspaceId }, orderBy: { onDate: "asc" } }),
     db.operatingPayrollDraft.findMany({ where: { workspaceId } }),
+    // 私人文件只有作者看得到，與日誌同一條界線（契約 §18）。
+    db.operatingLibraryFile.findMany({
+      where: { workspaceId, OR: [{ space: "team" }, { authorKey: { in: viewerSeatKeys } }] },
+    }),
+    db.operatingDocObject.findMany({ where: { workspaceId } }),
   ])
 
   /** 主鍵 → 工作台 id，讓子列的關聯接得回父列。 */
@@ -375,6 +383,33 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
         replies: payload.replies ?? [],
         nudges: payload.nudges ?? [],
         pinged: payload.pinged ?? {},
+      }
+    }),
+
+    files: withRef(fileRows).map((row) => ({
+      id: row.workbenchRef,
+      name: row.name,
+      category: row.category,
+      tags: row.tags,
+      space: row.space,
+      author: row.authorKey ?? "",
+      versions: row.versions,
+    })),
+
+    docObjects: withRef(docObjectRows).map((row) => {
+      const payload = (row.payload ?? {}) as Record<string, unknown>
+      return {
+        id: row.workbenchRef,
+        type: row.kind,
+        subType: row.subKind ?? row.kind,
+        title: row.title,
+        titleAuto: row.titleAuto,
+        day: iso(row.onDate),
+        author: row.authorKey ?? "",
+        collapsed: payload.collapsed === true,
+        createdAt: row.createdAt.getTime(),
+        updatedAt: row.updatedAt.getTime(),
+        secs: payload.secs ?? [],
       }
     }),
 

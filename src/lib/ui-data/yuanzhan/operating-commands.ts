@@ -42,6 +42,8 @@ export const PERSISTED_COLLECTIONS = [
   'journalComments',
   'objectComments',
   'requests',
+  'files',
+  'docObjects',
   'txns',
   'reimb',
   'bank',
@@ -98,6 +100,9 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   'journalComments',
   'objectComments',
   'requests',
+  // M6：文件庫與文件物件
+  'files',
+  'docObjects',
   // M4：帳務
   'txns',
   'reimb',
@@ -292,3 +297,12 @@ export type CommandBatchResponse = {
 /** 單次 commit 通常只動 1–3 列；超過這個數量代表比對出了問題，寧可擋下來。 */
 export const MAX_CHANGES_PER_COMMAND = 200
 export const MAX_COMMANDS_PER_BATCH = 50
+
+/**
+ * 單次 commit 的變更量上限（位元組）。
+ *
+ * 守的是「bytes 不該走這條路」：檔案內容應該走 R2 預簽網址，而不是以 base64
+ * 夾在某個欄位裡被 diff 一起送上來。真的有那種東西時，寧可擋下來並說清楚，
+ * 也不要讓一張 5 MB 的圖變成 7 MB 的 JSON 悄悄送出去。
+ */
+export const MAX_COMMAND_BYTES = 512 * 1024

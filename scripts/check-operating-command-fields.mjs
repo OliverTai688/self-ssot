@@ -89,6 +89,14 @@ const DEPENDENCIES = {
     'id', 'workspaceId', 'workbenchRef', 'fromKey', 'toKey', 'onDate',
     'blockId', 'text', 'kind', 'sentAt', 'payload',
   ],
+  OperatingLibraryFile: [
+    'id', 'workspaceId', 'workbenchRef', 'name', 'category', 'tags',
+    'space', 'authorKey', 'versions',
+  ],
+  OperatingDocObject: [
+    'id', 'workspaceId', 'workbenchRef', 'kind', 'subKind', 'title',
+    'titleAuto', 'onDate', 'authorKey', 'payload', 'createdAt', 'updatedAt',
+  ],
 }
 
 /**
@@ -101,7 +109,7 @@ const REVERSE_LOOKUP_MODELS = [
   'ProjectTask', 'OperatingProjectProfile', 'OperatingGoal', 'OperatingDecision',
   'OperatingDocument', 'OperatingCommitment', 'OperatingThread', 'OperatingTransaction',
   'OperatingReimbursement', 'OperatingBankEntry', 'OperatingEvidenceRepo',
-  'OperatingComment', 'OperatingRequest',
+  'OperatingComment', 'OperatingRequest', 'OperatingLibraryFile', 'OperatingDocObject',
 ]
 
 /** 服務層用到的複合唯一鍵；Prisma 的 where 鍵名由這些欄位組出來。 */
@@ -150,6 +158,16 @@ for (const model of REVERSE_LOOKUP_MODELS) {
   const found = models.get(model)
   if (!found?.fields.has('workbenchRef')) {
     console.error(`FAIL  ${model} has no workbenchRef, so the read path cannot restore its workbench ids`)
+    failed += 1
+  }
+}
+
+// 文件庫不得有存 bytes 的欄位：那條路是 R2，不是資料庫。
+{
+  checked += 1
+  const body = schema.match(/^model\s+OperatingLibraryFile\s*\{([\s\S]*?)^\}/m)?.[1] ?? ''
+  if (/^\s*(data|bytes|content|blob)\s+(String|Bytes)/m.test(body)) {
+    console.error('FAIL  OperatingLibraryFile must not carry a column that invites file bytes; they belong in R2')
     failed += 1
   }
 }

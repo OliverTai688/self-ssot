@@ -2,7 +2,7 @@
 // Reference SHA256: 0ddd489b73ebc1fa38dd718ef1728a1267509b97a11e5c843ffb995dc091a212
 import { evaluateFormula } from '@/lib/ui-data/yuanzhan/formulas';
 import { buildSpine, TRACK_REF_TYPES, detectConflicts, expandRule, parseRule, rhythmAdherence, weekStarts, addDays as spineAddDays, isoWeek as spineIsoWeek } from '@/lib/ui-data/yuanzhan/operating-spine';
-import { snapshotCollections, diffCollections, WRITE_ENABLED_COLLECTIONS as OP_WRITE_ENABLED, MAX_CHANGES_PER_COMMAND as OP_MAX_CHANGES, MAX_COMMANDS_PER_BATCH as OP_MAX_COMMANDS, OPERATING_COMMANDS_ENDPOINT } from '@/lib/ui-data/yuanzhan/operating-commands';
+import { snapshotCollections, diffCollections, identifyRow, WRITE_ENABLED_COLLECTIONS as OP_WRITE_ENABLED, MAX_CHANGES_PER_COMMAND as OP_MAX_CHANGES, MAX_COMMANDS_PER_BATCH as OP_MAX_COMMANDS, MAX_COMMAND_BYTES as OP_MAX_BYTES, OPERATING_COMMANDS_ENDPOINT } from '@/lib/ui-data/yuanzhan/operating-commands';
 export function mountV5(root, initialState, hooks={}){
 // One DOM island, one state, deterministic teardown (including React Strict Mode).
 const runtime = {};
@@ -7068,7 +7068,8 @@ setDay = function (who, wi, di, value) {
   originalSetDay(who, wi, di, value);
   render();
 };
-// Real local file bytes and fixed versions, all in memory. No upload/provider requests.
+// 文件庫：文字內容留在紀錄裡，二進位 bytes 走 R2 預簽網址（PLN-074 M6）。
+// prototype 模式維持原本的 data URL 行為，那時本來就沒有要保存。
 function openFiles() {
   openDrawer('files', 'all', true);
 }
@@ -7084,7 +7085,7 @@ DRAWERS.files = () => ({
   })}></div><div class="rows" id="fileList">${fileRows()}</div>`,
   foot: `<button class="btn pri" ${bind("click", (event, element) => {
     uploadFile();
-  })}>${svg('plus')} 上傳文件</button><span class="note">本頁記憶體 · 重整重置</span>`
+  })}>${svg('plus')} 上傳文件</button><span class="note">${OP_LIVE ? '已連線保存' : '本頁記憶體 · 重整重置'}</span>`
 });
 function fileRows(q = '') {
   return fileList().filter(f => (f.name + ' ' + f.tags).toLowerCase().includes(q.toLowerCase())).map(f => `<div class="row" ${bind("click", (event, element) => {
@@ -7093,6 +7094,35 @@ function fileRows(q = '') {
 }
 function filterFiles(q) {
   $('#fileList').innerHTML = fileRows(q);
+}
+async function presignUpload(file) {
+  const res = await fetch('/api/company/operating/uploads', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: file.name,
+      contentType: file.type,
+      bytes: file.size
+    })
+  });
+  if (!res.ok) {
+    const p = await res.json().catch(() => ({}));
+    throw Error(p.error || '取得上傳網址失敗');
+  }
+  return res.json();
+}
+/** bytes 直接送 R2，不經過應用伺服器，也不進 diff。 */
+async function putToR2(uploadUrl, file) {
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: file.type ? {
+      'Content-Type': file.type
+    } : undefined,
+    body: file
+  });
+  if (!res.ok) throw Error('上傳失敗（HTTP ' + res.status + '）');
 }
 function uploadFile(existingId, after) {
   const input = doc.createElement('input');
@@ -7111,12 +7141,24 @@ function uploadFile(existingId, after) {
       if (file.size > 5 * 1024 * 1024) throw Error('檔案上限 5 MB');
       if (!/\.(md|txt|csv|json|png|jpe?g|webp|pdf)$/i.test(file.name)) throw Error('不支援此格式');
       const isText = /\.(md|txt|csv|json)$/i.test(file.name);
-      const data = isText ? await file.text() : await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
+      let text = '',
+        data = '',
+        objectKey = '';
+      if (isText) {
+        text = await file.text();
+      } else if (OP_LIVE) {
+        toast('上傳中…');
+        const signed = await presignUpload(file);
+        await putToR2(signed.uploadUrl, file);
+        objectKey = signed.objectKey;
+      } else {
+        data = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
       if (!active) return;
       let record = DB.files.find(f => f.id === existingId);
       if (record && record.author !== DB.me) throw Error('僅作者可新增版本');
@@ -7136,13 +7178,15 @@ function uploadFile(existingId, after) {
         id: nid('FV'),
         name: file.name,
         type: file.type,
-        text: isText ? data : '',
-        data: isText ? '' : data,
+        text,
+        data,
+        objectKey,
+        bytes: file.size,
         at: nowts()
       });
       audit('文件', record.name, '版本', '', record.versions.length);
       if (after) after(record);else openDrawer('file', record.id, true);
-      toast('文件已加入本頁記憶體');
+      toast(OP_LIVE ? '文件已上傳' : '文件已加入本頁記憶體');
     } catch (e) {
       toast(esc(e.message));
     } finally {
@@ -7150,6 +7194,32 @@ function uploadFile(existingId, after) {
     }
   };
   input.click();
+}
+/** 下載網址只有 5 分鐘，所以是要看的時候才換一張，不存進紀錄。 */
+async function paintFilePreview(elementId, objectKey) {
+  try {
+    const res = await fetch('/api/company/operating/uploads?key=' + encodeURIComponent(objectKey));
+    if (!res.ok) return;
+    const {
+      downloadUrl
+    } = await res.json();
+    const el = root.querySelector('#' + elementId);
+    if (!el) return;
+    if (el.tagName === 'IMG') el.src = downloadUrl;else el.data = downloadUrl;
+  } catch {/* 離線或網址過期：維持佔位，不擋住抽屜其餘內容 */}
+}
+
+/** 預覽有三種來源：R2 物件、舊的 data URL、純文字。 */
+function filePreviewHtml(f, v, index) {
+  if (v?.objectKey) {
+    const pid = 'filePrev-' + f.id + '-' + index;
+    const isImage = /^image\//.test(v.type || '');
+    setTimeout(() => paintFilePreview(pid, v.objectKey), 0);
+    return isImage ? `<img id="${pid}" class="file-preview" alt="${esc(f.name)}">` : `<object id="${pid}" class="file-pdf" type="${esc(v.type || 'application/pdf')}"><p>載入中…若未顯示，請重新開啟此文件</p></object>`;
+  }
+  if (v?.data?.startsWith('data:image/')) return `<img class="file-preview" src="${v.data}" alt="${esc(f.name)}">`;
+  if (v?.data?.startsWith('data:application/pdf')) return `<object class="file-pdf" data="${v.data}" type="application/pdf"><p>此瀏覽器不支援 PDF 內嵌預覽</p></object>`;
+  return `<pre class="file-text">${esc(v?.text || '')}</pre>`;
 }
 DRAWERS.file = id => {
   const f = fileList().find(f => f.id === id);
@@ -7175,7 +7245,7 @@ DRAWERS.file = id => {
       setFileTags(id, element.value);
     })}></div><div class="frow"><label class="flab" for="fileCategory">分類</label><select id="fileCategory" ${f.author === DB.me ? '' : 'disabled'} ${bind("change", (event, element) => {
       setFileCategory(id, element.value);
-    })}>${['contract', 'proposal', 'material', 'yzedtech_brand'].map(c => `<option ${c === f.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>${v.data?.startsWith('data:image/') ? `<img class="file-preview" src="${v.data}" alt="${esc(f.name)}">` : v.data?.startsWith('data:application/pdf') ? `<object class="file-pdf" data="${v.data}" type="application/pdf"><p>此瀏覽器不支援 PDF 內嵌預覽</p></object>` : `<pre class="file-text">${esc(v.text)}</pre>`}<div class="flab">反向引用</div>${DB.txns.filter(t => (t.fileIds || []).includes(id)).map(t => `<div class="row" ${bind("click", (event, element) => {
+    })}>${['contract', 'proposal', 'material', 'yzedtech_brand'].map(c => `<option ${c === f.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>${filePreviewHtml(f, v, index)}<div class="flab">反向引用</div>${DB.txns.filter(t => (t.fileIds || []).includes(id)).map(t => `<div class="row" ${bind("click", (event, element) => {
       selectTxn(t.id, true);
     })}>${esc(t.t)}</div>`).join('') || '<div class="note">無交易引用</div>'}`,
     foot: f.author === DB.me ? `<button class="btn pri" ${bind("click", (event, element) => {
@@ -11629,6 +11699,12 @@ function opEnqueue(op, ent, label, before) {
     return;
   }
   if (!changes.length) return;
+  const payloadBytes = JSON.stringify(changes).length;
+  if (payloadBytes > OP_MAX_BYTES) {
+    // 幾乎一定是有 bytes 混進了某個欄位。檔案要走 R2，不是走這條。
+    opSetStatus('error', '這次變更過大（' + Math.round(payloadBytes / 1024) + ' KB），未送出');
+    return;
+  }
   if (changes.length > OP_MAX_CHANGES) {
     // 單次 commit 動了這麼多列，比較可能是比對出錯而不是真的批次操作。
     // 寧可擋下來，也不要把一堆可疑的列送上伺服器。
@@ -11740,17 +11816,106 @@ function opPaintStatus() {
  * 這比靜靜地讓兩份資料分岔好，也比自動覆蓋安全。
  */
 async function opCheckRemoteVersion() {
-  if (!OP_LIVE || OP_SENDING || OP_QUEUE.length) return;
+  if (!OP_LIVE || OP_SENDING) return;
   try {
     const res = await fetch(OPERATING_COMMANDS_ENDPOINT);
     if (!res.ok) return;
     const payload = await res.json();
     if (typeof payload.version === 'number' && payload.version > OP_VERSION) {
-      opSetStatus('stale', '其他裝置已更新，重新整理以取得最新內容');
+      await opMergeRemote();
     }
   } catch {
     /* 離線時不打擾；下一次回到分頁再看 */
   }
+}
+
+/** 佇列裡還沒被接受的列：合併時這些一律以本地為準。 */
+function opPendingKeys() {
+  const pending = new Set();
+  for (const command of OP_QUEUE) {
+    for (const change of command.changes) pending.add(change.collection + '\u0000' + change.id);
+  }
+  return pending;
+}
+
+/**
+ * 逐列合併，而不是整份替換。
+ *
+ * 整份替換會把「已經打了但還沒送出」的編輯連同舊資料一起蓋掉 —— 那是使用者
+ * 最無法接受的一種資料遺失，因為他明明看著畫面上有。所以：佇列裡有的那幾列
+ * 保留本地版本，其餘採用伺服器版本。粒度是列，不是集合，也不是整個 store。
+ */
+async function opMergeRemote() {
+  const pending = opPendingKeys();
+  let payload;
+  try {
+    const res = await fetch('/api/company/operating/store');
+    if (!res.ok) return;
+    payload = await res.json();
+  } catch {
+    return;
+  }
+  if (!payload || !payload.store) return;
+  let merged = 0;
+  let kept = 0;
+  for (const [collection, incoming] of Object.entries(payload.store)) {
+    if (!OP_WRITE_ENABLED.includes(collection)) continue;
+    if (Array.isArray(incoming)) {
+      const local = Array.isArray(DB[collection]) ? DB[collection] : [];
+      const localById = new Map();
+      for (const row of local) {
+        const id = identifyRow(collection, row);
+        if (id) localById.set(id, row);
+      }
+      const next = [];
+      for (const row of incoming) {
+        const id = identifyRow(collection, row);
+        const key = collection + '\u0000' + id;
+        if (id && pending.has(key)) {
+          next.push(localById.get(id) ?? row);
+          kept += 1;
+        } else {
+          next.push(row);
+          merged += 1;
+        }
+      }
+      // 伺服器沒有、但本地還沒送出的列要留著，否則它會在眼前消失。
+      for (const [id, row] of localById) {
+        const key = collection + '\u0000' + id;
+        if (pending.has(key) && !incoming.some(r => identifyRow(collection, r) === id)) {
+          next.push(row);
+          kept += 1;
+        }
+      }
+      DB[collection] = next;
+      continue;
+    }
+    if (incoming && typeof incoming === 'object') {
+      const local = DB[collection] && typeof DB[collection] === 'object' ? DB[collection] : {};
+      const next = {};
+      for (const [key, row] of Object.entries(incoming)) {
+        const pendingKey = collection + '\u0000' + key;
+        if (pending.has(pendingKey) && local[key] !== undefined) {
+          next[key] = local[key];
+          kept += 1;
+        } else {
+          next[key] = row;
+          merged += 1;
+        }
+      }
+      for (const [key, row] of Object.entries(local)) {
+        if (pending.has(collection + '\u0000' + key) && next[key] === undefined) {
+          next[key] = row;
+          kept += 1;
+        }
+      }
+      DB[collection] = next;
+    }
+  }
+  OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
+  OP_BASELINE = snapshotCollections(DB, OP_WRITE_ENABLED);
+  render();
+  if (kept) opSetStatus('conflict', '已取得其他裝置的更新；你有 ' + kept + ' 筆尚未保存的編輯被保留');else opSetStatus(OP_QUEUE.length ? 'sending' : 'idle', merged ? '已同步其他裝置的更新' : '');
 }
 
 // 先取一次伺服器版本，否則第一次送出就會撞 409（本地從 0 起算，伺服器不一定）。
