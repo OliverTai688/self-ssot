@@ -18,6 +18,8 @@ import {
   isDevOtpLoginCode,
 } from "@/lib/auth/dev-otp"
 import { normalizeNextPath } from "@/lib/auth/redirect"
+import { findTeamProfileEntry } from "@/lib/auth/team-profiles"
+import { ensureGoogleAllowlistedProfile } from "@/lib/services/auth.service"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 function getFormString(formData: FormData, key: string) {
@@ -84,11 +86,23 @@ async function requestPasswordlessEmail({
   const origin = await getRequestOrigin()
   const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
 
+  // AUTH-012 的白名單同時管 Google 與信箱登入：兩條路徑用同一份名單，
+  // 否則 email 這一側會變成繞過名單的側門。
+  const allowlisted = Boolean(findTeamProfileEntry(email))
+
+  if (!allowlisted) {
+    // 刻意回報「已寄出」。非允許名單的信箱不會收到任何東西，但回應與允許名單相同，
+    // 否則這個表單就變成一支帳號存在與否的查詢工具。
+    redirect(createLoginRedirect(sentStatus, nextPath, email, method))
+  }
+
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
       emailRedirectTo,
-      shouldCreateUser: false,
+      // 名單上的人即使從未用 Google 登入過也要能收到碼；名單本身就是那道閘門。
+      // Supabase 對同一個已驗證 email 會自動連結身分，所以之後改用 Google 仍是同一個 user。
+      shouldCreateUser: true,
     },
   })
 
@@ -204,6 +218,22 @@ export async function verifyEmailOtp(formData: FormData) {
     })
 
     redirect(createLoginRedirect("otp-invalid", nextPath, email, "otp"))
+  }
+
+  // 驗證成功之後仍要過一次名單並建立／綁定 Profile —— 與 /auth/callback 的 Google 閘門
+  // 是同一個函式。名單在寄碼那一步可能已經改過，而且沒有 Profile 的 session 進得去頁面
+  // 卻看不到任何東西，那種狀態比直接擋下來更難理解。
+  const allowlist = await ensureGoogleAllowlistedProfile(email, data.user?.id ?? null)
+
+  if (!allowlist.ok) {
+    await supabase.auth.signOut({ scope: "local" })
+    const status =
+      allowlist.reason === "allowlist_not_configured"
+        ? "google_allowlist_unconfigured"
+        : allowlist.reason === "profile_lookup_failed"
+          ? "google_profile_lookup_failed"
+          : "google_not_allowed"
+    redirect(createLoginRedirect(status, nextPath, email, "otp"))
   }
 
   redirect(nextPath)
