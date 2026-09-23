@@ -15,6 +15,15 @@
 | YZLIVE-007 | 金流／核銷／人事／預算正式資料 | PROPOSED | 日常試用後 | 正式帳務與薪酬契約先確認；專門權限與核准／對帳／audit |
 | YZLIVE-008 | Evidence／容量／出勤／承諾正式資料 | PROPOSED | 005；相關領域契約 | 持久版本／快照／來源紀錄，與財務成本引用分期整合 |
 
+### YZLIVE-005／007／008 細化 — 2026-09-23
+
+owner 詢問 `/company/operating` 是否真的存資料。實測確認沒有：`runtime.js` 全檔只有一個 `fetch`（`/api/company/settings`），業務紀錄全在記憶體，重整即失。
+
+[PLN-074](PLN-074_operating-workbench-persistence-implementation-plan.md) 把 `YZLIVE-005` 拆成三刀（M0 標示預覽／M1 寫入管線接三軌／M2 日常協作資料），並把 `YZLIVE-007`／`YZLIVE-008` 對應到 M4／M3。寫入邊界見 [ARC-042](../02_architecture-and-rules/ARC-042_operating-workbench-persistence-contract.md)，資料表落差見 [SCH-008](../02_architecture-and-rules/SCH-008_operating-workbench-collection-schema.md)。
+
+不新增 Task ID。三份文件均為 PROPOSED，未取得 runtime 實作或 migration 授權。M2 的前置是 `SCH-008` §3 的專案模型決定（A／B／C），待 owner 選定；M4 的前置是圓展實際帳務契約確認，不是工程排程。
+
+
 ## Owner-directed 圓展 UI phase — 2026-09-13
 
 依本次使用者指示，先實作團隊操作介面與雙資料模式。完整範圍、檔案、驗證、風險與停止條件見 [PLN-070](PLN-070_yuanzhan-team-ui-implementation-plan.md)，需求見 [PRD-006](../01_product-requirements/PRD-006_yuanzhan-team-ui-phase.md)，驗收見 [ACC-008](../08_acceptance-and-qa/ACC-008_yuanzhan-ui-dual-mode-acceptance.md)。以下是本階段的執行順序；既有正式資料、權限與 launch proof 任務維持原有狀態。
