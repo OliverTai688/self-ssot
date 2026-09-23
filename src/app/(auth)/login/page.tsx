@@ -107,6 +107,14 @@ function getStatusMessage(status: string | undefined, email: string | undefined)
     return "這個 Google 帳號沒有被允許登入 Personal OS。請改用被允許的信箱，或聯絡系統擁有者加入允許清單。"
   }
 
+  if (status === "google_allowlist_unconfigured") {
+    return "這個環境還沒有設定登入允許清單（PERSONAL_OS_TEAM_PROFILES），目前任何 Google 帳號都會被拒絕。請系統擁有者在部署環境補上該變數後重新部署。"
+  }
+
+  if (status === "google_profile_lookup_failed") {
+    return "Google 驗證成功，但查詢 Profile 時資料庫沒有回應。請確認 DATABASE_URL 與資料庫連線後再試一次。"
+  }
+
   if (status === "request-failed") {
     return "登入連結沒有成功送出。請確認信箱已存在於 Supabase Auth Users、redirect URL 已允許，並等待 60 秒後重試。"
   }

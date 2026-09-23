@@ -9,17 +9,42 @@ export type TeamProfileEntry = {
 }
 
 /**
+ * Env managers disagree about quoting. dotenv strips one wrapping pair of
+ * quotes when reading `.env.local`; the Vercel dashboard stores whatever was
+ * pasted, quotes included. Without this, a pasted
+ * `"a@x.com:OWNER:A,b@y.com:OWNER:B"` parses into a first email of
+ * `"a@x.com` that matches nobody and never throws — a login that fails with
+ * no visible misconfiguration.
+ */
+function stripWrappingQuotes(raw: string | undefined | null): string {
+  const trimmed = (raw ?? "").trim()
+
+  if (trimmed.length >= 2) {
+    const first = trimmed[0]
+    const last = trimmed[trimmed.length - 1]
+
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return trimmed.slice(1, -1).trim()
+    }
+  }
+
+  return trimmed
+}
+
+/**
  * Parses `PERSONAL_OS_TEAM_PROFILES` (`email:ROLE:Full Name` entries, comma
  * separated). Shared by `scripts/provision-team-profiles.ts` and the runtime
  * Google OAuth allowlist so both read one source of truth. Throws on a
  * malformed entry so misconfiguration fails loudly during provisioning.
  */
 export function parseTeamProfilesEnv(raw: string | undefined | null): TeamProfileEntry[] {
-  if (!raw) {
+  const normalized = stripWrappingQuotes(raw)
+
+  if (!normalized) {
     return []
   }
 
-  return raw
+  return normalized
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean)

@@ -1,10 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import { normalizeNextPath } from "@/lib/auth/redirect"
-import { ensureGoogleAllowlistedProfile } from "@/lib/services/auth.service"
+import {
+  ensureGoogleAllowlistedProfile,
+  type GoogleAllowlistResult,
+} from "@/lib/services/auth.service"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 import type { User } from "@supabase/supabase-js"
+
+/**
+ * Three different problems used to share one status. Keeping them apart means
+ * the login page can tell an owner "the server has no allowlist configured"
+ * instead of telling a legitimate account it is not welcome.
+ */
+const GOOGLE_REFUSAL_STATUS = {
+  not_allowed: "google_not_allowed",
+  allowlist_not_configured: "google_allowlist_unconfigured",
+  profile_lookup_failed: "google_profile_lookup_failed",
+} as const
 
 function createLoginUrl(request: NextRequest, status: string, nextPath: string) {
   const url = new URL("/login", request.url)
@@ -65,11 +79,15 @@ export async function GET(request: NextRequest) {
   // existing Profile-mapping check.
   if (wasGoogleUsedForThisSignIn(data.user)) {
     const email = data.user?.email ?? null
-    const isAllowed = Boolean(email) && (await ensureGoogleAllowlistedProfile(email as string))
+    const allowlist: GoogleAllowlistResult = email
+      ? await ensureGoogleAllowlistedProfile(email)
+      : { ok: false, reason: "not_allowed" }
 
-    if (!isAllowed) {
+    if (!allowlist.ok) {
       await supabase.auth.signOut({ scope: "local" })
-      return NextResponse.redirect(createLoginUrl(request, "google_not_allowed", nextPath))
+      return NextResponse.redirect(
+        createLoginUrl(request, GOOGLE_REFUSAL_STATUS[allowlist.reason], nextPath),
+      )
     }
   }
 

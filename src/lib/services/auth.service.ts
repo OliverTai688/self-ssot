@@ -15,7 +15,7 @@ import {
   isDevOtpRuntimeAllowed,
 } from "@/lib/auth/dev-otp"
 import { type AuthMode, isMockAuthEnabled } from "@/lib/auth/runtime"
-import { findTeamProfileEntry } from "@/lib/auth/team-profiles"
+import { findTeamProfileEntry, getConfiguredTeamProfiles } from "@/lib/auth/team-profiles"
 import { db } from "@/lib/db"
 import { getSupabasePublicConfig } from "@/lib/supabase/env"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -34,6 +34,15 @@ export type AuthResolutionStatus =
   | "supabase_config_missing"
   | "supabase_session_missing"
   | "supabase_profile_missing"
+
+/**
+ * Why a Google sign-in was refused. "not_allowed" is the intended boundary;
+ * the other two are misconfiguration or an outage wearing the same costume,
+ * and a single boolean made all three indistinguishable from the outside.
+ */
+export type GoogleAllowlistResult =
+  | { ok: true }
+  | { ok: false; reason: "not_allowed" | "allowlist_not_configured" | "profile_lookup_failed" }
 
 export type AuthResolution = {
   mode: AuthMode
@@ -272,11 +281,23 @@ export async function requireUser() {
  * updates an existing Profile's role/name so a manually curated Profile is
  * never silently overwritten by a stale env value.
  */
-export async function ensureGoogleAllowlistedProfile(email: string): Promise<boolean> {
+export async function ensureGoogleAllowlistedProfile(
+  email: string,
+): Promise<GoogleAllowlistResult> {
+  // An unset PERSONAL_OS_TEAM_PROFILES rejects every account, which on a fresh
+  // deployment looks exactly like "my Google account is not allowed". Separate
+  // it so the login page can say which one it is.
+  if (getConfiguredTeamProfiles().length === 0) {
+    console.warn(
+      "[auth] PERSONAL_OS_TEAM_PROFILES is unset or empty; every Google sign-in will be refused",
+    )
+    return { ok: false, reason: "allowlist_not_configured" }
+  }
+
   const entry = findTeamProfileEntry(email)
 
   if (!entry) {
-    return false
+    return { ok: false, reason: "not_allowed" }
   }
 
   try {
@@ -295,9 +316,9 @@ export async function ensureGoogleAllowlistedProfile(email: string): Promise<boo
       })
     }
 
-    return true
+    return { ok: true }
   } catch (error) {
     console.warn("Database connection or query failed in ensureGoogleAllowlistedProfile:", error)
-    return false
+    return { ok: false, reason: "profile_lookup_failed" }
   }
 }
