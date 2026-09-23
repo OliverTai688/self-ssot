@@ -7,6 +7,35 @@ import type { OperatingSettingsSnapshot } from '@/lib/services/operating-setting
 import { DEFAULT_OPERATING_DATA_SOURCE, type OperatingDataSource } from './data-source'
 import type { UiDataMode } from '@/types/yuanzhan-ui'
 
+/**
+ * 工作台的「今天」屬於哪個時區。
+ *
+ * 與 `Rhythm.timezone` 的預設值同一個，理由也一樣：這是一間在台灣的兩人公司，
+ * 「今天」對他們而言就是台北的今天。目前沒有把它做成可設定項。
+ */
+const OPERATING_TIMEZONE = "Asia/Taipei"
+
+/**
+ * database 模式的「今天」。
+ *
+ * prototype／showcase 的 fixture 全部掛在 seed 的 2026-09-12 上 —— 那個日期是展示
+ * 資料的一部分，動了展示資料就對不起來。但 database 模式根本不載入 fixture，
+ * `today` 還留著那個常數的話，工作台會一直以為今天是 2026-09-12：日誌寫進去的是
+ * 那一天，今日脈絡與今日議題也掛在那一天，畫面上的日期跟真實時間對不起來。
+ *
+ * 用 Asia/Taipei 算而不是伺服器的時區：這一頁是 Server Component，部署環境跑在
+ * UTC，台北時間 00:13 在 UTC 還是前一天，直接 `toISOString().slice(0,10)` 會整段
+ * 凌晨都差一天。`en-CA` 的日期格式正好就是 YYYY-MM-DD。
+ */
+export function operatingToday(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: OPERATING_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now)
+}
+
 /** 誰在看這個工作台。由登入身分決定，序列化後交給 v5 runtime。 */
 export interface V5Viewer {
   email: string
@@ -72,6 +101,9 @@ export function createV5State(
     data.capacity = { yz: [], lily: [] }
     data.timesheet = { yz: [], lily: [] }
   }
+
+  // fixture 的 2026-09-12 只對 prototype／showcase 有意義；接了資料庫就得用真的今天。
+  if (dataSource === 'database') data.today = operatingToday()
 
   if (dataSource === 'database' && store) {
     Object.assign(data as unknown as Record<string, unknown>, store)

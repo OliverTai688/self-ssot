@@ -2,6 +2,13 @@
 
 ## 2026-09-24
 
+### YZUI-019 — database 模式的「今天」改用真實日期
+
+- Owner 回報畫面日期停在 2026-09-12。`createV5State` 的 `referenceDate` 取自 `data.today`，而 database 模式的清空迴圈只清陣列，seed 的 `today` 常數留著沒換 —— 日誌、今日脈絡、今日議題全部寫進 fixture 那一天。
+- `v5-state.ts` 新增並匯出 `operatingToday()`，database 模式改用 Asia/Taipei 的今天（Server Component + UTC 部署環境，直接 `toISOString()` 會讓台北凌晨整段差一天）。prototype／showcase 不變，否則 fixture 與 `check-operating-runtime` 的基準比對都會跟著壞掉。
+- 新增 `scripts/move-operating-journal-day.ts`（`pnpm ops:move-day`）搬移既有資料：日誌（同作者同日改為合併 blocks）、今日脈絡、今日議題、文件物件、請求、留言的 `meta.day` 與整頁留言 `target_ref`；預設 dry run、單一交易、只動日期來自工作台今天的表。
+- Verification：`check-journal-day-state.ts` 27/27 PASS（新增兩條：database 模式的 `referenceDate` 是真的今天、日期列顯示今天）、`check-operating-commands` 30 PASS、`check-operating-command-fields` 279 PASS、`check-prisma-structure` PASS、`check-migration-coverage` 全覆蓋、`check-operating-runtime` 雙模式 0 錯誤、`verify-object-index` 19/19 PASS、`tsc --noEmit` 0 errors、eslint 0 errors。`ops:move-day` 需 Owner 對正式資料庫執行（沙箱連不到）。
+
 ### YZUI-016 — 日誌右欄「今日脈絡／今日議題」持久化
 
 - Owner 回報今日脈絡重整就消失、希望同時記錄宇星與 Lily 並持續累積；追加回報今日議題已完成的標籤也會消失。根因三件互相獨立：今日脈絡與今日議題從來沒有進過 `PERSISTED_COLLECTIONS`（今日議題的 id 被寫回日誌 block 的 `today`，block 存得住、議題存不住，所以標籤指向空的）；`journalComments`／`files`／`objectComments`／`requests`／`lineComments` 有存也有讀回來，卻在掛載時被 `DB.x=[]` 蓋掉；日誌寫入分作者、讀回來卻只用日期當鍵，同一天兩個人會互相覆蓋。

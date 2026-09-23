@@ -16,9 +16,13 @@
 import { JSDOM } from 'jsdom'
 
 import type { YuanzhanSeat } from '../src/lib/auth/yuanzhan-actor'
+import { operatingToday } from '../src/lib/ui-data/yuanzhan/v5-state'
 
-/** 與 v5-seed 的 today 相同；database 模式不會清掉這個字串。 */
-const DAY = '2026-09-12'
+/**
+ * database 模式的「今天」是真的今天，不是 seed 的 2026-09-12。
+ * fixture 也跟著算出來，否則這支檢查明天就會開始失敗。
+ */
+const DAY = operatingToday()
 
 let checks = 0
 let failed = 0
@@ -171,6 +175,11 @@ async function main() {
     .trim()
 
   check('掛載沒有 runtime 錯誤', errors.length === 0, errors.slice(0, 2).join(' | '))
+
+  // ── 工作台的「今天」是真的今天 ──────────────────────────────────────────
+  // fixture 的 2026-09-12 留在 database 模式的話，日誌與脈絡全部會寫進那一天。
+  check('database 模式的 referenceDate 是真的今天', state.referenceDate === DAY, `${state.referenceDate} vs ${DAY}`)
+  check('日期列顯示今天', (root.textContent || '').includes(DAY))
 
   // ── 今日脈絡 ────────────────────────────────────────────────────────────
   const dayLogs = (db.dayLogs ?? []) as Array<Record<string, unknown>>

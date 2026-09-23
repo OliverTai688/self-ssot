@@ -14,6 +14,14 @@
 
 下一個候選：`YZUI-017`（脈絡按需求載入更早的日子）或 `YZUI-015`（ARC-030 契約套到第二個模組索引）。
 
+### 追加：database 模式的「今天」是真的今天（YZUI-019）
+
+Owner 回報畫面日期停在 2026-09-12。`createV5State` 的 `referenceDate` 取自 `data.today`，而 database 模式的清空迴圈只清陣列，seed 的 `today` 常數原封不動留著 —— 工作台一直以為今天是 fixture 那一天，日誌、今日脈絡、今日議題全部寫進 2026-09-12。
+
+`v5-state.ts` 新增 `operatingToday()`：database 模式用 `Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' })` 算今天。用台北而不是伺服器時區——這一頁是 Server Component、部署環境跑 UTC，台北凌晨會整段差一天。prototype／showcase 維持 2026-09-12（fixture 全部掛在那一天，動了對不起來；`check-operating-runtime` 的基準比對也才不會每天變動）。
+
+既有資料全部歸在 2026-09-12。新增 `scripts/move-operating-journal-day.ts`（`pnpm ops:move-day`）把那一天的日誌、脈絡、議題、文件物件、請求、留言整批改掛指定日期；預設 dry run，`--apply` 才寫，全部包在一個交易裡。只動日期來自「工作台今天」的那幾張表，交易／場合／節奏那些使用者自填的日期一律不碰。Owner 決定搬到今天。
+
 ## Owner-directed 日誌物件索引 — 2026-09-23
 
 `YZUI-012` 已完成實作：日誌第三分頁由「標籤流／召喚紀錄」改為「物件索引」（Owner 本次明確核可改名）。資料來源從日誌區塊改為物件帳本，日誌降級為「來源」欄；新增名稱與內文搜尋（標亮片段）、型別 facet（帶數量）、「僅日誌誕生」過濾、三種排序、月份分組（月份列掛當天日誌標題作時間地標）、25 筆分頁、表格／時間軸雙檢視、RES-018 參考碼徽章、回到來源行的定位閃爍。

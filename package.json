@@ -142,6 +142,7 @@
     "ops:migrations:check": "node scripts/check-migration-coverage.mjs",
     "ops:proof:migrate": "node scripts/operating-proof-migrate.mjs",
     "ops:cleanup-residue": "NODE_OPTIONS='--conditions react-server' tsx scripts/cleanup-operating-proof-residue.ts",
+    "ops:move-day": "NODE_OPTIONS='--conditions react-server' tsx scripts/move-operating-journal-day.ts",
     "ops:roundtrip": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-operating-roundtrip.ts",
     "ops:spine:reconcile": "tsx scripts/reconcile-time-spine.ts",
     "ops:verify": "node scripts/verify-operating-canvas.cjs",

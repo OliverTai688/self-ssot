@@ -6,6 +6,8 @@
 
 - [x] `YZUI-016`：今日脈絡與今日議題接上 ARC-042 寫入管線（新增 `operating_day_logs`／`operating_today_issues`）；修掉五個集合在掛載時被清空覆蓋；日誌讀回來分作者。`scripts/check-journal-day-state.ts` 25/25 PASS。
 - [ ] **Owner 待執行**：本機 `pnpm db:generate`，並對正式資料庫 `pnpm db:deploy`（新表不存在的話，寫入會以 `apply_failed` 被拒）。
+- [x] `YZUI-019`：database 模式的「今天」改用 Asia/Taipei 的真實日期（原本固定在 fixture 的 2026-09-12）。
+- [ ] **Owner 待執行**：`pnpm ops:move-day`（先看 dry run，再加 `--apply`）把既有內容從 2026-09-12 搬到今天。
 - [ ] `YZUI-017`：脈絡按需求載入更早的日子（目前讀取側固定 90 天視窗）。
 - [ ] `YZUI-018`：`DB.seq.DOCREF` 跨次載入重號（與本輪修掉的 `nid()` 同一類）。
 
