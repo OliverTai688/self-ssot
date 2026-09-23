@@ -67,9 +67,42 @@
 | **B. 新建 `OperatingProject`** | 獨立表，與 `Project` 以 optional 關聯連結 | 兩張專案表，跨模組查詢要 join；`ProjectMilestone` 等三軌表目前掛在 `Project` 上，需改掛或雙掛 |
 | **C. 共用 `Project`＋側表 `OperatingProjectProfile`** | 核心欄位（id／名稱／workspace／狀態）共用，營運專屬欄位放 1:1 側表 | 多一次 join；但三軌關聯不動，Work 模組零影響 |
 
-**建議 C。** 理由是三軌（`ProjectPhaseNode`／`ProjectMilestone`／`ProjectObjective`）已經掛在 `Project` 上而且形狀正確——那是 `PLN-073` T1–T5 花了整個 loop 做出來的成果。選 B 等於把它們重做一次。選 A 會讓 Work 模組承擔營運模組的欄位。
+### 決定：C（2026-09-23，owner 授權後定案）
 
-這一項需要 owner 決定，不應由實作者自行選定。**停止條件：未取得此決定前不進行 migration。**
+核心理由是本地的：三軌（`ProjectPhaseNode`／`ProjectMilestone`／`ProjectObjective`）已經掛在 `Project` 上而且形狀正確——那是 `PLN-073` T1–T5 花了整個 loop 做出來的成果。選 B 等於把它們重做一次；選 A 會讓 Work 模組長期承擔一批永遠為 null 的營運欄位。
+
+兩個外部來源指向同一個方向：
+
+- Prisma 官方把這個形狀稱為 **multi-table inheritance**：共用的父表加上 1:1 的專屬子表。列出的取捨是「MTI 的資料模型較乾淨、專屬欄位可以是 required、型別推導是原生的；代價是取完整資料要 join」，而 single-table inheritance 會產生「very wide rows and lots of columns that have NULL values」——那正是選項 A 的描述。[Table inheritance](https://www.prisma.io/docs/orm/prisma-schema/data-model/table-inheritance)
+- 模組化單體的實務建議是**單一擁有權**：一張表由一個 bounded context 擁有並負責 migration，其他 context 唯讀取用，而不是各自複製一張表。[Evolving modular monoliths: passing data between bounded contexts](https://www.thereformedprogrammer.net/evolving-modular-monoliths-3-passing-data-between-bounded-contexts/)
+
+Prisma 提到的 MTI 風險「父子兩個主鍵可能不一致」在這裡不成立：側表以 `projectId` 為主鍵兼外鍵（1:1 共用主鍵），沒有第二個 id 要對齊。
+
+**落實成兩條規則：**
+
+1. `Project` 由 Work 模組擁有。營運模組讀它、不改它的欄位定義，也不在它上面加營運專屬欄位。
+2. 營運專屬欄位放 `OperatingProjectProfile`，主鍵即 `projectId`，由營運模組擁有。
+
+```prisma
+model OperatingProjectProfile {
+  projectId       String   @id @map("project_id") @db.Uuid
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client          String?
+  goalId          String?  @map("goal_id") @db.Uuid
+  engagementType  String?  @map("engagement_type")
+  operatingStatus String   @default("商機") @map("operating_status")
+  bonusRatePct    Int      @default(0) @map("bonus_rate_pct")
+  bonusCapPct     Int      @default(0) @map("bonus_cap_pct")
+  budgetAmount    Int      @default(0) @map("budget_amount")
+  evidenceRepoTag String?  @map("evidence_repo_tag")
+  startedOn       DateTime? @map("started_on") @db.Date
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("operating_project_profiles")
+}
+```
+
+`bonusRatePct`／`bonusCapPct`／`budgetAmount` 雖然帶金額語意，但它們是**專案設定**而不是帳務憑證，與 `txns`／`payroll` 的高風險閘門分開看待。即使如此，M2 只讓它們被讀寫，不據以產生任何應付金額——那是 M4 的事。
 
 ---
 
@@ -169,6 +202,6 @@ model OperatingGoal {
 
 ## 8. 待 owner 決定
 
-1. **§3 的 A／B／C**——專案模型的歸併方式。未決定前不 migration。
-2. 日誌 `visibility` 的預設值：公司可見還是私人？原型的「公司直接輸入」暗示前者，但與「私人資料隔離」的敘述張力需澄清。
-3. `goals` 是圓展層級還是個人層級？seed 的 `G1/G2/G3` 看起來是公司目標，但 Personal OS 也有目標語意。
+1. ~~§3 的 A／B／C~~ — 已定案為 C（2026-09-23）。
+2. 日誌 `visibility` 的預設值：公司可見還是私人？原型的「公司直接輸入」暗示前者，但與「私人資料隔離」的敘述張力需澄清。**實作暫採 `company`**，因為工作台是公司營運介面；若判定錯誤，改預設值比事後把私人內容從公司視野撤回容易。
+3. `goals` 是圓展層級還是個人層級？seed 的 `G1/G2/G3` 看起來是公司目標，但 Personal OS 也有目標語意。**實作暫採公司層級**（`OperatingGoal.workspaceId`）。
