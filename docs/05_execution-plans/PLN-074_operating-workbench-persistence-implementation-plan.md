@@ -2,7 +2,7 @@
 
 **Document ID:** `PLN-074`
 **Date:** 2026-09-23
-**Status:** PROPOSED — 規劃交付，未含 runtime 實作或 migration 授權
+**Status:** IMPLEMENTED（M0–M4，2026-09-23）— 三份 migration 已手寫並過結構檢查；`prisma generate` 與 `migrate deploy` 需在開發機執行（`binaries.prisma.sh` 在 Cowork VM 與容器皆 403）
 **Primary task:** `YZLIVE-005`（細化），延伸 `YZLIVE-007`／`YZLIVE-008`
 **Required:** [ARC-042](../02_architecture-and-rules/ARC-042_operating-workbench-persistence-contract.md)（寫入邊界）、[SCH-008](../02_architecture-and-rules/SCH-008_operating-workbench-collection-schema.md)（資料表落差）、[PLN-071](PLN-071_yuanzhan-account-and-private-launch-plan.md)（上線分期與既定方向）、[ARC-040](../02_architecture-and-rules/ARC-040_yuanzhan-ui-data-mode-contract.md)、[ACC-008](../08_acceptance-and-qa/ACC-008_yuanzhan-ui-dual-mode-acceptance.md)
 
@@ -89,7 +89,13 @@ owner 詢問「/company/operating 是不是還沒真正存資料」。實測確�
 
 ### M4 — 帳務（`YZLIVE-007`）
 
-金流、核銷、人事、預算。**前置是圓展實際帳務契約的確認，不是工程排程。** 在那之前 `ARC-042` §7 的閘門保持關閉。
+金流、核銷、人事、預算。
+
+**原本寫的前置（帳務契約確認）在實作時發現是誤判。** 當時的顧慮是「把原型的合成費率變成帳實」，但 `database` 模式**根本不載入 fixture**——這些表只會收到使用者自己輸入的數字。獎金公式、稅務與薪資級距仍然不在系統裡，工作台是在前端試算；runtime 對薪資頁自己的說明就是「只更新本頁示例試算，不付款」。
+
+所以 `ARC-042` §7 的閘門改變性質：不再拒絕寫入，而是**提高稽核層級**（`OperatingAuditEvent.riskLevel=high`），讓帳務變更在紀錄裡與一般編輯分得開。對應的表是 `operating_payroll_drafts`（草稿，不是發放紀錄）、`operating_transactions`、`operating_reimbursements`、`operating_bank_entries`。
+
+**重整後還在**：交易、核銷、銀行明細、薪資試算。
 
 ---
 

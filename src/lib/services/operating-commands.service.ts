@@ -8,7 +8,7 @@ import { getYuanzhanSeats, type YuanzhanSeat } from "@/lib/auth/yuanzhan-actor"
 import { db } from "@/lib/db"
 import type { AuthenticatedUser } from "@/lib/services/auth.service"
 import { DEFAULT_ORG_KEY } from "@/lib/services/operating-settings.service"
-import { removeSpine, syncOccasion, syncSession } from "@/lib/services/operating-spine.service"
+import { removeSpine, syncMilestone, syncOccasion, syncSession } from "@/lib/services/operating-spine.service"
 import {
   HIGH_RISK_COLLECTIONS,
   WRITE_ENABLED_COLLECTIONS,
@@ -455,6 +455,315 @@ async function applyJournal(change: RowChange, ctx: ApplyContext): Promise<void>
   })
 }
 
+
+/* ------------------------------------------------------------------ */
+/* 專案軌：階段 → 里程碑 → 判準                                         */
+/* ------------------------------------------------------------------ */
+
+const PHASE_VALUES = ["DISCOVERY", "PLANNING", "EXECUTION", "REVIEW", "MAINTENANCE"] as const
+type PhaseValue = (typeof PHASE_VALUES)[number]
+
+function toPhaseValue(value: unknown): PhaseValue {
+  const upper = typeof value === "string" ? (value.toUpperCase() as PhaseValue) : "EXECUTION"
+  return (PHASE_VALUES as readonly string[]).includes(upper) ? upper : "EXECUTION"
+}
+
+/**
+ * 里程碑在 Prisma 必須掛在一個階段下，但工作台允許里程碑先存在、階段之後再說。
+ * 補一個推導出來的 EXECUTION 階段承接它們（PLN-073 §2.1 的決定）。
+ */
+async function ensureDefaultPhase(projectId: string): Promise<string> {
+  const id = deterministicUuid(WORKSPACE_SLUG, "phases", `${projectId}:default`)
+  const existing = await db.projectPhaseNode.findUnique({ where: { id }, select: { id: true } })
+  if (existing) return id
+
+  const today = new Date()
+  await db.projectPhaseNode.create({
+    data: { id, projectId, phase: "EXECUTION", label: "執行", startDate: today, endDate: today },
+  })
+  return id
+}
+
+async function applyPhase(change: RowChange, _ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("phases", change.id)
+  if (change.op === "delete") {
+    await db.projectPhaseNode.deleteMany({ where: { id } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectRef = str(row.projectId)
+  if (!projectRef) throw new Error(`phase ${change.id} has no project`)
+  const projectId = rowUuid("projects", projectRef)
+  const exists = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!exists) throw new Error(`phase ${change.id} references a project that is not saved yet`)
+
+  const start = toDateOnly(row.startOn) ?? new Date()
+  const data = {
+    projectId,
+    phase: toPhaseValue(row.phase),
+    label: str(row.label) ?? "（未命名階段）",
+    startDate: start,
+    endDate: toDateOnly(row.endOn) ?? start,
+  }
+  await db.projectPhaseNode.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyMilestone(change: RowChange, _ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("milestones", change.id)
+  if (change.op === "delete") {
+    await removeSpine(db, "project_milestones", id)
+    await db.projectMilestone.deleteMany({ where: { id } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectRef = str(row.projectId)
+  if (!projectRef) throw new Error(`milestone ${change.id} has no project`)
+  const projectId = rowUuid("projects", projectRef)
+  const exists = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!exists) throw new Error(`milestone ${change.id} references a project that is not saved yet`)
+
+  const phaseRef = str(row.phaseId)
+  const phaseNodeId = phaseRef ? rowUuid("phases", phaseRef) : await ensureDefaultPhase(projectId)
+
+  const data = {
+    phaseNodeId,
+    title: str(row.title) ?? "（未命名里程碑）",
+    // 空字串＝日期待補；存 null 而不是猜一個日期，否則它會跑進日曆。
+    date: toDateOnly(row.dueOn),
+    acceptance: str(row.accept),
+    derivedFrom: str(row.derivedFrom),
+    remind: str(row.remind),
+  }
+  await db.projectMilestone.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await syncMilestone(db, id)
+}
+
+async function applyObjective(change: RowChange, _ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("objectives", change.id)
+  if (change.op === "delete") {
+    await db.projectObjective.deleteMany({ where: { id } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const milestoneRef = str(row.milestoneId)
+  if (!milestoneRef) throw new Error(`objective ${change.id} has no milestone`)
+  const milestoneId = rowUuid("milestones", milestoneRef)
+  const exists = await db.projectMilestone.findUnique({ where: { id: milestoneId }, select: { id: true } })
+  if (!exists) throw new Error(`objective ${change.id} references a milestone that is not saved yet`)
+
+  const data = { milestoneId, title: str(row.title) ?? "（未命名判準）" }
+  await db.projectObjective.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+/* ------------------------------------------------------------------ */
+/* M3：Evidence、承諾、容量                                             */
+/* ------------------------------------------------------------------ */
+
+async function applyDocument(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("docs", change.id)
+  if (change.op === "delete") {
+    await db.operatingDocument.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    direction: str(row.dir) ?? "內部",
+    title: str(row.t) ?? "（未命名文件）",
+    clauses: toJson(row.clauses, []),
+  }
+  await db.operatingDocument.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyCommitment(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("commitments", change.id)
+  if (change.op === "delete") {
+    await db.operatingCommitment.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    documentRef: str(row.doc),
+    clauseRef: str(row.clause),
+    direction: str(row.dir) ?? "內部",
+    title: str(row.t) ?? "（未命名承諾）",
+    ownerKey: str(row.owner),
+    status: str(row.st) ?? "履行中",
+    cadence: str(row.due),
+    logs: toJson(row.logs, []),
+  }
+  await db.operatingCommitment.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyThread(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("threads", change.id)
+  if (change.op === "delete") {
+    await db.operatingThread.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectRef = str(row.p)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    projectId: projectRef ? rowUuid("projects", projectRef) : null,
+    title: str(row.t) ?? "（未命名討論）",
+    closed: row.closed === true,
+    messages: toJson(row.msgs, []),
+    closeNote: (row.close ?? null) as Prisma.InputJsonValue,
+    files: Array.isArray(row.files) ? row.files.filter((f): f is string => typeof f === "string") : [],
+  }
+  await db.operatingThread.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+/** repos 以 projectId 為鍵，change.id 就是工作台的專案 id。 */
+async function applyEvidenceRepo(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const projectId = rowUuid("projects", change.id)
+  if (change.op === "delete") {
+    await db.operatingEvidenceRepo.deleteMany({ where: { projectId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    version: str(row.version) ?? "v0.1",
+    frozen: row.frozen === true,
+    readme: str(row.readme),
+    versions: toJson(row.versions, []),
+    tree: toJson(row.tree, []),
+  }
+  await db.operatingEvidenceRepo.upsert({
+    where: { projectId },
+    create: { projectId, ...data },
+    update: data,
+  })
+}
+
+/** capacity / timesheet 以席位字串為鍵，一人一列。 */
+async function applyCapacity(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const key = { workspaceId_actorKey: { workspaceId: ctx.workspaceId, actorKey: change.id } }
+  if (change.op === "delete") {
+    await db.operatingCapacityPlan.deleteMany({ where: { workspaceId: ctx.workspaceId, actorKey: change.id } })
+    return
+  }
+  const allocations = toJson(change.after, [])
+  await db.operatingCapacityPlan.upsert({
+    where: key,
+    create: { workspaceId: ctx.workspaceId, actorKey: change.id, allocations },
+    update: { allocations },
+  })
+}
+
+async function applyTimesheet(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const key = { workspaceId_actorKey: { workspaceId: ctx.workspaceId, actorKey: change.id } }
+  if (change.op === "delete") {
+    await db.operatingTimesheet.deleteMany({ where: { workspaceId: ctx.workspaceId, actorKey: change.id } })
+    return
+  }
+  const weeks = toJson(change.after, [])
+  await db.operatingTimesheet.upsert({
+    where: key,
+    create: { workspaceId: ctx.workspaceId, actorKey: change.id, weeks },
+    update: { weeks },
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/* M4：帳務                                                            */
+/* ------------------------------------------------------------------ */
+
+/** 金額一律整數。四捨五入到元，避免浮點誤差累積在對帳上。 */
+function toAmount(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? Math.round(n) : 0
+}
+
+async function applyTransaction(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("txns", change.id)
+  if (change.op === "delete") {
+    await db.operatingTransaction.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const onDate = toDateOnly(row.d)
+  if (!onDate) throw new Error(`transaction ${change.id} has no usable date`)
+
+  const data = {
+    workspaceId: ctx.workspaceId,
+    onDate,
+    title: str(row.t) ?? "（未命名交易）",
+    projectRef: str(row.p),
+    category: str(row.cat),
+    amount: toAmount(row.amt),
+    formula: str(row.formula),
+    passThrough: row.pass === true,
+    vouchers: Array.isArray(row.v) ? row.v.filter((x): x is string => typeof x === "string") : [],
+    note: str(row.note),
+  }
+  await db.operatingTransaction.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyReimbursement(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("reimb", change.id)
+  if (change.op === "delete") {
+    await db.operatingReimbursement.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    workspaceId: ctx.workspaceId,
+    actorKey: str(row.who),
+    title: str(row.t) ?? "（未命名報帳）",
+    amount: toAmount(row.amt),
+    status: str(row.st) ?? "待送",
+    onDate: toDateOnly(row.d),
+  }
+  await db.operatingReimbursement.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyBankEntry(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("bank", change.id)
+  if (change.op === "delete") {
+    await db.operatingBankEntry.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const onDate = toDateOnly(row.d)
+  if (!onDate) throw new Error(`bank entry ${change.id} has no usable date`)
+
+  const data = {
+    workspaceId: ctx.workspaceId,
+    onDate,
+    title: str(row.t) ?? "（未命名明細）",
+    amount: toAmount(row.amt),
+    matchedRef: str(row.m),
+  }
+  await db.operatingBankEntry.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyPayrollDraft(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const key = { workspaceId_actorKey: { workspaceId: ctx.workspaceId, actorKey: change.id } }
+  if (change.op === "delete") {
+    await db.operatingPayrollDraft.deleteMany({ where: { workspaceId: ctx.workspaceId, actorKey: change.id } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const data = {
+    baseAmount: toAmount(row.base),
+    overtime: toAmount(row.overtime),
+    milestone: toAmount(row.milestone),
+    separate: row.separate === true,
+  }
+  await db.operatingPayrollDraft.upsert({
+    where: key,
+    create: { workspaceId: ctx.workspaceId, actorKey: change.id, ...data },
+    update: data,
+  })
+}
+
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
   occasions: applyOccasion,
   rhythms: applyRhythm,
@@ -464,6 +773,19 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   goals: applyGoal,
   decisions: applyDecision,
   journal: applyJournal,
+  phases: applyPhase,
+  milestones: applyMilestone,
+  objectives: applyObjective,
+  docs: applyDocument,
+  commitments: applyCommitment,
+  threads: applyThread,
+  repos: applyEvidenceRepo,
+  capacity: applyCapacity,
+  timesheet: applyTimesheet,
+  txns: applyTransaction,
+  reimb: applyReimbursement,
+  bank: applyBankEntry,
+  payroll: applyPayrollDraft,
 }
 
 /* ------------------------------------------------------------------ */
@@ -472,11 +794,15 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
 
 function screen(change: RowChange): CommandRejection["code"] | null {
   if (!isPersistedCollection(change.collection)) return "unknown_collection"
-  if (HIGH_RISK_COLLECTIONS.includes(change.collection)) return "write_not_enabled"
   if (!WRITE_ENABLED_COLLECTIONS.includes(change.collection)) return "write_not_enabled"
   if (!HANDLERS[change.collection]) return "write_not_enabled"
   if (change.op !== "delete" && (change.after === undefined || change.after === null)) return "invalid_payload"
   return null
+}
+
+/** 帳務變更在稽核裡與一般編輯分得開，事後查帳才找得到。 */
+function riskLevelFor(changes: RowChange[]): "high" | "low" {
+  return changes.some((change) => HIGH_RISK_COLLECTIONS.includes(change.collection)) ? "high" : "low"
 }
 
 export async function applyOperatingCommands(
@@ -538,7 +864,7 @@ export async function applyOperatingCommands(
           targetRef: command.changes[0]?.id ?? null,
           targetDisplay: command.label,
           result: "success",
-          riskLevel: "low",
+          riskLevel: riskLevelFor(command.changes),
           approvalLevel: "none",
           humanApprovalRequired: false,
           sourceKind: "workbench",

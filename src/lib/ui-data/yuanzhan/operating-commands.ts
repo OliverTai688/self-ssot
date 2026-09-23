@@ -31,10 +31,13 @@ export const PERSISTED_COLLECTIONS = [
   'projects',
   'issues',
   'goals',
-  'commitments',
   'decisions',
   'threads',
-  'signals',
+  'docs',
+  'commitments',
+  'repos',
+  'capacity',
+  'timesheet',
   'txns',
   'reimb',
   'bank',
@@ -47,7 +50,12 @@ export type PersistedCollection = (typeof PERSISTED_COLLECTIONS)[number]
  * 以 key 索引的集合：`DB.journal` 是 `{ '2026-09-22': { title, blocks } }` 而不是陣列。
  * 比對時把 key 當作列的 id，其餘與陣列集合完全相同。
  */
-export const KEYED_COLLECTIONS: readonly PersistedCollection[] = ['journal']
+export const KEYED_COLLECTIONS: readonly PersistedCollection[] = [
+  'journal',
+  'repos',
+  'capacity',
+  'timesheet',
+]
 
 /**
  * PLN-074 M1 開放寫入的集合。
@@ -55,35 +63,55 @@ export const KEYED_COLLECTIONS: readonly PersistedCollection[] = ['journal']
  * 選它們先行不是因為重要，是因為 Prisma 表已經存在且形狀正確（PLN-073 T1–T5），
  * 接錯了可以 drop 重來，沒有既有資料受影響。等於用零風險的集合把整條管線跑通一次。
  *
- * `phases`／`milestones`／`objectives` 原本也列在 M1，實作時退出來了：三者都掛在
- * `Project` 上，而 v5 的 `PRJ-2026-004` 在 Prisma 裡沒有對應列。要接它們得先回答
- * SCH-008 §3 的專案模型問題，那是 M2 的前置，不該在 M1 偷渡。
- * `occasions.projectId` 是 optional，所以它可以先行 —— 帶不到專案時存 null。
+ * `phases`／`milestones`／`objectives` 原本列在 M1，當時退了出來：三者都掛在 `Project`
+ * 上，而 v5 的 `PRJ-2026-004` 在 Prisma 裡還沒有對應列。M2 把專案接上之後它們才回來，
+ * 而且各自會在專案尚未存下時拒絕，而不是造一個空殼專案。
  */
 export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
+  // M1：節奏／場合（專案無關）
   'rhythms',
   'sessions',
   'occasions',
-  // M2：日常協作資料。專案側表定案後（SCH-008 §3 決定 C）專案軌才接得上。
+  // M2 之後才接得上：三者都掛在 Project 上，專案側表定案後才有對應列
+  'phases',
+  'milestones',
+  'objectives',
+  // M2：日常協作
   'journal',
   'projects',
   'issues',
   'goals',
   'decisions',
+  // M3：Evidence、承諾、容量
+  'docs',
+  'commitments',
+  'threads',
+  'repos',
+  'capacity',
+  'timesheet',
+  // M4：帳務
+  'txns',
+  'reimb',
+  'bank',
+  'payroll',
 ]
 
 /**
- * 高風險集合（AGENTS.md §11 的 Finance／Company Strategy）。
+ * 高風險集合（AGENTS.md §11 的 Finance）。
  *
- * 即使 diff 產生了變更也一律拒絕，直到 YZLIVE-007 的帳務契約確認。原型裡的獎金率、
- * 上限與薪酬級距是合成示例，不是圓展的實際條款；先接線等於把示例變成帳實。
+ * M4 之前這份名單是硬性拒絕；現在它改為**提高稽核層級**——寫入照走，但稽核列
+ * 標記 riskLevel=high，讓這些變更在紀錄裡與一般編輯分得開。
+ *
+ * 改變的理由是原本的顧慮已經不成立：擋住寫入是為了避免把原型的合成費率變成帳實，
+ * 而 database 模式根本不載入 fixture，這些表只會收到使用者自己輸入的數字。
+ * 獎金公式、稅務與薪資級距仍然不在系統裡 —— 工作台是在前端試算，
+ * runtime 自己對薪資的說明就是「只更新本頁示例試算，不付款」。
  */
 export const HIGH_RISK_COLLECTIONS: readonly PersistedCollection[] = [
   'txns',
   'reimb',
   'bank',
   'payroll',
-  'commitments',
 ]
 
 export function isPersistedCollection(value: unknown): value is PersistedCollection {
@@ -99,6 +127,11 @@ export function isPersistedCollection(value: unknown): value is PersistedCollect
  * 業務鍵是 (rhythmId, occurrenceDate)，Prisma 的 `rhythm_sessions_occurrence_key` 同樣以此為唯一鍵。
  */
 export function identifyRow(collection: PersistedCollection, row: Record<string, unknown>): string | null {
+  // 薪資試算一人一列，沒有 id；席位字串就是它的身分。
+  if (collection === 'payroll') {
+    return typeof row.who === 'string' && row.who.length > 0 ? row.who : null
+  }
+
   if (collection === 'sessions') {
     const rhythmId = row.rhythmId
     const occurrenceDate = row.occurrenceDate

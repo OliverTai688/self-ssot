@@ -876,7 +876,10 @@ model ProjectMilestone {
   phaseNodeId String                  @map("phase_node_id") @db.Uuid
   phaseNode   ProjectPhaseNode        @relation(fields: [phaseNodeId], references: [id], onDelete: Cascade)
   title       String
-  date        DateTime
+  /// 可為空＝日期待補（由 delivery[] 轉來的里程碑），不進日曆。
+  /// 原本是 NOT NULL，但工作台一直允許「先立下要交付什麼，日期之後再說」，
+  /// 逼一個假日期進來會讓那些里程碑出現在日曆上。
+  date        DateTime?
   status      ProjectMilestoneStatus  @default(UPCOMING)
   acceptance  String?
   derivedFrom String?                 @map("derived_from")
@@ -1779,6 +1782,182 @@ model OperatingDecision {
 
   @@index([workspaceId, decidedOn], map: "operating_decisions_workspace_date_idx")
   @@map("operating_decisions")
+}
+
+// ─── Evidence、承諾、容量（SCH-008 · PLN-074 M3）─────────────────────────────
+
+/// 契約條文。條文陣列用 Json：它們是文件的一部分，不會被單獨查詢或改寫。
+model OperatingDocument {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  /// 內部 / 外部
+  direction   String
+  title       String
+  /// [{ id, ref, text }]
+  clauses     Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId], map: "operating_documents_workspace_idx")
+  @@map("operating_documents")
+}
+
+/// 由條文推導的承諾。履行紀錄存 Json —— 比對發生在承諾這一層，
+/// 拆成子表會讓單次 commit 產生兩種列變更，而 diff 只認得一種。
+model OperatingCommitment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  documentRef String?  @map("document_ref")
+  clauseRef   String?  @map("clause_ref")
+  direction   String
+  title       String
+  ownerKey    String?  @map("owner_key")
+  status      String
+  cadence     String?
+  /// [{ d, t, src, ok }] 履行 log。空白不代表沒做，代表沒有紀錄。
+  logs        Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, status], map: "operating_commitments_workspace_status_idx")
+  @@map("operating_commitments")
+}
+
+/// 專案聊天室。
+model OperatingThread {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  title       String
+  closed      Boolean  @default(false)
+  /// [{ w, ts, x }]
+  messages    Json     @default("[]")
+  closeNote   Json?    @map("close_note")
+  files       String[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, projectId], map: "operating_threads_workspace_project_idx")
+  @@map("operating_threads")
+}
+
+/// Evidence Repo：一個專案一份。檔案本體仍在 R2（SCH-005），這裡存目錄與版本。
+model OperatingEvidenceRepo {
+  projectId   String   @id @map("project_id") @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  version     String   @default("v0.1")
+  frozen      Boolean  @default(false)
+  readme      String?
+  /// [{ v, t, st }]
+  versions    Json     @default("[]")
+  /// [{ f, dir, note, ok }]
+  tree        Json     @default("[]")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId], map: "operating_evidence_repos_workspace_idx")
+  @@map("operating_evidence_repos")
+}
+
+/// 容量配置與出勤，一人一列。
+/// 以席位字串（yz / lily）而不是 Profile uuid 當鍵：席位是工作台的身分概念，
+/// 而且 Profile 還沒建立時也要能存 —— 對不到人就整筆存不了會是更糟的失敗。
+model OperatingCapacityPlan {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  actorKey    String   @map("actor_key")
+  /// [[label, pct, target]]
+  allocations Json     @default("[]")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, actorKey], map: "operating_capacity_actor_key")
+  @@map("operating_capacity_plans")
+}
+
+model OperatingTimesheet {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  actorKey    String   @map("actor_key")
+  /// [{ wk, from, days, est, st, conf }] 分鐘粒度；由本人確認，不由系統推估
+  weeks       Json     @default("[]")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, actorKey], map: "operating_timesheet_actor_key")
+  @@map("operating_timesheets")
+}
+
+// ─── 帳務（SCH-008 §5 · PLN-074 M4）──────────────────────────────────────────
+// 這些表存的是使用者自己輸入的數字。database 模式不載入任何 fixture，所以原型裡
+// 那些合成的費率與金額不會進到這裡 —— 這正是 SCH-008 §5 當初要避免的事。
+// 規則（獎金公式、稅務、薪資級距）仍不在系統裡，工作台是在前端試算。
+
+model OperatingTransaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  onDate      DateTime @map("on_date") @db.Date
+  title       String
+  projectRef  String?  @map("project_ref")
+  category    String?
+  /// 未稅金額，支出為負。整數避免浮點誤差累積在對帳上。
+  amount      Int      @default(0)
+  /// 使用者輸入的算式（=SUM(D1:D3) 之類），保留原文才能重新檢查怎麼算出來的
+  formula     String?
+  /// 代收代付：不計入可分配毛利
+  passThrough Boolean  @default(false) @map("pass_through")
+  /// 憑證種類清單（發票／合約／匯款單）
+  vouchers    String[]
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, onDate], map: "operating_transactions_workspace_date_idx")
+  @@map("operating_transactions")
+}
+
+model OperatingReimbursement {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  actorKey    String?  @map("actor_key")
+  title       String
+  amount      Int      @default(0)
+  /// 待送 / 已核 / 已付
+  status      String   @default("待送")
+  onDate      DateTime? @map("on_date") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, status], map: "operating_reimbursements_workspace_status_idx")
+  @@map("operating_reimbursements")
+}
+
+/// 銀行明細。matchedRef 指向交易，是對帳的結果而不是外鍵：
+/// 對不上的那幾筆正是對帳要看的東西，不能因為外鍵約束而存不進來。
+model OperatingBankEntry {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  onDate      DateTime @map("on_date") @db.Date
+  title       String
+  amount      Int      @default(0)
+  matchedRef  String?  @map("matched_ref")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([workspaceId, onDate], map: "operating_bank_entries_workspace_date_idx")
+  @@map("operating_bank_entries")
+}
+
+/// 薪資試算草稿。runtime 自己就說「只更新本頁示例試算，不付款」——
+/// 這張表保存的是那份試算，不是薪資發放紀錄，也不產生任何應付義務。
+model OperatingPayrollDraft {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  actorKey    String   @map("actor_key")
+  baseAmount  Int      @default(0) @map("base_amount")
+  overtime    Int      @default(0)
+  milestone   Int      @default(0)
+  separate    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, actorKey], map: "operating_payroll_actor_key")
+  @@map("operating_payroll_drafts")
 }
 
 model TimeSpine {

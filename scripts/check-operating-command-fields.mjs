@@ -62,6 +62,25 @@ const DEPENDENCIES = {
   OperatingGoal: ['id', 'workspaceId', 'title', 'period', 'progressPct', 'warning'],
   OperatingDecision: ['id', 'workspaceId', 'authorId', 'title', 'body', 'decidedOn'],
   OperatingJournalEntry: ['workspaceId', 'authorId', 'onDate', 'title', 'blocks', 'visibility'],
+  ProjectPhaseNode: ['id', 'projectId', 'phase', 'label', 'startDate', 'endDate'],
+  ProjectMilestone: ['id', 'phaseNodeId', 'title', 'date', 'acceptance', 'derivedFrom', 'remind'],
+  ProjectObjective: ['id', 'milestoneId', 'title'],
+  OperatingDocument: ['id', 'workspaceId', 'direction', 'title', 'clauses'],
+  OperatingCommitment: [
+    'id', 'workspaceId', 'documentRef', 'clauseRef', 'direction', 'title',
+    'ownerKey', 'status', 'cadence', 'logs',
+  ],
+  OperatingThread: ['id', 'workspaceId', 'projectId', 'title', 'closed', 'messages', 'closeNote', 'files'],
+  OperatingEvidenceRepo: ['projectId', 'workspaceId', 'version', 'frozen', 'readme', 'versions', 'tree'],
+  OperatingCapacityPlan: ['workspaceId', 'actorKey', 'allocations'],
+  OperatingTimesheet: ['workspaceId', 'actorKey', 'weeks'],
+  OperatingTransaction: [
+    'id', 'workspaceId', 'onDate', 'title', 'projectRef', 'category',
+    'amount', 'formula', 'passThrough', 'vouchers', 'note',
+  ],
+  OperatingReimbursement: ['id', 'workspaceId', 'actorKey', 'title', 'amount', 'status', 'onDate'],
+  OperatingBankEntry: ['id', 'workspaceId', 'onDate', 'title', 'amount', 'matchedRef'],
+  OperatingPayrollDraft: ['workspaceId', 'actorKey', 'baseAmount', 'overtime', 'milestone', 'separate'],
 }
 
 /** 服務層用到的複合唯一鍵；Prisma 的 where 鍵名由這些欄位組出來。 */
@@ -69,6 +88,9 @@ const COMPOSITE_KEYS = {
   OrganizationSetting: ['orgKey', 'key'],
   RhythmSession: ['rhythmId', 'occurrenceDate'],
   OperatingJournalEntry: ['workspaceId', 'authorId', 'onDate'],
+  OperatingCapacityPlan: ['workspaceId', 'actorKey'],
+  OperatingTimesheet: ['workspaceId', 'actorKey'],
+  OperatingPayrollDraft: ['workspaceId', 'actorKey'],
 }
 
 let failed = 0
@@ -98,6 +120,16 @@ for (const [model, key] of Object.entries(COMPOSITE_KEYS)) {
   )
   if (!match) {
     console.error(`FAIL  ${model} has no @@unique([${key.join(', ')}]) for the upsert key the service uses`)
+    failed += 1
+  }
+}
+
+// 里程碑的日期必須可為空，否則「日期待補」的里程碑只能被塞一個假日期。
+{
+  checked += 1
+  const body = schema.match(/^model\s+ProjectMilestone\s*\{([\s\S]*?)^\}/m)?.[1] ?? ''
+  if (!/^\s*date\s+DateTime\?/m.test(body)) {
+    console.error('FAIL  ProjectMilestone.date must be optional so a milestone can exist before its date does')
     failed += 1
   }
 }

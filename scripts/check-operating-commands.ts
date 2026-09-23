@@ -7,12 +7,12 @@
 import {
   HIGH_RISK_COLLECTIONS,
   MAX_CHANGES_PER_COMMAND,
+  PERSISTED_COLLECTIONS,
   WRITE_ENABLED_COLLECTIONS,
   diffCollections,
   identifyRow,
   snapshotCollections,
   stableStringify,
-  type PersistedCollection,
 } from '../src/lib/ui-data/yuanzhan/operating-commands'
 
 let checks = 0
@@ -93,23 +93,40 @@ eq(
 
 /* -- 閘門 ------------------------------------------------------------ */
 
+// M4 起高風險集合可寫，但必須仍被標記 —— 稽核要分得出帳務變更與一般編輯。
 for (const collection of HIGH_RISK_COLLECTIONS) {
-  check(
-    `high-risk collection is not write-enabled: ${collection}`,
-    !WRITE_ENABLED_COLLECTIONS.includes(collection),
-  )
+  check(`high-risk collection stays declared: ${collection}`, PERSISTED_COLLECTIONS.includes(collection))
+  check(`high-risk collection is write-enabled from M4: ${collection}`, WRITE_ENABLED_COLLECTIONS.includes(collection))
 }
 
-const OPEN_EXPECTED: PersistedCollection[] = [
-  'rhythms', 'sessions', 'occasions',
-  'journal', 'projects', 'issues', 'goals', 'decisions',
-]
-eq('write-enabled set is M1 tracks plus M2 daily collaboration', [...WRITE_ENABLED_COLLECTIONS].sort(), [...OPEN_EXPECTED].sort())
+// M4 完成後，每一個宣告為可持久化的集合都要真的可寫；
+// 留著一個宣告了卻不寫的集合，等於在畫面上看起來會存、實際不會。
+eq(
+  'every declared collection is write-enabled after M4',
+  [...PERSISTED_COLLECTIONS].sort(),
+  [...WRITE_ENABLED_COLLECTIONS].sort(),
+)
 
-// 專案軌要等 SCH-008 §3 的模型決定；在那之前開放它們會寫出指向不存在專案的列。
-for (const collection of ['phases', 'milestones', 'objectives'] as PersistedCollection[]) {
-  check(`project-bound track stays closed until M2: ${collection}`, !WRITE_ENABLED_COLLECTIONS.includes(collection))
-}
+/* -- 薪資試算以席位為鍵 ------------------------------------------------ */
+
+eq('identifyRow keys payroll on the seat', identifyRow('payroll', { who: 'lily', base: 0 }), 'lily')
+eq('identifyRow rejects a payroll row with no seat', identifyRow('payroll', { base: 0 }), null)
+
+const pbefore = snapshotCollections({ payroll: [{ who: 'lily', base: 30000 }] })
+eq(
+  'editing a payroll draft is an update on the seat key',
+  diffCollections(pbefore, snapshotCollections({ payroll: [{ who: 'lily', base: 32000 }] })),
+  [{ collection: 'payroll', id: 'lily', op: 'update', after: { who: 'lily', base: 32000 } }],
+)
+
+/* -- 以席位為鍵的容量 / 出勤 ------------------------------------------- */
+
+const cbefore = snapshotCollections({ capacity: { yz: [['Product', 30, null]] } })
+eq(
+  'capacity diffs per seat',
+  diffCollections(cbefore, snapshotCollections({ capacity: { yz: [['Product', 40, null]] } })),
+  [{ collection: 'capacity', id: 'yz', op: 'update', after: [['Product', 40, null]] }],
+)
 
 check('the per-command change cap is a real bound', MAX_CHANGES_PER_COMMAND > 0 && MAX_CHANGES_PER_COMMAND <= 1000)
 
