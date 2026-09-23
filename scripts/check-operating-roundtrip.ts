@@ -25,6 +25,11 @@
  *   PERSONAL_OS_OPERATING_PROOF_CONFIRM=I_UNDERSTAND_THIS_WRITES_TEST_DATA \
  *   pnpm ops:roundtrip
  */
+// 護欄要比對 DATABASE_URL / DIRECT_URL / DIRECT_DATABASE_URL 才能認出正式庫。
+// 沒載 .env.local 的話它們全是 undefined，比對永遠不相等 —— 那道防線會安靜地失效，
+// 這正是它第一次被繞過之後、第二次差點又發生的事。
+import "./load-local-env"
+
 import { createHash } from "node:crypto"
 
 import { PrismaClient } from "@prisma/client"

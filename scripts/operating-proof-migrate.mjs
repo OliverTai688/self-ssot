@@ -13,6 +13,11 @@
  */
 import { spawnSync } from "node:child_process"
 
+// 同一個理由：不載入 .env.local，底下那個「是不是指向正式庫」的比對就沒有東西可比。
+import { config } from "dotenv"
+config({ path: ".env.local", quiet: true })
+config({ path: ".env", quiet: true })
+
 const url = process.env.OPERATING_PROOF_DATABASE_URL
 
 if (!url) {

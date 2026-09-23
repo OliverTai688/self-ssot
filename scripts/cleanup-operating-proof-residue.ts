@@ -10,6 +10,10 @@
  *   pnpm ops:cleanup-residue            # 只列出
  *   pnpm ops:cleanup-residue -- --apply # 真的刪
  */
+// 這一行必須在 db 之前：src/lib/db 在載入時就讀 DATABASE_URL，
+// 順序反過來的話它會拿到 undefined，然後對「沒有位址」發連線。
+import "./load-local-env"
+
 // 用 app 自己的 client，不自己 new 一個：Prisma 7 需要 adapter（PrismaPg + pg Pool），
 // 而那份設定已經在 src/lib/db 裡。重造一個只會多一份會走樣的設定。
 import { db } from "../src/lib/db"
