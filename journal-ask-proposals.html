@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>議題與請回覆提案</title>
+<style>
+:root{
+  --bg:#07090d; --panel:#0e1117; --panel2:#131720; --line:#1f2430; --line2:#2a3040;
+  --text:#e6e8ee; --dim:#8a91a3; --faint:#5b6273; --accent:#7c8cff; --accent2:#a78bfa;
+  --gold:#e0b25a; --green:#4fc38a; --red:#ef6b6b; --blue:#4ea1ff; --pink:#e58bc0; --orange:#f0924f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;font-size:14px}
+.wrap{max-width:1360px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:22px;margin:0 0 6px}
+.sub{color:var(--dim);margin:0 0 18px;line-height:1.6}
+.scen{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:20px}
+.scen div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.6;color:var(--dim);font-size:13px}
+.scen b{color:var(--text)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{background:var(--panel);color:var(--dim);border:1px solid var(--line);padding:9px 14px;border-radius:9px;cursor:pointer;font:inherit}
+.tabs button.on{color:var(--text);border-color:var(--accent);background:#151a2c}
+.tabs small{color:var(--faint);margin-left:6px}
+.proposal{display:none}.proposal.on{display:block}
+.flow{display:flex;gap:0;margin:0 0 14px;flex-wrap:wrap}
+.flow div{flex:1;min-width:170px;background:var(--panel);border:1px solid var(--line);padding:10px 12px;font-size:12px;color:var(--dim);line-height:1.5;position:relative}
+.flow div:first-child{border-radius:10px 0 0 10px}.flow div:last-child{border-radius:0 10px 10px 0}
+.flow b{display:block;color:var(--text);font-size:13px;margin-bottom:2px}
+.flow i{font-style:normal;color:var(--accent);font-family:ui-monospace,monospace;font-size:11px}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:14px 0 0}
+.notes div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.6;font-size:13px;color:var(--dim)}
+.notes h4{margin:0 0 4px;color:var(--text);font-size:13px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lbl{font-size:12px;color:var(--faint);margin:0 0 6px;display:flex;gap:6px;align-items:center}
+.frame{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a0c11;box-shadow:0 20px 50px #0008}
+.scroll{overflow-x:auto}
+.app{min-width:1100px;height:640px;display:flex;flex-direction:column}
+.app.sm{min-width:560px;height:560px}
+.topbar{height:42px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:#0c0f15;flex-shrink:0}
+.logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#8ea0ff,#b39cff)}
+.brand{font-weight:600}
+.user{margin-left:auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:20px;padding:3px 10px 3px 4px;font-size:12px}
+.av{width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;background:#2b3350;flex-shrink:0}
+.av.l{background:#4a2f45}
+.body{flex:1;display:flex;min-height:0}
+.rail{width:56px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;background:#0b0d12;flex-shrink:0}
+.ri{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;color:var(--faint);font-size:15px;position:relative}
+.ri.on{background:#171c2e;color:var(--accent)}
+.badge{position:absolute;top:2px;right:0;min-width:16px;height:16px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;display:grid;place-items:center;padding:0 4px}
+.muted{color:var(--faint)}.dim{color:var(--dim)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.dochead{padding:16px 28px 10px;display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line)}
+.dochead h2{margin:0;font-size:22px}
+.doc{flex:1;padding:14px 28px;overflow:hidden;position:relative}
+.line{padding:5px 8px;line-height:1.7;display:flex;gap:8px;align-items:flex-start;border-radius:6px;font-size:14px;position:relative}
+.line.hl{background:#141a2b}
+.bul{color:var(--faint);width:12px;flex-shrink:0}
+.caret{display:inline-block;width:2px;height:16px;background:var(--accent);vertical-align:middle;animation:bl 1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:20px;border:1px solid var(--line2);color:var(--dim);white-space:nowrap;vertical-align:1px}
+.p-today{border-color:#5a3a22;color:var(--orange);background:#211509}
+.p-ask{border-color:#4f2d45;color:var(--pink);background:#1e1019}
+.p-done{border-color:#2d4d3d;color:var(--green);background:#0f1f18}
+.p-wait{border-color:#2c3a5c;color:var(--blue);background:#0f1726}
+.p-task{border-color:#2d4d3d;color:var(--green);background:#0f1f18}
+.btn{font:inherit;font-size:12px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:7px;padding:5px 10px;white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#0a0c14;font-weight:600}
+.btn.pink{border-color:#6a3a5c;color:var(--pink)}
+.btn.sm{padding:3px 8px;font-size:11px}
+.sec-t{font-size:11px;letter-spacing:.06em;color:var(--faint);margin:0 0 8px;display:flex;justify-content:space-between}
+.side{width:320px;border-left:1px solid var(--line);background:#0c0f15;display:flex;flex-direction:column;overflow:hidden}
+.side .pad{padding:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;font-size:12px}
+.card .t{font-size:13px;margin-bottom:6px;color:var(--text)}
+.card .m{display:flex;gap:6px;align-items:center;color:var(--faint);font-size:11px;flex-wrap:wrap}
+.card.urgent{border-left:3px solid var(--orange)}
+.card.ask{border-left:3px solid var(--pink)}
+.popup{position:absolute;background:#121622;border:1px solid var(--line2);border-radius:10px;box-shadow:0 12px 30px #000a;padding:6px;font-size:12px;z-index:3}
+.popup .it{padding:6px 8px;border-radius:6px;display:flex;justify-content:space-between;gap:14px;color:var(--dim)}
+.popup .it.on{background:#1b2135;color:var(--text)}
+.popup .grp{font-size:10px;color:var(--faint);padding:6px 8px 2px}
+kbd{font-family:ui-monospace,monospace;font-size:10px;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:var(--dim);background:#0b0e14}
+.thread{margin:2px 0 8px 28px;border-left:2px solid var(--pink);padding:6px 12px;background:#150e14;border-radius:0 8px 8px 0;font-size:12px}
+.thread .msg{display:flex;gap:8px;margin:4px 0;line-height:1.5;align-items:flex-start}
+.thread .msg .av{width:18px;height:18px;font-size:9px}
+.state{display:flex;gap:4px;align-items:center;font-size:10px;color:var(--faint)}
+.state span{padding:1px 6px;border-radius:10px;border:1px solid var(--line2)}
+.state span.on{color:var(--green);border-color:#2d4d3d}
+.toolbar{position:absolute;display:flex;gap:2px;background:#151a28;border:1px solid var(--line2);border-radius:9px;padding:3px;box-shadow:0 10px 24px #000a;z-index:3}
+.toolbar span{padding:5px 9px;border-radius:6px;font-size:12px;color:var(--dim);white-space:nowrap}
+.toolbar span.on{background:#2a1f2c;color:var(--pink)}
+.toolbar .sep{width:1px;background:var(--line2);padding:0;margin:3px 2px}
+.askcard{margin:6px 0 10px 28px;background:var(--panel);border:1px solid #4f2d45;border-radius:10px;padding:12px;font-size:12px;max-width:560px}
+.askcard .q{font-size:14px;margin:6px 0 10px}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.opt{border:1px solid var(--line2);border-radius:8px;padding:6px 10px;color:var(--dim)}
+.opt.sel{border-color:var(--pink);color:var(--text);background:#231424}
+.field{display:flex;gap:8px;align-items:center;margin:6px 0;color:var(--faint)}
+.field .v{color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg span{padding:3px 9px;border-radius:6px;font-size:11px;color:var(--dim)}
+.seg span.on{background:#222943;color:var(--text)}
+.toast{position:absolute;right:16px;bottom:16px;background:#151a28;border:1px solid var(--line2);border-radius:10px;padding:10px 12px;width:280px;font-size:12px;box-shadow:0 12px 30px #000a}
+/* board */
+.board{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px;overflow:hidden}
+.col{background:#0c0f15;border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column}
+.col h5{margin:0 0 10px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.src{font-family:ui-monospace,monospace;font-size:10px;color:var(--faint);display:block;margin-top:6px}
+.eod{border-top:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:12px;background:#0c0f15}
+.bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:55%;background:linear-gradient(90deg,var(--green),var(--accent))}
+.modal{position:absolute;inset:0;background:#000a;display:grid;place-items:center;z-index:5}
+.modal .box{width:440px;background:#11151f;border:1px solid var(--line2);border-radius:12px;padding:16px;font-size:13px}
+.row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.row:last-of-type{border:0}
+@media (max-width:900px){.duo{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>日誌 → 今天要處理的議題 / 請對方回覆 · 三個提案</h1>
+  <p class="sub">這份延續上一版日誌介面。要解決的問題是：日誌裡寫到的一行，怎麼變成今天必須處理的議題，或是需要對方回覆的請求，而且不會淹沒在內文裡。三個提案共用同一組狀態，並沿用「物件有唯一的家」的原則：日誌行只是入口，議題和請求本身是獨立物件。</p>
+  <div class="scen">
+    <div><b>情境 1 · 今天要處理</b><br>「燈具廠商還沒回，今天一定要追」→ 要被標成今日議題，收工前沒處理要提醒。</div>
+    <div><b>情境 2 · 請對方回覆</b><br>「Lily，秋季展要選 A 還是 B 場地？」→ Lily 要被通知、能快速回答，答案要回到這一行。</div>
+    <div><b>共用狀態</b><br><span class="pill p-today">● 今日</span> <span class="pill p-ask">? 待回覆</span> <span class="pill p-wait">已讀</span> <span class="pill p-done">✓ 已回覆 / 已解決</span></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="on" data-t="a">A · 行內標記<small>打字就完成</small></button>
+    <button data-t="b">B · 選取轉「請求卡」<small>結構化回答</small></button>
+    <button data-t="c">C · 交接看板 + 收工檢查<small>每日閉環</small></button>
+  </div>
+
+  <!-- ============ A ============ -->
+  <section class="proposal on" id="p-a">
+    <div class="flow">
+      <div><b>① 在行內打標記</b><i>!今天</i> 或 <i>?@Lily</i></div>
+      <div><b>② 該行變色並加上 pill</b>自動建立「議題」或「請求」物件</div>
+      <div><b>③ Lily 收到訊號</b>訊號側欄出現紅點，並顯示原句</div>
+      <div><b>④ 在行下直接回覆</b>對話串掛在那一行底下，雙方都看得到</div>
+      <div><b>⑤ 標記完成</b>pill 變成 ✓，右欄移到「已解決」</div>
+    </div>
+    <div class="frame scroll"><div class="app">
+      <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS · 日誌</span><div class="user"><span class="av">宇</span>戴宇星</div></div>
+      <div class="body">
+        <div class="rail"><div class="ri on">✎</div><div class="ri">▦</div><div class="ri">✓</div><div class="ri">◔<span class="badge">2</span></div></div>
+        <div class="main">
+          <div class="dochead"><h2>9 月 12 日 · 週六</h2><span class="muted">宇星的日誌</span></div>
+          <div class="doc">
+            <div class="line"><span class="bul">•</span><span>早上跟 Lily 對過展覽進度</span></div>
+            <div class="line hl" style="border-left:3px solid var(--orange)"><span class="bul">•</span><span>燈具廠商還沒回，要追 <span class="pill p-today">● 今日議題 · 18:00 前</span></span></div>
+            <div class="line hl" style="border-left:3px solid var(--pink)"><span class="bul">•</span><span>秋季展場地要選 A 還是 B？ <span class="pill p-ask">? 請 Lily 回覆</span> <span class="pill p-wait">已讀 10:24</span></span></div>
+            <div class="thread">
+              <div class="msg"><span class="av l">L</span><div><b style="color:var(--pink)">Lily</b> <span class="muted">10:30</span><br>B 比較好，交通方便，但要確認能不能進貨車</div></div>
+              <div class="msg"><span class="av">宇</span><div><b>宇星</b> <span class="muted">10:32</span><br>OK，那我去問貨車的事</div></div>
+              <div style="display:flex;gap:6px;margin-top:6px"><span class="btn sm">回覆…</span><span class="btn sm">✓ 標記已解決</span><span class="btn sm">↳ 轉成承諾</span></div>
+            </div>
+            <div class="line" style="position:relative"><span class="bul">•</span><span>預算表明天前給會計 <span style="color:var(--accent)">?@</span><span class="caret"></span></span>
+              <div class="popup" style="top:30px;left:40px;width:250px">
+                <div class="grp">請誰回覆</div>
+                <div class="it on"><span><span class="av l" style="width:16px;height:16px;font-size:8px">L</span> Lily</span><kbd>↵</kbd></div>
+                <div class="grp">標記</div>
+                <div class="it"><span>! 今天要處理</span><kbd>!今天</kbd></div>
+                <div class="it"><span>! 本週</span><kbd>!週</kbd></div>
+                <div class="it"><span>⏰ 指定時間</span><kbd>!18:00</kbd></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="side">
+          <div class="pad">
+            <p class="sec-t"><span>今日議題</span><span>1</span></p>
+            <div class="card urgent"><div class="t">燈具廠商還沒回，要追</div><div class="m"><span class="pill p-today">18:00 前</span>宇星 · 第 2 行</div></div>
+            <p class="sec-t" style="margin-top:16px"><span>等對方回覆</span><span>1</span></p>
+            <div class="card ask"><div class="t">秋季展場地選 A 還是 B？</div><div class="m"><span class="av l" style="width:16px;height:16px;font-size:8px">L</span>Lily 已回覆 · 2 則</div></div>
+            <p class="sec-t" style="margin-top:16px"><span>Lily 請我回覆</span><span>1</span></p>
+            <div class="card ask"><div class="t">週一拍攝要不要加一台燈？</div><div class="m">Lily · 她的第 4 行 · 09:58</div><div style="margin-top:8px;display:flex;gap:6px"><span class="btn sm pink">回覆</span><span class="btn sm">開啟原文</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><h4>核心</h4>完全不離開鍵盤。<code>!</code> 用來標議題、設時限，<code>?@人</code> 用來發出請求，打法跟現有的 <code>#</code> 召喚、<code>@</code> 引用一致。</div>
+      <div><h4>回覆位置</h4>對話串掛在原本那一行下面，保留上下文；右欄只顯示摘要，點下去會跳回那一行。</div>
+      <div><h4>取捨</h4>學習成本最低、實作也最輕。缺點是回答是自由文字，較難統計，也難以直接帶動其他物件更新。</div>
+    </div>
+  </section>
+
+  <!-- ============ B ============ -->
+  <section class="proposal" id="p-b">
+    <div class="flow">
+      <div><b>① 選取一行</b>浮出工具列</div>
+      <div><b>② 選「請 Lily 回覆」</b>展開請求卡</div>
+      <div><b>③ 設定回答型態</b>是非 / 選項 / 數字 / 自由文字，加期限</div>
+      <div><b>④ Lily 一鍵作答</b>在她的日誌或訊號頁都能答</div>
+      <div><b>⑤ 答案寫回原行</b>可觸發後續：建承諾、改金流</div>
+    </div>
+    <div class="duo">
+      <div>
+        <p class="lbl"><span class="av">宇</span>宇星這端：發出請求</p>
+        <div class="frame scroll"><div class="app sm">
+          <div class="topbar"><div class="logo"></div><span class="brand">日誌 · 宇星</span></div>
+          <div class="main">
+            <div class="doc" style="padding-top:60px">
+              <div class="toolbar" style="top:14px;left:40px">
+                <span>B</span><span>I</span><span class="sep"></span><span># 召喚</span><span>● 今天處理</span><span class="on">? 請 Lily 回覆</span><span>…</span>
+              </div>
+              <div class="line hl"><span class="bul">•</span><span style="background:#2a3358">秋季展場地要選 A 還是 B？</span></div>
+              <div class="askcard">
+                <div class="m" style="display:flex;justify-content:space-between;color:var(--faint)"><span><span class="pill p-ask">? 請求</span> 給 <b style="color:var(--pink)">Lily</b></span><span>草稿</span></div>
+                <div class="q">秋季展場地要選 A 還是 B？</div>
+                <div class="field">回答型態 <div class="seg"><span>是非</span><span class="on">選項</span><span>數字</span><span>文字</span></div></div>
+                <div class="opts"><span class="opt">A · 松山文創</span><span class="opt">B · 華山 2 館</span><span class="opt" style="border-style:dashed">＋ 選項</span></div>
+                <div class="field">期限 <span class="v">今天 17:00</span> 急迫 <span class="v">● 今日</span></div>
+                <div class="field">答覆後 <span class="v">↳ 建立承諾「訂場地」給我</span></div>
+                <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px"><span class="btn">取消</span><span class="btn pri">送出 ⌘↵</span></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div>
+        <p class="lbl"><span class="av l">L</span>Lily 這端：訊號頁作答</p>
+        <div class="frame scroll"><div class="app sm">
+          <div class="topbar"><div class="logo"></div><span class="brand">訊號 · Lily</span><span class="user"><span class="av l">L</span>Lily</span></div>
+          <div class="main" style="position:relative">
+            <div class="doc">
+              <p class="sec-t"><span>請你回覆 · 2</span><span>依期限排序</span></p>
+              <div class="card ask" style="padding:12px">
+                <div class="m"><span class="av" style="width:16px;height:16px;font-size:8px">宇</span>宇星 · 9/12 日誌第 3 行 · <span style="color:var(--orange)">今天 17:00 前</span></div>
+                <div class="t" style="font-size:14px;margin:8px 0">秋季展場地要選 A 還是 B？</div>
+                <div class="opts"><span class="opt">A · 松山文創</span><span class="opt sel">✓ B · 華山 2 館</span></div>
+                <div class="field"><span class="v" style="flex:1;color:var(--faint)">補充（選填）：要先確認貨車能不能進…</span></div>
+                <div style="display:flex;gap:6px;justify-content:space-between;margin-top:8px"><span class="btn sm">稍後 · 延到明天</span><span class="btn pri">回覆</span></div>
+              </div>
+              <div class="card ask">
+                <div class="m">宇星 · 9/12 第 5 行 · 明天</div>
+                <div class="t" style="margin-top:6px">燈具預算上限可以到 15,000 嗎？</div>
+                <div class="opts" style="margin:0"><span class="opt">是</span><span class="opt">否</span><span class="opt">改成…</span></div>
+              </div>
+            </div>
+            <div class="toast"><b>已回覆 ✓</b><br><span class="dim">答案已寫回宇星日誌第 3 行，並替他建立承諾「訂華山 2 館」。</span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+    <p class="lbl" style="margin-top:12px">回到宇星的日誌，那一行會變成：</p>
+    <div class="frame" style="padding:12px 20px">
+      <div class="line"><span class="bul">•</span><span>秋季展場地要選 A 還是 B？ <span class="pill p-done">✓ Lily：B · 華山 2 館</span> <span class="muted" style="font-size:12px">「要先確認貨車能不能進」</span> <span class="pill p-task">☐ 承諾：訂華山 2 館</span></span></div>
+    </div>
+    <div class="notes">
+      <div><h4>核心</h4>把「請對方回覆」做成有型別的請求卡。對方不必打字，按一下就能回答；答案是結構化的，可以直接帶動承諾、金流等後續物件。</div>
+      <div><h4>浮動工具列</h4>選取文字後就能操作，不用記語法，適合不常用快捷鍵的 Lily。「今天處理」也放在同一排。</div>
+      <div><h4>取捨</h4>發問多了一步設定，比較適合做決策；閒聊式的來回還是用 A 的行內對話串比較順，兩者可以並存。</div>
+    </div>
+  </section>
+
+  <!-- ============ C ============ -->
+  <section class="proposal" id="p-c">
+    <div class="flow">
+      <div><b>① 日誌中標記</b>用 A 或 B 的方式都可以</div>
+      <div><b>② 集中到交接看板</b>「訊號」頁改成四欄看板</div>
+      <div><b>③ 拖拉改狀態</b>每張卡都能回到原本的日誌行</div>
+      <div><b>④ 收工檢查</b>按「我收工了」時逐項處理未完成的</div>
+      <div><b>⑤ 延到明天</b>自動出現在隔天日誌的最上方</div>
+    </div>
+    <div class="frame scroll"><div class="app" style="position:relative">
+      <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS · 訊號 / 交接板</span><div class="seg" style="margin-left:20px"><span class="on">今天</span><span>本週</span><span>全部</span></div><div class="user"><span class="av">宇</span>戴宇星</div></div>
+      <div class="body">
+        <div class="rail"><div class="ri">✎</div><div class="ri">▦</div><div class="ri">✓</div><div class="ri on">◔<span class="badge">3</span></div></div>
+        <div class="main">
+          <div class="board">
+            <div class="col">
+              <h5><span style="color:var(--orange)">● 今日議題</span><span class="muted">2</span></h5>
+              <div class="card urgent"><div class="t">燈具廠商還沒回，要追</div><div class="m"><span class="av" style="width:16px;height:16px;font-size:8px">宇</span>18:00 前</div><span class="src">↩ 宇星 9/12 · L2</span></div>
+              <div class="card urgent"><div class="t">場地保證金今天要匯</div><div class="m"><span class="av l" style="width:16px;height:16px;font-size:8px">L</span>Lily 負責</div><span class="src">↩ Lily 9/12 · L1</span></div>
+            </div>
+            <div class="col">
+              <h5><span style="color:var(--pink)">? 待我回覆</span><span class="muted">1</span></h5>
+              <div class="card ask"><div class="t">週一拍攝要不要加一台燈？</div><div class="m">Lily 問 · 09:58</div><div style="margin-top:8px;display:flex;gap:6px"><span class="btn sm pink">回覆</span><span class="btn sm">延後</span></div><span class="src">↩ Lily 9/12 · L4</span></div>
+            </div>
+            <div class="col">
+              <h5><span style="color:var(--blue)">⏳ 等對方回覆</span><span class="muted">2</span></h5>
+              <div class="card ask"><div class="t">預算表明天前給會計？</div><div class="m">給 Lily · <span class="pill p-wait">已讀</span></div><span class="src">↩ 宇星 9/12 · L5</span></div>
+              <div class="card ask"><div class="t">燈具預算上限 15,000？</div><div class="m">給 Lily · 未讀 · 2 小時</div><div style="margin-top:8px"><span class="btn sm">🔔 輕推一下</span></div><span class="src">↩ 宇星 9/12 · L6</span></div>
+            </div>
+            <div class="col" style="opacity:.75">
+              <h5><span style="color:var(--green)">✓ 今天解決</span><span class="muted">3</span></h5>
+              <div class="card"><div class="t" style="text-decoration:line-through;color:var(--dim)">秋季展場地選 A/B</div><div class="m">Lily：B · 華山 2 館</div></div>
+              <div class="card"><div class="t" style="text-decoration:line-through;color:var(--dim)">寄出平面圖</div></div>
+              <div class="card"><div class="t" style="text-decoration:line-through;color:var(--dim)">確認拍攝時間</div></div>
+            </div>
+          </div>
+          <div class="eod">
+            <span>今日閉環</span><div class="bar"><i></i></div><span class="dim">3 / 8 解決 · 2 個今日議題未完成</span><span class="btn pri">🌙 我收工了</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal"><div class="box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:15px">收工前，還有 3 件事沒結束</b><span class="muted">×</span></div>
+        <p class="dim" style="margin:0 0 10px;font-size:12px">逐項決定怎麼處理，沒動的會自動延到明天。</p>
+        <div class="row"><span class="pill p-today">今日</span><span style="flex:1">燈具廠商還沒回，要追</span><span class="btn sm">✓ 完成</span><span class="btn sm pri">→ 明天</span></div>
+        <div class="row"><span class="pill p-ask">待我</span><span style="flex:1">週一拍攝要不要加燈？</span><span class="btn sm pink">現在回</span><span class="btn sm">→ 明天</span></div>
+        <div class="row"><span class="pill p-wait">等 Lily</span><span style="flex:1">燈具預算上限 15,000？</span><span class="btn sm">🔔 提醒她</span><span class="btn sm">放著</span></div>
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:12px" class="dim">明天 9/13 日誌的開頭會出現：<br><span class="pill p-today" style="margin-top:6px">↻ 從昨天帶來 · 燈具廠商還沒回，要追</span></div>
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:12px"><span class="btn">返回</span><span class="btn pri">確認收工</span></div>
+      </div></div>
+    </div></div>
+    <div class="notes">
+      <div><h4>核心</h4>把散在兩人日誌裡的議題和請求集中到一個交接看板，分成「待我 / 等對方」兩個方向，一眼就知道球在誰手上。</div>
+      <div><h4>收工閉環</h4>跟開頭的「我開始一天了」對應，收工時按「我收工了」，逐項清掉未完成的事，延後的會自動帶到隔天日誌開頭，不會漏掉。</div>
+      <div><h4>取捨</h4>最完整，但要多做一個頁面。建議先做 A（行內標記），再把「訊號」頁升級成這個看板。</div>
+    </div>
+  </section>
+</div>
+<script>
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.proposal').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.t));
+});
+</script>
+</body>
+</html>

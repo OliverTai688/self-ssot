@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>營運模組整合提案｜專案 · 日常節奏 · 行政活動</title>
+<style>
+:root{
+  --bg:#07090d; --panel:#0e1117; --panel2:#131720; --line:#1f2430; --line2:#2a3040;
+  --text:#e6e8ee; --dim:#8a91a3; --faint:#5b6273; --accent:#7c8cff; --accent2:#a78bfa;
+  --gold:#e0b25a; --green:#4fc38a; --red:#ef6b6b; --blue:#4ea1ff; --warn:#e0b25a;
+  --pri:#5b8def; --teal:#2bb3a3; --info:#8b7cf6;
+  --yz-bg:#2b4a63; --yz-fg:#9ecbf5; --lily-bg:#3d3357; --lily-fg:#c4a2f5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:22px;margin:0 0 6px}
+h2{font-size:15px;margin:28px 0 10px;padding-top:4px}
+h3{font-size:13px;margin:18px 0 8px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.sub{color:var(--dim);margin:0 0 20px;line-height:1.7;max-width:900px}
+.sub b{color:var(--text)}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-family:ui-monospace,SFMono-Regular,monospace;font-size:11.5px;color:var(--gold)}
+
+/* pain / premise */
+.pain{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:10px;margin-bottom:22px}
+.pain div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--dim);font-size:12.5px;line-height:1.6}
+.pain b{color:var(--text);display:block;margin-bottom:3px;font-size:12.5px}
+
+.premise{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px}
+@media(max-width:900px){.premise{grid-template-columns:1fr}}
+.pc{border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--panel);border-top:3px solid}
+.pc.k1{border-top-color:var(--pri)}
+.pc.k2{border-top-color:var(--teal)}
+.pc.k3{border-top-color:var(--info)}
+.pc h4{margin:0 0 3px;font-size:13.5px}
+.pc .q{font-size:11.5px;color:var(--gold);margin-bottom:8px}
+.pc ul{margin:0;padding-left:16px;color:var(--dim);font-size:12px;line-height:1.75}
+.pc li b{color:var(--text)}
+
+/* tabs */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 0}
+@media(max-width:900px){.tabs{grid-template-columns:1fr}}
+.tabs button{background:var(--panel);color:var(--dim);border:1px solid var(--line);padding:12px 14px;border-radius:10px;cursor:pointer;font:inherit;text-align:left;transition:.12s}
+.tabs button:hover{border-color:var(--line2)}
+.tabs button.on{color:var(--text);border-color:var(--accent);background:#151a2c}
+.tabs button b{display:block;font-size:13.5px;margin-bottom:3px}
+.tabs button small{color:var(--faint);display:block;font-weight:400;line-height:1.5}
+.tabs button.on small{color:var(--dim)}
+.proposal{display:none;margin-top:20px}
+.proposal.on{display:block}
+.lead{color:var(--dim);line-height:1.8;margin:0 0 18px;max-width:900px;font-size:13px}
+.lead b{color:var(--text)}
+
+/* frames */
+.frame{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a0c11;box-shadow:0 20px 50px #0008}
+.fbar{height:36px;display:flex;align-items:center;gap:10px;padding:0 13px;border-bottom:1px solid var(--line);background:#0c0f15;font-size:11px;color:var(--faint)}
+.fbar b{color:var(--dim);font-weight:600}
+.fbar .sp{flex:1}
+.fbody{padding:13px}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start}
+.grid2b{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.grid2,.grid2b{grid-template-columns:1fr}}
+.gap{height:14px}
+
+/* schema */
+.schema{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.ent{border:1px solid var(--line2);border-radius:10px;background:var(--panel);overflow:hidden}
+.ent-h{padding:7px 11px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.p{background:var(--pri)}.dot.r{background:var(--teal)}.dot.a{background:var(--info)}.dot.s{background:var(--gold)}.dot.n{background:var(--faint)}
+.ent-b{padding:8px 11px;font-size:11.5px;color:var(--dim);line-height:1.85;font-family:ui-monospace,monospace}
+.ent-b .f{color:var(--text)}
+.ent-b .ty{color:var(--faint)}
+.ent-b .new{color:var(--green)}
+.arrowline{text-align:center;color:var(--faint);font-size:11px;margin:8px 0}
+
+/* app mock */
+.app{display:flex;min-height:420px}
+.sb{width:92px;background:#0b0e14;border-right:1px solid var(--line);padding:9px 0;flex-shrink:0}
+.sb .si{padding:8px 4px;text-align:center;font-size:10.5px;color:var(--faint);line-height:1.5;border-left:2px solid transparent}
+.sb .si.on{color:var(--text);border-left-color:var(--accent);background:#11151f}
+.sb .si .ic{display:block;font-size:14px;margin-bottom:2px;opacity:.75}
+.sb .grp{font-size:9px;color:#3f4554;padding:10px 8px 4px;letter-spacing:.06em}
+.main{flex:1;min-width:0;padding:12px 13px}
+.ph{display:flex;align-items:baseline;gap:9px;margin-bottom:9px;flex-wrap:wrap}
+.ph h5{margin:0;font-size:15px}
+.ph .quote{font-size:11px;color:var(--gold)}
+.ph .sp{flex:1}
+.ph .rt{font-size:10.5px;color:var(--faint)}
+.ltabs{display:flex;gap:14px;font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:11px;flex-wrap:wrap}
+.ltabs span{position:relative;padding-bottom:7px;margin-bottom:-8px}
+.ltabs span.on{color:var(--text)}
+.ltabs span.on::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent)}
+.toolrow{display:flex;align-items:center;gap:7px;margin-bottom:10px;flex-wrap:wrap}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line2);border-radius:7px;padding:2px}
+.seg span{padding:4px 9px;border-radius:5px;font-size:11px;color:var(--dim);cursor:default}
+.seg span.on{background:#222943;color:var(--text)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 9px;border-radius:20px;border:1px solid var(--line2);color:var(--dim)}
+.chip.on{border-color:var(--accent);color:var(--text);background:#151a2c}
+.chip.p.on{border-color:var(--pri);background:#12192b}
+.chip.r.on{border-color:var(--teal);background:#0f1f1d}
+.chip.a.on{border-color:var(--info);background:#181430}
+.sp{flex:1}
+.btn{font-size:11.5px;color:var(--dim);border:1px solid var(--line2);border-radius:7px;padding:5px 9px;background:var(--panel2)}
+.btn.on{color:var(--text);border-color:var(--accent)}
+.btn.pri{color:#0a0c14;background:var(--accent);border-color:var(--accent);font-weight:600}
+
+/* calendar */
+.cal{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.calh{display:grid;grid-template-columns:repeat(7,1fr);background:var(--panel);border-bottom:1px solid var(--line)}
+.calh span{padding:6px 4px;text-align:center;font-size:10px;color:var(--faint);letter-spacing:.04em}
+.calb{display:grid;grid-template-columns:repeat(7,1fr)}
+.cd{min-height:74px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 5px;position:relative}
+.cd:nth-child(7n){border-right:none}
+.cd.out{background:#080a0f}
+.cd.out .dn{color:#343a49}
+.cd.today{background:#0f1420;box-shadow:inset 0 0 0 1px #2c3352}
+.cd .dn{font-size:10px;color:var(--faint);font-family:ui-monospace,monospace;margin-bottom:3px}
+.cd.today .dn{color:var(--accent);font-weight:700}
+.ev{font-size:10px;border-radius:4px;padding:2px 5px;margin-bottom:2px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid}
+.ev.p{background:#131e33;color:#9dc0ff;border-color:var(--pri)}
+.ev.r{background:#0d1f1c;color:#7fd9c6;border-color:var(--teal)}
+.ev.a{background:#191530;color:#c0b0f8;border-color:var(--info)}
+.ev.ghost{background:transparent;color:var(--faint);border-left-style:dashed;border-color:#39414f}
+.ev.done::before{content:"✓ ";opacity:.8}
+.ev.miss{background:#241519;color:#e08a8a;border-color:var(--red)}
+.calfoot{display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;color:var(--faint);padding:8px 2px 0}
+.calfoot i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px}
+
+/* lanes */
+.lanes{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.lane{border-bottom:1px solid var(--line)}
+.lane:last-child{border-bottom:none}
+.lane-h{display:flex;align-items:center;gap:8px;padding:7px 11px;background:var(--panel);font-size:11.5px}
+.lane-h b{font-size:12px}
+.lane-h .cnt{color:var(--faint);font-size:10.5px}
+.lane-b{display:grid;grid-template-columns:repeat(7,1fr);min-height:56px}
+.lane-b .c{border-right:1px solid var(--line);padding:4px}
+.lane-b .c:last-child{border-right:none}
+
+/* gantt */
+.gt{border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:11.5px}
+.gt-h{display:grid;grid-template-columns:150px 1fr;background:var(--panel);border-bottom:1px solid var(--line)}
+.gt-h .wk{display:grid;grid-template-columns:repeat(8,1fr)}
+.gt-h .wk span{padding:5px 2px;text-align:center;font-size:9.5px;color:var(--faint);border-left:1px solid var(--line)}
+.gt-h .lb{padding:5px 10px;font-size:10px;color:var(--faint)}
+.gt-r{display:grid;grid-template-columns:150px 1fr;border-bottom:1px solid var(--line);align-items:center;min-height:30px}
+.gt-r:last-child{border-bottom:none}
+.gt-r .lb{padding:5px 10px;color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gt-r .lb.sub{padding-left:22px;color:var(--faint);font-size:10.5px}
+.gt-track{position:relative;height:30px;display:grid;grid-template-columns:repeat(8,1fr)}
+.gt-track .g{border-left:1px solid #161b26}
+.bar{position:absolute;top:8px;height:14px;border-radius:4px;font-size:9.5px;line-height:14px;padding:0 6px;white-space:nowrap;overflow:hidden;color:#0a0c14;font-weight:600}
+.bar.p{background:#3f6fc4;color:#dce8ff}
+.bar.p2{background:#2d5296;color:#c2d6f8}
+.bar.t{background:#1f7f73;color:#c9f0e8}
+.ms{position:absolute;top:7px;width:14px;height:14px;transform:rotate(45deg);border-radius:3px;background:var(--gold)}
+.mslab{position:absolute;top:8px;font-size:9.5px;color:var(--gold);white-space:nowrap}
+
+/* heatmap */
+.hm{border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+.hmrow{display:grid;grid-template-columns:104px 1fr 42px;gap:9px;align-items:center;margin-bottom:5px}
+.hmrow .lb{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hmrow .pct{font-size:10.5px;color:var(--faint);text-align:right;font-family:ui-monospace,monospace}
+.cells{display:grid;grid-template-columns:repeat(16,1fr);gap:3px}
+.hc{aspect-ratio:1;border-radius:2.5px;background:#141822}
+.hc.l1{background:#173129}.hc.l2{background:#1f4d40}.hc.l3{background:#2a7360}.hc.l4{background:#3fae8b}
+.hc.b1{background:#18243c}.hc.b2{background:#22355e}.hc.b3{background:#2e4d8c}.hc.b4{background:#4a76c9}
+.hc.v1{background:#1d1832}.hc.v2{background:#2a2250}.hc.v3{background:#3c307a}.hc.v4{background:#5d4cb0}
+.hc.miss{background:#241418;box-shadow:inset 0 0 0 1px #47222b}
+.hmhead{display:grid;grid-template-columns:104px 1fr 42px;gap:9px;margin-bottom:7px}
+.hmhead .w{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;font-size:8.5px;color:#3f4554;text-align:center}
+.hmleg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--faint);margin-top:9px}
+.hmleg .hc{width:9px;height:9px;aspect-ratio:auto}
+
+/* board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.col{border:1px solid var(--line);border-radius:9px;background:var(--panel);overflow:hidden}
+.col-h{padding:6px 9px;font-size:11px;color:var(--dim);border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.col-b{padding:6px;min-height:80px;display:flex;flex-direction:column;gap:5px}
+.card{border:1px solid var(--line2);border-radius:7px;padding:6px 8px;background:var(--panel2);font-size:11px;line-height:1.45}
+.card .m{font-size:9.5px;color:var(--faint);margin-top:3px;display:flex;gap:6px;align-items:center}
+.tag{font-size:9px;padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace}
+.tag.p{background:#152238;color:#8fb4f5}
+.tag.r{background:#0f231f;color:#5fd0b8}
+.tag.a{background:#1c1730;color:#b3a2f0}
+.tag.w{background:#2b2113;color:var(--gold)}
+
+/* list rows */
+.rows{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.r{display:flex;align-items:center;gap:9px;padding:8px 11px;border-bottom:1px solid var(--line);font-size:12px}
+.r:last-child{border-bottom:none}
+.r .d{width:62px;color:var(--faint);font-family:ui-monospace,monospace;font-size:10.5px;flex-shrink:0}
+.r .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r .t small{color:var(--faint);font-size:10.5px}
+.av{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:700;flex-shrink:0}
+.av.yz{background:var(--yz-bg);color:var(--yz-fg)}
+.av.lily{background:var(--lily-bg);color:var(--lily-fg)}
+.avs{display:flex;gap:-4px;flex-shrink:0}
+.avs .av{border:2px solid #0a0c11;margin-left:-5px}
+.avs .av:first-child{margin-left:0}
+.media{font-size:10px;color:var(--faint);flex-shrink:0;display:inline-flex;gap:5px}
+
+/* form / drawer */
+.form{border:1px solid var(--line);border-radius:10px;padding:12px 13px;font-size:12px}
+.form .crumb{font-size:10px;color:var(--faint);margin-bottom:3px;font-family:ui-monospace,monospace}
+.form h6{margin:0 0 3px;font-size:14px}
+.form .fsub{color:var(--faint);font-size:11px;margin-bottom:12px;line-height:1.5}
+.fk{color:var(--faint);font-size:10px;margin:11px 0 5px;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px}
+.fk:first-of-type{margin-top:0}
+.fk .req{color:var(--red)}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{border:1px solid var(--line2);border-radius:7px;padding:5px 10px;font-size:11.5px;color:var(--dim);background:var(--panel2)}
+.fchip.on{color:var(--text);border-color:var(--accent);background:#151a2c}
+.fchip.on.p{border-color:var(--pri);background:#12192b;color:#bcd2ff}
+.fchip.on.r{border-color:var(--teal);background:#0f1f1d;color:#96e4d4}
+.fchip.on.a{border-color:var(--info);background:#181430;color:#cabdf8}
+.ftext{border:1px solid var(--line2);border-radius:7px;padding:7px 9px;color:var(--dim);background:var(--panel2);font-size:11.5px}
+.ftext.ph{color:var(--faint)}
+.ftext.tall{min-height:52px;line-height:1.6}
+.half{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.third{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.hint{font-size:10.5px;color:var(--faint);margin-top:4px;line-height:1.5}
+.upl{border:1px dashed var(--line2);border-radius:8px;padding:12px;text-align:center;color:var(--faint);font-size:11px;background:#0d1016;line-height:1.6}
+.filerow{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:11px;color:var(--dim);margin-top:5px;background:var(--panel2)}
+.filerow .ic{font-size:12px}
+.filerow .sz{color:var(--faint);font-size:10px;margin-left:auto}
+.formfoot{display:flex;gap:8px;margin-top:14px;padding-top:11px;border-top:1px solid var(--line);align-items:center}
+.effects{background:#0c0f16;border:1px solid var(--line);border-left:2px solid var(--accent);border-radius:7px;padding:8px 11px;margin-top:12px;font-size:11px;color:var(--dim);line-height:1.7}
+.effects b{color:var(--text)}
+.effects .h{color:var(--faint);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+
+/* inspector */
+.insp{border-left:1px solid var(--line);width:296px;flex-shrink:0;padding:12px;background:#0b0e14}
+.insp-h{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.insp-h b{font-size:12.5px}
+.kv{display:grid;grid-template-columns:62px 1fr;gap:5px 9px;font-size:11.5px;margin-bottom:10px}
+.kv .k{color:var(--faint);font-size:11px}
+.kv .v{color:var(--dim)}
+.kv .v b{color:var(--text)}
+
+/* notes */
+.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.75;font-size:12px;color:var(--dim)}
+.note h4{margin:0 0 7px;color:var(--text);font-size:12.5px}
+.note ul{margin:6px 0 0;padding-left:17px}
+.note li{margin:4px 0}
+.note li b{color:var(--text)}
+.note.good{border-left:2px solid var(--green)}
+.note.bad{border-left:2px solid var(--warn)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+
+/* compare */
+.compare{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
+.compare th,.compare td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+.compare th{color:var(--faint);font-weight:500;background:var(--panel)}
+.compare td{color:var(--dim);line-height:1.6}
+.compare td b{color:var(--text)}
+.compare tr td:first-child{color:var(--text);white-space:nowrap}
+.yes{color:var(--green)}.no{color:var(--red)}.mid{color:var(--gold)}
+.foot{margin-top:24px;color:var(--faint);font-size:12px;line-height:1.8;border-top:1px solid var(--line);padding-top:16px}
+.foot b{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>營運模組整合提案</h1>
+  <p class="sub">你指出的問題是對的：<b>工作台、專案、時間線（日曆）現在是三個平行模組，但它們其實是同一件事的三種切面</b>。這份提案把最上層架構收斂成三個類別 —— <b style="color:#9dc0ff">專案</b>、<b style="color:#7fd9c6">日常節奏</b>、<b style="color:#c0b0f8">行政／活動</b> —— 並讓日曆與 heatmap 成為橫跨三者的共用視圖。三案的差別不在畫面美醜，而在<b>「資料模型怎麼切」</b>與<b>「主操作面放在哪」</b>，這兩件事決定後面半年的擴充成本。</p>
+
+  <div class="pain">
+    <div><b>現況：三個模組各自為政</b>工作台的「過去／現在／未來」、專案的工作清單、時間線的事件清單，三份資料沒有共同骨幹，同一件事要在三個地方各看一次。</div>
+    <div><b>現況：層級只是一個標籤</b>時間線事件的 <code>layer</code> 欄位（專案／日常／行政）目前只是篩選用的 chips，沒有帶出任何結構差異 —— 但這三類的本質完全不同。</div>
+    <div><b>現況：沒有「是否真的發生」的紀錄</b>節奏（standup／1:1／回顧／學習日）需要的是「有沒有照節奏跑」，現有模型只能記「有沒有排」，缺少履行狀態、質性紀錄與錄音。</div>
+    <div><b>現況：缺少跨類別的時間視圖</b>時間線只有清單與日曆兩個檢視、且只分層級；沒有 heatmap 這種「看密度、看斷層」的視圖來回答「這個月是不是被行政吃掉了」。</div>
+  </div>
+
+  <h2>共同前提：三個類別的本質差異</h2>
+  <p class="sub" style="margin-bottom:12px">三案都建立在這張表上。<b>差異的關鍵是「時間的形狀」</b>：專案是「一段區間 + 里程碑」、節奏是「一條重複規則 + 每次的履行實例」、活動是「一個時間點 + 事後的回顧素材」。把它們硬塞進同一張 events 表，是目前架構最大的隱憂。</p>
+  <div class="premise">
+    <div class="pc k1">
+      <h4>1 · 專案</h4>
+      <div class="q">「這個案子怎麼推、怎麼收尾？」</div>
+      <ul>
+        <li>時間形狀：<b>區間（start → due）+ 里程碑</b></li>
+        <li>層次：專案 → 里程碑 → 目標 → 任務</li>
+        <li>要的視圖：<b>流程（看板）</b>掌握節奏、<b>時間線（甘特）</b>掌握時程、<b>里程碑清單</b>掌握交付</li>
+        <li>多案並行：需要跨專案的負載與衝期檢查</li>
+        <li>產物：交付物、Evidence、金流</li>
+      </ul>
+    </div>
+    <div class="pc k2">
+      <h4>2 · 日常節奏</h4>
+      <div class="q">「該有的節奏，這陣子有沒有真的在跑？」</div>
+      <ul>
+        <li>時間形狀：<b>重複規則（RRULE）+ 每次實例</b></li>
+        <li>兩種歸屬：<b>公司節奏</b>（standup／1:1／回顧）與<b>個人節奏</b>（學習日／晨寫／健身）</li>
+        <li>要的視圖：<b>日曆</b>看排程、<b>履行 heatmap</b>看斷層</li>
+        <li>核心欄位：履行狀態（已跑／跳過／改期）</li>
+        <li>產物：質性紀錄、錄音檔、下次要帶的議題</li>
+      </ul>
+    </div>
+    <div class="pc k3">
+      <h4>3 · 行政／活動</h4>
+      <div class="q">「那天發生了什麼？留下了什麼？」</div>
+      <ul>
+        <li>時間形狀：<b>一次性時間點／短區間</b></li>
+        <li>類型：品牌日、客戶會議、旅遊、慶生、企業參訪、報稅等行政</li>
+        <li>要的視圖：<b>日曆</b>登記、<b>回顧牆</b>看素材</li>
+        <li>核心欄位：事前（誰參加、準備清單）／事後（紀錄、照片、錄音、文件）</li>
+        <li>產物：活動回顧、對外素材、行政憑證</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>三個方向</h2>
+  <div class="tabs">
+    <button class="on" data-p="a"><b>提案 A · 統一節點模型</b><small>一張 <code>node</code> 表 + <code>kind</code> 三型別，一個「營運」模組、五種檢視切換。改動最小、最快上線。</small></button>
+    <button data-p="b"><b>提案 B · 三軌 × 共用時間骨幹</b><small>三類各有專屬模型與 CRUD，但都寫進同一條 <code>time_spine</code>，日曆／heatmap 從骨幹讀。模型最正確。</small></button>
+    <button data-p="c"><b>提案 C · 日曆優先單一畫布</b><small>日曆本身就是模組，左軌道篩選、右 inspector 就地 CRUD，拖拉改期。操作感最強。</small></button>
+  </div>
+
+  <!-- ══════════════════════════ 提案 A ══════════════════════════ -->
+  <div class="proposal on" id="p-a">
+    <p class="lead"><b>核心想法：</b>把 issue／event／專案里程碑合併成<b>單一 <code>node</code> 表</b>，用 <code>kind</code> 欄位區分三種型別，其餘欄位共用（日期、負責人、狀態、媒體）。導覽上把「工作台／專案／時間線」三個側欄項目<b>收成一個「營運」模組</b>，裡面用檢視切換器在日曆／熱力／看板／甘特／清單之間切。CRUD 只有<b>一張會隨 kind 變形的表單</b>：選了「節奏」就長出重複規則與履行欄位，選了「活動」就長出媒體上傳區。<br><b>適合你如果：</b>想在兩三週內就用上統一視圖，且接受專案管理的深度先維持在現在的水準。</p>
+
+    <h3>資料模型</h3>
+    <div class="schema">
+      <div class="ent">
+        <div class="ent-h"><span class="dot n"></span>node<span style="color:var(--faint);font-weight:400;font-size:10px">（單一表）</span></div>
+        <div class="ent-b">
+          <span class="f">id</span> <span class="ty">uuid</span><br>
+          <span class="new">kind</span> <span class="ty">project | rhythm | event</span><br>
+          <span class="f">title</span> <span class="ty">text</span><br>
+          <span class="f">start_at</span> <span class="ty">date</span><br>
+          <span class="new">end_at</span> <span class="ty">date?</span><br>
+          <span class="new">rrule</span> <span class="ty">text?　/* 僅 rhythm */</span><br>
+          <span class="new">scope</span> <span class="ty">company | personal</span><br>
+          <span class="f">owner_ids</span> <span class="ty">uuid[]</span><br>
+          <span class="f">status</span> <span class="ty">enum</span><br>
+          <span class="new">parent_id</span> <span class="ty">uuid?　/* 里程碑掛專案 */</span><br>
+          <span class="f">note</span> <span class="ty">text</span>
+        </div>
+      </div>
+      <div class="ent">
+        <div class="ent-h"><span class="dot s"></span>node_occurrence<span style="color:var(--faint);font-weight:400;font-size:10px">（節奏實例）</span></div>
+        <div class="ent-b">
+          <span class="f">node_id</span> <span class="ty">→ node</span><br>
+          <span class="f">occurred_on</span> <span class="ty">date</span><br>
+          <span class="new">fulfilled</span> <span class="ty">done | skipped | moved</span><br>
+          <span class="f">note</span> <span class="ty">text</span>
+        </div>
+      </div>
+      <div class="ent">
+        <div class="ent-h"><span class="dot a"></span>node_media</div>
+        <div class="ent-b">
+          <span class="f">node_id</span> <span class="ty">→ node</span><br>
+          <span class="f">occurrence_id</span> <span class="ty">→ occ?</span><br>
+          <span class="f">type</span> <span class="ty">audio | photo | doc</span><br>
+          <span class="f">url</span> <span class="ty">text</span><br>
+          <span class="f">transcript</span> <span class="ty">text?</span>
+        </div>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:8px">遷移路徑：現有 <code>events</code> 直接映射 <code>kind=event</code>；<code>issues</code> 映射 <code>kind=project</code> 且 <code>parent_id</code> 指向專案；<code>layer</code> 欄位退役，由 <code>kind</code> 取代。既有的工作台「過去／現在／未來」改成對 node 的 <code>status</code> 做查詢。</p>
+
+    <div class="gap"></div>
+    <h3>主畫面 · 一個模組、五種檢視</h3>
+    <div class="frame">
+      <div class="fbar"><b>圓展 Operating System</b> v5 · two-person<span class="sp"></span>營運 › 全部 › 日曆</div>
+      <div class="app">
+        <div class="sb">
+          <div class="grp">主操作</div>
+          <div class="si"><span class="ic">▤</span>日誌</div>
+          <div class="si on"><span class="ic">◈</span>營運</div>
+          <div class="grp">支援</div>
+          <div class="si"><span class="ic">▤</span>金流</div>
+          <div class="si"><span class="ic">▥</span>容量</div>
+          <div class="si"><span class="ic">✓</span>承諾</div>
+          <div class="si"><span class="ic">◔</span>訊號</div>
+        </div>
+        <div class="main">
+          <div class="ph">
+            <h5>營運</h5>
+            <span class="quote">「現在該做什麼、節奏有沒有斷、這個月發生過什麼」</span>
+            <span class="sp"></span>
+            <span class="rt">主操作面：五種檢視</span>
+          </div>
+          <div class="ltabs"><span class="on">全部</span><span>專案</span><span>日常節奏</span><span>行政／活動</span></div>
+          <div class="toolrow">
+            <div class="seg"><span class="on">日曆</span><span>熱力</span><span>看板</span><span>甘特</span><span>清單</span></div>
+            <span class="chip p on">● 專案 6</span>
+            <span class="chip r on">● 節奏 5</span>
+            <span class="chip a on">● 活動 4</span>
+            <span class="sp"></span>
+            <span class="btn">◀ 2026 九月 ▶</span>
+            <span class="btn pri">＋ 新增</span>
+          </div>
+          <div class="cal">
+            <div class="calh"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+            <div class="calb">
+              <div class="cd out"><div class="dn">31</div></div>
+              <div class="cd"><div class="dn">1</div><span class="ev r done">Standup</span><span class="ev p">石籠堰 初稿</span></div>
+              <div class="cd"><div class="dn">2</div><span class="ev r done">Standup</span></div>
+              <div class="cd"><div class="dn">3</div><span class="ev r done">Standup</span><span class="ev a">客戶 B 開會</span></div>
+              <div class="cd"><div class="dn">4</div><span class="ev r miss">學習日 未跑</span></div>
+              <div class="cd out"><div class="dn">5</div></div>
+              <div class="cd out"><div class="dn">6</div></div>
+
+              <div class="cd"><div class="dn">7</div><span class="ev r done">Standup</span><span class="ev r done">1:1 宇星×Lily</span></div>
+              <div class="cd"><div class="dn">8</div><span class="ev r done">Standup</span></div>
+              <div class="cd"><div class="dn">9</div><span class="ev r done">Standup</span><span class="ev p">★ 石籠堰 提案</span></div>
+              <div class="cd"><div class="dn">10</div><span class="ev r done">Standup</span></div>
+              <div class="cd"><div class="dn">11</div><span class="ev r done">學習日</span></div>
+              <div class="cd out"><div class="dn">12</div></div>
+              <div class="cd out"><div class="dn">13</div><span class="ev a">Lily 生日</span></div>
+
+              <div class="cd"><div class="dn">14</div><span class="ev r done">Standup</span></div>
+              <div class="cd"><div class="dn">15</div><span class="ev r done">Standup</span><span class="ev a">報稅資料</span></div>
+              <div class="cd"><div class="dn">16</div><span class="ev r done">Standup</span><span class="ev p">品牌日視覺 Review</span></div>
+              <div class="cd"><div class="dn">17</div><span class="ev r done">Standup</span></div>
+              <div class="cd"><div class="dn">18</div><span class="ev r done">學習日</span><span class="ev a">企業參訪</span></div>
+              <div class="cd out"><div class="dn">19</div></div>
+              <div class="cd out"><div class="dn">20</div></div>
+
+              <div class="cd today"><div class="dn">21 今天</div><span class="ev r ghost">Standup 09:30</span><span class="ev p">石籠堰 圖說</span></div>
+              <div class="cd"><div class="dn">22</div><span class="ev r ghost">Standup</span><span class="ev r ghost">1:1</span></div>
+              <div class="cd"><div class="dn">23</div><span class="ev r ghost">Standup</span></div>
+              <div class="cd"><div class="dn">24</div><span class="ev r ghost">Standup</span><span class="ev a">★ 品牌日發表</span></div>
+              <div class="cd"><div class="dn">25</div><span class="ev r ghost">學習日</span><span class="ev p">★ 石籠堰 交付</span></div>
+              <div class="cd out"><div class="dn">26</div><span class="ev a">員工旅遊</span></div>
+              <div class="cd out"><div class="dn">27</div><span class="ev a">員工旅遊</span></div>
+            </div>
+          </div>
+          <div class="calfoot">
+            <span><i style="background:var(--pri)"></i>專案（里程碑／交付日）</span>
+            <span><i style="background:var(--teal)"></i>日常節奏（實線＝已履行、虛線＝未來）</span>
+            <span><i style="background:var(--red)"></i>節奏斷層</span>
+            <span><i style="background:var(--info)"></i>行政／活動</span>
+            <span>★＝重要</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap"></div>
+    <div class="grid2">
+      <div>
+        <h3 style="margin-top:0">同一模組切到「熱力」檢視</h3>
+        <div class="frame">
+          <div class="fbar"><b>營運</b>全部 › 熱力<span class="sp"></span>近 16 週</div>
+          <div class="fbody">
+            <div class="hm">
+              <div class="hmhead"><span></span><div class="w"><span>W23</span><span></span><span></span><span>W26</span><span></span><span></span><span>W29</span><span></span><span></span><span>W32</span><span></span><span></span><span>W35</span><span></span><span></span><span>W38</span></div><span></span></div>
+              <div style="font-size:10px;color:var(--teal);margin:8px 0 6px;letter-spacing:.04em">日常節奏 · 履行率</div>
+              <div class="hmrow"><span class="lb">Standup（公司）</span><div class="cells"><i class="hc l4"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l2"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l4"></i></div><span class="pct">94%</span></div>
+              <div class="hmrow"><span class="lb">1:1（公司）</span><div class="cells"><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc miss"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i></div><span class="pct">88%</span></div>
+              <div class="hmrow"><span class="lb">月回顧（公司）</span><div class="cells"><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc miss"></i><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc l3"></i></div><span class="pct">75%</span></div>
+              <div class="hmrow"><span class="lb">學習日（宇星）</span><div class="cells"><i class="hc l3"></i><i class="hc l2"></i><i class="hc miss"></i><i class="hc l3"></i><i class="hc miss"></i><i class="hc miss"></i><i class="hc l2"></i><i class="hc l3"></i><i class="hc miss"></i><i class="hc l1"></i><i class="hc miss"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc miss"></i><i class="hc l3"></i><i class="hc l2"></i></div><span class="pct">56%</span></div>
+              <div class="hmrow"><span class="lb">晨寫（Lily）</span><div class="cells"><i class="hc l2"></i><i class="hc l3"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l2"></i><i class="hc l3"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l2"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l3"></i></div><span class="pct">81%</span></div>
+              <div style="font-size:10px;color:var(--pri);margin:14px 0 6px;letter-spacing:.04em">專案 · 每週投入工作數</div>
+              <div class="hmrow"><span class="lb">石籠堰工程</span><div class="cells"><i class="hc"></i><i class="hc"></i><i class="hc b1"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b3"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b4"></i><i class="hc b3"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b4"></i></div><span class="pct">42</span></div>
+              <div class="hmrow"><span class="lb">品牌日視覺</span><div class="cells"><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc b1"></i><i class="hc b2"></i><i class="hc b2"></i><i class="hc b1"></i><i class="hc"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b4"></i><i class="hc b3"></i><i class="hc b2"></i></div><span class="pct">23</span></div>
+              <div style="font-size:10px;color:var(--info);margin:14px 0 6px;letter-spacing:.04em">行政／活動 · 佔用天數</div>
+              <div class="hmrow"><span class="lb">行政</span><div class="cells"><i class="hc v1"></i><i class="hc"></i><i class="hc v2"></i><i class="hc"></i><i class="hc v1"></i><i class="hc v3"></i><i class="hc"></i><i class="hc v1"></i><i class="hc"></i><i class="hc v2"></i><i class="hc"></i><i class="hc v1"></i><i class="hc v4"></i><i class="hc v2"></i><i class="hc"></i><i class="hc v1"></i></div><span class="pct">18d</span></div>
+              <div class="hmrow"><span class="lb">活動</span><div class="cells"><i class="hc"></i><i class="hc v2"></i><i class="hc"></i><i class="hc"></i><i class="hc v3"></i><i class="hc"></i><i class="hc"></i><i class="hc v1"></i><i class="hc"></i><i class="hc"></i><i class="hc v2"></i><i class="hc"></i><i class="hc"></i><i class="hc v3"></i><i class="hc v4"></i><i class="hc v4"></i></div><span class="pct">14d</span></div>
+              <div class="hmleg"><span>少</span><i class="hc"></i><i class="hc l1"></i><i class="hc l2"></i><i class="hc l3"></i><i class="hc l4"></i><span>多</span><span style="margin-left:12px"><i class="hc miss" style="display:inline-block;margin-right:4px"></i>該跑但沒跑</span></div>
+            </div>
+            <p class="hint">同一份 <code>node</code> 資料的三種聚合：節奏看<b>履行率</b>、專案看<b>投入量</b>、行政活動看<b>佔用天數</b>。第 29 與 32 週的紅格一眼看出「1:1 與月回顧同時斷了」，而那兩週正好是石籠堰投入最重的時候 —— 這就是跨類別 heatmap 想回答的問題。</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-top:0">CRUD · 一張會變形的表單</h3>
+        <div class="frame">
+          <div class="fbar"><b>新增節點</b>drawer<span class="sp"></span>Esc 關閉</div>
+          <div class="fbody">
+            <div class="form" style="border:none;padding:0">
+              <div class="crumb">營運 › 新節點</div>
+              <h6>新增</h6>
+              <div class="fsub">先選類別，表單其餘欄位會依類別長出來。</div>
+
+              <div class="fk">類別 <span class="req">*</span></div>
+              <div class="chiprow">
+                <span class="fchip">專案</span>
+                <span class="fchip on r">日常節奏</span>
+                <span class="fchip">行政／活動</span>
+              </div>
+
+              <div class="fk">標題 <span class="req">*</span></div>
+              <div class="ftext">雙週 1:1 · 宇星 × Lily</div>
+
+              <div class="fk">歸屬</div>
+              <div class="chiprow">
+                <span class="fchip on r">公司節奏</span>
+                <span class="fchip">個人節奏</span>
+              </div>
+              <div class="hint">公司節奏＝兩人共同；個人節奏＝只出現在自己的日曆與 heatmap。</div>
+
+              <div class="fk">重複規則 <span class="req">*</span><span style="color:var(--teal);text-transform:none;letter-spacing:0">← 選「日常節奏」才出現</span></div>
+              <div class="third">
+                <span class="ftext">每 2 週</span>
+                <span class="ftext">週一</span>
+                <span class="ftext">14:00</span>
+              </div>
+              <div class="hint">產生 <code>RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO</code>，日曆上以虛線顯示未來實例。</div>
+
+              <div class="fk">參與者</div>
+              <div class="chiprow">
+                <span class="fchip on"><span class="av yz" style="width:15px;height:15px">宇</span> 戴宇星</span>
+                <span class="fchip on"><span class="av lily" style="width:15px;height:15px">莉</span> Lily</span>
+              </div>
+
+              <div class="fk">每次要記什麼</div>
+              <div class="chiprow">
+                <span class="fchip on r">質性紀錄</span>
+                <span class="fchip on r">錄音</span>
+                <span class="fchip">照片</span>
+                <span class="fchip">文件</span>
+              </div>
+              <div class="hint">勾選後，每個實例的「紀錄」抽屜會預設帶出這幾個欄位。</div>
+
+              <div class="fk">提醒</div>
+              <span class="ftext">當日上午 09:00</span>
+
+              <div class="effects">
+                <div class="h">儲存後會影響</div>
+                日曆／熱力／清單三種檢視同時出現<br>
+                未來 8 週自動預生實例，可單筆標「已跑／跳過／改期」<br>
+                履行率進入 <b>節奏 heatmap</b> 與工作台的「節奏健康」卡
+              </div>
+              <div class="formfoot"><span class="btn pri">儲存</span><span class="btn">取消</span><span class="sp"></span><span class="btn" style="color:var(--red);border-color:#3a2028">刪除</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap"></div>
+    <div class="two">
+      <div class="note good">
+        <h4>優點</h4>
+        <ul>
+          <li><b>改動面積最小。</b>現有 <code>events</code> 與 <code>issues</code> 可直接遷移，時間線的表單邏輯幾乎照搬，兩三週可上線。</li>
+          <li><b>跨類別查詢天生簡單。</b>日曆、heatmap、工作台都只查一張表，不需要 union 三個來源。</li>
+          <li><b>側欄變短。</b>工作台／專案／時間線三個項目收成一個「營運」，側欄從 8 項降到 6 項。</li>
+          <li><b>新增類別成本低。</b>將來要加第四類（例如「學習專題」），只是多一個 <code>kind</code>。</li>
+        </ul>
+      </div>
+      <div class="note bad">
+        <h4>代價</h4>
+        <ul>
+          <li><b>專案深度被壓縮。</b>里程碑→目標→任務的三層結構只能靠 <code>parent_id</code> 自參照硬撐，查詢會愈來愈醜。</li>
+          <li><b>寬表欄位稀疏。</b><code>rrule</code> 只有節奏用、<code>end_at</code> 只有專案用，一張表大半欄位永遠是 null。</li>
+          <li><b>表單會愈變愈複雜。</b>「隨 kind 變形」在三種型別還行，到第五種就會變成難維護的條件樹。</li>
+          <li><b>權限難分。</b>個人節奏與公司專案在同一張表，RLS 規則要寫得很小心。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ 提案 B ══════════════════════════ -->
+  <div class="proposal" id="p-b">
+    <p class="lead"><b>核心想法：</b>承認三類本質不同，<b>各自給一套合身的模型與 CRUD</b>：專案有 <code>project → milestone → objective → task</code> 四層；節奏有 <code>rhythm（規則）→ session（實例）</code> 兩層；活動有 <code>occasion</code> 加媒體。但三者都<b>同步寫進一條共用的 <code>time_spine</code>（時間骨幹）</b> —— 一張只存「什麼東西、哪一天、屬於誰、什麼顏色」的輕量索引表。日曆與 heatmap 只讀骨幹，因此跨類別視圖依然是單一查詢。<br><b>工作台的角色也變了：</b>它不再是第四個模組，而是<b>骨幹的「今天」切面</b> —— 自動由三軌匯流而成。<br><b>適合你如果：</b>你希望專案管理真的長成能接多案的樣子，願意多花一輪時間把模型做對。</p>
+
+    <h3>資料模型 · 三軌匯流到一條骨幹</h3>
+    <div class="schema" style="grid-template-columns:repeat(3,1fr)">
+      <div class="ent">
+        <div class="ent-h"><span class="dot p"></span>軌道 1 · 專案</div>
+        <div class="ent-b">
+          <span class="f">project</span> <span class="ty">客戶／合約／區間／狀態</span><br>
+          &nbsp;└ <span class="f">milestone</span> <span class="ty">交付點／日期／驗收</span><br>
+          &nbsp;&nbsp;&nbsp;└ <span class="new">objective</span> <span class="ty">目標／KR</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ <span class="f">task</span> <span class="ty">尺寸／狀態／負責人</span><br>
+          <span class="f">deliverable</span> <span class="ty">交付物／Evidence</span>
+        </div>
+      </div>
+      <div class="ent">
+        <div class="ent-h"><span class="dot r"></span>軌道 2 · 日常節奏</div>
+        <div class="ent-b">
+          <span class="new">rhythm</span> <span class="ty">規則本體</span><br>
+          &nbsp;&nbsp;<span class="f">scope</span> <span class="ty">company | personal</span><br>
+          &nbsp;&nbsp;<span class="f">rrule</span> <span class="ty">重複規則</span><br>
+          &nbsp;&nbsp;<span class="f">expect_media</span> <span class="ty">text[]</span><br>
+          &nbsp;└ <span class="new">session</span> <span class="ty">每次實例</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="f">state</span> <span class="ty">done|skip|moved</span><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="f">note / audio</span> <span class="ty">質性紀錄</span>
+        </div>
+      </div>
+      <div class="ent">
+        <div class="ent-h"><span class="dot a"></span>軌道 3 · 行政／活動</div>
+        <div class="ent-b">
+          <span class="new">occasion</span> <span class="ty">一次性事件</span><br>
+          &nbsp;&nbsp;<span class="f">category</span> <span class="ty">品牌日|客戶|旅遊|慶生|參訪|行政</span><br>
+          &nbsp;&nbsp;<span class="f">at / until</span> <span class="ty">時間點或短區間</span><br>
+          &nbsp;&nbsp;<span class="f">prep[]</span> <span class="ty">事前準備清單</span><br>
+          &nbsp;&nbsp;<span class="f">recap</span> <span class="ty">事後回顧</span><br>
+          &nbsp;└ <span class="f">media</span> <span class="ty">照片／錄音／文件</span>
+        </div>
+      </div>
+    </div>
+    <div class="arrowline">▼　三軌各自 CRUD，但每次寫入都同步一筆索引　▼</div>
+    <div class="ent" style="max-width:720px;margin:0 auto">
+      <div class="ent-h"><span class="dot s"></span>time_spine<span style="color:var(--faint);font-weight:400;font-size:10px">　日曆／heatmap／工作台 只讀這張</span></div>
+      <div class="ent-b">
+        <span class="f">on_date</span> <span class="ty">date</span>　│　<span class="f">track</span> <span class="ty">project | rhythm | occasion</span>　│　<span class="f">ref_table + ref_id</span> <span class="ty">指回來源</span><br>
+        <span class="f">title</span> <span class="ty">text</span>　│　<span class="f">actor_ids</span> <span class="ty">uuid[]</span>　│　<span class="f">weight</span> <span class="ty">int　/* 佔用強度，餵 heatmap */</span>　│　<span class="f">state</span> <span class="ty">planned | done | missed</span>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:8px">骨幹由 DB trigger 或 service 層維護，永遠不手動寫。好處是三軌的 schema 可以各自演化而不影響日曆；壞處是多一層同步要守（見下方代價）。</p>
+
+    <div class="gap"></div>
+    <h3>主畫面 · 統一日曆（骨幹視圖）＋ 軌道泳道</h3>
+    <div class="frame">
+      <div class="fbar"><b>圓展 Operating System</b><span class="sp"></span>營運 › 統一視圖 › 本週泳道</div>
+      <div class="app">
+        <div class="sb">
+          <div class="grp">營運</div>
+          <div class="si on"><span class="ic">◈</span>統一視圖</div>
+          <div class="si"><span class="ic">▣</span>專案</div>
+          <div class="si"><span class="ic">◍</span>日常節奏</div>
+          <div class="si"><span class="ic">◆</span>行政活動</div>
+          <div class="grp">支援</div>
+          <div class="si"><span class="ic">▤</span>日誌</div>
+          <div class="si"><span class="ic">▤</span>金流</div>
+          <div class="si"><span class="ic">▥</span>容量</div>
+        </div>
+        <div class="main">
+          <div class="ph">
+            <h5>統一視圖</h5>
+            <span class="quote">「三軌這週各自佔了多少、有沒有撞在一起」</span>
+            <span class="sp"></span>
+            <span class="rt">資料來源：time_spine</span>
+          </div>
+          <div class="toolrow">
+            <div class="seg"><span>月</span><span class="on">週泳道</span><span>熱力</span><span>甘特</span></div>
+            <span class="chip">全部</span><span class="chip">只看我</span><span class="chip on">9/21 – 9/27</span>
+            <span class="sp"></span>
+            <span class="btn pri">＋ 新增…</span>
+          </div>
+          <div class="lanes">
+            <div class="lane">
+              <div class="lane-h"><span class="dot p"></span><b>專案</b><span class="cnt">3 案進行中 · 本週 7 個節點</span><span class="sp"></span><span class="btn" style="font-size:10px;padding:3px 7px">展開甘特</span></div>
+              <div class="lane-b">
+                <div class="c"><span class="ev p">石籠堰 圖說</span></div>
+                <div class="c"><span class="ev p">品牌日 三校</span></div>
+                <div class="c"><span class="ev p">石籠堰 內審</span></div>
+                <div class="c"><span class="ev p">★ 品牌日 定稿</span></div>
+                <div class="c"><span class="ev p">★ 石籠堰 交付</span><span class="ev p">年報 kickoff</span></div>
+                <div class="c"></div>
+                <div class="c"></div>
+              </div>
+            </div>
+            <div class="lane">
+              <div class="lane-h"><span class="dot r"></span><b>日常節奏</b><span class="cnt">公司 3 · 個人 2 · 本週履行 6/9</span><span class="sp"></span><span class="btn" style="font-size:10px;padding:3px 7px">看履行熱力</span></div>
+              <div class="lane-b">
+                <div class="c"><span class="ev r done">Standup</span></div>
+                <div class="c"><span class="ev r done">Standup</span><span class="ev r ghost">1:1</span></div>
+                <div class="c"><span class="ev r ghost">Standup</span></div>
+                <div class="c"><span class="ev r ghost">Standup</span></div>
+                <div class="c"><span class="ev r ghost">學習日</span></div>
+                <div class="c"></div>
+                <div class="c"><span class="ev r ghost">月回顧</span></div>
+              </div>
+            </div>
+            <div class="lane">
+              <div class="lane-h"><span class="dot a"></span><b>行政／活動</b><span class="cnt">本週 3 件 · 佔 4 天</span><span class="sp"></span><span class="btn" style="font-size:10px;padding:3px 7px">回顧牆</span></div>
+              <div class="lane-b">
+                <div class="c"></div>
+                <div class="c"></div>
+                <div class="c"></div>
+                <div class="c"><span class="ev a">★ 品牌日發表</span></div>
+                <div class="c"></div>
+                <div class="c"><span class="ev a">員工旅遊</span></div>
+                <div class="c"><span class="ev a">員工旅遊</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="calfoot"><span>9/24 出現<b style="color:var(--gold)">　衝期警示</b>：品牌日定稿（專案）與品牌日發表（活動）同日，且當天沒有留緩衝。</span></div>
+
+          <div style="height:12px"></div>
+          <h3 style="margin:0 0 7px">專案軌 · 展開甘特（時程規劃）</h3>
+          <div class="gt">
+            <div class="gt-h"><span class="lb">專案 / 里程碑</span><div class="wk"><span>W36</span><span>W37</span><span>W38</span><span>W39</span><span>W40</span><span>W41</span><span>W42</span><span>W43</span></div></div>
+            <div class="gt-r"><span class="lb">石籠堰工程</span><div class="gt-track"><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><span class="bar p" style="left:0;width:62%">石籠堰工程提案</span><span class="ms" style="left:60%"></span><span class="mslab" style="left:calc(60% + 20px)">交付 9/25</span></div></div>
+            <div class="gt-r"><span class="lb sub">└ 現勘與量測</span><div class="gt-track"><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><span class="bar t" style="left:1%;width:22%">8 tasks</span></div></div>
+            <div class="gt-r"><span class="lb sub">└ 圖說與計算</span><div class="gt-track"><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><span class="bar t" style="left:24%;width:30%">14 tasks</span></div></div>
+            <div class="gt-r"><span class="lb">品牌日視覺</span><div class="gt-track"><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><span class="bar p2" style="left:26%;width:36%">品牌日視覺</span><span class="ms" style="left:59%"></span><span class="mslab" style="left:calc(59% + 20px)">定稿 9/24</span></div></div>
+            <div class="gt-r"><span class="lb">客戶 B 年報</span><div class="gt-track"><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><i class="g"></i><span class="bar p2" style="left:62%;width:36%">客戶 B 年報設計</span></div></div>
+          </div>
+          <p class="hint">甘特列與泳道列是同一份 <code>time_spine</code>，只是聚合粒度不同：泳道按天、甘特按週並把 task 收進所屬里程碑。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap"></div>
+    <h3>CRUD · 三套合身的表單</h3>
+    <div class="grid2b">
+      <div>
+        <div class="frame">
+          <div class="fbar"><b>專案軌</b>新增里程碑<span class="sp"></span>project › milestone</div>
+          <div class="fbody">
+            <div class="form" style="border:none;padding:0">
+              <div class="crumb">石籠堰工程提案 › 新里程碑</div>
+              <h6>新增里程碑</h6>
+              <div class="fsub">里程碑是對外承諾的交付點，底下掛目標與任務。</div>
+              <div class="fk">名稱 <span class="req">*</span></div>
+              <div class="ftext">期末圖說交付</div>
+              <div class="half">
+                <div><div class="fk">目標日 <span class="req">*</span></div><div class="ftext">2026-09-25</div></div>
+                <div><div class="fk">驗收方式</div><div class="ftext">客戶簽收</div></div>
+              </div>
+              <div class="fk">底下目標（objective）</div>
+              <div class="rows" style="font-size:11px">
+                <div class="r"><span class="t">圖說完整度 100%<small>　8 / 14 tasks</small></span><span class="tag w">進行中</span></div>
+                <div class="r"><span class="t">內審零重大意見<small>　0 / 3 tasks</small></span><span class="tag p">未開始</span></div>
+              </div>
+              <div class="hint">＋ 新增目標　｜　目標達成率自動由底下 task 完成度推算。</div>
+              <div class="fk">同步到骨幹</div>
+              <div class="chiprow"><span class="fchip on p">顯示在統一日曆</span><span class="fchip on p">計入專案 heatmap</span><span class="fchip">推到 Google 行事曆</span></div>
+              <div class="effects">
+                <div class="h">儲存後會影響</div>
+                <b>time_spine</b> 新增一筆 <code>track=project, weight=3</code><br>
+                統一日曆 9/25 出現 ★ 里程碑、甘特多一個菱形<br>
+                專案總覽的「關鍵時間」與目標對齊向下追溯
+              </div>
+              <div class="formfoot"><span class="btn pri">儲存</span><span class="btn">取消</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="frame">
+          <div class="fbar"><b>節奏軌</b>紀錄本次 session<span class="sp"></span>rhythm › session</div>
+          <div class="fbody">
+            <div class="form" style="border:none;padding:0">
+              <div class="crumb">雙週 1:1 · 宇星 × Lily › 2026-09-22</div>
+              <h6>紀錄本次</h6>
+              <div class="fsub">節奏的重點不是「有沒有排」，是「有沒有跑、跑出了什麼」。</div>
+              <div class="fk">履行狀態 <span class="req">*</span></div>
+              <div class="chiprow"><span class="fchip on r">✓ 已跑</span><span class="fchip">跳過</span><span class="fchip">改期</span></div>
+              <div class="fk">質性紀錄</div>
+              <div class="ftext tall">Lily 提到品牌日前一週的行政量會壓到設計時間，決定把年報 kickoff 往後挪一週。另外她想把「晨寫」從每日改成每週三次…</div>
+              <div class="fk">錄音</div>
+              <div class="filerow"><span class="ic">🎙</span>1on1-0922.m4a<span style="color:var(--green);font-size:10px">　已轉寫</span><span class="sz">28:14 · 26MB</span></div>
+              <div class="upl" style="margin-top:6px">拖曳或點擊上傳　·　m4a / mp3 / wav　·　上傳後自動轉寫並可在日誌中被 @ 引用</div>
+              <div class="fk">產出</div>
+              <div class="chiprow"><span class="fchip on">→ 建立 1 個任務</span><span class="fchip on">→ 調整 1 條節奏規則</span><span class="fchip">→ 記一筆承諾</span></div>
+              <div class="hint">從 session 直接長出行動，是節奏軌唯一被允許反向寫其他軌道的地方。</div>
+              <div class="effects">
+                <div class="h">儲存後會影響</div>
+                本週履行 <b>6/9 → 7/9</b>，1:1 履行率回到 <b>90%</b><br>
+                骨幹該筆 <code>state: planned → done</code>，日曆上虛線轉實線<br>
+                轉寫稿進入訊號模組，可被日誌 <code>#</code> 召喚
+              </div>
+              <div class="formfoot"><span class="btn pri">儲存紀錄</span><span class="btn">稍後再記</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap"></div>
+    <div class="grid2">
+      <div>
+        <div class="frame">
+          <div class="fbar"><b>活動軌</b>新增／回顧<span class="sp"></span>occasion</div>
+          <div class="fbody">
+            <div class="form" style="border:none;padding:0">
+              <div class="crumb">行政／活動 › 圓展品牌日發表</div>
+              <h6>圓展品牌日發表</h6>
+              <div class="fsub">一次性事件：事前登記與準備、事後留下素材。</div>
+              <div class="third">
+                <div><div class="fk">日期 <span class="req">*</span></div><div class="ftext">09-24</div></div>
+                <div><div class="fk">到</div><div class="ftext ph">（單日）</div></div>
+                <div><div class="fk">地點</div><div class="ftext">松菸 5 號</div></div>
+              </div>
+              <div class="fk">類型 <span class="req">*</span></div>
+              <div class="chiprow">
+                <span class="fchip on a">公司活動</span><span class="fchip">客戶會議</span><span class="fchip">旅遊</span><span class="fchip">慶生</span><span class="fchip">企業參訪</span><span class="fchip">行政事務</span>
+              </div>
+              <div class="fk">參與者</div>
+              <div class="chiprow"><span class="fchip on"><span class="av yz" style="width:15px;height:15px">宇</span> 戴宇星</span><span class="fchip on"><span class="av lily" style="width:15px;height:15px">莉</span> Lily</span><span class="fchip">＋ 外部</span></div>
+              <div class="fk">事前準備</div>
+              <div class="rows" style="font-size:11px">
+                <div class="r"><span class="t">☑ 主視覺定稿（→ 品牌日視覺專案）</span><span class="tag p">已連結</span></div>
+                <div class="r"><span class="t">☐ 新聞稿</span><span class="tag w">9/22 到期</span></div>
+                <div class="r"><span class="t">☐ 場地確認</span></div>
+              </div>
+              <div class="fk">事後回顧　<span style="color:var(--faint);text-transform:none;letter-spacing:0">（活動結束後才啟用）</span></div>
+              <div class="ftext tall ph">當天發生了什麼、哪裡可以更好、留下什麼可對外使用的素材…</div>
+              <div class="fk">素材</div>
+              <div class="upl">照片 · 錄音 · 簡報 · 合約　拖曳上傳<br><span style="font-size:10px">照片會排成回顧牆；錄音自動轉寫；文件進 Evidence Repo</span></div>
+              <div class="effects">
+                <div class="h">儲存後會影響</div>
+                統一日曆 9/24 出現 ★ 活動，並觸發<b>與品牌日定稿同日的衝期警示</b><br>
+                骨幹 <code>weight=5</code>，計入行政／活動佔用天數 heatmap<br>
+                素材同步到回顧牆與 Evidence Repo
+              </div>
+              <div class="formfoot"><span class="btn pri">儲存</span><span class="btn">取消</span><span class="sp"></span><span class="btn">複製為明年同一場</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-top:0">工作台的新定位：骨幹的「今天」切面</h3>
+        <div class="frame">
+          <div class="fbar"><b>統一視圖</b>今天<span class="sp"></span>自動由三軌匯流</div>
+          <div class="fbody">
+            <div class="board" style="grid-template-columns:1fr 1fr 1fr">
+              <div class="col">
+                <div class="col-h"><span>過去 · 未收尾</span><span>2</span></div>
+                <div class="col-b">
+                  <div class="card">1:1 沒跑（9/8 那週）<div class="m"><span class="tag r">節奏</span>補記或標跳過</div></div>
+                  <div class="card">月回顧 逾期 6 天<div class="m"><span class="tag r">節奏</span><span style="color:var(--red)">斷 2 次</span></div></div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="col-h"><span>現在 · WIP 2/3</span><span>今天</span></div>
+                <div class="col-b">
+                  <div class="card">石籠堰 圖說第 3 章<div class="m"><span class="tag p">專案</span><span class="av yz">宇</span>已 4 天 · P85 5d</div></div>
+                  <div class="card">品牌日 三校<div class="m"><span class="tag p">專案</span><span class="av lily">莉</span></div></div>
+                  <div class="card" style="border-style:dashed;color:var(--faint)">Standup 09:30 未標記<div class="m"><span class="tag r">節奏</span>一鍵標「已跑」</div></div>
+                </div>
+              </div>
+              <div class="col">
+                <div class="col-h"><span>未來 · 3 日內</span><span>4</span></div>
+                <div class="col-b">
+                  <div class="card">★ 品牌日定稿<div class="m"><span class="tag p">專案</span>9/24</div></div>
+                  <div class="card">★ 品牌日發表<div class="m"><span class="tag a">活動</span>9/24 · 同日衝期</div></div>
+                  <div class="card">1:1<div class="m"><span class="tag r">節奏</span>9/22 14:00</div></div>
+                  <div class="card">★ 石籠堰交付<div class="m"><span class="tag p">專案</span>9/25</div></div>
+                </div>
+              </div>
+            </div>
+            <p class="hint">和現在的工作台最大差別：卡片上有<b>軌道標籤</b>，而且節奏與活動也會進來。「過去」欄不再只是已完成的工作，而是<b>所有還沒收尾的東西</b>（沒標記的節奏、沒寫回顧的活動、逾期的里程碑）。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap"></div>
+    <div class="two">
+      <div class="note good">
+        <h4>優點</h4>
+        <ul>
+          <li><b>模型正確。</b>重複規則 vs 一次性事件 vs 區間＋里程碑，本來就是三種東西，分開才不會互相扭曲。</li>
+          <li><b>專案能長大。</b>四層結構讓你之後要接五六個案子、做跨案負載與衝期檢查都有地方放。</li>
+          <li><b>節奏有了履行概念。</b><code>session.state</code> 是 heatmap 紅格的來源，「節奏斷了」第一次變成可查詢的事實。</li>
+          <li><b>跨類別視圖仍是單一查詢。</b>骨幹表扁平又小，日曆／heatmap／工作台效能好。</li>
+          <li><b>權限乾淨。</b>個人節奏留在 rhythm 表，用 <code>scope</code> 就能擋掉，不會污染專案資料。</li>
+        </ul>
+      </div>
+      <div class="note bad">
+        <h4>代價</h4>
+        <ul>
+          <li><b>多一層同步要守。</b>骨幹是衍生資料，任何一軌漏寫就會造成日曆與來源不一致，需要 trigger ＋ 定期對帳。</li>
+          <li><b>工期最長。</b>三套表單、四層專案結構、節奏實例預生 —— 大約是提案 A 的兩倍半。</li>
+          <li><b>側欄變回四項。</b>統一視圖＋三軌，項目數沒有真的變少（但語意清楚很多）。</li>
+          <li><b>初期資料少時會顯得過度設計。</b>兩人規模、三個案子的情境下，四層結構可能有兩層長期是空的。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ 提案 C ══════════════════════════ -->
+  <div class="proposal" id="p-c">
+    <p class="lead"><b>核心想法：</b>不再有「進到某個模組去新增一筆」這件事。<b>日曆（或熱力／甘特）本身就是主操作面</b>，佔滿整個畫布；左邊是三條軌道的篩選欄，右邊是常駐 inspector。<b>所有 CRUD 都在 inspector 就地完成</b>：點空白格 → 右側長出新增表單；點任一項 → 右側變成編輯；拖拉格子 → 直接改期並即時算出衝突。模型可沿用提案 B 的三軌，但介面哲學完全不同 —— 它假設你每天打開系統的第一個動作是<b>「看這段時間長什麼樣子」</b>，而不是「去哪個模組找東西」。<br><b>適合你如果：</b>你要的是「掌握節奏」的體感，而且願意接受這是三案裡前端工程量最大的一版。</p>
+
+    <h3>主畫面 · 單一畫布</h3>
+    <div class="frame">
+      <div class="fbar"><b>圓展 Operating System</b><span class="sp"></span>營運畫布 · 2026 九月 · 拖拉可改期</div>
+      <div class="app" style="min-height:520px">
+        <div class="sb" style="width:150px;text-align:left;padding:11px 9px">
+          <div style="font-size:10px;color:#3f4554;letter-spacing:.06em;margin-bottom:7px">軌道</div>
+          <div style="border:1px solid var(--pri);background:#12192b;border-radius:8px;padding:7px 9px;margin-bottom:6px">
+            <div style="font-size:11.5px;color:#bcd2ff;display:flex;align-items:center;gap:6px"><span class="dot p"></span>專案</div>
+            <div style="font-size:9.5px;color:var(--faint);margin-top:4px;line-height:1.6">石籠堰工程<br>品牌日視覺<br>客戶 B 年報</div>
+          </div>
+          <div style="border:1px solid var(--teal);background:#0f1f1d;border-radius:8px;padding:7px 9px;margin-bottom:6px">
+            <div style="font-size:11.5px;color:#96e4d4;display:flex;align-items:center;gap:6px"><span class="dot r"></span>日常節奏</div>
+            <div style="font-size:9.5px;color:var(--faint);margin-top:4px;line-height:1.6">公司 · standup／1:1／回顧<br>個人 · 學習日／晨寫</div>
+          </div>
+          <div style="border:1px solid var(--info);background:#181430;border-radius:8px;padding:7px 9px;margin-bottom:10px">
+            <div style="font-size:11.5px;color:#cabdf8;display:flex;align-items:center;gap:6px"><span class="dot a"></span>行政／活動</div>
+            <div style="font-size:9.5px;color:var(--faint);margin-top:4px;line-height:1.6">品牌日／客戶／旅遊<br>慶生／參訪／行政</div>
+          </div>
+          <div style="font-size:10px;color:#3f4554;letter-spacing:.06em;margin-bottom:6px">對象</div>
+          <div style="display:flex;gap:5px;margin-bottom:10px"><span class="chip on" style="font-size:10px;padding:3px 7px"><span class="av yz" style="width:14px;height:14px">宇</span></span><span class="chip on" style="font-size:10px;padding:3px 7px"><span class="av lily" style="width:14px;height:14px">莉</span></span></div>
+          <div style="font-size:10px;color:#3f4554;letter-spacing:.06em;margin-bottom:6px">疊加層</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <span class="chip on" style="font-size:10px;padding:3px 7px">衝期警示</span>
+            <span class="chip on" style="font-size:10px;padding:3px 7px">節奏斷層</span>
+            <span class="chip" style="font-size:10px;padding:3px 7px">容量負載</span>
+          </div>
+        </div>
+        <div class="main" style="padding:11px 12px">
+          <div class="toolrow">
+            <div class="seg"><span class="on">月曆</span><span>週</span><span>熱力</span><span>甘特</span><span>清單</span></div>
+            <span class="sp"></span>
+            <span class="btn">◀ 九月 ▶</span>
+            <span class="btn">今天</span>
+            <span class="chip on" style="border-color:var(--gold);color:var(--gold)">⚠ 1 個衝期</span>
+          </div>
+          <div class="cal">
+            <div class="calh"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+            <div class="calb">
+              <div class="cd"><div class="dn">14</div><span class="ev r done">Standup</span></div>
+              <div class="cd"><div class="dn">15</div><span class="ev r done">Standup</span><span class="ev a">報稅資料</span></div>
+              <div class="cd"><div class="dn">16</div><span class="ev r done">Standup</span><span class="ev p">品牌日 Review</span></div>
+              <div class="cd"><div class="dn">17</div><span class="ev r done">Standup</span></div>
+              <div class="cd"><div class="dn">18</div><span class="ev r done">學習日</span><span class="ev a">企業參訪</span></div>
+              <div class="cd out"><div class="dn">19</div></div>
+              <div class="cd out"><div class="dn">20</div></div>
+
+              <div class="cd today"><div class="dn">21 今天</div><span class="ev r ghost">Standup</span><span class="ev p">石籠堰 圖說</span></div>
+              <div class="cd"><div class="dn">22</div><span class="ev r ghost">Standup</span><span class="ev r ghost">1:1 14:00</span></div>
+              <div class="cd"><div class="dn">23</div><span class="ev r ghost">Standup</span><span class="ev p">石籠堰 內審</span></div>
+              <div class="cd" style="box-shadow:inset 0 0 0 1px var(--gold)"><div class="dn" style="color:var(--gold)">24 ⚠</div><span class="ev p">★ 品牌日定稿</span><span class="ev a">★ 品牌日發表</span></div>
+              <div class="cd"><div class="dn">25</div><span class="ev r ghost">學習日</span><span class="ev p">★ 石籠堰交付</span></div>
+              <div class="cd out"><div class="dn">26</div><span class="ev a">員工旅遊</span></div>
+              <div class="cd out"><div class="dn">27</div><span class="ev a">員工旅遊</span></div>
+
+              <div class="cd"><div class="dn">28</div><span class="ev r ghost">Standup</span><span class="ev p">年報 kickoff</span></div>
+              <div class="cd"><div class="dn">29</div><span class="ev r ghost">Standup</span></div>
+              <div class="cd"><div class="dn">30</div><span class="ev r ghost">月回顧</span></div>
+              <div class="cd out" style="background:#0a0d14;box-shadow:inset 0 0 0 1px var(--accent)"><div class="dn" style="color:var(--accent)">10/1</div><span style="font-size:10px;color:var(--accent)">＋ 點此新增</span></div>
+              <div class="cd out"><div class="dn">2</div></div>
+              <div class="cd out"><div class="dn">3</div></div>
+              <div class="cd out"><div class="dn">4</div></div>
+            </div>
+          </div>
+          <p class="hint" style="margin-top:9px"><b>畫布上的直接操作：</b>拖拉事件到別天＝改期並重算衝突　·　拉事件邊緣＝延長為多日　·　Shift＋拖拉＝複製　·　點空白格＝右側開新增　·　雙擊節奏實例＝一鍵標「已跑」</p>
+        </div>
+        <div class="insp">
+          <div class="insp-h"><span class="dot a"></span><b>圓展品牌日發表</b></div>
+          <div style="font-size:10px;color:var(--faint);margin-bottom:10px;font-family:ui-monospace,monospace">occasion · 2026-09-24</div>
+
+          <div style="border:1px solid #4a3a1c;background:#1c1710;border-radius:7px;padding:8px 10px;font-size:11px;color:var(--gold);line-height:1.6;margin-bottom:11px">
+            ⚠ <b>同日衝期</b><br>
+            <span style="color:var(--dim)">「品牌日視覺」里程碑也在 9/24 定稿。活動當天不建議再排交付。</span>
+            <div style="margin-top:7px;display:flex;gap:6px"><span class="btn" style="font-size:10px;padding:3px 7px">里程碑提前到 9/22</span><span class="btn" style="font-size:10px;padding:3px 7px">忽略</span></div>
+          </div>
+
+          <div class="kv">
+            <span class="k">類型</span><span class="v"><b>公司活動</b></span>
+            <span class="k">時間</span><span class="v">9/24（四）14:00–18:00</span>
+            <span class="k">地點</span><span class="v">松菸 5 號倉庫</span>
+            <span class="k">參與</span><span class="v"><span class="av yz" style="display:inline-grid">宇</span> <span class="av lily" style="display:inline-grid">莉</span> ＋ 外部 24</span>
+            <span class="k">連結</span><span class="v"><span class="tag p">品牌日視覺</span></span>
+          </div>
+
+          <div class="fk">事前準備 <span style="color:var(--faint);text-transform:none;letter-spacing:0">2/3</span></div>
+          <div style="font-size:11px;line-height:1.9;color:var(--dim)">
+            ☑ 主視覺定稿<br>
+            ☑ 場地確認<br>
+            ☐ 新聞稿 <span style="color:var(--gold)">· 9/22 到期</span>
+          </div>
+
+          <div class="fk">紀錄</div>
+          <div class="ftext tall ph" style="font-size:11px">活動後寫回顧…</div>
+
+          <div class="fk">素材</div>
+          <div class="upl" style="padding:9px;font-size:10.5px">📷 照片　🎙 錄音　📄 文件<br>拖曳上傳</div>
+
+          <div class="formfoot" style="margin-top:12px">
+            <span class="btn pri" style="font-size:11px">儲存</span>
+            <span class="btn" style="font-size:11px">複製</span>
+            <span class="sp"></span>
+            <span class="btn" style="font-size:11px;color:var(--red);border-color:#3a2028">刪除</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap"></div>
+    <div class="grid2">
+      <div>
+        <h3 style="margin-top:0">同一畫布切到「熱力」—— 左軌道與 inspector 都不動</h3>
+        <div class="frame">
+          <div class="fbar"><b>營運畫布</b>熱力<span class="sp"></span>左欄篩選、右欄 inspector 維持不變</div>
+          <div class="fbody">
+            <div class="hm">
+              <div class="hmhead"><span></span><div class="w"><span>W23</span><span></span><span></span><span>W26</span><span></span><span></span><span>W29</span><span></span><span></span><span>W32</span><span></span><span></span><span>W35</span><span></span><span></span><span>W38</span></div><span></span></div>
+              <div class="hmrow"><span class="lb" style="color:#9dc0ff">石籠堰工程</span><div class="cells"><i class="hc"></i><i class="hc"></i><i class="hc b1"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b3"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b4"></i><i class="hc b3"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b4"></i></div><span class="pct">42</span></div>
+              <div class="hmrow"><span class="lb" style="color:#9dc0ff">品牌日視覺</span><div class="cells"><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc"></i><i class="hc b1"></i><i class="hc b2"></i><i class="hc b2"></i><i class="hc b1"></i><i class="hc"></i><i class="hc b2"></i><i class="hc b3"></i><i class="hc b4"></i><i class="hc b4"></i><i class="hc b3"></i><i class="hc b2"></i></div><span class="pct">23</span></div>
+              <div class="hmrow"><span class="lb" style="color:#7fd9c6">Standup</span><div class="cells"><i class="hc l4"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l2"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc l4"></i><i class="hc l4"></i></div><span class="pct">94%</span></div>
+              <div class="hmrow"><span class="lb" style="color:#7fd9c6">1:1</span><div class="cells"><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc miss"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i><i class="hc l4"></i><i class="hc"></i></div><span class="pct">88%</span></div>
+              <div class="hmrow"><span class="lb" style="color:#7fd9c6">學習日</span><div class="cells"><i class="hc l3"></i><i class="hc l2"></i><i class="hc miss"></i><i class="hc l3"></i><i class="hc miss"></i><i class="hc miss"></i><i class="hc l2"></i><i class="hc l3"></i><i class="hc miss"></i><i class="hc l1"></i><i class="hc miss"></i><i class="hc l3"></i><i class="hc l4"></i><i class="hc miss"></i><i class="hc l3"></i><i class="hc l2"></i></div><span class="pct">56%</span></div>
+              <div class="hmrow"><span class="lb" style="color:#c0b0f8">行政／活動</span><div class="cells"><i class="hc v1"></i><i class="hc v2"></i><i class="hc v2"></i><i class="hc"></i><i class="hc v3"></i><i class="hc v3"></i><i class="hc"></i><i class="hc v1"></i><i class="hc"></i><i class="hc v2"></i><i class="hc v2"></i><i class="hc v1"></i><i class="hc v4"></i><i class="hc v3"></i><i class="hc v4"></i><i class="hc v4"></i></div><span class="pct">32d</span></div>
+              <div class="hmleg"><span>點任一格 → 右側 inspector 展開該週明細，可直接編輯</span></div>
+            </div>
+            <p class="hint"><b>三軌疊在同一張熱力圖</b>才看得出因果：W29 與 W32 學習日與 1:1 斷掉的兩週，正好對著石籠堰的藍色深格 —— 專案一重，個人節奏先被犧牲。這是分開三個模組時永遠看不到的。</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-top:0">CRUD · 點空白格就地新增</h3>
+        <div class="frame">
+          <div class="fbar"><b>inspector</b>新增 · 2026-10-01<span class="sp"></span>不離開畫布</div>
+          <div class="fbody">
+            <div class="form" style="border:none;padding:0">
+              <div class="crumb">10/01（三） 新增</div>
+              <div class="fk">要新增什麼 <span class="req">*</span></div>
+              <div class="chiprow">
+                <span class="fchip">專案節點</span><span class="fchip">節奏</span><span class="fchip on a">行政／活動</span>
+              </div>
+              <div class="hint">三選一後，下面的欄位即時換成該軌道的表單；日期已由你點的格子帶入。</div>
+
+              <div class="fk">標題 <span class="req">*</span></div>
+              <div class="ftext">客戶 B 年報 kickoff 會議</div>
+
+              <div class="fk">類型</div>
+              <div class="chiprow"><span class="fchip">公司活動</span><span class="fchip on a">客戶會議</span><span class="fchip">旅遊</span><span class="fchip">慶生</span><span class="fchip">參訪</span><span class="fchip">行政</span></div>
+
+              <div class="half">
+                <div><div class="fk">時間</div><div class="ftext">10:00 – 12:00</div></div>
+                <div><div class="fk">地點</div><div class="ftext ph">（線上）</div></div>
+              </div>
+
+              <div class="fk">連結專案</div>
+              <div class="chiprow"><span class="fchip on p">客戶 B 年報設計</span></div>
+              <div class="hint">連結後，這場會議也會出現在該專案的「關鍵時間」與甘特上。</div>
+
+              <div class="fk">參與者</div>
+              <div class="chiprow"><span class="fchip on"><span class="av yz" style="width:15px;height:15px">宇</span></span><span class="fchip"><span class="av lily" style="width:15px;height:15px">莉</span></span><span class="fchip">＋ 客戶 B 窗口</span></div>
+
+              <div class="fk">事後要留什麼</div>
+              <div class="chiprow"><span class="fchip on a">錄音</span><span class="fchip on a">會議紀錄</span><span class="fchip">照片</span><span class="fchip on a">文件</span></div>
+
+              <div class="effects">
+                <div class="h">儲存後（不關閉畫布）</div>
+                10/1 格子即時長出紫色 chip，inspector 直接切到編輯模式<br>
+                衝期檢查即時跑：<b>10/1 無衝突</b><br>
+                若拖到別天，日期與所有關聯一起更新
+              </div>
+              <div class="formfoot"><span class="btn pri">儲存並留在畫布</span><span class="btn">儲存後開啟明細</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap"></div>
+    <div class="two">
+      <div class="note good">
+        <h4>優點</h4>
+        <ul>
+          <li><b>操作成本最低。</b>新增一筆從「開模組 → 找按鈕 → 填表 → 回列表」四步，變成「點格子 → 填 → 存」兩步。</li>
+          <li><b>時間感最強。</b>你想要的「掌握節奏」在這版是字面意義的 —— 打開就看見整段時間的形狀。</li>
+          <li><b>跨類別因果一眼可見。</b>三軌疊圖讓「專案一重、個人節奏先斷」這種模式自己浮出來。</li>
+          <li><b>衝期檢查是即時的。</b>拖拉當下就算，不是事後報表。</li>
+        </ul>
+      </div>
+      <div class="note bad">
+        <h4>代價</h4>
+        <ul>
+          <li><b>前端工程量最大。</b>拖拉改期、多日事件的疊放演算法、inspector 狀態機，都是硬工。</li>
+          <li><b>深度管理仍需另開頁。</b>專案的四層結構、Evidence Repo、財務不可能塞進 inspector，還是要有專案詳情頁 —— 等於畫布之外仍有第二套介面。</li>
+          <li><b>小螢幕吃力。</b>左軌道＋日曆＋inspector 三欄在筆電上會很擠，需要設計收合。</li>
+          <li><b>誤操作風險。</b>拖拉即改期，必須做 undo，否則手滑就動到客戶交期。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2>三案對照</h2>
+  <table class="compare">
+    <thead><tr><th style="width:150px"></th><th>提案 A · 統一節點</th><th>提案 B · 三軌 × 骨幹</th><th>提案 C · 日曆畫布</th></tr></thead>
+    <tbody>
+      <tr><td>資料模型</td><td>一張 <code>node</code> 表 + kind</td><td>三套專屬模型 + <code>time_spine</code> 索引</td><td>同 B（介面提案，模型可搭 A 或 B）</td></tr>
+      <tr><td>側欄項目數</td><td><b class="yes">1</b>（營運）</td><td><b class="mid">4</b>（統一視圖＋三軌）</td><td><b class="yes">1</b>（營運畫布）</td></tr>
+      <tr><td>專案深度</td><td><span class="no">弱</span>　parent_id 自參照，兩層為限</td><td><span class="yes">強</span>　專案→里程碑→目標→任務</td><td><span class="mid">中</span>　畫布外另有專案詳情頁</td></tr>
+      <tr><td>節奏履行追蹤</td><td><span class="mid">可</span>　occurrence 表</td><td><span class="yes">完整</span>　session ＋ 質性／錄音／產出</td><td><span class="yes">完整</span>　雙擊即標記</td></tr>
+      <tr><td>活動素材回顧</td><td><span class="mid">可</span>　node_media</td><td><span class="yes">完整</span>　事前清單＋事後回顧＋回顧牆</td><td><span class="yes">完整</span>　inspector 內完成</td></tr>
+      <tr><td>跨類別 heatmap</td><td><span class="yes">易</span>　單表聚合</td><td><span class="yes">易</span>　讀骨幹</td><td><span class="yes">易</span>　同 B，且可互動下鑽</td></tr>
+      <tr><td>衝期／負載檢查</td><td><span class="no">無</span></td><td><span class="mid">有</span>　存檔時檢查</td><td><span class="yes">即時</span>　拖拉當下算</td></tr>
+      <tr><td>新增一筆的步數</td><td>3 步（開營運→新增→選類別填表）</td><td>3–4 步（進軌道→新增→填表）</td><td><b class="yes">2 步</b>（點格子→填表）</td></tr>
+      <tr><td>估計工期</td><td><b class="yes">2–3 週</b></td><td><b class="mid">5–7 週</b></td><td><b class="no">7–9 週</b>（含 B 的模型）</td></tr>
+      <tr><td>之後要加東西</td><td>加 kind 容易、加結構困難</td><td>兩者都容易</td><td>模型同 B，但每個新型別都要設計畫布行為</td></tr>
+      <tr><td>主要風險</td><td>一年後寬表與條件式表單失控，需二次重構</td><td>骨幹同步不一致；初期過度設計</td><td>工期長；畫布之外仍有第二套介面</td></tr>
+    </tbody>
+  </table>
+
+  <h2>我的建議</h2>
+  <div class="note" style="line-height:1.85">
+    <h4>先做 B 的模型，先上 A 的介面，把 C 當第二階段</h4>
+    <p style="margin:0 0 8px">三案不必互斥。真正不可逆的是<b>資料模型</b> —— 介面隨時能換，schema 換一次要付遷移成本。所以：</p>
+    <ul>
+      <li><b>第一步（2–3 週）：採用 B 的三軌模型與 <code>time_spine</code>，但介面先做 A 的樣子</b> —— 單一「營運」模組、頂部檢視切換器、一張會變形的表單。模型已經是對的，使用者只看到一個簡單的介面。</li>
+      <li><b>第二步（3–4 週）：把三軌的專屬深度長出來</b> —— 專案的里程碑／目標層、節奏的 session 紀錄與錄音、活動的事前清單與回顧牆。此時側欄才從 A 的一項展開成 B 的四項。</li>
+      <li><b>第三步（視使用情況）：再決定要不要做 C 的畫布</b>。前兩步跑三個月後，你會清楚知道自己是不是真的每天從日曆開始 —— 如果是，C 值得做；如果你其實都從工作台的「現在」欄開始，那 C 的投資就不划算。</li>
+    </ul>
+    <p style="margin:10px 0 0"><b>立刻可做、且三案都需要的兩件事：</b>①把時間線事件的 <code>layer</code> 從「標籤」升級成「型別」，並補上 <code>scope（公司／個人）</code>；②幫節奏加上「履行狀態」欄位 —— 沒有這個欄位，heatmap 的紅格永遠畫不出來，而那正是你想看見的東西。</p>
+  </div>
+
+  <div class="foot">
+    <b>本檔案</b>是靜態提案稿（可點三個頁籤切換），所有畫面為 wireframe，不含實際資料。<br>
+    <b>現有素材對照</b>：時間線事件表單 <code>formEvent()</code>、工作台三段式時序欄、專案五分頁（總覽／工作／對話／Evidence Repo／財務）均已存在於 v5 runtime，三案都以延用為前提設計。<br>
+    <b>下一步</b>：挑一案（或挑建議的混合路線）後，我可以把它展開成正式的 ARC／PLN 文件並拆成 backlog 任務列。
+  </div>
+
+</div>
+<script>
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    document.querySelectorAll('.proposal').forEach(function(p){p.classList.remove('on')});
+    document.getElementById('p-'+b.dataset.p).classList.add('on');
+    window.scrollTo({top:document.querySelector('.tabs').offsetTop-20,behavior:'smooth'});
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>轉移整合提案｜時間線 · 工作台 · 專案 → 營運 × 專案</title>
+<style>
+:root{
+  --bg:#07090d; --panel:#0e1117; --panel2:#131720; --line:#1f2430; --line2:#2a3040; --line3:#39414f;
+  --text:#e6e8ee; --dim:#8a91a3; --faint:#5b6273;
+  --accent:#7c8cff; --gold:#e0b25a; --green:#4fc38a; --red:#ef6b6b;
+  --pri:#5b8def; --teal:#2bb3a3; --info:#8b7cf6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1340px;margin:0 auto;padding:28px 20px 90px}
+h1{font-size:22px;margin:0 0 6px}
+h2{font-size:16px;margin:36px 0 4px;display:flex;align-items:baseline;gap:9px;scroll-margin-top:64px}
+h2 .n{font-family:ui-monospace,monospace;font-size:12px;color:var(--faint);border:1px solid var(--line2);border-radius:5px;padding:2px 7px}
+h3{font-size:12.5px;margin:20px 0 8px;color:var(--dim);letter-spacing:.04em}
+p.lead{color:var(--dim);line-height:1.85;margin:8px 0 16px;max-width:940px;font-size:13px}
+p.lead b{color:var(--text)}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-family:ui-monospace,SFMono-Regular,monospace;font-size:11.5px;color:var(--gold)}
+code.f{color:#8fb4f5}
+a{color:var(--accent)}
+.hr{height:1px;background:var(--line);margin:30px 0 0}
+
+/* nav */
+.toc{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 6px;position:sticky;top:0;background:#07090d;border-bottom:1px solid var(--line);padding:10px 0 11px;z-index:9}
+.toc a{font-size:11.5px;color:var(--dim);border:1px solid var(--line2);border-radius:20px;padding:5px 11px;text-decoration:none;background:var(--panel)}
+.toc a:hover{border-color:var(--accent);color:var(--text)}
+
+/* cards */
+.grid{display:grid;gap:11px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+.g21{grid-template-columns:1.4fr 1fr}
+@media(max-width:1000px){.g3,.g2,.g21{grid-template-columns:1fr}}
+.card{border:1px solid var(--line);border-radius:11px;background:var(--panel);padding:13px 14px}
+.card h4{margin:0 0 7px;font-size:13px;display:flex;align-items:center;gap:7px}
+.card p{margin:0 0 7px;color:var(--dim);font-size:12px;line-height:1.7}
+.card ul{margin:6px 0 0;padding-left:16px;color:var(--dim);font-size:12px;line-height:1.75}
+.card li b{color:var(--text)}
+.card.k1{border-top:3px solid var(--pri)}
+.card.k2{border-top:3px solid var(--teal)}
+.card.k3{border-top:3px solid var(--info)}
+.card.warn{border-left:2px solid var(--gold)}
+.card.good{border-left:2px solid var(--green)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block}
+.dot.p{background:var(--pri)}.dot.r{background:var(--teal)}.dot.a{background:var(--info)}.dot.n{background:var(--faint)}.dot.g{background:var(--gold)}
+
+/* code map */
+.map{border:1px solid var(--line2);border-radius:11px;overflow:hidden;background:#0a0c11}
+.map-h{background:#0c0f15;border-bottom:1px solid var(--line);padding:8px 13px;font-size:11.5px;color:var(--dim);display:flex;gap:9px;align-items:center}
+.map-b{padding:0}
+.layer{display:grid;grid-template-columns:104px 1fr;border-bottom:1px solid var(--line)}
+.layer:last-child{border-bottom:none}
+.layer .lk{padding:11px 12px;font-size:11px;color:var(--faint);border-right:1px solid var(--line);background:#0c0f15;line-height:1.6}
+.layer .lk b{color:var(--dim);display:block;font-size:11.5px;margin-bottom:2px}
+.layer .lb{padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.node{border:1px solid var(--line2);border-radius:8px;padding:7px 10px;background:var(--panel2);font-size:11.5px;min-width:130px}
+.node .t{font-weight:600;font-size:11.5px;margin-bottom:3px;display:flex;align-items:center;gap:5px}
+.node .s{color:var(--faint);font-size:10px;font-family:ui-monospace,monospace;line-height:1.55}
+.node.p{border-color:#2a3d63}.node.p .t{color:#bcd2ff}
+.node.r{border-color:#1d453e}.node.r .t{color:#96e4d4}
+.node.a{border-color:#332a5c}.node.a .t{color:#cabdf8}
+.node.n{border-color:var(--line2)}
+.node.ghost{border-style:dashed;opacity:.6}
+.seam{border:1px dashed #4a3a1c;background:#14110b;color:var(--gold);border-radius:8px;padding:7px 10px;font-size:11px;line-height:1.6;max-width:330px}
+.seam b{display:block;margin-bottom:2px}
+
+/* rails */
+.rails{display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+@media(max-width:1000px){.rails{grid-template-columns:repeat(2,1fr)}}
+.rail{border:1px solid var(--line2);border-radius:11px;overflow:hidden;background:#0a0c11}
+.rail-h{padding:8px 11px;background:#0c0f15;border-bottom:1px solid var(--line);font-size:11px;color:var(--dim)}
+.rail-h b{color:var(--text);font-size:11.5px}
+.rail-h .w{color:var(--faint);font-size:10px;display:block;margin-top:2px}
+.rail-b{padding:7px 6px}
+.ri{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:7px;font-size:11.5px;color:var(--dim);margin-bottom:2px}
+.ri .ic{width:14px;text-align:center;opacity:.7;font-size:12px}
+.ri.on{background:#141a2b;color:var(--text)}
+.ri.new{background:#101b2e;color:#bcd2ff;box-shadow:inset 0 0 0 1px #2a3d63}
+.ri.old{color:var(--faint);text-decoration:line-through}
+.ri.legacy{color:var(--faint);font-size:10.5px}
+.ri .tagx{margin-left:auto;font-size:9px;padding:1px 5px;border-radius:3px;background:#2b2113;color:var(--gold)}
+.ri .tagn{margin-left:auto;font-size:9px;padding:1px 5px;border-radius:3px;background:#0f2a1e;color:var(--green)}
+.rail-f{border-top:1px solid var(--line);padding:8px 11px;font-size:10px;color:var(--faint);line-height:1.6}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;line-height:1.6}
+th{color:var(--faint);font-weight:500;background:var(--panel);font-size:11px}
+td{color:var(--dim)}
+td b{color:var(--text)}
+td.m{font-family:ui-monospace,monospace;font-size:11px;color:var(--faint);white-space:nowrap}
+tr.hl td{background:#12100a}
+.tag{font-size:9.5px;padding:2px 6px;border-radius:3px;font-family:ui-monospace,monospace;white-space:nowrap;display:inline-block}
+.tag.p{background:#152238;color:#8fb4f5}
+.tag.r{background:#0f231f;color:#5fd0b8}
+.tag.a{background:#1c1730;color:#b3a2f0}
+.tag.w{background:#2b2113;color:var(--gold)}
+.tag.g{background:#0f2a1e;color:var(--green)}
+.tag.n{background:#1a1e28;color:var(--faint)}
+.tag.rd{background:#2a171c;color:#e08a8a}
+
+/* steps */
+.steps{counter-reset:s}
+.step{border:1px solid var(--line);border-radius:11px;background:var(--panel);padding:13px 15px;margin-bottom:10px;position:relative;padding-left:52px}
+.step::before{counter-increment:s;content:"T" counter(s);position:absolute;left:14px;top:13px;font-family:ui-monospace,monospace;font-size:11px;color:var(--accent);border:1px solid #2a3352;border-radius:6px;padding:3px 6px}
+.step h4{margin:0 0 5px;font-size:13px}
+.step .when{font-size:10.5px;color:var(--faint);font-family:ui-monospace,monospace;margin-bottom:7px}
+.step p{margin:0 0 6px;color:var(--dim);font-size:12px;line-height:1.75}
+.step ul{margin:6px 0 0;padding-left:16px;color:var(--dim);font-size:12px;line-height:1.75}
+
+/* diff block */
+.diff{border:1px solid var(--line);border-radius:9px;overflow:hidden;font-family:ui-monospace,monospace;font-size:11px;line-height:1.75;background:#0a0c11;margin-top:9px}
+.diff div{padding:2px 11px;white-space:pre-wrap}
+.diff .add{background:#0d1a13;color:#7fd4a6}
+.diff .del{background:#1a0f12;color:#e09090}
+.diff .ctx{color:var(--faint)}
+.diff .hd{background:#0c0f15;color:var(--dim);border-bottom:1px solid var(--line);padding:6px 11px}
+
+.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.8;font-size:12px;color:var(--dim);margin-top:11px}
+.note h4{margin:0 0 7px;color:var(--text);font-size:12.5px}
+.note ul{margin:6px 0 0;padding-left:17px}
+.note li{margin:4px 0}
+.note li b{color:var(--text)}
+.foot{margin-top:34px;color:var(--faint);font-size:11.5px;line-height:1.85;border-top:1px solid var(--line);padding-top:16px}
+.foot b{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>轉移整合提案：時間線 · 工作台 · 專案 → 營運 × 專案</h1>
+<p class="lead">方向已定（<b>提案 B 的資料模型 × 提案 C 的操作介面</b>），這份談的是<b>怎麼從現在這份程式碼走過去</b>。我把 <code>src/components/yuanzhan/v5/</code>、<code>src/lib/ui-data/yuanzhan/</code>、<code>prisma/schema.prisma</code> 與驗證腳本都讀過一遍，結論是：<b>轉移的難處不在畫面，而在三個結構性前提</b> —— runtime 是生成的、fidelity gate 綁著舊的模組清單、而且系統有兩個互不相通的資料面。這三件事決定了工序，沒處理好會在第二週就卡住。</p>
+
+<div class="toc">
+  <a href="#s1">1 現況地圖</a>
+  <a href="#s2">2 已經存在的三條縫</a>
+  <a href="#s3">3 三個結構關卡</a>
+  <a href="#s4">4 導覽與分頁的去向</a>
+  <a href="#s5">5 逐筆資料分流</a>
+  <a href="#s6">6 五步轉移</a>
+  <a href="#s7">7 回滾設計</a>
+  <a href="#s8">8 風險</a>
+</div>
+
+<!-- ══════════════ 1 ══════════════ -->
+<h2 id="s1"><span class="n">1</span>現況地圖：三個模組實際長在哪裡</h2>
+<p class="lead">v5 工作台不是一般的 React 頁面。它是把 owner 提供的原型 HTML 用 babel 編譯成詞法閉包後掛進 Shadow DOM 的 runtime，<b>所有模組都活在同一個 <code>runtime.js</code> 裡</b>，由一張 <code>WB[]</code> 註冊表與一份 <code>VIEWS</code> 字典驅動。</p>
+
+<div class="map">
+  <div class="map-h"><span class="dot n"></span><b style="color:var(--dim)">/company/operating</b> → <code>V5Desktop</code> → <code>mountV5(root, initialState)</code></div>
+  <div class="map-b">
+    <div class="layer">
+      <div class="lk"><b>導覽層</b>runtime.js:633</div>
+      <div class="lb">
+        <div class="node n"><div class="t">WB[] 註冊表</div><div class="s">8 個模組 × 30 個分頁<br>id / nm / scn / rule / tabs</div></div>
+        <div class="node r"><div class="t"><span class="dot r"></span>timeline 時間線</div><div class="s">tabs: 全部 · 專案層 · 日常層 · 行政層</div></div>
+        <div class="node p"><div class="t"><span class="dot p"></span>desk 工作台</div><div class="s">tabs: 時序 · 流程健康 · 目標對齊</div></div>
+        <div class="node p"><div class="t"><span class="dot p"></span>project 專案</div><div class="s">tabs: 總覽 · 工作 · 對話 · Evidence · 財務</div></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lk"><b>視圖層</b>runtime.js</div>
+      <div class="lb">
+        <div class="node r"><div class="t">VIEWS.timeline</div><div class="s">:4438　清單 + calendarView()</div></div>
+        <div class="node p"><div class="t">VIEWS.desk</div><div class="s">:4509　三段式時序欄 / vAging vCFD vScatter / 目標對齊</div></div>
+        <div class="node p"><div class="t">VIEWS.project</div><div class="s">:4657　再被 4 個擴充檔層層包裝<br>:6399 :7346 :7677</div></div>
+        <div class="node n"><div class="t">共用機制</div><div class="s">openForm() · commit() · openDrawer()<br>vHeat() · editable() · settingValue()</div></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lk"><b>資料層 A</b>記憶體</div>
+      <div class="lb">
+        <div class="node r"><div class="t">DB.events</div><div class="s">8 筆　d / t / layer / star / derived / link / remind / note<br>+ participants（時間線參與者擴充）</div></div>
+        <div class="node p"><div class="t">DB.issues</div><div class="s">id / t / p / owner / size / st / due / done / sub[] / rel[]</div></div>
+        <div class="node p"><div class="t">DB.projects</div><div class="s">id / t / client / goal / owner / status / budget / delivery[]<br><b style="color:var(--gold)">沒有里程碑概念</b></div></div>
+        <div class="node n"><div class="t">來源</div><div class="s">v5-seed.js（showcase）<br>createV5State 清空（empty）</div></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lk"><b>資料層 B</b>Postgres</div>
+      <div class="lb">
+        <div class="node p ghost"><div class="t">Project</div><div class="s">prisma/schema.prisma:534</div></div>
+        <div class="node p ghost"><div class="t">ProjectTask</div><div class="s">:777　TaskStatus / dueAt</div></div>
+        <div class="node p ghost"><div class="t">ProjectPhaseNode</div><div class="s">:831　phase / start / end</div></div>
+        <div class="node p ghost"><div class="t">ProjectMilestone</div><div class="s">:849　<b style="color:var(--gold)">掛在 PhaseNode 下，不是 Project 下</b></div></div>
+        <div class="seam"><b>⚠ 兩個資料面沒有相通</b>v5 runtime 完全不讀 Prisma；Prisma 這側沒有 events／rhythm／occasion 任何模型。轉移要分兩層做。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ 2 ══════════════ -->
+<h2 id="s2"><span class="n">2</span>好消息：三條縫已經存在了</h2>
+<p class="lead">轉移不是把三個無關的模組硬黏起來。讀完程式碼會發現，<b>這三個模組之間已經有三條沒有被命名的連結</b> —— 我們要做的是把暗縫變成一條明線（<code>time_spine</code>），而不是從零接線。</p>
+<div class="grid g3">
+  <div class="card good">
+    <h4><span class="dot p"></span>縫 1 · 專案 ← 時間線</h4>
+    <p><code>runtime.js:4689</code></p>
+    <div class="diff"><div class="ctx">panel('本專案的關鍵時間', '來自時間線',</div><div class="ctx">  DB.events.filter(e =&gt; e.link === p.id)</div></div>
+    <p style="margin-top:8px">專案總覽已經在撈「連結到這個專案的時間線事件」。這正是新架構裡 <code>time_spine WHERE projectId = ?</code> 要做的事，只是現在寫死在一個 panel 裡。</p>
+  </div>
+  <div class="card good">
+    <h4><span class="dot r"></span>縫 2 · 日曆 ← 工作台</h4>
+    <p><code>runtime.js:calendarView()</code></p>
+    <div class="diff"><div class="ctx">const dues = DB.issues.filter(</div><div class="ctx">  x =&gt; (x.due || x.done) === ds)</div></div>
+    <p style="margin-top:8px">時間線的日曆視圖已經把工作的到期日畫上去了。所以「任務有到期日才進日曆」這條規則不是新發明，是既有行為的正式化。</p>
+  </div>
+  <div class="card good">
+    <h4><span class="dot n"></span>縫 3 · 連動機制已在</h4>
+    <p><code>runtime.js:367 commit()</code></p>
+    <div class="diff"><div class="ctx">commit(op, ent, label, apply, undo)</div><div class="ctx">  → eff[]　toast「連動 N 處」</div><div class="ctx">  → changelog + audit + undo</div></div>
+    <p style="margin-top:8px">每次存檔都已經會回報「這筆改動影響了哪幾個地方」，而且<b>內建 undo</b>。原型裡我另外寫的 undo stack 是多餘的 —— 直接用這個。</p>
+  </div>
+</div>
+<div class="note good">
+  <h4>對工序的影響</h4>
+  轉移的第一個 commit 不是新建資料表，而是<b>把這三處散落的關聯抽成一個 <code>spine()</code> 函式</b>，讓時間線、工作台、專案三個舊模組先改成呼叫它。畫面完全不變、fidelity gate 不會紅，但資料的單一來源已經就位。這是整個計畫裡風險最低、價值最高的一步。
+</div>
+
+<!-- ══════════════ 3 ══════════════ -->
+<h2 id="s3"><span class="n">3</span>三個必須先解的結構關卡</h2>
+
+<div class="grid g3">
+  <div class="card warn">
+    <h4>關卡 1 · runtime.js 是生成的，不能直接改</h4>
+    <p><code>scripts/generate-yuanzhan-v5.mjs</code> 從 owner 的原型 HTML 產生 runtime，並把來源 SHA256 寫進檔頭。</p>
+    <ul>
+      <li>行為修正只能走 <b><code>source-patches.mjs</code></b> —— 窄字串替換，<b>比對不到就 throw</b>（刻意的：來源變了要人看過）</li>
+      <li>新功能走附加的 <b><code>*.source.js</code></b>，在 init 前插入（已有 5 個：extensions / replies / journal-cockpit / timeline-participants / template-objects）</li>
+      <li>既有覆寫慣例：<code>const orig = VIEWS.project; VIEWS.project = tab =&gt; ...</code>（專案這一項已被包了 4 層）</li>
+    </ul>
+    <p style="margin-top:8px;color:var(--gold)"><b>結論：</b>新模組是第 6 個擴充檔 <code>operating-canvas.source.js</code>，不動原型、不改 SHA。<b>不要</b>去改 reference HTML 重新 baseline —— 那會讓所有既有 patch 一次失效。</p>
+  </div>
+  <div class="card warn">
+    <h4>關卡 2 · fidelity gate 綁著舊的模組清單</h4>
+    <p><code>scripts/verify-yuanzhan-v5.cjs</code> 讀 <code>reference/workspaces.json</code>，<b>逐一走訪 8 個模組 30 個分頁</b>並逐頁截圖比對，斷言 shell 尺寸、無 inline handler、無 NaN。</p>
+    <ul>
+      <li>合併模組 → <code>navigate()</code> 找不到「時間線」的 rail 項目 → <b>直接紅</b></li>
+      <li>基準截圖裡有 <code>timeline-0..3.png</code>、<code>desk-0..2.png</code>、<code>project-0..4.png</code></li>
+    </ul>
+    <p style="margin-top:8px;color:var(--gold)"><b>結論：</b>fidelity 套件<b>分叉</b>：保留 <code>verify-yuanzhan-v5</code> 驗「舊版仍可用」（flag 關閉時），新增 <code>verify-operating-canvas</code> 驗新模組並建立自己的基準。等舊模組正式下架，才更新 <code>workspaces.json</code> 並封存舊基準。</p>
+  </div>
+  <div class="card warn">
+    <h4>關卡 3 · 兩個資料面互不相通</h4>
+    <p>v5 是記憶體 store（showcase／empty，<code>ARC-040</code> 契約）；Prisma 那側有 Project／Task／PhaseNode／Milestone，但<b>沒有</b> events、rhythm、occasion。</p>
+    <ul>
+      <li>v5 的「專案」<b>沒有里程碑</b>，只有 <code>delivery[]</code> 字串陣列</li>
+      <li>Prisma 的 <code>ProjectMilestone</code> <b>掛在 <code>ProjectPhaseNode</code> 之下</b>，和 PLN-072 假設的「Milestone → Project」差一層</li>
+    </ul>
+    <p style="margin-top:8px;color:var(--gold)"><b>結論：</b>UI 層先走（記憶體 store 加三軌，不碰 schema），DB 層後走。DB 層要先決定 <code>ProjectPhaseNode</code> 是保留成「階段」（和里程碑並存）還是廢掉；我的建議是<b>保留</b>，讓 <code>Phase</code>（一段時間）與 <code>Milestone</code>（一個時間點）各司其職，PLN-072 的 schema 相應修正為 <code>Project → Phase → Milestone → Objective → Task</code>。</p>
+  </div>
+</div>
+
+<!-- ══════════════ 4 ══════════════ -->
+<h2 id="s4"><span class="n">4</span>導覽與分頁的去向</h2>
+<p class="lead">八個模組變七個。關鍵不是砍掉兩個，而是<b>工作台的三個分頁要各自找到家</b> —— 其中「流程健康」其實和容量模組的圖表重複，合併反而少畫兩張圖。</p>
+
+<div class="rails">
+  <div class="rail">
+    <div class="rail-h"><b>T0 · 現況</b><span class="w">8 模組 / 30 分頁</span></div>
+    <div class="rail-b">
+      <div class="ri"><span class="ic">▤</span>日誌</div>
+      <div class="ri on"><span class="ic">▦</span>時間線</div>
+      <div class="ri on"><span class="ic">◈</span>工作台</div>
+      <div class="ri on"><span class="ic">▣</span>專案</div>
+      <div class="ri"><span class="ic">▤</span>金流</div>
+      <div class="ri"><span class="ic">▥</span>容量</div>
+      <div class="ri"><span class="ic">✓</span>承諾</div>
+      <div class="ri"><span class="ic">◔</span>訊號</div>
+    </div>
+    <div class="rail-f">三個藍底的就是要整併的。</div>
+  </div>
+  <div class="rail">
+    <div class="rail-h"><b>T2 · 並存</b><span class="w">9 模組 · flag 可切</span></div>
+    <div class="rail-b">
+      <div class="ri"><span class="ic">▤</span>日誌</div>
+      <div class="ri new"><span class="ic">◈</span>營運<span class="tagn">新</span></div>
+      <div class="ri"><span class="ic">▣</span>專案</div>
+      <div class="ri"><span class="ic">▤</span>金流</div>
+      <div class="ri"><span class="ic">▥</span>容量</div>
+      <div class="ri"><span class="ic">✓</span>承諾</div>
+      <div class="ri"><span class="ic">◔</span>訊號</div>
+      <div class="ri legacy"><span class="ic">▦</span>時間線<span class="tagx">舊</span></div>
+      <div class="ri legacy"><span class="ic">◈</span>工作台<span class="tagx">舊</span></div>
+    </div>
+    <div class="rail-f">新舊同時在、讀同一份資料。舊的沉到最下面並標「舊版」。</div>
+  </div>
+  <div class="rail">
+    <div class="rail-h"><b>T4 · 收斂</b><span class="w">7 模組</span></div>
+    <div class="rail-b">
+      <div class="ri"><span class="ic">▤</span>日誌</div>
+      <div class="ri on"><span class="ic">◈</span>營運</div>
+      <div class="ri on"><span class="ic">▣</span>專案</div>
+      <div class="ri"><span class="ic">▤</span>金流</div>
+      <div class="ri"><span class="ic">▥</span>容量</div>
+      <div class="ri"><span class="ic">✓</span>承諾</div>
+      <div class="ri"><span class="ic">◔</span>訊號</div>
+    </div>
+    <div class="rail-f">舊模組移出 <code>WB[]</code>，但 <code>VIEWS.timeline/desk</code> 保留一個版本在 repo，flag 可召回。</div>
+  </div>
+  <div class="rail">
+    <div class="rail-h"><b>分頁對照</b><span class="w">舊 → 新</span></div>
+    <div class="rail-b" style="font-size:11px;line-height:1.9;color:var(--dim);padding:9px 11px">
+      <b style="color:#96e4d4">時間線</b><br>
+      全部／三層 → <b style="color:var(--text)">營運 · 日曆</b>（左欄軌道篩選）<br>
+      日曆視圖 → 營運 · 日曆<br><br>
+      <b style="color:#bcd2ff">工作台</b><br>
+      時序 → <b style="color:var(--text)">營運 · 今天</b><br>
+      流程健康 → <b style="color:var(--text)">容量 · 流量指標</b>（圖表重複，合併）<br>
+      目標對齊 → <b style="color:var(--text)">專案 · 總覽</b>（頂部區塊）<br><br>
+      <b style="color:#bcd2ff">專案</b><br>
+      總覽／工作／對話／Evidence／財務 → 原樣保留<br>
+      ＋ 新增 <b style="color:var(--text)">里程碑</b> 分頁
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <h4>最終的模組與分頁</h4>
+  <table>
+    <thead><tr><th style="width:110px">模組</th><th style="width:80px">情境句</th><th>分頁</th></tr></thead>
+    <tbody>
+      <tr><td><b>營運</b></td><td>這段時間長什麼樣子</td><td><b>今天</b>（原工作台三段式時序欄，卡片加軌道標籤）· <b>日曆</b> · <b>熱力</b> · <b>甘特</b> · <b>清單</b></td></tr>
+      <tr><td><b>專案</b></td><td>這個案子怎麼推、怎麼收尾</td><td><b>總覽</b>（＋目標對齊）· <b>里程碑</b>（新，四層樹）· <b>工作</b>（看板）· <b>對話</b> · <b>Evidence Repo</b> · <b>財務</b></td></tr>
+      <tr><td>容量</td><td>吃得下嗎</td><td>週配置 · <b>流量指標</b>（＋Aging／CFD／散布圖）· 預測 · 出勤紀錄</td></tr>
+    </tbody>
+  </table>
+  <p style="margin:9px 0 0;font-size:11.5px">注意「專案」分頁從 5 變 6 —— 而 <code>source-patches.mjs</code> 裡有一批<b>寫死的分頁索引修正</b>（<code>setTab(3)</code>、<code>nav('project',4)</code>）。新增分頁必須同步更新這些，否則專案模組的跨頁連結會跳錯頁。這是很容易漏掉的一處。</p>
+</div>
+
+<!-- ══════════════ 5 ══════════════ -->
+<h2 id="s5"><span class="n">5</span>逐筆資料分流：現有 8 筆事件實際會去哪</h2>
+<p class="lead">這是整個轉移最需要人工判斷的地方。<code>DB.events</code> 的 <code>layer</code> 只有三個值，但同一個 <code>layer=行政</code> 裡面混著<b>一次性事件</b>（Lily 到職）與<b>週期性義務</b>（發薪日、勞健保）—— 這兩種在新模型裡是完全不同的東西。下面是 showcase 那 8 筆的實際判定。</p>
+
+<table>
+  <thead><tr><th style="width:150px">現有事件</th><th class="m" style="width:80px">日期</th><th style="width:60px">layer</th><th style="width:100px">判定</th><th>理由與帶過去的欄位</th></tr></thead>
+  <tbody>
+    <tr><td><b>會計 SSOT 會面</b></td><td class="m">09-16</td><td>專案</td><td><span class="tag a">Occasion</span> 客戶會議</td><td>一次性會面，非交付點。<code>link=PRJ-2026-011</code> → <code>projectId</code>；<code>star</code> → <code>star</code></td></tr>
+    <tr class="hl"><td><b>月營運會議</b></td><td class="m">09-18</td><td>日常</td><td><span class="tag r">Rhythm</span> 公司節奏</td><td><b>人工判定為重複</b>。<code>FREQ=MONTHLY</code>，<code>dtstart=2026-09-18</code>。原本只有一筆是因為舊模型記不了重複</td></tr>
+    <tr><td><b>柏翰案驗收到期</b></td><td class="m">09-28</td><td>專案</td><td><span class="tag p">Milestone</span></td><td>對外交付點。<code>derived='契約 §13.2'</code> 必須保留 → 新欄位 <code>derivedFrom</code>，且不可刪</td></tr>
+    <tr class="hl"><td><b>發薪日</b></td><td class="m">10-01</td><td>行政</td><td><span class="tag r">Rhythm</span> <span class="tag w">kind=admin</span></td><td><b>週期性行政義務</b>，不是會議。逼出模型修正（見下）</td></tr>
+    <tr><td><b>Lily 到職</b></td><td class="m">10-01</td><td>行政</td><td><span class="tag a">Occasion</span> 行政事務</td><td>一次性。<code>derived='契約 §1.2'</code></td></tr>
+    <tr class="hl"><td><b>勞健保繳費</b></td><td class="m">10-15</td><td>行政</td><td><span class="tag r">Rhythm</span> <span class="tag w">kind=admin</span></td><td>每月。<code>derived='法定'</code></td></tr>
+    <tr><td><b>公司學習日</b></td><td class="m">10-20</td><td>日常</td><td><span class="tag r">Rhythm</span> 公司節奏</td><td>你在需求裡說學習日是個人節奏，但 seed 寫「<b>公司</b>學習日」 → 遷移時要問一次：<code>scope=company</code> 或 <code>personal</code></td></tr>
+    <tr><td><b>30 日階段對話</b></td><td class="m">10-30</td><td>行政</td><td><span class="tag a">Occasion</span> ＋ <span class="tag n">承諾</span></td><td><code>derived='契約 §22.3'</code>，且「須留下書面紀錄」→ <code>expectMedia:['note']</code></td></tr>
+  </tbody>
+</table>
+
+<div class="grid g2" style="margin-top:14px">
+  <div class="card warn">
+    <h4>真實資料逼出的模型修正 1 · <code>Rhythm.kind</code></h4>
+    <p>發薪日與勞健保是<b>週期性的，但不是節奏</b> —— 沒有人參加、不需要質性紀錄、也不該進「履行率 heatmap」（沒繳勞健保不是「節奏斷層」，是違法）。</p>
+    <div class="diff">
+      <div class="hd">Rhythm</div>
+      <div class="ctx">  rrule / dtstart / timezone</div>
+      <div class="add">+ kind: ritual | admin</div>
+      <div class="ctx">  scope: company | personal   // ritual 才有意義</div>
+      <div class="ctx">  expectMedia: []             // admin 通常為空</div>
+    </div>
+    <ul style="margin-top:8px">
+      <li><code>kind=ritual</code>：standup／1:1／回顧／學習日 → 進履行 heatmap</li>
+      <li><code>kind=admin</code>：發薪／勞健保／報稅 → 只進日曆與提醒，<b>不算履行率</b>，heatmap 走「行政佔用」那一列</li>
+    </ul>
+  </div>
+  <div class="card warn">
+    <h4>真實資料逼出的模型修正 2 · <code>derivedFrom</code> 要跨三軌</h4>
+    <p>現在 <code>derived</code> 只在 <code>events</code> 上，而且 <code>formEvent()</code> 有硬規則：<b>由條文推導的事件不可編輯或刪除，只能標已履行</b>。8 筆裡有 <b>5 筆</b>帶 derived —— 遷移後這 5 筆會散到三個不同的軌道。</p>
+    <div class="diff">
+      <div class="hd">三軌共用欄位</div>
+      <div class="add">+ derivedFrom: String?   // '契約 §13.2' / '法定'</div>
+      <div class="add">+ remind: String         // 前 1 日 / 前 7/3/1 日 …</div>
+      <div class="ctx">  → editable() 判定要同步擴充到三軌</div>
+    </div>
+    <p style="margin-top:8px">現有的 <code>editable()</code>／<code>deny()</code> 權限守衛（<code>source-patches.mjs</code> 裡對 <code>formEvent</code>／<code>delEvent</code> 的 guard）必須複製到 <code>formMilestone</code>／<code>formOccasion</code>／<code>formRhythm</code>，否則<b>轉移會意外打開一個權限缺口</b>：本來刪不掉的合約事件，遷移後變成可刪。</p>
+  </div>
+</div>
+
+<h3>issues → task：一對一，但多一層待補</h3>
+<table>
+  <thead><tr><th style="width:150px">現有欄位</th><th style="width:150px">新欄位</th><th>處理</th></tr></thead>
+  <tbody>
+    <tr><td class="m">id / t / owner / size</td><td class="m">id / title / ownerId / size</td><td>直接對應</td></tr>
+    <tr><td class="m">st（Todo/Doing/Review/Done）</td><td class="m">state（todo/doing/review/done）</td><td>直接對應；看板拖拉邏輯不變</td></tr>
+    <tr><td class="m">p（專案 id）</td><td class="m">projectId</td><td>直接對應</td></tr>
+    <tr><td class="m">due / done / started / created</td><td class="m">dueOn / doneAt / startedAt / createdAt</td><td>直接對應。<b><code>dueOn</code> 有值才進 <code>time_spine</code></b></td></tr>
+    <tr class="hl"><td class="m">—</td><td class="m">objectiveId</td><td><b>允許為 null</b>。遷移時全部留空，之後在專案模組的里程碑分頁用拖拉補掛。不要為了填滿階層而自動生成假目標</td></tr>
+    <tr><td class="m">sub[] / rel[] / cf{} / ev / blocker / exp</td><td class="m">原樣保留</td><td>這些是 v5 既有的豐富欄位，新模組不動它們，抽屜照舊</td></tr>
+  </tbody>
+</table>
+
+<h3>projects：不動，只加一層</h3>
+<p class="lead" style="margin-top:6px"><code>DB.projects</code> 的 <code>delivery[]</code>（字串陣列，例如「全公司 28 帳號導入完成」）其實就是<b>里程碑的前身</b>。遷移腳本把每個 <code>delivery</code> 字串轉成一個 <code>Milestone</code>，<b>日期留空並標記為待補</b> —— 讓宇星在專案模組裡一個一個填日期，而不是猜。填完日期它們才會出現在日曆上。</p>
+
+<!-- ══════════════ 6 ══════════════ -->
+<h2 id="s6"><span class="n">6</span>五步轉移</h2>
+<div class="steps">
+  <div class="step">
+    <h4>抽出 <code>spine()</code>，三個舊模組改成呼叫它</h4>
+    <div class="when">約 3–4 天 · 畫面零變化 · fidelity gate 全綠</div>
+    <p>新增 <code>operating-spine.source.js</code>，把第 2 節那三條暗縫收成一個函式。<code>VIEWS.timeline</code>、<code>calendarView()</code>、專案總覽的「關鍵時間」panel 三處改成讀 <code>spine()</code>。</p>
+    <ul>
+      <li>此時 <code>spine()</code> 還是直接從 <code>DB.events/issues</code> 推導，<b>沒有新資料結構</b></li>
+      <li>驗收：<code>pnpm ui:yuanzhan:verify</code> 全綠、30 張截圖與基準一致</li>
+      <li>價值：之後任何視圖只要接 <code>spine()</code> 就自動拿到三軌資料</li>
+    </ul>
+  </div>
+  <div class="step">
+    <h4>記憶體 store 長出三軌，遷移腳本跑 dry-run</h4>
+    <div class="when">約 1 週 · 畫面仍零變化</div>
+    <p>在 <code>v5-seed.js</code> 旁新增 <code>DB.rhythms</code> / <code>DB.sessions</code> / <code>DB.occasions</code> / <code>DB.milestones</code> / <code>DB.objectives</code>，並寫 <code>scripts/migrate-v5-events-to-tracks.mjs</code>。</p>
+    <ul>
+      <li>腳本<b>先輸出第 5 節那張分流表</b>給宇星確認，確認後才寫入 seed</li>
+      <li><code>spine()</code> 改成讀三軌（含 RRULE 展開），但舊模組看到的結果與 T1 一致 —— 這是回歸測試的斷言</li>
+      <li>empty 模式：三軌都是空陣列，<code>spine()</code> 回空，不自動生成任何資料（<code>ARC-040</code> 要求）</li>
+    </ul>
+  </div>
+  <div class="step">
+    <h4>新增「營運」模組，與舊模組並存</h4>
+    <div class="when">約 1.5 週 · flag 預設開、可關</div>
+    <p><code>operating-canvas.source.js</code>：改寫 <code>WB[]</code> 插入 <code>operating</code>、把 <code>timeline</code>／<code>desk</code> 移到最後並在 <code>nm</code> 後加「（舊版）」；定義 <code>VIEWS.operating</code> 五個分頁。</p>
+    <div class="diff">
+      <div class="hd">operating-canvas.source.js</div>
+      <div class="ctx">const LEGACY = settingValue('org.operatingModule') === 'legacy';</div>
+      <div class="add">if (!LEGACY) {</div>
+      <div class="add">  const i = WB.findIndex(w =&gt; w.id === 'timeline');</div>
+      <div class="add">  WB.splice(i, 0, { id:'operating', nm:'營運', ic:'timeline',</div>
+      <div class="add">    scn:'這段時間長什麼樣子、有沒有撞在一起',</div>
+      <div class="add">    rule:'主操作面：左軌道 / 中畫布 / 右 inspector',</div>
+      <div class="add">    tabs:['今天','日曆','熱力','甘特','清單'] });</div>
+      <div class="add">  ['timeline','desk'].forEach(id =&gt; {</div>
+      <div class="add">    const w = WB.find(x =&gt; x.id === id); w.nm += '（舊版）';</div>
+      <div class="add">    WB.splice(WB.indexOf(w), 1); WB.push(w);</div>
+      <div class="add">  });</div>
+      <div class="add">}</div>
+    </div>
+    <ul style="margin-top:8px">
+      <li>CRUD 一律走既有的 <code>openForm()</code> + <code>commit()</code>，<b>不自己造表單與 undo</b></li>
+      <li>heatmap 用既有的 <code>vHeat()</code>；甘特是唯一要新寫的視覺元件</li>
+      <li>fidelity 套件分叉：<code>verify-yuanzhan-v5</code> 在 flag=legacy 下跑，新增 <code>verify-operating-canvas</code></li>
+    </ul>
+  </div>
+  <div class="step">
+    <h4>專案模組長出里程碑分頁，工作台三個分頁各自歸位</h4>
+    <div class="when">約 1.5 週</div>
+    <ul>
+      <li>專案新增「里程碑」分頁（四層樹）→ <b>同步更新 <code>source-patches.mjs</code> 的分頁索引修正</b></li>
+      <li>「流程健康」的 vAging／vCFD／vScatter 搬到容量 · 流量指標</li>
+      <li>「目標對齊」搬到專案 · 總覽</li>
+      <li>舊模組移出 <code>WB[]</code>，更新 <code>reference/workspaces.json</code> 與基準截圖，封存舊的到 <code>docs/06_audits-and-reports/</code></li>
+    </ul>
+  </div>
+  <div class="step">
+    <h4>落到 Postgres</h4>
+    <div class="when">另一條路線，與 T1–T4 平行或之後 · 時程另計</div>
+    <p>此時 UI 的三軌形狀已經被真實使用打磨過，再落 schema 風險最低。</p>
+    <ul>
+      <li>新增 <code>Rhythm</code>／<code>RhythmSession</code>／<code>Occasion</code>／<code>Objective</code>／<code>TimeSpine</code>（見 PLN-072 §3，並依關卡 3 修正為 <code>Project → Phase → Milestone → Objective → Task</code>）</li>
+      <li><code>ProjectTask.dueAt</code> 已存在，<code>ProjectMilestone.date</code> 已存在 —— 這兩個可以最先接真實資料</li>
+      <li>服務層單一 writer 維護 <code>TimeSpine</code>，<code>scripts/reconcile-time-spine.ts</code> 每晚對帳</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════ 7 ══════════════ -->
+<h2 id="s7"><span class="n">7</span>回滾設計：用既有的設定目錄，不要用 env</h2>
+<p class="lead">專案已經有一套 <code>operating-settings.catalog.ts</code> 的設定機制（<code>org.dataMode</code> 就住在那裡），設定值會被 server 讀出來放進 <code>V5State.settings</code>，runtime 用 <code>settingValue()</code> 取用。新模組的開關<b>放在同一個目錄</b>，不要另開環境變數 —— 這樣你在畫面上就能切，不用重啟 process。</p>
+<div class="diff">
+  <div class="hd">src/lib/settings/operating-settings.catalog.ts</div>
+  <div class="ctx">  { key: "org.dataMode", ... },</div>
+  <div class="add">+ { key: "org.operatingModule", section: "org", kind: "enum",</div>
+  <div class="add">+   label: "營運模組版本",</div>
+  <div class="add">+   help: "canvas＝新的營運畫布（日曆／熱力／甘特）；legacy＝舊的時間線與工作台。切換後重新整理。",</div>
+  <div class="add">+   defaultValue: "canvas",</div>
+  <div class="add">+   options: [ { value:"canvas", label:"營運畫布（新）" },</div>
+  <div class="add">+             { value:"legacy", label:"時間線＋工作台（舊）" } ] },</div>
+</div>
+<div class="note">
+  <h4>回滾的三個層級</h4>
+  <ul>
+    <li><b>畫面層（秒級）</b>：設定切 <code>legacy</code>，舊模組回到 <code>WB[]</code>，新模組隱藏。資料不動 —— 因為兩邊讀同一個 <code>spine()</code>。</li>
+    <li><b>資料層（T2 之前可逆）</b>：遷移腳本產生的三軌資料與原 <code>DB.events</code> <b>並存不刪</b>，直到 T4 確認後才移除舊陣列。舊模組在 legacy 模式下仍讀得到原本的 events。</li>
+    <li><b>程式層</b>：新模組全在一個擴充檔裡，<code>git revert</code> 一個檔案就回到 T1 狀態，不影響其他 5 個擴充檔。</li>
+  </ul>
+</div>
+
+<!-- ══════════════ 8 ══════════════ -->
+<h2 id="s8"><span class="n">8</span>風險</h2>
+<table>
+  <thead><tr><th style="width:190px">風險</th><th style="width:70px">機率</th><th>對策</th></tr></thead>
+  <tbody>
+    <tr><td><b>分頁索引寫死</b><br>專案從 5 分頁變 6，<code>source-patches.mjs</code> 有一批 <code>setTab(n)</code>／<code>nav('project',4)</code> 的字串替換</td><td><span class="tag rd">高</span></td><td>T4 的第一個動作就是改這些；patch 比對不到會 throw，所以<b>不會靜默出錯</b>，但會擋住 build —— 要預期第一次跑 generate 會紅</td></tr>
+    <tr><td><b>權限守衛沒跟著搬</b><br><code>derived</code> 事件本來不可刪，遷移後散到三軌</td><td><span class="tag rd">高</span></td><td>三軌的 form／del 都要加 <code>editable()</code> guard；寫一條回歸測試：合約推導的里程碑<b>不能</b>出現刪除鍵</td></tr>
+    <tr><td><b>fidelity gate 長期紅燈</b><br>T3 之後舊基準與新畫面不一致</td><td><span class="tag w">中</span></td><td>分叉成兩套；CI 上 <code>verify-yuanzhan-v5</code> 改跑 legacy 模式，新套件獨立基準</td></tr>
+    <tr><td><b>RRULE 判定錯誤</b><br>把一次性事件誤判成重複（或反之）</td><td><span class="tag w">中</span></td><td>遷移腳本只產報告不寫入；8 筆的量人工看得完。之後新增的事件由使用者在表單直接選軌道</td></tr>
+    <tr><td><b>empty 模式破功</b><br>新模組在空資料下顯示假資料或報錯</td><td><span class="tag w">中</span></td><td><code>ARC-040</code> 已有契約；新模組每個分頁都要有 <code>emptyPanel()</code>；verify 兩種模式都跑</td></tr>
+    <tr><td><b>甘特在 Shadow DOM 裡的量測</b><br>百分比定位需要容器寬度</td><td><span class="tag n">低</span></td><td>用純 CSS 百分比定位（原型已驗證），不做 JS 量測，避免 ResizeObserver 生命週期問題</td></tr>
+    <tr><td><b>兩個資料面長期分裂</b><br>UI 三軌跑了三個月，Prisma 那側還沒接</td><td><span class="tag w">中</span></td><td>T5 不設死期但設<b>檢查點</b>：T4 完成後的第一個三迴圈研究複查，必須回答「要不要接 DB」</td></tr>
+  </tbody>
+</table>
+
+<div class="foot">
+  <b>本檔案</b>是轉移方案的視覺說明；對應的工序、檔案變更清單與任務拆解在 <code>docs/05_execution-plans/PLN-073_operating-module-transfer-plan.md</code>。<br>
+  <b>可操作原型</b>：<code>operating-canvas-prototype.html</code>（新模組長什麼樣、怎麼互動）。<br>
+  <b>模型與方向</b>：<code>operating-module-unification-proposals.html</code>（三案比較）、<code>PLN-072</code>（B×C 的實作方案）。<br>
+  <b>程式碼引用</b>：<code>src/components/yuanzhan/v5/runtime.js</code>（generated）、<code>source-patches.mjs</code>、<code>scripts/generate-yuanzhan-v5.mjs</code>、<code>scripts/verify-yuanzhan-v5.cjs</code>、<code>src/lib/ui-data/yuanzhan/v5-seed.js</code>、<code>prisma/schema.prisma</code>、<code>ARC-040</code>。
+</div>
+
+</div>
+</body>
+</html>

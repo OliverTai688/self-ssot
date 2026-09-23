@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日誌回覆流程整合版</title>
+<style>
+:root{
+  --bg:#07090d; --panel:#0e1117; --panel2:#131720; --line:#1f2430; --line2:#2a3040;
+  --text:#e6e8ee; --dim:#8a91a3; --faint:#5b6273; --accent:#7c8cff;
+  --gold:#e0b25a; --green:#4fc38a; --red:#ff4d4f; --redbg:#2a0c0e; --blue:#4ea1ff; --pink:#e58bc0; --orange:#f0924f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;font-size:14px}
+.wrap{max-width:1360px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:22px;margin:0 0 6px}
+h2.s{font-size:16px;margin:34px 0 10px;display:flex;gap:10px;align-items:center}
+h2.s span{font-size:11px;color:var(--faint);font-weight:400;border:1px solid var(--line2);border-radius:20px;padding:2px 8px}
+.sub{color:var(--dim);margin:0 0 18px;line-height:1.6}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.6;font-size:13px;color:var(--dim)}
+.box b{color:var(--text)}
+.box h4{margin:0 0 4px;color:var(--text);font-size:14px}
+.tag{font-size:10px;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:2px}
+.t-main{background:#1b2240;color:var(--accent)}.t-opt{background:#231424;color:var(--pink)}.t-page{background:#0f2019;color:var(--green)}
+/* SLA bar */
+.sla{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.slabar{display:flex;height:34px;border-radius:8px;overflow:hidden;font-size:12px;margin:10px 0 6px}
+.slabar div{display:flex;align-items:center;padding:0 10px}
+.z1{flex:16;background:#12202b;color:var(--blue)}
+.z2{flex:8;background:#2a1a0c;color:var(--orange)}
+.z3{flex:8;background:var(--red);color:#fff;font-weight:700}
+.ticks{display:flex;font-size:11px;color:var(--faint);font-family:ui-monospace,monospace}
+.ticks span{flex:8}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--faint);font-weight:500;font-size:12px}
+td{color:var(--dim)}td b{color:var(--text)}
+/* app */
+.frame{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a0c11;box-shadow:0 20px 50px #0008}
+.scroll{overflow-x:auto}
+.app{min-width:1100px;display:flex;flex-direction:column;position:relative}
+.topbar{height:42px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:#0c0f15}
+.logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#8ea0ff,#b39cff)}
+.brand{font-weight:600}
+.user{margin-left:auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:20px;padding:3px 10px 3px 4px;font-size:12px}
+.av{width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;background:#2b3350;flex-shrink:0}
+.av.l{background:#4a2f45}
+.av.xs{width:16px;height:16px;font-size:8px}
+.alarm{background:var(--red);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 18px;font-size:15px;font-weight:700;animation:pulse 1.6s ease-in-out infinite}
+.alarm .big{font-size:22px}
+.alarm .btn{background:#fff;color:#b3181b;border:0;font-weight:700}
+.alarm.hide{display:none}
+@keyframes pulse{50%{background:#d9363a}}
+.body{display:flex;min-height:560px}
+.rail{width:56px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;background:#0b0d12}
+.ri{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;color:var(--faint);font-size:15px;position:relative}
+.ri.on{background:#171c2e;color:var(--accent)}
+.ri.red{background:var(--redbg);color:var(--red)}
+.badge{position:absolute;top:0;right:-2px;min-width:16px;height:16px;border-radius:8px;background:var(--red);color:#fff;font-size:10px;display:grid;place-items:center;padding:0 4px;font-weight:700}
+.muted{color:var(--faint)}.dim{color:var(--dim)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.dochead{padding:16px 28px 10px;display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--line)}
+.dochead h3{margin:0;font-size:22px}
+.doc{flex:1;padding:14px 28px;position:relative}
+.line{padding:5px 8px;line-height:1.7;display:flex;gap:8px;align-items:flex-start;border-radius:6px;position:relative}
+.line.ask{border-left:3px solid var(--pink);background:#15101a}
+.line.late{border-left:4px solid var(--red);background:var(--redbg)}
+.line.today{border-left:3px solid var(--orange);background:#17120c}
+.bul{color:var(--faint);width:12px;flex-shrink:0}
+.caret{display:inline-block;width:2px;height:16px;background:var(--accent);vertical-align:middle;animation:bl 1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:20px;border:1px solid var(--line2);color:var(--dim);white-space:nowrap;vertical-align:1px}
+.p-today{border-color:#5a3a22;color:var(--orange);background:#211509}
+.p-ask{border-color:#4f2d45;color:var(--pink);background:#1e1019}
+.p-dec{border-color:#4f2d45;color:#fff;background:#6a2d5c}
+.p-ok{border-color:#2c3a5c;color:var(--blue);background:#0f1726}
+.p-warn{border-color:#6a4520;color:var(--orange);background:#2a1a0c}
+.p-late{border-color:var(--red);color:#fff;background:var(--red);font-weight:700}
+.p-done{border-color:#2d4d3d;color:var(--green);background:#0f1f18}
+.btn{font:inherit;font-size:12px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:7px;padding:5px 10px;white-space:nowrap;cursor:default}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#0a0c14;font-weight:600}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+.btn.sm{padding:3px 8px;font-size:11px}
+.popup{position:absolute;background:#121622;border:1px solid var(--line2);border-radius:10px;box-shadow:0 12px 30px #000a;padding:6px;font-size:12px;z-index:3;width:290px}
+.popup .it{padding:7px 8px;border-radius:6px;display:flex;justify-content:space-between;gap:10px;color:var(--dim)}
+.popup .it.on{background:#1b2135;color:var(--text)}
+.popup .grp{font-size:10px;color:var(--faint);padding:6px 8px 2px}
+.popup small{display:block;color:var(--faint);font-size:10px}
+kbd{font-family:ui-monospace,monospace;font-size:10px;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:var(--dim);background:#0b0e14;height:fit-content}
+.thread{margin:2px 0 8px 28px;border-left:2px solid var(--pink);padding:6px 12px;background:#150e14;border-radius:0 8px 8px 0;font-size:12px}
+.thread.late{border-color:var(--red);background:#1c0a0c}
+.msg{display:flex;gap:8px;margin:4px 0;line-height:1.5}
+.deccard{margin:6px 0 10px 28px;background:var(--panel);border:1px solid #6a2d5c;border-radius:10px;padding:12px;font-size:12px;max-width:520px}
+.opts{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.opt{border:1px solid var(--line2);border-radius:8px;padding:6px 10px;color:var(--dim)}
+.side{width:300px;border-left:1px solid var(--line);background:#0c0f15;padding:14px}
+.sec-t{font-size:11px;letter-spacing:.06em;color:var(--faint);margin:0 0 8px;display:flex;justify-content:space-between}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;font-size:12px}
+.card .t{font-size:13px;margin:4px 0 6px;color:var(--text)}
+.card .m{display:flex;gap:6px;align-items:center;color:var(--faint);font-size:11px;flex-wrap:wrap}
+.card.late{border:2px solid var(--red);background:var(--redbg)}
+.card.warn{border-left:3px solid var(--orange)}
+.cd{font-family:ui-monospace,monospace;font-size:12px}
+/* signal page */
+.sim{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px dashed var(--line2);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px;flex-wrap:wrap}
+.sim input{flex:1;min-width:200px;accent-color:var(--accent)}
+.sighead{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.sighead h3{margin:0;font-size:20px}
+.clock{font-family:ui-monospace,monospace;color:var(--gold);font-size:13px}
+.latezone{margin:14px 18px 0;border:2px solid var(--red);border-radius:12px;background:var(--redbg);padding:12px}
+.latezone h4{margin:0 0 10px;color:var(--red);font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.latezone .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.latezone.empty{border:1px solid #2d4d3d;background:#0c1712}
+.latezone.empty h4{color:var(--green)}
+.cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:14px 18px}
+.col{background:#0c0f15;border:1px solid var(--line);border-radius:10px;padding:10px;min-height:200px}
+.col h5{margin:0 0 10px;font-size:13px;display:flex;justify-content:space-between}
+.eod{border-top:1px solid var(--line);padding:10px 18px;display:flex;align-items:center;gap:12px;font-size:12px;background:#0c0f15}
+.eod.block{background:var(--redbg);color:#ffb3b3}
+.hint{font-size:12px;color:var(--faint);margin:8px 2px 0}
+@media (max-width:760px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>日誌回覆流程 · 整合版</h1>
+  <p class="sub">整合方式：以 <b>A 行內標記</b> 為主要操作，<b>B 決策卡</b> 是需要做決定時才選用的工具，<b>C 訊號頁</b> 讓你在下班前看到還有哪些要回覆。另外加上一條規則：<b style="color:var(--red)">所有請求都要在 24 小時內得到回覆，超過就亮大紅色提醒，追蹤到有人回覆為止。</b></p>
+
+  <div class="grid3">
+    <div class="box"><h4><span class="tag t-main">主要</span>A · 行內標記</h4>在日誌裡打 <code>?@Lily</code> 發出請求，打 <code>!今天</code> 標成今日議題。回覆直接掛在那一行下面。</div>
+    <div class="box"><h4><span class="tag t-opt">選用</span>B · 決策卡</h4>打 <code>?@Lily</code> 時多一個選項「◆ 做決定」，會變成帶選項的卡片，對方點一下就能回答。它一樣是請求，同樣適用 24 小時規則。</div>
+    <div class="box"><h4><span class="tag t-page">頁面</span>C · 訊號頁</h4>最上方是逾期區，下面分成「待我回覆」和「等對方回覆」，每張卡都有倒數。收工前要先處理完逾期項目。</div>
+  </div>
+
+  <!-- SLA -->
+  <h2 class="s">① 24 小時回覆規則 <span>適用所有請求與決策卡</span></h2>
+  <div class="sla">
+    <div class="dim" style="font-size:13px">計時從對方<b style="color:var(--text)">收到請求</b>開始。對方回了任何一則訊息（文字回覆、選了決策卡的選項，或按「收到，晚點處理」）就算已回覆，計時停止。</div>
+    <div class="slabar"><div class="z1">正常 · 藍色倒數</div><div class="z2">快到期 · 橘色</div><div class="z3">⚠ 逾期 · 大紅提醒</div></div>
+    <div class="ticks"><span>0h 送出</span><span></span><span>16h</span><span>24h</span></div>
+    <table>
+      <tr><th>狀態</th><th>時間</th><th>回覆方（被問的人）看到</th><th>發問方看到</th></tr>
+      <tr><td><span class="pill p-ok">⏱ 剩 18h</span></td><td>0–16h</td><td>訊號頁「待我回覆」出現卡片，側欄紅點</td><td>「等對方回覆」卡片，顯示已讀或未讀</td></tr>
+      <tr><td><span class="pill p-warn">⏱ 剩 5h</span></td><td>16–24h</td><td>卡片變橘色，推播「還有 N 小時」</td><td>卡片變橘色，可以按「🔔 輕推一下」</td></tr>
+      <tr><td><span class="pill p-late">⚠ 逾期 3h</span></td><td>&gt; 24h</td><td><b style="color:var(--red)">每一頁頂部都出現紅色橫幅</b>，側欄的訊號圖示變紅，日誌那一行也變紅</td><td><b style="color:var(--red)">同樣出現紅色橫幅</b>，提示「要追蹤回覆」，附「追蹤」按鈕</td></tr>
+      <tr><td><span class="pill p-done">✓ 已回覆</span></td><td>任何時間</td><td colspan="2">紅色提醒立刻消失，卡片移到「今天完成」，日誌那一行顯示回覆摘要</td></tr>
+    </table>
+    <p class="hint">下班前的規則：按「我收工了」時，如果還有逾期項目，收工檢查會把它們排在最前面，必須逐項回覆、追蹤，或寫下延後的理由，才能完成收工。延後只能延一次，原本的逾期紀錄會保留。</p>
+  </div>
+
+  <!-- Journal -->
+  <h2 class="s">② 日誌頁（A 為主，B 在選單裡可選用）<span>有逾期時的畫面</span></h2>
+  <div class="frame scroll"><div class="app">
+    <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS · 日誌</span><div class="user"><span class="av">宇</span>戴宇星</div></div>
+    <div class="alarm"><span class="big">⚠</span><span>1 件請求已逾期：Lily 問「週一拍攝要不要加一台燈？」你已經超過 26 小時沒回</span><span style="margin-left:auto;display:flex;gap:8px"><span class="btn">跳到那一行</span><span class="btn">現在回覆</span></span></div>
+    <div class="body">
+      <div class="rail"><div class="ri on">✎</div><div class="ri">▦</div><div class="ri">✓</div><div class="ri red">◔<span class="badge">3</span></div></div>
+      <div class="main">
+        <div class="dochead"><h3>9 月 12 日 · 週六</h3><span class="muted">宇星的日誌</span></div>
+        <div class="doc">
+          <div class="line"><span class="bul">•</span><span>早上跟 Lily 對過展覽進度</span></div>
+          <div class="line today"><span class="bul">•</span><span>燈具廠商還沒回，要追 <span class="pill p-today">● 今日議題</span></span></div>
+          <div class="line late"><span class="bul">↘</span><span><span class="av l xs"></span> Lily 問：週一拍攝要不要加一台燈？ <span class="pill p-late">⚠ 逾期 2h · 需要你回覆</span></span></div>
+          <div class="thread late"><div class="msg"><span class="btn sm red">回覆</span><span class="btn sm">收到，晚點處理（停止計時）</span></div></div>
+          <div class="line ask"><span class="bul">•</span><span>秋季展場地要選 A 還是 B？ <span class="pill p-dec">◆ 決策</span> <span class="pill p-done">✓ Lily：B · 華山 2 館</span></span></div>
+          <div class="line ask"><span class="bul">•</span><span>燈具預算上限可以到 15,000 嗎？ <span class="pill p-ask">? 請 Lily 回覆</span> <span class="pill p-warn">⏱ 剩 4h · 已讀</span></span></div>
+          <div class="line" style="margin-top:4px"><span class="bul">•</span><span>下週的拍攝腳本誰來寫 <span style="color:var(--pink)">?@Lily</span><span class="caret"></span></span>
+            <div class="popup" style="top:32px;left:60px">
+              <div class="grp">發給 Lily</div>
+              <div class="it on"><span>? 請回覆（一般）<small>回覆掛在這行下面</small></span><kbd>↵</kbd></div>
+              <div class="it"><span>◆ 做決定（決策卡）<small>加選項，對方點選即回覆</small></span><kbd>⇧↵</kbd></div>
+              <div class="grp">都會在 24 小時內提醒回覆</div>
+            </div>
+          </div>
+          <div style="height:120px"></div>
+          <div class="deccard">
+            <div class="m" style="display:flex;justify-content:space-between;color:var(--faint)"><span><span class="pill p-dec">◆ 決策卡</span> 給 <b style="color:var(--pink)">Lily</b>（選 ⇧↵ 之後展開）</span><span>24h 回覆</span></div>
+            <div style="font-size:14px;margin-top:8px">下週的拍攝腳本誰來寫？</div>
+            <div class="opts"><span class="opt">宇星</span><span class="opt">Lily</span><span class="opt">一起寫</span><span class="opt" style="border-style:dashed">＋ 選項</span></div>
+            <div style="display:flex;justify-content:flex-end;gap:6px"><span class="btn">改回一般回覆</span><span class="btn pri">送出</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="side">
+        <p class="sec-t"><span style="color:var(--red)">⚠ 逾期</span><span>1</span></p>
+        <div class="card late"><div class="m"><span class="av l xs"></span>Lily → 你</div><div class="t">週一拍攝要不要加一台燈？</div><div class="m"><span class="pill p-late">逾期 2h</span><span class="btn sm red">回覆</span></div></div>
+        <p class="sec-t" style="margin-top:14px"><span>等 Lily 回覆</span><span>1</span></p>
+        <div class="card warn"><div class="t">燈具預算上限 15,000？</div><div class="m"><span class="pill p-warn">剩 4h</span>已讀 <span class="btn sm">🔔 輕推</span></div></div>
+        <p class="sec-t" style="margin-top:14px"><span>今日議題</span><span>1</span></p>
+        <div class="card"><div class="t">燈具廠商還沒回，要追</div></div>
+        <p class="hint">完整清單在訊號頁 →</p>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- Signal page -->
+  <h2 class="s">③ 訊號頁 C（下班前檢查）<span>可以拖動模擬時間</span></h2>
+  <div class="sim">⏩ 模擬時間：<b id="clockLbl" class="clock"></b><input type="range" id="sim" min="0" max="10" step="1" value="0"><span class="dim" id="simTip"></span></div>
+  <div class="frame scroll"><div class="app">
+    <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS · 訊號</span><div class="user"><span class="av">宇</span>戴宇星</div></div>
+    <div class="alarm" id="alarm"><span class="big">⚠</span><span id="alarmTxt"></span><span style="margin-left:auto"><span class="btn">全部處理</span></span></div>
+    <div class="body">
+      <div class="rail"><div class="ri">✎</div><div class="ri">▦</div><div class="ri">✓</div><div class="ri on" id="sigIcon">◔<span class="badge" id="sigBadge"></span></div></div>
+      <div class="main">
+        <div class="sighead"><h3>訊號</h3><span class="clock" id="clock2"></span><span class="dim" style="font-size:12px">下班前還要回覆的所有事</span></div>
+        <div class="latezone" id="lateZone"><h4><span id="lateTitle"></span></h4><div class="list" id="lateList"></div></div>
+        <div class="cols">
+          <div class="col"><h5><span style="color:var(--pink)">? 待我回覆</span><span class="muted" id="nMe"></span></h5><div id="colMe"></div></div>
+          <div class="col"><h5><span style="color:var(--blue)">⏳ 等對方回覆</span><span class="muted" id="nThem"></span></h5><div id="colThem"></div></div>
+          <div class="col" style="opacity:.8"><h5><span style="color:var(--green)">✓ 今天已回覆</span><span class="muted">2</span></h5>
+            <div class="card"><div class="t" style="text-decoration:line-through;color:var(--dim)">秋季展場地選 A/B</div><div class="m"><span class="pill p-dec">◆</span>Lily：B · 花了 2h</div></div>
+            <div class="card"><div class="t" style="text-decoration:line-through;color:var(--dim)">平面圖寄了嗎？</div><div class="m">宇星回覆 · 花了 40m</div></div>
+          </div>
+        </div>
+        <div class="eod" id="eod"></div>
+      </div>
+    </div>
+  </div></div>
+  <p class="hint">拖動上面的滑桿就能看到卡片從藍色變橘色再變紅色；逾期的卡片會移到最上方的紅色區塊，收工按鈕也會被擋住。</p>
+
+  <h2 class="s">④ 實作重點</h2>
+  <div class="grid3">
+    <div class="box"><h4>資料模型</h4><code>Request { id, from, to, sourceLine, kind: ask|decision, options?, sentAt, seenAt?, firstReplyAt?, resolvedAt?, deferReason? }</code><br>逾期條件：<code>!firstReplyAt &amp;&amp; now - sentAt &gt; 24h</code></div>
+    <div class="box"><h4>「回覆」的定義</h4>文字回覆、選了決策卡的選項，或按「收到，晚點處理」都算回覆。回覆後計時停止；議題本身要等對方按「已解決」才算結束。</div>
+    <div class="box"><h4>提醒節奏</h4>16h 推播給回覆方 → 24h 雙方都出現紅色橫幅 → 之後每 4h 再推播一次，直到有人回覆。橫幅可以收合，但每次換頁都會再出現。</div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+const items=[
+  {dir:'me',who:'L',q:'週一拍攝要不要加一台燈？',age:26,kind:'ask',src:'Lily 9/11 · L4'},
+  {dir:'me',who:'L',q:'預算表要用哪一版？',age:14,kind:'decision',src:'Lily 9/12 · L2',opts:['v2','v3']},
+  {dir:'me',who:'L',q:'明天幾點到場地？',age:3,kind:'ask',src:'Lily 9/12 · L6'},
+  {dir:'them',who:'宇',q:'燈具預算上限可以到 15,000 嗎？',age:20,kind:'ask',src:'宇星 9/12 · L5',seen:true},
+  {dir:'them',who:'宇',q:'下週的拍攝腳本誰來寫？',age:1,kind:'decision',src:'宇星 9/12 · L7'},
+  {dir:'them',who:'宇',q:'場地保證金匯了嗎？',age:9,kind:'ask',src:'宇星 9/12 · L3'}
+];
+const baseHour=17;
+const sim=document.getElementById('sim');
+function st(a){return a>=24?'late':a>=16?'warn':'ok'}
+function pill(a){
+  if(a>=24)return `<span class="pill p-late">⚠ 逾期 ${a-24}h</span>`;
+  if(a>=16)return `<span class="pill p-warn">⏱ 剩 ${24-a}h</span>`;
+  return `<span class="pill p-ok">⏱ 剩 ${24-a}h</span>`;
+}
+function card(it,a){
+  const s=st(a), av=it.dir==='me'?'<span class="av l xs"></span>Lily → 你':'你 → <span class="av l xs"></span>Lily';
+  const kind=it.kind==='decision'?'<span class="pill p-dec">◆ 決策</span>':'';
+  let act;
+  if(it.dir==='me') act=it.kind==='decision'?`<div class="opts">${it.opts.map(o=>`<span class="opt">${o}</span>`).join('')}</div>`:`<span class="btn sm ${s==='late'?'red':''}">回覆</span> <span class="btn sm">收到，晚點處理</span>`;
+  else act=`<span class="btn sm ${s==='late'?'red':''}">${s==='late'?'🔴 追蹤回覆':'🔔 輕推'}</span> <span class="muted">${it.seen?'已讀':'未讀'}</span>`;
+  return `<div class="card ${s==='late'?'late':s==='warn'?'warn':''}"><div class="m">${av} ${kind} ${pill(a)}</div><div class="t">${it.q}</div><div class="m">${act}</div><div class="m" style="margin-top:6px;font-family:ui-monospace,monospace">↩ ${it.src}</div></div>`;
+}
+function render(){
+  const off=+sim.value, h=baseHour+off;
+  const lbl=(h>=24?'隔天 ':'今天 ')+String(h%24).padStart(2,'0')+':00';
+  document.getElementById('clockLbl').textContent=lbl;
+  document.getElementById('clock2').textContent='🕔 '+lbl;
+  document.getElementById('simTip').textContent=off===0?'（下班前 1 小時）':`（+${off}h）`;
+  let late=[],me=[],them=[];
+  items.forEach(it=>{const a=it.age+off; const c=card(it,a);
+    if(a>=24)late.push({it,c}); else (it.dir==='me'?me:them).push(c);});
+  const lz=document.getElementById('lateZone');
+  const lateMe=late.filter(x=>x.it.dir==='me').length, lateThem=late.length-lateMe;
+  if(late.length){
+    lz.className='latezone';
+    document.getElementById('lateTitle').textContent=`⚠ 逾期 ${late.length} 件，超過 24 小時沒有回覆`;
+    document.getElementById('lateList').innerHTML=late.map(x=>x.c).join('');
+  }else{
+    lz.className='latezone empty';
+    document.getElementById('lateTitle').textContent='✓ 沒有逾期的請求';
+    document.getElementById('lateList').innerHTML='';
+  }
+  const al=document.getElementById('alarm');
+  al.classList.toggle('hide',!late.length);
+  document.getElementById('alarmTxt').textContent=`${late.length} 件請求已逾期：${lateMe} 件要你回覆，${lateThem} 件要追蹤 Lily`;
+  document.getElementById('colMe').innerHTML=me.join('')||'<p class="muted">沒有了</p>';
+  document.getElementById('colThem').innerHTML=them.join('')||'<p class="muted">沒有了</p>';
+  document.getElementById('nMe').textContent=me.length;
+  document.getElementById('nThem').textContent=them.length;
+  document.getElementById('sigBadge').textContent=items.length;
+  document.getElementById('sigIcon').className='ri '+(late.length?'red':'on');
+  const eod=document.getElementById('eod');
+  const open=items.filter(it=>it.dir==='me').length;
+  if(late.length){
+    eod.className='eod block';
+    eod.innerHTML=`<b>🔒 還不能收工</b><span>必須先處理 ${late.length} 件逾期項目（回覆、追蹤，或寫下延後理由）</span><span class="btn red" style="margin-left:auto">處理逾期 →</span>`;
+  }else{
+    eod.className='eod';
+    eod.innerHTML=`<span>還有 ${open} 件待我回覆，都還在 24 小時內</span><span class="btn pri" style="margin-left:auto">🌙 我收工了</span>`;
+  }
+}
+sim.addEventListener('input',render);
+render();
+});
+</script>
+</body>
+</html>

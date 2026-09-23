@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>元件容器（Standup/1:1/會議記錄/回顧/研究筆記）修復提案</title>
+<style>
+:root{
+  --bg:#07090d; --panel:#0e1117; --panel2:#131720; --line:#1f2430; --line2:#2a3040;
+  --text:#e6e8ee; --dim:#8a91a3; --faint:#5b6273; --accent:#7c8cff; --accent2:#a78bfa;
+  --gold:#e0b25a; --green:#4fc38a; --red:#ef6b6b; --blue:#4ea1ff; --teal:#4fc3b0;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;font-size:14px}
+.wrap{max-width:1360px;margin:0 auto;padding:28px 20px 70px}
+h1{font-size:22px;margin:0 0 6px}
+.sub{color:var(--dim);margin:0 0 18px;line-height:1.7}
+.pain{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:18px}
+.pain div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--dim);font-size:13px;line-height:1.55}
+.pain b{color:var(--text);display:block;margin-bottom:2px}
+
+.diag{background:#161016;border:1px solid #3d2530;border-radius:12px;padding:16px 18px;margin-bottom:22px}
+.diag h3{margin:0 0 8px;color:#f0a6b8;font-size:14px;display:flex;align-items:center;gap:8px}
+.diag h3::before{content:"⚠";font-size:15px}
+.diag p{margin:0 0 10px;color:#d9c3ca;line-height:1.75;font-size:13px}
+.diag code{background:#0d0a0d;border:1px solid #3d2530;border-radius:4px;padding:1px 6px;font-family:var(--mono);font-size:12px;color:#ffb4c8}
+.diag table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px}
+.diag th,.diag td{text-align:left;padding:6px 10px;border-bottom:1px solid #3d2530;color:#d9c3ca}
+.diag th{color:#f0a6b8;font-weight:600}
+.diag td.n{font-family:var(--mono);color:#ffb4c8}
+.diag .cite{margin-top:10px;font-size:12px;color:#a98d95}
+.diag .cite a{color:#e0a6b8}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{background:var(--panel);color:var(--dim);border:1px solid var(--line);padding:9px 14px;border-radius:9px;cursor:pointer;font:inherit}
+.tabs button.on{color:var(--text);border-color:var(--accent);background:#151a2c}
+.tabs small{color:var(--faint);margin-left:6px}
+.proposal{display:none}.proposal.on{display:block}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:14px 0 0}
+.notes div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.65;font-size:13px;color:var(--dim)}
+.notes h4{margin:0 0 4px;color:var(--text);font-size:13px}
+.notes.warn div{border-color:#3d2530;background:#161016}
+.notes.warn h4{color:#f0a6b8}
+.frame{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a0c11;box-shadow:0 20px 50px #0008}
+.scroll{overflow-x:auto}
+.app{min-width:1060px;display:flex;flex-direction:column}
+.topbar{height:40px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:#0c0f15;flex-shrink:0}
+.logo{width:18px;height:18px;border-radius:6px;background:linear-gradient(135deg,#8ea0ff,#b39cff)}
+.brand{font-weight:600;font-size:13px}.ver{color:var(--faint);font-family:var(--mono);font-size:11px}
+.user{margin-left:auto;display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:20px;padding:3px 10px 3px 4px;font-size:12px}
+.av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:10px;background:#2b3350;flex-shrink:0}
+.av.l{background:#4a2f45}
+
+/* ---- .jc 兩人駕駛艙欄位（對應 journal-cockpit.css）---- */
+.jc-body{display:flex;min-height:0}
+.jc{flex:1;display:grid;grid-template-columns:1fr 1fr;min-width:0}
+.jc-col{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);overflow:hidden}
+.jc-head{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12px;color:var(--dim)}
+.jc-head b{color:var(--text);font-weight:600}
+.jc-scroll{flex:1;overflow-y:auto;padding:12px 16px;max-height:520px}
+.jc-scroll.bug{max-height:340px}
+
+/* ---- 真實 class 名稱，樣式值取自 additions.css（.eb-doc-card 家族）---- */
+.eb-doc-card{background:#151a22;border:1px solid var(--line2);border-radius:8px;overflow:hidden;margin:3px 0 10px;transition:border-color .15s}
+.eb-doc-card:hover{border-color:#3a4560}
+.eb-doc-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:35px;padding:5px 11px;background:#151a22;cursor:pointer}
+.eb-doc-card.expanded .eb-doc-bar{background:#1a2030;border-bottom:1px solid var(--line2)}
+.eb-doc-bar-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.eb-doc-bar-title{font-size:13px;font-weight:650;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eb-doc-bar-meta{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.eb-doc-bar-right{display:flex;align-items:center;gap:5px}
+.eb-doc-toggle-btn{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:4px;border:1px solid var(--line2);background:#1a2030;color:var(--dim);font-size:11px;cursor:pointer}
+.eb-doc-arr{width:9px;height:9px;display:inline-block;transition:transform .18s}
+.eb-doc-arr.open{transform:rotate(90deg)}
+.eb-doc-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;border:1px solid var(--line2);background:#1a2030;color:var(--faint);font-size:11px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line2);color:var(--dim);flex-shrink:0}
+.chip.c-p{border-color:#3a3f6c;color:#9aa3ff;background:#141834}
+.chip.c-teal{border-color:#255049;color:#5fd4c1;background:#0e1f1b}
+.chip.c-i{border-color:#254a63;color:#6cb6ff;background:#0e1c28}
+.chip.c-w{border-color:#5a4322;color:#e0b25a;background:#221a0d}
+.chip.c-g{border-color:#3a2f5c;color:#b49bff;background:#18132a}
+
+/* ---- 現況重現：直接沿用原型的 .doc{min-height:360px} ---- */
+.doc-bug{padding:10px 14px 12px;background:#12151d;display:flex;flex-direction:column;gap:0}
+.sec-bug{padding:6px 2px 40px;min-height:360px;border-top:1px dashed #2a3040;position:relative}
+.sec-bug:first-child{border-top:0}
+.sec-bug .sec-t{font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.sec-bug .sec-t::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.8}
+.sec-bug .fill{position:absolute;inset:24px 2px 2px;border:1px dashed #ef6b6b55;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#ef6b6b99;font-size:11px;font-family:var(--mono)}
+.sec-bug .ph{color:var(--faint);font-size:13px}
+
+/* ---- 方案 A / B / C 用的輕量段落 ---- */
+.doc-ok{padding:10px 14px 12px;background:#12151d;display:flex;flex-direction:column;gap:10px}
+.sec-ok{display:flex;flex-direction:column;gap:3px}
+.sec-ok .sec-t{font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px}
+.sec-ok .sec-t::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--accent);opacity:.8}
+.eb{position:relative;display:flex;align-items:flex-start;gap:6px;padding:2px 6px 2px 2px;border-radius:5px}
+.eb-bul{flex:none;width:12px;text-align:center;color:var(--faint);font-size:12px;padding-top:3px}
+.eb-tx{flex:1;min-width:0;line-height:1.7;font-size:13.5px;color:var(--text);padding:1px 2px}
+.eb-tx.ph{color:var(--faint)}
+.eb-obj-chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:1px 8px;border-radius:12px;border:1px solid #3a3f6c;color:#9aa3ff;background:#141834;margin:0 2px}
+
+/* ---- B：段落攤平成單一大綱，標題是 heading block ---- */
+.h3blk{font-size:13px;font-weight:650;color:var(--text2,#cfd3e0);letter-spacing:.01em;margin-top:6px;padding:2px 6px}
+
+/* ---- C：段落可個別收合（toggle） ---- */
+.tgl-row{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
+.tgl-tri{width:10px;height:10px;color:var(--faint);transition:transform .15s;flex-shrink:0}
+.tgl-tri.open{transform:rotate(90deg)}
+.sec-collapsed .tgl-body{display:none}
+
+.badge{display:inline-block;font-size:10.5px;font-family:var(--mono);padding:1px 7px;border-radius:10px;margin-left:8px;vertical-align:2px}
+.badge.rec{background:#0f2a1c;color:#5fd48a;border:1px solid #1f5c3a}
+.badge.risk{background:#2a1614;color:#ef9b8f;border:1px solid #5c2a24}
+
+.rec-box{background:#0f1a13;border:1px solid #1f4a2e;border-radius:12px;padding:16px 18px;margin-top:26px}
+.rec-box h3{margin:0 0 8px;color:#7fe0a3;font-size:14px}
+.rec-box p{margin:0 0 6px;color:#bfe3cb;line-height:1.75;font-size:13px}
+.rec-box ol{margin:8px 0 0;padding-left:20px;color:#bfe3cb;line-height:1.8;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>元件容器（Standup／1:1／會議記錄／回顧／研究筆記）還是崩潰 — 根因與三個修復方向</h1>
+  <p class="sub">上一輪把 5 種模板元件改成「內部保有跟主日誌一樣的書寫／召喚／引用／回覆能力，收合只顯示名稱＋時間戳記」後，畫面仍回報崩潰。往下第一段先給出這次實際比對原型 CSS 找到的根因，再給三個修復方向讓你選 —— 這次先提案，不直接改線上程式碼。</p>
+
+  <div class="pain">
+    <div><b>展開後高度暴衝</b>元件展開時，內容區塊看起來被撐到遠超過實際文字量的高度，像整塊版面垮掉。</div>
+    <div><b>摺疊列文字擠壓／換行</b>收合狀態的名稱＋時間戳記列，在雙人駕駛艙（窄欄）裡偶爾看起來被裁切或擠壓。</div>
+    <div><b>「今天誕生的物件」偶爾顯示已刪除</b>部分截圖仍看到 <code>doc_object 已刪除</code>，需要與容器問題分開追。</div>
+    <div><b>五種元件段落數不一</b>Standup 4 段、1:1 5 段、會議記錄 5 段、回顧 3 段 —— 段數愈多，崩潰感愈明顯，暗示問題跟「每段各自的高度」有關而不是單一元件本身。</div>
+  </div>
+
+  <div class="diag">
+    <h3>根因：每個 section 內文都繼承了主日誌整頁編輯器的 <code>min-height:360px</code></h3>
+    <p>上一輪把每個 section 的內文容器重用了原型既有的 <code>.doc</code> class（這是刻意的：<code>docClick / docKey / docInput / checkTrigger / applySummon</code> 這整套書寫引擎的事件綁定都是掛在 <code>.doc</code> 元素上，重用它才能讓 #召喚、@引用、Tab 縮排原封不動可用）。但原型裡 <code>.doc</code> 唯一的一條規則是給「一整頁的主日誌」設計的：</p>
+    <p><code>.doc{padding:6px 2px 40px;min-height:360px;cursor:text}</code></p>
+    <p>這條規則沒有針對容器層級（是主日誌還是元件內的一小段）做區分，於是元件裡「每一段」都被強制垫高到至少 360px —— 而每個模板元件有 3～5 段，全部展開時等於疊加 3～5 倍的 360px 空白，遠超過使用者實際打的一兩行字，看起來就是「整塊版面垮掉」。收合列的擠壓／換行則是次要問題，多半是 <code>.eb-doc-bar-title</code> 在雙欄窄版（<code>.jc-col</code> 只有約半個螢幕寬）下沒有跟 <code>.eb-doc-bar-meta</code> 搶到足夠的 <code>min-width:0</code> 收縮空間，兩者疊加讓畫面看起來比實際更糟。</p>
+    <table>
+      <tr><th>元件</th><th>段數</th><th>現況：光是空段落疊加的最小高度</th></tr>
+      <tr><td>Standup</td><td class="n">4</td><td class="n">≈ 1,440px</td></tr>
+      <tr><td>1:1 檢核</td><td class="n">5</td><td class="n">≈ 1,800px</td></tr>
+      <tr><td>會議記錄</td><td class="n">5</td><td class="n">≈ 1,800px</td></tr>
+      <tr><td>回顧</td><td class="n">3</td><td class="n">≈ 1,080px</td></tr>
+    </table>
+    <p class="cite">業界對可收合內容的通用建議也指向同一個方向：不要對可收合區塊套用固定的 <code>min-height</code>，應讓內容依實際高度自然生長（例如 Radix UI Collapsible 用 <code>--radix-collapsible-content-height</code> 量測實際內容高度做動畫，而不是寫死像素值）。<code>doc_object 已刪除</code> 那個殘留問題不在本提案範圍內，是 <code>jcObjName</code> 對照「今天誕生的物件」清單時的資料對應問題，會另外處理，不影響下面三個方案的取捨。</p>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="on" data-t="bug">現況重現<small>Repro</small></button>
+    <button data-t="a">A · 輕量修正<small>建議先做</small></button>
+    <button data-t="b">B · 攤平單一編輯器<small>結構簡化</small></button>
+    <button data-t="c">C · 段落各自可收合<small>Notion 式</small></button>
+  </div>
+
+  <!-- ================= 現況重現 ================= -->
+  <section class="proposal on" id="p-bug">
+    <div class="frame scroll"><div class="app">
+      <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS</span><span class="ver">v5 · two-person</span><div class="user"><span class="av">宇</span>戴宇星</div></div>
+      <div class="jc-body">
+        <div class="jc">
+          <div class="jc-col">
+            <div class="jc-head"><span class="av">宇</span><b>宇星</b><span>· 9/12</span></div>
+            <div class="jc-scroll bug">
+              <div class="eb-doc-card expanded">
+                <div class="eb-doc-bar">
+                  <div class="eb-doc-bar-left"><span class="chip c-p">Standup</span><span class="eb-doc-bar-title">10:47 更新</span></div>
+                  <div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr open">▸</span>收合</span><span class="eb-doc-icon-btn">⤢</span></div>
+                </div>
+                <div class="doc-bug">
+                  <div class="sec-bug"><div class="sec-t">Yesterday</div><div class="ph">昨日完成進展、重要產出與佐證依據...</div><div class="fill">空白高度 360px，實際只有 placeholder 一行</div></div>
+                  <div class="sec-bug"><div class="sec-t">Today</div><div class="ph">今日聚焦事項、預計推進之工作項目...</div><div class="fill">又一個 360px</div></div>
+                  <div class="sec-bug"><div class="sec-t">Blocker</div><div class="ph">目前遇到的阻礙、相依性或外部等待...</div><div class="fill">又一個 360px</div></div>
+                  <div class="sec-bug"><div class="sec-t">Need Decision</div><div class="ph">需要決策、討論或團隊支援之事項...</div><div class="fill">又一個 360px ↓ 捲軸捲不完</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="jc-col" style="border-right:0">
+            <div class="jc-head"><span class="av l">L</span><b>Lily</b><span>· 9/12</span></div>
+            <div class="jc-scroll bug">
+              <div class="eb-doc-card">
+                <div class="eb-doc-bar"><div class="eb-doc-bar-left"><span class="chip c-i">會議記錄</span><span class="eb-doc-bar-title">09:20 更新</span></div><div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr">▸</span>展開</span></div></div>
+              </div>
+              <p style="color:var(--faint);font-size:12px;padding:10px 4px">← 收合狀態本身其實正常；問題只在「展開之後」。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes warn">
+      <div><h4>看到的現象</h4>單一 Standup 卡片展開後，欄內捲軸捲很多頁還捲不完，四段內容中間全是空白，只有段落標題和一行 placeholder，看起來就像「壞掉」。</div>
+      <div><h4>為什麼</h4>每段內文都是一個獨立的 <code>.doc</code> 容器，原型 CSS 給 <code>.doc</code> 的 <code>min-height:360px</code> 沒有依巢狀情境調整，四段就疊加四份 360px。</div>
+      <div><h4>會議記錄／1:1 更嚴重</h4>5 段 × 360px ≈ 1800px，在只有半個螢幕寬的雙人駕駛艙欄位裡，幾乎不可能一次看完一則會議記錄。</div>
+    </div>
+  </section>
+
+  <!-- ================= A ================= -->
+  <section class="proposal" id="p-a">
+    <div class="frame scroll"><div class="app">
+      <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS</span><span class="ver">v5 · two-person</span><div class="user"><span class="av">宇</span>戴宇星</div></div>
+      <div class="jc-body">
+        <div class="jc">
+          <div class="jc-col">
+            <div class="jc-head"><span class="av">宇</span><b>宇星</b><span>· 9/12</span></div>
+            <div class="jc-scroll">
+              <div class="eb-doc-card expanded">
+                <div class="eb-doc-bar">
+                  <div class="eb-doc-bar-left"><span class="chip c-p">Standup</span><span class="eb-doc-bar-title">10:47 更新</span></div>
+                  <div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr open">▸</span>收合</span><span class="eb-doc-icon-btn">⤢</span></div>
+                </div>
+                <div class="doc-ok">
+                  <div class="sec-ok"><div class="sec-t">Yesterday</div>
+                    <div class="eb"><span class="eb-bul">•</span><span class="eb-tx">跟廠商確認燈具進度，對方回覆下週一交貨</span></div>
+                  </div>
+                  <div class="sec-ok"><div class="sec-t">Today</div>
+                    <div class="eb"><span class="eb-bul">•</span><span class="eb-tx">整理秋季展 <span class="eb-obj-chip">▭ 專案</span> 的燈光腳本</span></div>
+                  </div>
+                  <div class="sec-ok"><div class="sec-t">Blocker</div>
+                    <div class="eb"><span class="eb-bul">•</span><span class="eb-tx ph">目前遇到的阻礙、相依性或外部等待...</span></div>
+                  </div>
+                  <div class="sec-ok"><div class="sec-t">Need Decision</div>
+                    <div class="eb"><span class="eb-bul">•</span><span class="eb-tx ph">需要決策、討論或團隊支援之事項...</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="eb-doc-card">
+                <div class="eb-doc-bar"><div class="eb-doc-bar-left"><span class="chip c-w">回顧</span><span class="eb-doc-bar-title">9/8 · 秋季展 Kickoff 回顧</span></div><div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr">▸</span>展開</span></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="jc-col" style="border-right:0">
+            <div class="jc-head"><span class="av l">L</span><b>Lily</b><span>· 9/12</span></div>
+            <div class="jc-scroll">
+              <div class="eb-doc-card expanded">
+                <div class="eb-doc-bar"><div class="eb-doc-bar-left"><span class="chip c-i">會議記錄</span><span class="eb-doc-bar-title">09:20 更新</span></div><div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr open">▸</span>收合</span></div></div>
+                <div class="doc-ok">
+                  <div class="sec-ok"><div class="sec-t">出席</div><div class="eb"><span class="eb-bul">•</span><span class="eb-tx">宇星、Lily、廠商窗口</span></div></div>
+                  <div class="sec-ok"><div class="sec-t">議題</div><div class="eb"><span class="eb-bul">•</span><span class="eb-tx">燈具交期與預算</span></div></div>
+                  <div class="sec-ok"><div class="sec-t">決議</div><div class="eb"><span class="eb-bul">•</span><span class="eb-tx ph">會議達成之共識與正式定案決議...</span></div></div>
+                  <div class="sec-ok"><div class="sec-t">待辦</div><div class="eb"><span class="eb-bul">•</span><span class="eb-tx ph">Action Items（負責人、具體行動、截止時間）...</span></div></div>
+                  <div class="sec-ok"><div class="sec-t">未解問題</div><div class="eb"><span class="eb-bul">•</span><span class="eb-tx ph">會中未有定論、需要後續跟進之事項...</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><h4>主要改動 <span class="badge rec">建議先做</span></h4>把 <code>additions.css</code> 裡元件段落的內文容器改用新 class（例如 <code>.eb-doc-secbody</code>），只繼承 <code>.doc</code> 的 padding／cursor，<b>不繼承 <code>min-height:360px</code></b>；改成 <code>min-height:auto</code>，只在整段完全空白時，靠 placeholder 的一行高度自然撐開，不強迫留白。</div>
+      <div><h4>順便修</h4><code>.eb-doc-bar-title</code> 與 <code>.eb-doc-bar-meta</code> 補上 <code>min-width:0</code>／<code>text-overflow:ellipsis</code>，避免雙欄窄版下標題把時間戳記擠到換行。</div>
+      <div><h4>影響檔案</h4>只動 <code>additions.css</code> 一段既有規則的 class 名稱（配合 <code>template-objects.source.js</code> 的 <code>renderDocSectionBody</code> 把容器 class 從 <code>doc eb-doc-secbody</code> 改成專屬 class），不動 <code>blks()</code> 引擎、不動事件綁定，風險最低、最快能驗證是否真的解決「崩潰感」。</div>
+      <div><h4>取捨</h4>維持現有「每段各自一份 <code>sec.blocks</code>」的資料結構，5 個模板的段落標題、placeholder 完全不用改。</div>
+    </div>
+  </section>
+
+  <!-- ================= B ================= -->
+  <section class="proposal" id="p-b">
+    <div class="frame scroll"><div class="app">
+      <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS</span><span class="ver">v5 · two-person</span><div class="user"><span class="av">宇</span>戴宇星</div></div>
+      <div class="jc-body">
+        <div class="jc">
+          <div class="jc-col">
+            <div class="jc-head"><span class="av">宇</span><b>宇星</b><span>· 9/12</span></div>
+            <div class="jc-scroll">
+              <div class="eb-doc-card expanded">
+                <div class="eb-doc-bar"><div class="eb-doc-bar-left"><span class="chip c-p">Standup</span><span class="eb-doc-bar-title">10:47 更新</span></div><div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr open">▸</span>收合</span></div></div>
+                <div class="doc-ok" style="gap:2px">
+                  <div class="h3blk">Yesterday</div>
+                  <div class="eb"><span class="eb-bul">•</span><span class="eb-tx">跟廠商確認燈具進度，對方回覆下週一交貨</span></div>
+                  <div class="h3blk">Today</div>
+                  <div class="eb"><span class="eb-bul">•</span><span class="eb-tx">整理秋季展 <span class="eb-obj-chip">▭ 專案</span> 的燈光腳本</span></div>
+                  <div class="h3blk">Blocker</div>
+                  <div class="eb"><span class="eb-bul">•</span><span class="eb-tx ph">目前遇到的阻礙、相依性或外部等待...</span></div>
+                  <div class="h3blk">Need Decision</div>
+                  <div class="eb" style="position:relative"><span class="eb-bul">•</span><span class="eb-tx">#決<span style="display:inline-block;width:2px;height:14px;background:var(--accent);vertical-align:middle;margin-left:1px"></span></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="jc-col" style="border-right:0">
+            <div class="jc-head"><span class="av l">L</span><b>Lily</b><span>· 9/12</span></div>
+            <div class="jc-scroll">
+              <div class="eb-doc-card">
+                <div class="eb-doc-bar"><div class="eb-doc-bar-left"><span class="chip c-i">會議記錄</span><span class="eb-doc-bar-title">09:20 更新</span></div><div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr">▸</span>展開</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><h4>主要改動 <span class="badge risk">結構較大</span></h4>不再讓每段各自擁有獨立的 <code>sec.blocks</code> 陣列和獨立的 <code>.doc</code> 容器／獨立 focus 情境；改成整個元件只有<b>一份攤平的 blocks 陣列</b>，段落標題本身變成陣列裡的一個 heading block（跟主日誌的 <code>h3</code> block 是同一種型別），Tab／方向鍵可以像主日誌一樣直接在段落之間穿梭。</div>
+      <div><h4>為什麼考慮這個方向</h4>現有做法要對「每一段」各自維護一個 <code>BLKS_OVERRIDE</code> 情境（見 <code>source-patches.mjs</code> 的 <code>focusin</code> 監聽），元件段數愈多，越容易出現焦點/情境對應錯誤的邊界案例；攤平成一份陣列後，一個元件只有一個情境，跟主日誌的心智模型完全一致，複雜度直接砍掉一個維度。</div>
+      <div><h4>影響檔案</h4><code>template-objects.source.js</code> 的 <code>createDocObject</code>／<code>renderDocSectionBody</code>／<code>DRAWERS.doc_object</code> 需要改寫成攤平版本；<code>DOC_METAS.secs</code> 的用途從「陣列 key」變成「初始 heading 文字」。改動範圍比 A 大，但改完後續要再加新模板類型（例如未來的「季度回顧」）會更輕鬆。</div>
+      <div><h4>適合</h4>如果你預期以後還會常常新增模板類型，或希望段落之間也能互相 <code>@引用</code>／拖曳排序，這個方向的長期維護成本更低。</div>
+    </div>
+  </section>
+
+  <!-- ================= C ================= -->
+  <section class="proposal" id="p-c">
+    <div class="frame scroll"><div class="app">
+      <div class="topbar"><div class="logo"></div><span class="brand">圓展 OS</span><span class="ver">v5 · two-person</span><div class="user"><span class="av">宇</span>戴宇星</div></div>
+      <div class="jc-body">
+        <div class="jc">
+          <div class="jc-col">
+            <div class="jc-head"><span class="av">宇</span><b>宇星</b><span>· 9/12</span></div>
+            <div class="jc-scroll">
+              <div class="eb-doc-card expanded">
+                <div class="eb-doc-bar"><div class="eb-doc-bar-left"><span class="chip c-teal">1:1 檢核</span><span class="eb-doc-bar-title">09:05 更新</span></div><div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr open">▸</span>收合</span></div></div>
+                <div class="doc-ok">
+                  <div class="sec-ok">
+                    <div class="tgl-row"><span class="tgl-tri open">▸</span><span class="sec-t" style="margin:0">近況</span></div>
+                    <div class="tgl-body" style="padding-left:15px"><div class="eb"><span class="eb-bul">•</span><span class="eb-tx">這週節奏還好，展覽籌備進入衝刺</span></div></div>
+                  </div>
+                  <div class="sec-ok sec-collapsed">
+                    <div class="tgl-row"><span class="tgl-tri">▸</span><span class="sec-t" style="margin:0">進展與證據 <span style="color:var(--faint);font-weight:400;font-size:11px">· 已收合，2 行</span></span></div>
+                  </div>
+                  <div class="sec-ok sec-collapsed">
+                    <div class="tgl-row"><span class="tgl-tri">▸</span><span class="sec-t" style="margin:0">阻礙 <span style="color:var(--faint);font-weight:400;font-size:11px">· 空</span></span></div>
+                  </div>
+                  <div class="sec-ok">
+                    <div class="tgl-row"><span class="tgl-tri open">▸</span><span class="sec-t" style="margin:0">需要公司支持</span></div>
+                    <div class="tgl-body" style="padding-left:15px"><div class="eb"><span class="eb-bul">•</span><span class="eb-tx ph">需要公司層級資源、授權或支持...</span></div></div>
+                  </div>
+                  <div class="sec-ok sec-collapsed">
+                    <div class="tgl-row"><span class="tgl-tri">▸</span><span class="sec-t" style="margin:0">下次檢核前要做的 <span style="color:var(--faint);font-weight:400;font-size:11px">· 空</span></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="jc-col" style="border-right:0">
+            <div class="jc-head"><span class="av l">L</span><b>Lily</b><span>· 9/12</span></div>
+            <div class="jc-scroll">
+              <div class="eb-doc-card">
+                <div class="eb-doc-bar"><div class="eb-doc-bar-left"><span class="chip c-i">會議記錄</span><span class="eb-doc-bar-title">09:20 更新</span></div><div class="eb-doc-bar-right"><span class="eb-doc-toggle-btn"><span class="eb-doc-arr">▸</span>展開</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><h4>主要改動 <span class="badge">A 或 B 之上的加值層</span></h4>在 A（或 B）修好高度問題的基礎上，每個段落標題前加一個小三角形，段落可以<b>各自</b>收合／展開；空段落預設收合並標「· 空」，有內容的段落預設展開。</div>
+      <div><h4>為什麼</h4>即使高度算對了，5 段的會議記錄／1:1 一次全展開仍然偏長；讓使用者只聚焦「有寫或現在要寫」的段落，其餘收起來看標題就好，是 Notion toggle block 的標準做法，找不到內容不用捲一大串空白。</div>
+      <div><h4>實作成本</h4>純前端狀態（哪些段落收合）＋ CSS，不需要碰 <code>blks()</code>／事件引擎；可以做成 <code>eb-doc-card</code> 展開狀態之外，各段落再疊一層獨立的 UI 狀態，跟 A／B 都相容。</div>
+      <div><h4>適合</h4>1:1 檢核、會議記錄這類段數多、常常有些段落當次用不到的模板；Standup／回顧段數少（3～4 段），不一定需要加這層。</div>
+    </div>
+  </section>
+
+  <div class="rec-box">
+    <h3>建議路線</h3>
+    <p>三個方向不互斥，是漸進關係：</p>
+    <ol>
+      <li><b>先做 A</b> —— 這是實際造成「崩潰」的根因，改動小、風險低，能立刻驗證問題是否真的解決。</li>
+      <li>觀察一週實際使用情況：如果會議記錄／1:1 這種多段落模板仍然感覺長，再加 <b>C</b>（段落各自收合），純前端狀態、跟 A 相容，隨時可以疊上去。</li>
+      <li><b>B</b>（攤平成單一編輯器）先不用急，除非近期真的要密集新增模板類型，或段落間互相引用／拖曳排序變成明確需求，再評估要不要做這次較大的重構。</li>
+    </ol>
+    <p style="margin-top:10px;color:#8fb89e">另外，<code>doc_object 已刪除</code> 的殘留問題（「今天誕生的物件」清單對不上）會另外排查，不影響上面三個方向的選擇。</p>
+  </div>
+
+</div>
+<script>
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.proposal').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.t));
+});
+</script>
+</body>
+</html>

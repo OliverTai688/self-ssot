@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日誌介面優化提案</title>
+<style>
+:root{
+  --bg:#07090d; --panel:#0e1117; --panel2:#131720; --line:#1f2430; --line2:#2a3040;
+  --text:#e6e8ee; --dim:#8a91a3; --faint:#5b6273; --accent:#7c8cff; --accent2:#a78bfa;
+  --gold:#e0b25a; --green:#4fc38a; --red:#ef6b6b; --blue:#4ea1ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;font-size:14px}
+.wrap{max-width:1360px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:22px;margin:0 0 6px}
+.sub{color:var(--dim);margin:0 0 20px;line-height:1.6}
+.pain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:22px}
+.pain div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--dim);font-size:13px;line-height:1.5}
+.pain b{color:var(--text);display:block;margin-bottom:2px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.tabs button{background:var(--panel);color:var(--dim);border:1px solid var(--line);padding:9px 14px;border-radius:9px;cursor:pointer;font:inherit}
+.tabs button.on{color:var(--text);border-color:var(--accent);background:#151a2c}
+.tabs small{color:var(--faint);margin-left:6px}
+.proposal{display:none}.proposal.on{display:block}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:14px 0 0}
+.notes div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;line-height:1.6;font-size:13px;color:var(--dim)}
+.notes h4{margin:0 0 4px;color:var(--text);font-size:13px}
+.frame{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a0c11;box-shadow:0 20px 50px #0008}
+.scroll{overflow-x:auto}
+.app{min-width:1100px;height:680px;display:flex;flex-direction:column}
+.topbar{height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);background:#0c0f15;flex-shrink:0}
+.logo{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#8ea0ff,#b39cff)}
+.brand{font-weight:600}.ver{color:var(--faint);font-family:ui-monospace,monospace;font-size:11px}
+.search{margin-left:auto;margin-right:auto;width:380px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--faint);font-size:12px;display:flex;justify-content:space-between}
+kbd{font-family:ui-monospace,monospace;font-size:10px;border:1px solid var(--line2);border-radius:4px;padding:1px 5px;color:var(--dim);background:#0b0e14}
+.user{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);border-radius:20px;padding:3px 10px 3px 4px;font-size:12px}
+.av{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;background:#2b3350}
+.av.l{background:#4a2f45}
+.body{flex:1;display:flex;min-height:0}
+.rail{width:56px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px;background:#0b0d12;flex-shrink:0}
+.ri{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;color:var(--faint);font-size:15px;position:relative}
+.ri.on{background:#171c2e;color:var(--accent)}
+.ri .dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--red)}
+.muted{color:var(--faint)}.dim{color:var(--dim)}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line2);color:var(--dim)}
+.chip.task{border-color:#2d4d3d;color:var(--green);background:#0f1f18}
+.chip.money{border-color:#4d3f22;color:var(--gold);background:#1f1a0f}
+.chip.proj{border-color:#2c3a5c;color:var(--blue);background:#0f1726}
+.chip.ref{border-color:#3d2f5c;color:var(--accent2);background:#171126}
+.btn{font:inherit;font-size:12px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:7px;padding:5px 10px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#0a0c14;font-weight:600}
+.sec-t{font-size:11px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase;margin:0 0 8px}
+.line{padding:4px 0;line-height:1.7;display:flex;gap:8px;align-items:flex-start}
+.bul{color:var(--faint);width:12px;flex-shrink:0}
+.caret{display:inline-block;width:2px;height:16px;background:var(--accent);vertical-align:middle;animation:bl 1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+.popup{position:absolute;background:#121622;border:1px solid var(--line2);border-radius:10px;box-shadow:0 12px 30px #000a;width:240px;padding:6px;font-size:12px}
+.popup div{padding:6px 8px;border-radius:6px;display:flex;justify-content:space-between;color:var(--dim)}
+.popup div.on{background:#1b2135;color:var(--text)}
+/* ---------- A: focus ---------- */
+.a-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.a-week{display:flex;align-items:center;gap:6px;padding:12px 28px;border-bottom:1px solid var(--line)}
+.day{width:46px;text-align:center;padding:6px 0;border-radius:8px;color:var(--dim);font-size:11px;position:relative}
+.day b{display:block;font-size:15px;color:var(--text);font-weight:500}
+.day.on{background:#171c2e;outline:1px solid var(--accent)}
+.day .pips{display:flex;gap:2px;justify-content:center;margin-top:3px;height:4px}
+.day .pips i{width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.day .pips i.l{background:#e58bc0}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg span{padding:4px 10px;border-radius:6px;font-size:12px;color:var(--dim)}
+.seg span.on{background:#222943;color:var(--text)}
+.a-edit{flex:1;overflow:hidden;display:flex;justify-content:center;padding:30px 0;position:relative}
+.a-doc{width:680px}
+.a-doc h2{font-size:28px;margin:0 0 4px;font-weight:600}
+.meta{color:var(--faint);font-size:12px;margin-bottom:22px;display:flex;gap:12px;align-items:center}
+.presence{display:flex}.presence .av{width:20px;height:20px;border:2px solid #0a0c11;margin-left:-5px}
+.a-doc .line{font-size:15px}
+.hint{margin-top:22px;border:1px dashed var(--line2);border-radius:10px;padding:12px 14px;color:var(--faint);font-size:12px;display:flex;gap:14px;flex-wrap:wrap}
+.a-drawer{width:300px;border-left:1px solid var(--line);background:#0c0f15;display:flex;flex-direction:column}
+.dtabs{display:flex;border-bottom:1px solid var(--line)}
+.dtabs span{flex:1;text-align:center;padding:11px 0;font-size:12px;color:var(--dim)}
+.dtabs span.on{color:var(--text);box-shadow:inset 0 -2px var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px}
+.card .t{font-size:13px;margin-bottom:4px}
+.cmt{display:flex;gap:8px;margin-bottom:12px;font-size:12px;line-height:1.5}
+.a-bottom{border-top:1px solid var(--line);padding:8px 28px;display:flex;justify-content:space-between;color:var(--faint);font-size:11px}
+/* ---------- B: obsidian ---------- */
+.ob{background:#1e1e1e;color:#dcddde}
+.ob .topbar{background:#161616;border-color:#2b2b2b;height:36px}
+.ob-left{width:250px;background:#191919;border-right:1px solid #2b2b2b;display:flex;flex-direction:column}
+.ob-iconrow{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid #2b2b2b;color:#888}
+.ob-iconrow span{width:26px;height:26px;display:grid;place-items:center;border-radius:5px;font-size:13px}
+.ob-iconrow span.on{background:#2a2a2a;color:#ddd}
+.tree{padding:8px 6px;font-size:13px;overflow:hidden;flex:1}
+.tree div{padding:3px 8px;border-radius:4px;color:#b3b3b3;white-space:nowrap}
+.tree .f{color:#999}
+.tree .on{background:#343434;color:#fff}
+.tree .i1{padding-left:22px}.tree .i2{padding-left:36px}
+.cal{padding:10px;border-top:1px solid #2b2b2b;font-size:11px}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.calg span{padding:3px 0;border-radius:4px;color:#999;position:relative}
+.calg span.h{color:#666}
+.calg span.d::after{content:"";position:absolute;bottom:0;left:50%;width:3px;height:3px;margin-left:-1.5px;border-radius:50%;background:#a78bfa}
+.calg span.on{background:#7c5cff;color:#fff}
+.ob-center{flex:1;display:flex;flex-direction:column;min-width:0}
+.ob-tabs{display:flex;background:#161616;border-bottom:1px solid #2b2b2b;height:34px;align-items:flex-end;padding-left:6px}
+.ob-tab{padding:7px 14px;font-size:12px;color:#888;border-radius:6px 6px 0 0;display:flex;gap:10px}
+.ob-tab.on{background:#1e1e1e;color:#ddd}
+.ob-crumb{padding:8px 16px;font-size:12px;color:#777;display:flex;justify-content:space-between}
+.ob-doc{flex:1;display:flex;justify-content:center;overflow:hidden;position:relative}
+.ob-doc .inner{width:640px;padding-top:14px}
+.ob-doc h1{font-size:30px;margin:0 0 10px}
+.props{border:1px solid #2e2e2e;border-radius:6px;font-size:12px;margin-bottom:18px}
+.props div{display:flex;padding:5px 10px;border-bottom:1px solid #262626}
+.props div:last-child{border:0}
+.props span:first-child{width:110px;color:#888}
+.ob-doc h3{font-size:17px;margin:18px 0 6px;color:#e3e3e3}
+.wl{color:#a78bfa}.tag{color:#b8a4ff;background:#2a2340;border-radius:10px;padding:0 6px;font-size:12px}
+.cb{display:inline-block;width:13px;height:13px;border:1.5px solid #777;border-radius:3px;vertical-align:-2px;margin-right:6px}
+.cb.x{background:#7c5cff;border-color:#7c5cff}
+.embed{border-left:2px solid #7c5cff;background:#232326;padding:8px 12px;border-radius:0 6px 6px 0;margin:8px 0;font-size:13px}
+.ob-right{width:270px;background:#191919;border-left:1px solid #2b2b2b;padding:0;display:flex;flex-direction:column}
+.ob-right .sec{padding:10px 12px;border-bottom:1px solid #2b2b2b;font-size:12px}
+.ob-right h5{margin:0 0 8px;font-size:11px;color:#888;font-weight:500;display:flex;justify-content:space-between}
+.bl{padding:5px 0;color:#bbb}.bl small{display:block;color:#777}
+.graph{height:120px;position:relative}
+.status{height:24px;background:#161616;border-top:1px solid #2b2b2b;display:flex;justify-content:flex-end;gap:16px;padding:0 12px;align-items:center;font-size:11px;color:#777}
+.palette{position:absolute;top:40px;left:50%;margin-left:-230px;width:460px;background:#252525;border:1px solid #3a3a3a;border-radius:8px;box-shadow:0 20px 50px #000c;font-size:13px}
+.palette .in{padding:10px 12px;border-bottom:1px solid #333;color:#ddd}
+.palette .r{padding:7px 12px;display:flex;justify-content:space-between;color:#aaa}
+.palette .r.on{background:#353535;color:#fff}
+/* ---------- C: cockpit ---------- */
+.c-main{flex:1;display:grid;grid-template-columns:1fr 1fr;min-width:0}
+.c-col{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+.c-head{display:flex;align-items:center;gap:8px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.c-head .av{width:24px;height:24px}
+.c-body{flex:1;padding:16px 18px;overflow:hidden}
+.c-body .line{font-size:14px}
+.c-side{width:320px;display:flex;flex-direction:column;background:#0c0f15}
+.c-top{display:flex;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--line)}
+.c-top h2{margin:0;font-size:20px}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px}
+.stat div{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px}
+.stat b{display:block;font-size:18px}
+.stat small{color:var(--faint);font-size:11px}
+.obj{display:flex;gap:8px;align-items:center;padding:8px 10px;border-radius:8px;background:var(--panel);border:1px solid var(--line);margin-bottom:6px;font-size:12px}
+.obj .src{margin-left:auto;color:var(--faint);font-size:10px;font-family:ui-monospace,monospace}
+.thread{border-top:1px solid var(--line);padding:12px 14px;margin-top:auto}
+.inlinecmt{margin:4px 0 4px 20px;border-left:2px solid #e58bc0;padding:4px 10px;background:#1a1220;border-radius:0 6px 6px 0;font-size:12px;color:var(--dim)}
+.empty{border:1px dashed var(--line2);border-radius:10px;padding:14px;color:var(--faint);font-size:12px;text-align:center;line-height:1.8}
+.tl{position:relative;padding-left:14px;font-size:12px}
+.tl::before{content:"";position:absolute;left:3px;top:4px;bottom:4px;width:1px;background:var(--line2)}
+.tl div{position:relative;padding:3px 0;color:var(--dim)}
+.tl div::before{content:"";position:absolute;left:-14px;top:9px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.tl div.l::before{background:#e58bc0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>日誌頁 · 三個介面優化提案</h1>
+  <p class="sub">針對「圓展 Operating System / 日誌・今天」頁面。先整理目前畫面的問題，再給三個方向：A 專注書寫、B 仿 Obsidian、C 雙人協作駕駛艙。每個 mockup 都是可左右捲動的靜態示意。</p>
+
+  <div class="pain">
+    <div><b>快捷鍵與按鈕重複</b>「# 召喚 / @ 引用」同時以 chip 與按鈕出現，標題列很擠。</div>
+    <div><b>編輯區大量留白</b>空狀態只有一行 placeholder，沒有引導或模板。</div>
+    <div><b>「日期」面板資訊量低</b>只有「新增日期」，看不出哪天有寫、兩人各寫了什麼。</div>
+    <div><b>留言離內容太遠</b>留言在最下方、獨立一大塊，無法對應到某一行。</div>
+    <div><b>右側空間浪費</b>內容只佔 ~80% 寬度，右邊 250px 全黑；雙層側欄也重複。</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="on" data-t="a">A · 專注書寫<small>Focus</small></button>
+    <button data-t="b">B · 仿 Obsidian<small>Vault</small></button>
+    <button data-t="c">C · 雙人駕駛艙<small>Two-person</small></button>
+  </div>
+
+  <!-- ================= A ================= -->
+  <section class="proposal on" id="p-a">
+    <div class="frame scroll"><div class="app">
+      <div class="topbar">
+        <div class="logo"></div><span class="brand">圓展 OS</span><span class="ver">v5 · two-person</span>
+        <div class="search"><span>搜尋、新增或執行動作…</span><kbd>⌘K</kbd></div>
+        <div class="user"><span class="av">宇</span>戴宇星</div>
+      </div>
+      <div class="body">
+        <div class="rail">
+          <div class="ri on">✎</div><div class="ri">▦</div><div class="ri">∿</div><div class="ri">▭</div><div class="ri">$</div><div class="ri">✓</div><div class="ri">◔<span class="dot"></span></div>
+        </div>
+        <div class="a-main">
+          <div class="a-week">
+            <span class="muted" style="margin-right:6px">‹</span>
+            <div class="day">一<b>7</b><div class="pips"><i></i><i class="l"></i></div></div>
+            <div class="day">二<b>8</b><div class="pips"><i></i></div></div>
+            <div class="day">三<b>9</b><div class="pips"></div></div>
+            <div class="day">四<b>10</b><div class="pips"><i class="l"></i></div></div>
+            <div class="day">五<b>11</b><div class="pips"><i></i><i class="l"></i></div></div>
+            <div class="day on">六<b>12</b><div class="pips"></div></div>
+            <div class="day muted">日<b class="muted">13</b><div class="pips"></div></div>
+            <span class="muted" style="margin-left:6px">›</span>
+            <span class="btn" style="margin-left:10px">今天</span>
+            <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+              <div class="seg"><span class="on">今天</span><span>回顧</span><span>標籤流</span></div>
+              <div class="seg"><span class="on">宇星</span><span>Lily</span><span>並排</span></div>
+            </div>
+          </div>
+          <div class="a-edit">
+            <div class="a-doc">
+              <h2>9 月 12 日 · 週六</h2>
+              <div class="meta"><span style="color:var(--gold)">「我開始一天了」</span><span>·</span><span>已自動儲存</span><div class="presence"><span class="av">宇</span><span class="av l">L</span></div></div>
+              <div class="line"><span class="bul">•</span><span>早上跟 Lily 對過展覽進度</span></div>
+              <div class="line"><span class="bul">•</span><span>要跟廠商確認燈具 <span class="chip task">☐ 承諾 · 週一前回覆</span></span></div>
+              <div class="line" style="padding-left:20px"><span class="bul">◦</span><span>預算抓 <span class="chip money">$ 金流 · 12,000</span></span></div>
+              <div class="line" style="position:relative"><span class="bul">•</span><span>#專<span class="caret"></span></span>
+                <div class="popup" style="top:30px;left:30px">
+                  <div class="on"><span>▭ 專案</span><kbd>↵</kbd></div>
+                  <div><span>✓ 承諾</span><span></span></div>
+                  <div><span>$ 金流</span><span></span></div>
+                  <div><span>◔ 訊號</span><span></span></div>
+                </div>
+              </div>
+              <div class="hint" style="margin-top:150px">
+                <span><kbd>#</kbd> 召喚物件</span><span><kbd>@</kbd> 引用</span><span><kbd>Tab</kbd> 縮排</span><span><kbd>⌘Z</kbd> 復原</span><span><kbd>⌘\</kbd> 開關側欄</span>
+              </div>
+            </div>
+          </div>
+          <div class="a-bottom"><span>3 行 · 2 個物件 · 1 則留言</span><span>主操作面：大綱編輯器 · 即時共享</span></div>
+        </div>
+        <div class="a-drawer">
+          <div class="dtabs"><span class="on">物件 2</span><span>留言 1</span><span>大綱</span></div>
+          <div style="padding:12px">
+            <div class="card"><div class="t">跟廠商確認燈具</div><span class="chip task">承諾</span> <span class="muted" style="font-size:11px">週一 · 宇星</span></div>
+            <div class="card"><div class="t">燈具預算</div><span class="chip money">金流</span> <span class="muted" style="font-size:11px">NT$12,000</span></div>
+            <p class="muted" style="font-size:11px;line-height:1.6;margin:12px 2px">ⓘ 物件有唯一的家——刪掉日誌行不會刪物件。</p>
+            <p class="sec-t" style="margin-top:18px">最新留言</p>
+            <div class="cmt"><span class="av l">L</span><div><b>Lily</b> <span class="muted">· 第 2 行</span><br>燈具那間我有聯絡人，我來問？</div></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><h4>主要改動</h4>週曆條取代「日期」面板，圓點顯示誰當天有寫；快捷鍵移到編輯區底部提示，標題列只留日期與「我開始一天了」。</div>
+      <div><h4>右側抽屜</h4>把「物件、留言、大綱」合成一個可收合的分頁抽屜（⌘\），留言會標示對應到第幾行。</div>
+      <div><h4>適合</h4>以寫作為主、希望畫面安靜的場景。改動最小，現有元件大多能直接重用。</div>
+    </div>
+  </section>
+
+  <!-- ================= B ================= -->
+  <section class="proposal" id="p-b">
+    <div class="frame scroll"><div class="app ob">
+      <div class="topbar"><span style="color:#888">◧</span><span style="color:#888">‹ ›</span><span style="margin:auto;color:#999;font-size:12px">2026-09-12 — 圓展 Vault</span><span style="color:#888">◨</span></div>
+      <div class="body">
+        <div class="rail" style="background:#161616;border-color:#2b2b2b;width:44px">
+          <div class="ri on" style="background:#2a2a2a;color:#ddd;width:30px;height:30px">✎</div><div class="ri" style="width:30px;height:30px">◉</div><div class="ri" style="width:30px;height:30px">▦</div><div class="ri" style="width:30px;height:30px">⌘</div><div class="ri" style="width:30px;height:30px">✓</div>
+        </div>
+        <div class="ob-left">
+          <div class="ob-iconrow"><span class="on">🗀</span><span>⌕</span><span>#</span><span>☆</span><span style="margin-left:auto">✎</span></div>
+          <div class="tree">
+            <div class="f">▾ 日誌</div>
+            <div class="f i1">▾ 2026-09</div>
+            <div class="i2 on">2026-09-12</div>
+            <div class="i2">2026-09-11</div>
+            <div class="i2">2026-09-10</div>
+            <div class="i2">2026-09-08</div>
+            <div class="f i1">▸ 2026-08</div>
+            <div class="f">▸ 專案</div>
+            <div class="f">▸ 承諾</div>
+            <div class="f">▸ 金流</div>
+            <div class="f">▸ 訊號</div>
+            <div class="f">▸ 模板</div>
+          </div>
+          <div class="cal">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#bbb"><b>2026 年 9 月</b><span>‹ 今天 ›</span></div>
+            <div class="calg">
+              <span class="h">日</span><span class="h">一</span><span class="h">二</span><span class="h">三</span><span class="h">四</span><span class="h">五</span><span class="h">六</span>
+              <span class="h">30</span><span class="h">31</span><span class="d">1</span><span class="d">2</span><span>3</span><span class="d">4</span><span>5</span>
+              <span>6</span><span class="d">7</span><span class="d">8</span><span>9</span><span class="d">10</span><span class="d">11</span><span class="on">12</span>
+              <span>13</span><span>14</span><span>15</span><span class="d">16</span><span>17</span><span>18</span><span>19</span>
+            </div>
+          </div>
+        </div>
+        <div class="ob-center">
+          <div class="ob-tabs"><div class="ob-tab on">2026-09-12 <span>×</span></div><div class="ob-tab">展覽燈具 <span>×</span></div><div class="ob-tab">Lily / 2026-09-12 <span>×</span></div><div class="ob-tab">＋</div></div>
+          <div class="ob-crumb"><span>日誌 / 2026-09 / 2026-09-12</span><span>📖 閱讀　⋯</span></div>
+          <div class="ob-doc">
+            <div class="inner">
+              <h1>2026-09-12</h1>
+              <div class="props">
+                <div><span>≡ 作者</span><span>戴宇星</span></div>
+                <div><span>◷ 開始</span><span>09:12「我開始一天了」</span></div>
+                <div><span># tags</span><span><span class="tag">#展覽</span> <span class="tag">#採購</span></span></div>
+              </div>
+              <h3>今日</h3>
+              <div class="line"><span class="bul">•</span><span>早上跟 <span class="wl">[[Lily]]</span> 對過 <span class="wl">[[展覽燈具]]</span> 進度</span></div>
+              <div class="line"><span class="cb"></span><span>跟廠商確認燈具 📅 2026-09-14 <span class="tag">#承諾</span></span></div>
+              <div class="line"><span class="cb x"></span><span style="color:#888;text-decoration:line-through">寄出場地平面圖</span></div>
+              <div class="embed"><span style="color:#888;font-size:11px">![[金流/燈具預算]]</span><br>燈具預算 · NT$12,000 · 待付款</div>
+              <h3>筆記</h3>
+              <div class="line"><span class="bul">•</span><span>@<span class="caret"></span></span></div>
+            </div>
+            <div class="palette" style="display:none"></div>
+          </div>
+          <div class="status"><span>◉ Lily 正在編輯</span><span>3 個反向連結</span><span>128 字</span><span>✓ 已同步</span></div>
+        </div>
+        <div class="ob-right">
+          <div class="ob-iconrow" style="border-color:#2b2b2b"><span class="on">⇠</span><span>⇢</span><span>☰</span><span>💬</span><span>◉</span></div>
+          <div class="sec"><h5>此頁召喚的物件 <span>2</span></h5>
+            <div class="bl">☐ 跟廠商確認燈具<small>承諾 / 週一</small></div>
+            <div class="bl">$ 燈具預算<small>金流 / 12,000</small></div>
+          </div>
+          <div class="sec"><h5>反向連結 <span>3</span></h5>
+            <div class="bl">展覽燈具<small>…今天在 [[2026-09-12]] 討論…</small></div>
+            <div class="bl">Lily / 2026-09-12<small>…宇星那邊確認廠商…</small></div>
+          </div>
+          <div class="sec"><h5>留言 <span>1</span></h5>
+            <div class="bl"><b>Lily</b> · 第 2 行<small style="color:#bbb">燈具那間我有聯絡人</small></div>
+          </div>
+          <div class="sec" style="border:0"><h5>本地圖譜</h5>
+            <svg class="graph" viewBox="0 0 240 120" width="100%">
+              <g stroke="#444" stroke-width="1"><line x1="120" y1="60" x2="50" y2="30"/><line x1="120" y1="60" x2="200" y2="35"/><line x1="120" y1="60" x2="60" y2="95"/><line x1="120" y1="60" x2="190" y2="95"/><line x1="200" y1="35" x2="190" y2="95"/></g>
+              <circle cx="120" cy="60" r="7" fill="#7c5cff"/><circle cx="50" cy="30" r="4" fill="#999"/><circle cx="200" cy="35" r="5" fill="#999"/><circle cx="60" cy="95" r="4" fill="#999"/><circle cx="190" cy="95" r="4" fill="#999"/>
+              <g fill="#888" font-size="9"><text x="30" y="20">Lily</text><text x="180" y="25">展覽燈具</text><text x="40" y="112">燈具預算</text><text x="170" y="112">承諾</text></g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><h4>主要改動</h4>檔案樹 + 月曆取代「日期」面板；多分頁可同時開自己的日誌、Lily 的日誌和物件頁。<code>[[ ]]</code> 對應「@ 引用」，<code>#</code> 仍是召喚。</div>
+      <div><h4>右側欄</h4>召喚物件、反向連結、留言、本地圖譜分區塊，可整欄收合。物件以 <code>![[ ]]</code> 內嵌，顯示即時狀態，呼應「物件有唯一的家」。</div>
+      <div><h4>適合</h4>重度鍵盤使用者、喜歡雙向連結思考。實作成本最高（分頁、圖譜、屬性區），建議分期做。</div>
+    </div>
+  </section>
+
+  <!-- ================= C ================= -->
+  <section class="proposal" id="p-c">
+    <div class="frame scroll"><div class="app">
+      <div class="topbar">
+        <div class="logo"></div><span class="brand">圓展 OS</span><span class="ver">v5 · two-person</span>
+        <div class="search"><span>搜尋、新增或執行動作…</span><kbd>⌘K</kbd></div>
+        <div class="user"><span class="av">宇</span>戴宇星</div>
+      </div>
+      <div class="c-top">
+        <h2>日誌</h2><span class="btn">‹</span><b>2026-09-12 週六</b><span class="btn">›</span><span class="btn">📅</span>
+        <div class="seg" style="margin-left:16px"><span class="on">今天</span><span>回顧</span><span>標籤流</span></div>
+        <span style="margin-left:auto;color:var(--gold);font-size:12px">「我開始一天了」 09:12</span>
+      </div>
+      <div class="body">
+        <div class="rail">
+          <div class="ri on">✎</div><div class="ri">▦</div><div class="ri">∿</div><div class="ri">▭</div><div class="ri">$</div><div class="ri">✓</div><div class="ri">◔<span class="dot"></span></div>
+        </div>
+        <div class="c-main">
+          <div class="c-col">
+            <div class="c-head"><span class="av">宇</span><b>宇星</b><span class="muted" style="font-size:12px">· 你 · 編輯中</span><span class="btn" style="margin-left:auto"># 召喚</span></div>
+            <div class="c-body">
+              <div class="line"><span class="bul">•</span><span>早上跟 Lily 對過展覽進度</span></div>
+              <div class="line"><span class="bul">•</span><span>要跟廠商確認燈具 <span class="chip task">☐ 承諾</span></span></div>
+              <div class="inlinecmt"><b style="color:#e58bc0">Lily</b>：燈具那間我有聯絡人，我來問？ <span class="muted">· 回覆</span></div>
+              <div class="line" style="padding-left:20px"><span class="bul">◦</span><span>預算 <span class="chip money">$ 12,000</span></span></div>
+              <div class="line"><span class="bul">•</span><span><span class="caret"></span></span></div>
+            </div>
+          </div>
+          <div class="c-col">
+            <div class="c-head"><span class="av l">L</span><b>Lily</b><span class="muted" style="font-size:12px">· 唯讀 · 3 分鐘前</span><span class="btn" style="margin-left:auto">💬 留言</span></div>
+            <div class="c-body">
+              <div class="line"><span class="bul">•</span><span>場地平面圖寄出 <span class="chip task">✓ 已完成</span></span></div>
+              <div class="line"><span class="bul">•</span><span>下午拍攝 <span class="chip ref">@ 展覽燈具</span></span></div>
+              <div class="line"><span class="bul">•</span><span>開新專案 <span class="chip proj">▭ 秋季展</span></span></div>
+              <div class="empty" style="margin-top:30px">Lily 今天還在寫…<br>選取任一行即可留言</div>
+            </div>
+          </div>
+        </div>
+        <div class="c-side">
+          <div class="stat">
+            <div><b>4</b><small>今日物件</small></div>
+            <div><b style="color:var(--green)">1/2</b><small>承諾完成</small></div>
+            <div><b style="color:var(--gold)">12k</b><small>金流</small></div>
+          </div>
+          <div style="padding:0 14px">
+            <p class="sec-t">今天誕生的物件</p>
+            <div class="obj"><span class="chip task">承諾</span>跟廠商確認燈具<span class="src">宇星 L2</span></div>
+            <div class="obj"><span class="chip money">金流</span>燈具預算<span class="src">宇星 L3</span></div>
+            <div class="obj"><span class="chip proj">專案</span>秋季展<span class="src">Lily L3</span></div>
+            <p class="sec-t" style="margin-top:14px">今日脈絡</p>
+            <div class="tl"><div>09:12 宇星開始一天</div><div class="l">09:40 Lily 開始一天</div><div>10:05 召喚「承諾」</div><div class="l">10:20 Lily 留言</div></div>
+          </div>
+          <div class="thread">
+            <p class="sec-t">整頁留言</p>
+            <div style="display:flex;gap:6px"><input class="btn" style="flex:1;text-align:left;color:var(--faint)" value="留言協作…" readonly><span class="btn pri">送出</span></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><h4>主要改動</h4>「宇星 / Lily」切換改成左右並排雙欄，一眼看到兩人當天寫了什麼；留言直接掛在該行下方（行內留言）。</div>
+      <div><h4>右側駕駛艙</h4>今日統計、今天誕生的物件（標出來源行）、時間軸脈絡；整頁留言縮成底部一行輸入框。</div>
+      <div><h4>適合</h4>強調 two-person 協作與每日同步。窄螢幕可退化成上下分頁或只顯示自己的欄位。</div>
+    </div>
+  </section>
+</div>
+<script>
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.proposal').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.t));
+});
+</script>
+</body>
+</html>
