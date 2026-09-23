@@ -1,0 +1,125 @@
+/* 物件索引（日誌第三分頁）。顏色一律走主題 token，字級對齊既有 .tbl 密度。 */
+.oi-mode{display:inline-block;margin:0 0 10px;font-family:var(--mono,ui-monospace,Menlo,monospace);
+  font-size:11px;color:var(--warn,#c07a00);background:var(--warn-bg,#fdf3e0);
+  border:1px solid var(--border-2,#d3d8e0);border-radius:5px;padding:1px 7px}
+
+/* ── 命令列 ── */
+.oi-cmd{display:flex;align-items:center;gap:9px;margin-bottom:10px;flex-wrap:wrap}
+.oi-cmd .oi-sp{flex:1;min-width:8px}
+.oi-search{display:flex;align-items:center;gap:7px;border:1px solid var(--border-2,#d3d8e0);
+  border-radius:8px;background:var(--surface,#fff);padding:5px 10px;width:300px;max-width:100%;
+  color:var(--text-3,#8a9099)}
+.oi-search.on{border-color:var(--pri,#3b5bdb)}
+.oi-search svg{width:14px;height:14px;flex-shrink:0}
+.oi-q{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:13px;
+  color:var(--text,#191c20)}
+.oi-q::placeholder{color:var(--text-3,#8a9099)}
+.oi-x{border:0;background:transparent;color:var(--text-3,#8a9099);cursor:pointer;padding:0;
+  display:inline-flex;align-items:center}
+.oi-x:hover{color:var(--text,#191c20)}
+.oi-seg{display:inline-flex;background:var(--surface-2,#f7f8fa);border:1px solid var(--border,#e4e7ec);
+  border-radius:8px;padding:2px;gap:2px}
+.oi-seg button{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;
+  color:var(--text-2,#5b6370);font:inherit;font-size:12.5px;padding:3px 10px;border-radius:6px;cursor:pointer}
+.oi-seg button.on{background:var(--surface-4,#dee1e6);color:var(--text,#191c20);font-weight:600}
+.oi-seg svg{width:13px;height:13px}
+
+/* ── facet ── */
+.oi-facets{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.oi-facets .oi-sp{flex:1;min-width:8px}
+.oi-fchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border,#e4e7ec);
+  background:var(--surface,#fff);color:var(--text-2,#5b6370);border-radius:20px;padding:3px 11px;
+  font:inherit;font-size:12px;cursor:pointer;line-height:1.7}
+.oi-fchip:hover{background:var(--hover-overlay,rgba(0,0,0,.035))}
+.oi-fchip.on{background:var(--pri-bg,#eef2fe);border-color:var(--pri-br,#c3d0f7);
+  color:var(--pri,#3b5bdb);font-weight:600}
+.oi-fchip.zero{opacity:.45}
+.oi-fchip .n{font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:11px;
+  color:var(--text-3,#8a9099)}
+.oi-fchip.on .n{color:var(--pri,#3b5bdb);opacity:.75}
+.oi-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.oi-fdiv{width:1px;height:15px;background:var(--border-2,#d3d8e0);flex-shrink:0}
+
+/* ── 表格 ── */
+.oi-tbl th{position:sticky;top:0;z-index:2;background:var(--surface-2,#f7f8fa)}
+.oi-tbl td{vertical-align:middle}
+.oi-tbl .oi-w1{width:96px}.oi-tbl .oi-w2{width:112px}.oi-tbl .oi-w3{width:236px}
+.oi-tbl .oi-w4{width:104px}.oi-tbl .oi-w5{width:74px}
+.oi-nm{font-weight:500;color:var(--text,#191c20)}
+.oi-mono{font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:12px;white-space:nowrap}
+.oi-dim{color:var(--text-3,#8a9099)}
+.oi-snip{display:block;color:var(--text-2,#5b6370);font-size:12px;margin-top:3px;line-height:1.5}
+.oi-snip mark{background:var(--warn-bg,#fdf3e0);color:var(--text,#191c20);border-radius:2px;padding:0 2px}
+
+/* RES-018：參考碼建立時指派一次、永不變動，所以它跟在會變動的顯示名稱旁邊，不取代它。 */
+.oi-code{margin-left:7px;font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:10.5px;
+  color:var(--text-3,#8a9099);background:var(--surface-3,#eef0f4);border:1px solid var(--border,#e4e7ec);
+  border-radius:4px;padding:0 5px;cursor:pointer;white-space:nowrap;line-height:1.7}
+.oi-code:hover{color:var(--text-2,#5b6370);background:var(--surface-4,#dee1e6)}
+
+/* 來源日誌＝第二條路。日期＋當天的日誌標題（時間地標）＋行號。 */
+.oi-src{display:inline-flex;align-items:center;gap:6px;max-width:100%;
+  border:1px solid var(--border,#e4e7ec);background:var(--surface,#fff);border-radius:6px;
+  padding:2px 8px;font:inherit;font-size:11.5px;color:var(--text-2,#5b6370);cursor:pointer}
+.oi-src:hover{background:var(--hover-overlay,rgba(0,0,0,.035));border-color:var(--border-2,#d3d8e0)}
+.oi-src.sm{padding:1px 7px}
+.oi-src-d{font-family:var(--mono,ui-monospace,Menlo,monospace);flex-shrink:0}
+.oi-src-l{color:var(--text-3,#8a9099);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.oi-src-n{font-family:var(--mono,ui-monospace,Menlo,monospace);color:var(--text-3,#8a9099);flex-shrink:0}
+
+.oi-acts{display:flex;gap:4px;justify-content:flex-end}
+.oi-acts button{display:inline-flex;align-items:center;border:1px solid var(--border,#e4e7ec);
+  background:var(--surface,#fff);color:var(--text-3,#8a9099);border-radius:6px;padding:3px 6px;cursor:pointer}
+.oi-acts button:hover{color:var(--pri,#3b5bdb);border-color:var(--pri-br,#c3d0f7);
+  background:var(--pri-bg,#eef2fe)}
+.oi-acts svg{width:12px;height:12px}
+
+tr.oi-grp td{position:sticky;top:29px;z-index:1;background:var(--surface-3,#eef0f4);
+  padding:5px 14px;font-size:12px;font-weight:600;color:var(--text-2,#5b6370)}
+tr.oi-grp .n{margin-left:8px;font-weight:400;font-family:var(--mono,ui-monospace,Menlo,monospace);
+  font-size:11px;color:var(--text-3,#8a9099)}
+tr.oi-grp .lmk{margin-left:12px;font-weight:400;font-size:11.5px;color:var(--text-3,#8a9099)}
+
+/* ── 時間軸 ── */
+.oi-tl{padding:2px 0 6px}
+.oi-tl-m{margin-top:10px}
+.oi-tl-mh{display:flex;align-items:center;gap:10px;padding:6px 0}
+.oi-tl-mh b{font-size:13.5px}
+.oi-tl-mh .n{font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:11.5px;
+  color:var(--text-3,#8a9099)}
+.oi-tl-mh i{flex:1;height:1px;background:var(--border,#e4e7ec)}
+.oi-tl-d{display:flex;gap:14px;padding:7px 0;border-bottom:1px solid var(--border,#e4e7ec)}
+.oi-tl-d:last-child{border-bottom:0}
+.oi-tl-dl{width:170px;flex-shrink:0;padding-top:2px;min-width:0}
+.oi-tl-dl b{display:block;font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:12.5px;
+  color:var(--text,#191c20)}
+.oi-tl-dl s{display:block;text-decoration:none;color:var(--text-3,#8a9099);font-size:11.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.oi-tl-items{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.oi-tl-row{display:flex;align-items:flex-start;gap:9px;padding:3px 2px}
+.oi-tl-nm{flex:1;min-width:0}
+.oi-linkbtn{border:0;background:transparent;padding:0;font:inherit;color:var(--text,#191c20);
+  cursor:pointer;text-align:left;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.oi-linkbtn:hover{color:var(--pri,#3b5bdb)}
+.oi-tl-tm{font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:11.5px;
+  color:var(--text-3,#8a9099);white-space:nowrap;flex-shrink:0}
+
+/* ── 分頁與空狀態 ── */
+.oi-foot{display:flex;align-items:center;gap:10px;padding:9px 2px 2px;font-size:12px;
+  color:var(--text-3,#8a9099)}
+.oi-pg{margin-left:auto;display:flex;gap:4px;align-items:center}
+.oi-pg button{border:1px solid var(--border,#e4e7ec);background:var(--surface,#fff);
+  color:var(--text-2,#5b6370);border-radius:6px;padding:2px 8px;font:inherit;
+  font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:11.5px;cursor:pointer}
+.oi-pg button:hover{background:var(--hover-overlay,rgba(0,0,0,.035))}
+.oi-pg button.on{background:var(--pri-bg,#eef2fe);border-color:var(--pri-br,#c3d0f7);
+  color:var(--pri,#3b5bdb)}
+.oi-pg .dots{color:var(--text-3,#8a9099);font-size:11.5px}
+.oi-empty{padding:36px 20px;text-align:center}
+.oi-empty b{display:block;font-size:14px;margin-bottom:5px;color:var(--text,#191c20)}
+.oi-empty p{margin:0 0 12px;color:var(--text-3,#8a9099);font-size:12.5px;line-height:1.7}
+
+@media (max-width:860px){
+  .oi-search{width:100%}
+  .oi-tl-dl{width:110px}
+}

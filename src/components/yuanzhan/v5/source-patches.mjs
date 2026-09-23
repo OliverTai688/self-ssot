@@ -35,6 +35,16 @@ export function patchSource(source) {
  // that were still missing from the shared icon table (svg(k) silently draws an empty
  // <svg> for an unknown key) -- add the missing lucide-equivalent entries.
  rep("arrowin:'<path d=\"m7 7 10 10\"/><path d=\"M17 7v10H7\"/>'\n};", "arrowin:'<path d=\"m7 7 10 10\"/><path d=\"M17 7v10H7\"/>',\n  chevronLeft:'<path d=\"m15 6-6 6 6 6\"/>',\n  chevronRight:'<path d=\"m9 6 6 6-6 6\"/>',\n  calendar:'<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/>',\n  cal:'<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/>',\n  hash:'<path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/>',\n  at:'<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94\"/>',\n  list:'<path d=\"M8 6h13M8 12h13M8 18h13\"/><path d=\"M3 6h.01M3 12h.01M3 18h.01\"/>',\n  message:'<path d=\"M7.9 20A9 9 0 1 0 4 16.1L2 22Z\"/>',\n  rotate:'<path d=\"M3 12a9 9 0 1 0 2.6-6.4L3 8\"/><path d=\"M3 3v5h5\"/>'\n};");
+ // 物件索引（日誌第三分頁）新用到的三個字形。svg() 對未知 key 會靜默畫出空 <svg>，
+ // 所以每新增一顆按鈕都要同步補這張表 —— 同 journal-icon-table-missing-keys-fix 的成因。
+ rep("rotate:'<path d=\"M3 12a9 9 0 1 0 2.6-6.4L3 8\"/><path d=\"M3 3v5h5\"/>'\n};", "rotate:'<path d=\"M3 12a9 9 0 1 0 2.6-6.4L3 8\"/><path d=\"M3 3v5h5\"/>',\n  search:'<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>',\n  x:'<path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/>',\n  sort:'<path d=\"m3 16 4 4 4-4\"/><path d=\"M7 20V4\"/><path d=\"M11 4h10\"/><path d=\"M11 8h7\"/><path d=\"M11 12h4\"/>'\n};");
+ // 文件型物件（Standup/1:1/會議紀錄/回顧/研究筆記）的家是獨立頁面，不是抽屜；
+ // objJump 少了這條分支，索引與駕駛艙點下去都會沒有反應。
+ rep("  else if(ty==='decision')openDrawer('decision',rid);\n  else if(ty==='event')openDrawer('event',rid);", "  else if(ty==='decision')openDrawer('decision',rid);\n  else if(ty==='event')openDrawer('event',rid);\n  else if(ty==='doc_object'||ty==='doc')openDocPage(rid);");
+ // 召喚當下記下誕生時刻。所有召喚路徑（applySummon / summonObject）最後都收斂到
+ // replaceWithObj，所以只需要在這兩個分支寫入，物件索引的「建立時間」才有時分可顯示。
+ rep("const nb={id:newBid(),t:'obj',ind:b.ind+0,text:'',obj:{ty,rid}};", "const nb={id:newBid(),t:'obj',ind:b.ind+0,text:'',obj:{ty,rid,bornAt:Date.now()}};");
+ rep("b.t='obj';b.obj={ty,rid};", "b.t='obj';b.obj={ty,rid,bornAt:Date.now()};");
  // Chart/heatmap colors were hardcoded to the black theme's palette; read the active
  // theme's CSS custom properties instead so charts redraw correctly in all 4 themes.
  rep("const VC={v1:'#3987e5',v2:'#d95926',v3:'#199e70',v4:'#c98500',\n          good:'#0ca30c',warn:'#fab219',serious:'#ec835a',crit:'#d03b3b',\n          seq:['#184f95','#256abf','#3987e5','#6da7ec','#9ec5f4'],\n          grid:'#252c35',axis:'#39414c',ink:'#99a2af',ink2:'#626b77',surf:'#161a20'};", "const VC={v1:'var(--v1)',v2:'var(--v2)',v3:'var(--v3)',v4:'var(--v4)',\n          good:'var(--st-good)',warn:'var(--st-warn)',serious:'var(--st-serious)',crit:'var(--st-crit)',\n          seq:['var(--seq-1)','var(--seq-2)','var(--seq-3)','var(--seq-4)','var(--seq-5)'],\n          grid:'var(--grid)',axis:'var(--axis)',ink:'var(--text-2)',ink2:'var(--text-3)',surf:'var(--surface-2)'};");

@@ -85,6 +85,14 @@ function metaOf(doc) {
 
 function blankSecBlocks() { return [{ id: newBid(), t: 'p', ind: 0, text: '' }]; }
 
+/* RES-018 參考碼。序號走 DB.seq（與 nid() 同一個計數來源），日期用物件誕生那天。 */
+function docObjectRefCode(typeKey, day) {
+  const type = String(typeKey || 'DOC').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  DB.seq.DOCREF = (DB.seq.DOCREF || 0) + 1;
+  const seq = String(DB.seq.DOCREF).padStart(6, '0');
+  return (type || 'DOC') + '-JRNL-' + seq + '-' + String(day || '').replace(/-/g, '');
+}
+
 function createDocObject(typeKey, day, tpl) {
   const meta = DOC_METAS[typeKey] || {
     k: typeKey,
@@ -94,14 +102,18 @@ function createDocObject(typeKey, day, tpl) {
     secs: (tpl && tpl.secs) || ['內容'],
     placeholders: ['寫點什麼...']
   };
-  const id = 'DOC-' + typeKey.toUpperCase() + '-' + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 5);
+  // RES-018 參考碼：{OBJECT_TYPE}-{ORIGIN}-{SEQUENCE:6}-{DATE:YYYYMMDD}。
+  // 建立時指派一次、永不重生成、改顯示名稱不得更動 —— 因為 docObjectName() 會隨內容
+  // 重算標題，標題不能當引用鍵。舊物件的 id 保留原樣，不回填（回填等於重寫歷史引用）。
+  const bornDay = day || S.jday || TODAY;
+  const id = docObjectRefCode(typeKey, bornDay);
   const docObj = {
     id,
     type: typeKey,
     subType: typeKey,
     title: meta.nm,
     titleAuto: true, // 系統自動命名；使用者手動改過標題後會關閉，見 DRAWERS.doc_object 的 oninput
-    day: day || S.jday || TODAY,
+    day: bornDay,
     author: DB.me,
     collapsed: false, // Default expanded so user can edit right away
     createdAt: Date.now(),

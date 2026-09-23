@@ -1,5 +1,14 @@
 # Completed Log
 
+## 2026-09-23
+
+### YZUI-012 — 日誌「標籤流」改為「物件索引」
+
+- Owner 回報召喚紀錄只顯示 `doc_object / 已刪除 / —`，且三個月後找不到會議紀錄。根因四件事互相獨立：名稱查詢的 if/else 末端把所有未知型別當事件查 `EVT()`；`objJump` 缺 `doc_object` 分支；資料來源是日誌區塊而非物件帳本（日誌行刪除即消失、段落內召喚查不到）；召喚未記錄誕生時刻。
+- 依 AGENTS.md §7 分數關卡評為 62/100（Medium）→ 跑滿 4 輪研究（本地契合／對照產品與外部研究／資料邊界／風險與驗收）→ 94/100（High）後才轉實作。外部依據：Teevan CHI 2004（已知目標時仍只有 39% 用關鍵字搜尋）、Dumais SIGIR 2003（偏好依日期排序）、Ringel 2003（時間地標）、Allen 1989（回憶內容勝於回憶名稱）、Whittaker 2011（手動標籤投報率低）、NN/g 篩選兩篇、SaaS data table patterns。本地依據：RES-002 resource index 條款、ARC-030 契約十項、RES-018 參考碼、ARC-012「records 不得為卡片牆」、REF-003 UI-088 與 GD-001。
+- 新增 `object-index.source.js`／`object-index.css`／`scripts/verify-object-index.mjs`；`source-patches.mjs` 三筆窄 `rep()`；`template-objects.source.js` 改用 RES-018 參考碼格式（舊 id 不回填）；generator 併入新 js／css 後重新產生。唯讀索引，無批次寫入（ARC-030 §8），無 schema／auth／公開輸出變更。
+- Verification：`verify-object-index.mjs` 19/19 PASS、generator 重新產生、`node --check`、`tsc --noEmit` 0 errors、eslint 0 errors（739 warnings，基準 637，+102 為 inline-handler 函式的既有樣式）。`verify-yuanzhan-v5.cjs` NOT_RUN（缺 playwright），已依 Manual Blocker Fallback 以可重跑 harness 替代。驗收 2／9／11 需 Owner 本機瀏覽器確認，未通過前不宣稱本頁驗證完成。[本次證據](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260923-journal-object-index.md)
+
 ## 2026-09-15
 
 ### YZLIVE-001 — 圓展帳號管理與六碼登入上線規劃

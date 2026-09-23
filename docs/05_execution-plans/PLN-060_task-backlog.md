@@ -1,5 +1,16 @@
 # Task Backlog
 
+## Owner-directed 日誌物件索引 — 2026-09-23
+
+Owner 指出日誌「標籤流」的召喚紀錄只顯示 `doc_object / 已刪除 / —`，且三個月後找不到會議紀錄或回顧。依 AGENTS.md §7 分數關卡（研究前 62／Medium → 4 輪研究 → 研究後 94／High）收斂為單一設計，Owner 核可全部採用並同意分頁改名。提案：`journal-tagstream-object-index-proposals.html`（repo root）。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260923-journal-object-index.md)。
+
+| Task ID | 範圍 | Status | 依賴 | 驗收重點 |
+|---|---|---|---|---|
+| YZUI-012 | 標籤流 → 物件索引：以物件帳本為準的 resource index | DONE — implementation（Owner 瀏覽器驗收待補） | UI-088 Revision Mode；ARC-030 契約形狀 | 11 條驗收，其中 1/3/4/5/6/7/8 由 `scripts/verify-object-index.mjs` 自動化（19/19 PASS）；2/9/11 需本機瀏覽器 |
+| YZUI-013 | 反向索引改為增量維護（`DB.objIndex`） | PROPOSED | YZUI-012；僅在實測變慢時啟動 | 建立／刪除物件時維護，渲染不再全掃；索引結果與全掃版一致 |
+| YZUI-014 | 舊 doc_object 參考碼是否回填 | BLOCKED — 需 Owner 決定 | RES-018 | RES-018 規定參考碼永不重生成；回填＝重寫歷史引用，不得自行決定 |
+| YZUI-015 | `ARC-030` 契約形狀套用到第二個模組索引 | PROPOSED | YZUI-012 | 避免各頁各自發明索引；ARC-030 §8「Building each module index independently. Rejected.」 |
+
 ## Owner-directed 帳號與正式上線規劃 — 2026-09-15
 
 使用者要求先規劃，六碼 Email OTP 為已確認登入方式。[PLN-071](PLN-071_yuanzhan-account-and-private-launch-plan.md) / [AUT-009](../02_architecture-and-rules/AUT-009_yuanzhan-email-otp-account-boundary.md) 定義範圍、檔案、驗證、風險與停止條件。PROPOSED 不等於正式實作／寄信／DB／部署授權；戴宇星額外公司管理權限待確認。

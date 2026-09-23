@@ -1,5 +1,17 @@
 # Current Sprint
 
+## Owner-directed 日誌物件索引 — 2026-09-23
+
+`YZUI-012` 已完成實作：日誌第三分頁由「標籤流／召喚紀錄」改為「物件索引」（Owner 本次明確核可改名）。資料來源從日誌區塊改為物件帳本，日誌降級為「來源」欄；新增名稱與內文搜尋（標亮片段）、型別 facet（帶數量）、「僅日誌誕生」過濾、三種排序、月份分組（月份列掛當天日誌標題作時間地標）、25 筆分頁、表格／時間軸雙檢視、RES-018 參考碼徽章、回到來源行的定位閃爍。
+
+修復三件既有缺陷：`objJump` 缺 `doc_object` 分支（點了沒反應）、icon 表缺 `search`/`x`/`sort`（會靜默畫空白方框）、召喚未記錄誕生時刻（`obj.bornAt`）。`createDocObject` 改用 RES-018 參考碼格式，舊 id 不回填。
+
+驗證：`node scripts/verify-object-index.mjs` 19/19 PASS（新增的無瀏覽器 harness，涵蓋驗收 1/3/4/5/6/7/8）、generator 重新產生、`node --check`、`tsc --noEmit` 0 errors、eslint 0 errors。`verify-yuanzhan-v5.cjs` 需 playwright，本機與沙箱皆無，已依 Manual Blocker Fallback 以 harness 替代。
+
+**尚未驗證**：驗收 2（兩條跳轉路徑）、9（四主題可讀）、11（390px）需 Owner 在本機 `npm run dev` 操作確認。在那之前不宣稱本頁驗證通過。UI-088 仍為 `COMPLETED`／`PROTOTYPE`，automation 與 launch level 不變。
+
+下一個候選：Owner 完成瀏覽器驗收後，`YZUI-015`（ARC-030 契約套到第二個模組索引）或 `YZLIVE-005`（持久化）。
+
 ## Owner-directed 帳號上線規劃 — 2026-09-15
 
 YZLIVE-001 已完成規劃：[PLN-071](PLN-071_yuanzhan-account-and-private-launch-plan.md)／[AUT-009](../02_architecture-and-rules/AUT-009_yuanzhan-email-otp-account-boundary.md)。三帳號統一 Email 六碼登入，提出 v5「我的帳號／公司管理」與身份／會員／持久化／分期驗收。下一候選為 YZLIVE-002；002–008 均 PROPOSED，不啟動正式 auth／provider／migration／部署。戴宇星是否額外具公司管理權仍待確認。原 UI-088 COMPLETED／PROTOTYPE、automation 與正式 launch 狀態不變。

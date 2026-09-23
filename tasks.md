@@ -464,3 +464,14 @@ After each task: update `docs/tasks/T-001-backlog.md`, `docs/tasks/T-002-sprint-
 DONE — UI-only；D10 owner-approved，UI-088。依 RES-030 三輪研究移植原始 8 工作區／30 分頁、完整操作與抽屜；保留雙空間、作者權限、公式和 showcase/empty。驗收為原版逐頁視覺對照＋兩模式 CRUD／鍵盤／手機；不變更正式 auth、DB、通知或部署。
 
 [驗證報告](docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260913-yuanzhan-v5-fidelity.md)：21 組主要操作＋18 組細節操作、60 個雙模式分頁、31 個原版比對區域、factory／typecheck／lint／完整建置通過。正式多人與持久化另期。
+
+
+## YZUI-012 — 日誌物件索引（2026-09-23）
+
+DONE — implementation；Owner 核可全部採用並同意分頁改名「標籤流 → 物件索引」。UI-088 Revision Mode，未新增 UI ID（REF-003:202）。
+
+資料來源改以物件帳本為準（`DB.docObjects` 與各帳本），日誌降級為「來源」欄並帶當天日誌標題作時間地標；反向索引同時掃各元件 `sec.blocks`。新增內文搜尋（標亮片段）、型別 facet、月份分組、分頁、表格／時間軸雙檢視、RES-018 參考碼徽章、回到來源行定位。唯讀，無批次寫入。
+
+驗收 11 條見 `journal-tagstream-object-index-proposals.html`；其中 1/3/4/5/6/7/8 由 `scripts/verify-object-index.mjs` 自動化（19/19 PASS，無需瀏覽器）。**2／9／11 待 Owner 在本機 `npm run dev` 確認。**
+
+[驗證報告](docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260923-journal-object-index.md)

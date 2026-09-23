@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>物件索引：研究後的介面提案 v2</title>
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f7f8fa; --surface-3:#eef0f4;
+  --border:#e4e7ec; --border-2:#d3d8e0;
+  --text:#191c20; --text-2:#5b6370; --text-3:#98a0ad;
+  --pri:#3b5bdb; --pri-soft:#eef2fe;
+  --teal:#0f9b8e; --teal-soft:#e6f6f4;
+  --info:#2f80d8; --info-soft:#e9f2fd;
+  --warn:#c07a00; --warn-soft:#fdf3e0;
+  --ok:#17845a; --ok-soft:#e6f5ee;
+  --neutral:#6b7280; --neutral-soft:#f0f1f4;
+  --danger:#c0392b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1300px;margin:0 auto;padding:30px 20px 90px}
+h1{font-size:23px;margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:var(--text-2);margin:0 0 10px;max-width:76ch}
+.lede b{color:var(--text)}
+.stamp{display:inline-flex;align-items:center;gap:7px;background:var(--pri-soft);color:var(--pri);
+  border:1px solid #d4defb;border-radius:20px;padding:3px 12px;font-size:12px;margin-bottom:18px}
+code{font-family:var(--mono);font-size:12.5px;background:var(--surface-3);
+  border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+h2.sec{font-size:16px;margin:34px 0 10px;padding-top:4px}
+h2.sec span{color:var(--text-3);font-weight:400;font-size:13px;margin-left:8px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+
+/* 分數 */
+.score{display:grid;grid-template-columns:1fr 300px;gap:14px;margin-bottom:8px}
+@media(max-width:860px){.score{grid-template-columns:1fr}}
+table.sc{width:100%;border-collapse:collapse;font-size:13px}
+table.sc th,table.sc td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--border)}
+table.sc th{color:var(--text-3);font-weight:500;font-size:12px}
+table.sc td.n{font-family:var(--mono);text-align:right;width:56px;color:var(--text-2)}
+table.sc td.n.up{color:var(--ok);font-weight:600}
+.gauge{display:flex;flex-direction:column;justify-content:center;gap:10px}
+.gauge .big{font-size:13px;color:var(--text-2)}
+.gauge .big b{font-size:30px;color:var(--text);font-family:var(--mono);letter-spacing:-.02em}
+.bar{height:8px;border-radius:5px;background:var(--surface-3);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pri)}
+.bar.was i{background:var(--text-3)}
+.gauge small{color:var(--text-3);font-size:12px}
+
+/* 研究輪次 */
+.rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(275px,1fr));gap:10px}
+.round{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 15px}
+.round .no{font-family:var(--mono);font-size:11px;color:var(--pri);background:var(--pri-soft);
+  border-radius:5px;padding:1px 7px;display:inline-block;margin-bottom:6px}
+.round h4{margin:0 0 6px;font-size:13.5px}
+.round p{margin:0 0 8px;color:var(--text-2);font-size:12.8px;line-height:1.65}
+.round .verdict{font-size:12.5px;line-height:1.6;border-top:1px solid var(--border);padding-top:8px;margin-top:2px}
+.round .verdict b{color:var(--ok)}
+.round .verdict s{color:var(--text-3);text-decoration:none;display:block;margin-top:3px}
+.round .verdict s b{color:var(--danger);font-weight:600}
+
+/* 研究依據表 */
+table.ev{width:100%;border-collapse:collapse;font-size:13px}
+table.ev th,table.ev td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+table.ev th{color:var(--text-3);font-weight:500;font-size:12px;white-space:nowrap}
+table.ev td.s{color:var(--text);width:230px}
+table.ev td.s em{display:block;font-style:normal;color:var(--text-3);font-size:11.5px;margin-top:2px}
+table.ev td.f{color:var(--text-2);width:40%}
+table.ev td.d{color:var(--text)}
+
+/* app frame */
+.frame{border:1px solid var(--border-2);border-radius:12px;overflow:hidden;
+  background:var(--surface);box-shadow:0 10px 30px rgba(20,24,32,.07)}
+.scroll{overflow-x:auto}
+.app{min-width:1020px}
+.topbar{height:42px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  border-bottom:1px solid var(--border);background:var(--surface)}
+.logo{width:18px;height:18px;border-radius:6px;background:linear-gradient(135deg,#8ea0ff,#b39cff)}
+.brand{font-weight:600;font-size:13px}
+.ver{color:var(--text-3);font-family:var(--mono);font-size:11px}
+.omni{margin:0 auto;width:320px;height:26px;border:1px solid var(--border);border-radius:7px;
+  background:var(--surface-2);display:flex;align-items:center;padding:0 9px;
+  color:var(--text-3);font-size:12px;gap:6px}
+.user{display:flex;align-items:center;gap:6px;border:1px solid var(--border);
+  border-radius:20px;padding:3px 10px 3px 4px;font-size:12px}
+.av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;background:#dfe4f5;color:#3b5bdb}
+.body{display:flex;min-height:400px}
+.rail{width:62px;flex-shrink:0;border-right:1px solid var(--border);background:var(--surface-2);
+  padding:8px 0;display:flex;flex-direction:column;gap:2px}
+.rail i{height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;font-style:normal;font-size:10px;color:var(--text-3)}
+.rail i.on{color:var(--pri);background:var(--pri-soft)}
+.rail i s{width:15px;height:15px;border:1.4px solid currentColor;border-radius:3px;
+  text-decoration:none;display:block}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.phead{display:flex;align-items:center;gap:14px;padding:13px 20px;border-bottom:1px solid var(--border)}
+.phead h3{margin:0;font-size:17px;font-weight:600}
+.segs{display:flex;background:var(--surface-3);border-radius:8px;padding:3px;gap:2px}
+.segs b{font-size:12.5px;font-weight:500;color:var(--text-2);padding:4px 11px;border-radius:6px;
+  display:inline-flex;align-items:center;gap:5px}
+.segs b.on{background:var(--surface);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.phead .right{margin-left:auto;display:flex;align-items:center;gap:9px}
+.badge-mock{font-size:11px;font-family:var(--mono);color:var(--warn);background:var(--warn-soft);
+  border:1px solid #f0dcb4;border-radius:5px;padding:1px 7px}
+
+/* 命令列 */
+.cmdbar{display:flex;align-items:center;gap:9px;padding:10px 20px;border-bottom:1px solid var(--border)}
+.search{display:flex;align-items:center;gap:7px;border:1px solid var(--border-2);border-radius:8px;
+  background:var(--surface);padding:6px 11px;font-size:13px;color:var(--text-3);width:300px}
+.search.act{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-soft)}
+.search .q{color:var(--text);flex:1}
+.search .hintx{color:var(--text-3);font-size:11px;font-family:var(--mono)}
+.cmdbar .sp{flex:1}
+.ctl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:7px;
+  background:var(--surface);padding:5px 10px;font-size:12.5px;color:var(--text-2)}
+.ctl b{color:var(--text);font-weight:500}
+svg.ic{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+svg.ic.sm{width:12px;height:12px}
+
+/* facet */
+.facets{display:flex;align-items:center;gap:7px;padding:9px 20px;
+  border-bottom:1px solid var(--border);background:var(--surface-2);flex-wrap:wrap}
+.fchip{border:1px solid var(--border);background:var(--surface);border-radius:20px;
+  padding:4px 11px;font-size:12px;color:var(--text-2);display:inline-flex;align-items:center;gap:6px}
+.fchip .n{color:var(--text-3);font-family:var(--mono);font-size:11px}
+.fchip.on{background:var(--pri-soft);border-color:#c3d0f7;color:var(--pri);font-weight:600}
+.fchip.on .n{color:var(--pri);opacity:.75}
+.fchip .dotc{width:7px;height:7px;border-radius:50%}
+.fchip.zero{opacity:.45}
+.fdiv{width:1px;height:16px;background:var(--border-2);margin:0 2px}
+
+/* 表格 */
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+table.tbl th{text-align:left;padding:8px 20px;color:var(--text-3);font-weight:500;
+  font-size:11.5px;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap;
+  position:sticky;top:0}
+table.tbl td{padding:9px 20px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.tbl tr:hover td{background:var(--surface-2)}
+.nm{font-weight:500;color:var(--text)}
+.rc{font-family:var(--mono);font-size:10.5px;color:var(--text-3);background:var(--surface-3);
+  border:1px solid var(--border);border-radius:4px;padding:0 5px;margin-left:7px;white-space:nowrap}
+.snip{display:block;color:var(--text-2);font-size:12px;margin-top:3px;line-height:1.5}
+.snip mark{background:#fff3b0;color:#4a3800;border-radius:2px;padding:0 2px}
+td.mono{font-family:var(--mono);font-size:12px;color:var(--text-2);white-space:nowrap}
+td.dim{color:var(--text-3)}
+.chip{display:inline-block;border-radius:5px;padding:2px 8px;font-size:11.5px;line-height:1.5;white-space:nowrap}
+.c-p{background:var(--pri-soft);color:var(--pri)}
+.c-t{background:var(--teal-soft);color:var(--teal)}
+.c-i{background:var(--info-soft);color:var(--info)}
+.c-w{background:var(--warn-soft);color:var(--warn)}
+.c-o{background:var(--ok-soft);color:var(--ok)}
+.c-n{background:var(--neutral-soft);color:var(--neutral)}
+.srcl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+  border-radius:6px;padding:3px 8px;font-size:11.5px;color:var(--text-2);background:var(--surface);max-width:230px}
+.srcl .dt{font-family:var(--mono);flex-shrink:0}
+.srcl .lm{color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srcl .ln{font-family:var(--mono);color:var(--text-3);flex-shrink:0}
+.acts{display:flex;gap:4px;justify-content:flex-end;color:var(--text-3)}
+.acts span{border:1px solid var(--border);border-radius:6px;padding:3px 6px;display:inline-flex;background:var(--surface)}
+tr.grp td{background:var(--surface-3);padding:6px 20px;font-size:12px;color:var(--text-2);
+  font-weight:600;letter-spacing:.02em;position:sticky;top:29px}
+tr.grp .n{color:var(--text-3);font-weight:400;margin-left:8px;font-family:var(--mono);font-size:11px}
+tr.grp .lmk{color:var(--text-3);font-weight:400;margin-left:12px;font-size:11.5px}
+.foot{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--text-3);font-size:12px}
+.foot .pg{margin-left:auto;display:flex;gap:4px}
+.foot .pg span{border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-family:var(--mono);font-size:11.5px}
+.foot .pg span.on{background:var(--pri-soft);border-color:#c3d0f7;color:var(--pri)}
+
+/* 時間軸 */
+.tl{padding:4px 20px 18px}
+.tlmonth{margin-top:12px}
+.tlmonth>.h{display:flex;align-items:center;gap:10px;padding:7px 0}
+.tlmonth>.h b{font-size:13.5px}
+.tlmonth>.h .n{color:var(--text-3);font-size:11.5px;font-family:var(--mono)}
+.tlmonth>.h i{flex:1;height:1px;background:var(--border);font-style:normal}
+.tlday{display:flex;gap:14px;padding:7px 0 7px 2px;border-bottom:1px solid var(--border)}
+.tlday:last-child{border-bottom:0}
+.tlday .d{width:168px;flex-shrink:0;padding-top:3px}
+.tlday .d b{display:block;color:var(--text);font-weight:600;font-size:12.5px;font-family:var(--mono)}
+.tlday .d s{display:block;text-decoration:none;color:var(--text-3);font-size:11.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.tlitems{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.tlrow{display:flex;align-items:center;gap:9px;padding:4px 2px}
+.tlrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400}
+.tlrow .tm{font-family:var(--mono);font-size:11.5px;color:var(--text-3);white-space:nowrap}
+
+/* empty */
+.empty{padding:40px 20px;text-align:center}
+.empty b{display:block;font-size:14px;margin-bottom:5px}
+.empty p{color:var(--text-3);font-size:12.5px;margin:0 0 12px}
+.empty .cta{display:inline-block;border:1px solid var(--pri);color:var(--pri);background:var(--pri-soft);
+  border-radius:7px;padding:5px 13px;font-size:12.5px}
+
+/* 說明 */
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:10px;margin-top:14px}
+.notes div{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;font-size:13px;color:var(--text-2);line-height:1.68}
+.notes h4{margin:0 0 4px;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px}
+.notes h4 .tag{font-size:10.5px;font-family:var(--mono);background:var(--pri-soft);color:var(--pri);
+  border-radius:4px;padding:0 5px;font-weight:400}
+.rej{background:#fffaf9;border:1px solid #f0cfc9;border-radius:12px;padding:14px 18px;margin-top:14px}
+.rej h4{margin:0 0 9px;font-size:13.5px;color:#a43a2a}
+.rej ul{margin:0;padding-left:19px}
+.rej li{color:#6d4b45;margin-bottom:7px;line-height:1.7;font-size:13px}
+.rej li:last-child{margin-bottom:0}
+.rej li b{color:#8a3527}
+.hint{display:flex;gap:9px;align-items:flex-start;background:var(--pri-soft);
+  border:1px solid #d4defb;border-radius:10px;padding:11px 14px;margin-top:14px;
+  font-size:13px;color:#33478f;line-height:1.7}
+.hint b{color:#24356f}
+pre.contract{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;
+  padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:12px;
+  line-height:1.7;color:var(--text-2);margin:0}
+pre.contract b{color:var(--text);font-weight:600}
+ol.acc{margin:0;padding-left:20px}
+ol.acc li{margin-bottom:7px;color:var(--text-2);line-height:1.7}
+ol.acc li b{color:var(--text)}
+.files{font-size:12.8px;color:var(--text-2);line-height:1.95}
+.srcs{font-size:12.5px;color:var(--text-2);line-height:1.9}
+.srcs a{color:var(--pri);text-decoration:none}
+.srcs a:hover{text-decoration:underline}
+.cap{color:var(--text-3);font-size:12px;margin:9px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>物件索引：研究後的介面提案</h1>
+<p class="lede">
+上一版的 A 案留了兩個沒解決的洞：<b>資料來源仍是日誌區塊</b>、<b>三個月後只能靠捲動</b>。
+這一版依 <code>AGENTS.md §7</code> 的「頁面需求理解分數關卡」跑完四輪研究，
+把兩個洞補起來，並且把介面從「我猜的樣子」換成「有依據的樣子」。
+結論是<b>單一設計</b>，不是三選一 —— 研究已經把選項收斂掉了。
+</p>
+<span class="stamp">
+  <svg class="ic sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+  2026-09-23 · v2 · 取代前一版 A／B／C 三選一
+</span>
+
+<!-- ═════════ 分數關卡 ═════════ -->
+<h2 class="sec">需求理解分數<span>AGENTS.md §7 · Page Requirement Understanding Score Gate</span></h2>
+<div class="card">
+  <div class="score">
+    <table class="sc">
+      <thead><tr><th>面向</th><th style="width:70px">滿分</th>
+        <th style="width:64px">研究前</th><th style="width:64px">研究後</th></tr></thead>
+      <tbody>
+        <tr><td>Actor／任務清晰度</td><td class="n">20</td><td class="n">15</td><td class="n up">18</td></tr>
+        <tr><td>PRD／本地證據契合</td><td class="n">20</td><td class="n">8</td><td class="n up">19</td></tr>
+        <tr><td>資料／BFF／API 清晰度</td><td class="n">20</td><td class="n">15</td><td class="n up">19</td></tr>
+        <tr><td>UI 互動／參考模式信心</td><td class="n">15</td><td class="n">7</td><td class="n up">14</td></tr>
+        <tr><td>風險／權限／公開輸出邊界</td><td class="n">15</td><td class="n">13</td><td class="n up">15</td></tr>
+        <tr><td>驗收與驗證清晰度</td><td class="n">10</td><td class="n">4</td><td class="n up">9</td></tr>
+      </tbody>
+    </table>
+    <div class="gauge">
+      <div class="big">研究前 <b>62</b> <span style="font-size:12px">／100 · Medium</span></div>
+      <div class="bar was"><i style="width:62%"></i></div>
+      <small>Medium（60–79）→ 規定須跑 <b>4 輪</b>研究，每輪換一個鏡頭</small>
+      <div class="big" style="margin-top:6px">研究後 <b>94</b> <span style="font-size:12px">／100 · High</span></div>
+      <div class="bar"><i style="width:94%"></i></div>
+      <small>四輪已完成 → 可以轉成可執行的 backlog 形狀</small>
+    </div>
+  </div>
+</div>
+
+<h2 class="sec">四輪研究<span>各換一個鏡頭，每輪記下採用與否決的模式</span></h2>
+<div class="rounds">
+  <div class="round">
+    <span class="no">R1 · 本地 PRD／程式碼契合</span>
+    <h4>這頁其實已經有規格在等它</h4>
+    <p><code>RES-002</code> 的 resource index 條款：「search, filter, sort, paginate, select, bulk-act, and open detail」。
+      <code>ARC-030</code> 更硬：模組索引必須先映射到共用契約，而且「Building each module index independently. <b>Rejected.</b>」</p>
+    <div class="verdict"><b>採用</b>：照 <code>ARC-030</code> 的契約形狀宣告這一頁（即使目前是 prototype 記憶體資料）。
+      <s><b>否決</b>：自己發明一套索引欄位與互動。</s></div>
+  </div>
+  <div class="round">
+    <span class="no">R2 · 對照產品與外部研究</span>
+    <h4>關鍵字搜尋不是答案</h4>
+    <p>Teevan 等人（CHI 2004）：即使一開始就知道要找什麼，<b>只有 39% 的搜尋用關鍵字</b>；
+      人偏好沿著熟悉的來源一小步一小步走。Dumais 等人（SIGIR 2003）：使用者偏好結果<b>依日期而非相關度排序</b>。</p>
+    <div class="verdict"><b>採用</b>：瀏覽路徑與搜尋同等重要；預設依時間排序；每列都給「回到來源」這條第二條路。
+      <s><b>否決</b>：把搜尋框當成唯一解法。</s></div>
+  </div>
+  <div class="round">
+    <span class="no">R3 · 資料／BFF 邊界</span>
+    <h4>標題不是識別碼</h4>
+    <p><code>RES-018</code> 定了參考碼格式 <code>{TYPE}-{ORIGIN}-{SEQ:6}-{YYYYMMDD}</code>，
+      規則是「建立時指派一次、永不重生成、改顯示名稱不得更動」。
+      但 <code>docObjectName()</code> 每次渲染都會用第一行內容<b>重算標題</b> —— 正是 RES-018 要防的「引用失效」。</p>
+    <div class="verdict"><b>採用</b>：列上同時顯示穩定參考碼（等寬可複製）與會變動的顯示名稱。
+      <s><b>否決</b>：只顯示自動標題就當作物件身分。</s></div>
+  </div>
+  <div class="round">
+    <span class="no">R4 · 風險／驗收邊界</span>
+    <h4>唯讀索引，不開寫入口</h4>
+    <p><code>ARC-030 §8</code>：批次寫入在稽核與核可機制存在前一律拒絕；<code>/company</code> 屬高風險模組。
+      <code>REF-003</code>：標籤流沒有自己的 Screen ID，屬 <b>UI-088</b> 的分頁，且 UI-088 已 <code>COMPLETED</code> → 這是 Revision Mode。</p>
+    <div class="verdict"><b>採用</b>：唯讀索引；列動作只有「開啟物件／開啟來源日／複製參考碼」。
+      <s><b>否決</b>：在索引上做批次刪除、批次改狀態、批次匯出。</s></div>
+  </div>
+</div>
+
+<!-- ═════════ 研究依據 ═════════ -->
+<h2 class="sec">每一條研究，改了介面的哪一處<span>研究不是歸檔，是要留下可驗證的東西</span></h2>
+<div class="card" style="padding:4px 18px 14px">
+  <table class="ev">
+    <thead><tr><th>來源</th><th>發現</th><th>介面上的具體改動</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="s">Teevan 等人，CHI 2004<em>Orienteering behavior in directed search</em></td>
+        <td class="f">已知目標時仍只有 39% 用關鍵字搜尋；人常把目標與「某個來源」綁在一起，沿路徑走。
+          「即使看到檔名，也要看到同資料夾裡其他名字才確定是它。」</td>
+        <td class="d">每列給<b>兩個目的地</b>：開啟物件 ↗、開啟它誕生的那天日誌 ⤵。
+          並且預設<b>依日分群</b>而不是平鋪 —— 讓你看得到「同一天還有什麼」。</td>
+      </tr>
+      <tr>
+        <td class="s">Dumais 等人，SIGIR 2003<em>Stuff I've Seen</em></td>
+        <td class="f">使用者偏好結果<b>依日期排序而非相關度</b>；因為對「大概什麼時候碰過它」有概念。</td>
+        <td class="d">預設排序 = 建立時間新到舊，連搜尋結果也一樣（不做相關度排序）。</td>
+      </tr>
+      <tr>
+        <td class="s">Ringel 等人，2003</td>
+        <td class="f">在結果旁加上<b>時間地標</b>（那段期間發生的事）可量化地改善找回效率。</td>
+        <td class="d">月份分組列與時間軸的每一天，都掛上<b>當天的日誌標題</b>當地標
+          （資料已存在：<code>DB.journal[k].title</code>）。「8/21 供應商議價週」比「8/21」好認太多。</td>
+      </tr>
+      <tr>
+        <td class="s">Allen, 1989</td>
+        <td class="f">人回憶<b>內容</b>遠勝於回憶名稱、編號、存放位置這類形式描述。</td>
+        <td class="d">搜尋比對範圍含<b>各段落內文</b>，不只標題；命中時列下方顯示<b>內文片段並標亮</b>。</td>
+      </tr>
+      <tr>
+        <td class="s">Mackenzie 等人，2019</td>
+        <td class="f">純時間排序的 email 找回，<b>目標越舊失敗率越高</b>。</td>
+        <td class="d">時間排序不能單獨存在 —— 型別 facet 與月份分組是把三個月尺度切小的必要條件，不是裝飾。</td>
+      </tr>
+      <tr>
+        <td class="s">Whittaker 等人，2011</td>
+        <td class="f">機會式搜尋主導找回行為，<b>手動建資料夾與標籤的效益低</b>。</td>
+        <td class="d">頁名從「標籤流」改為「<b>物件索引</b>」。不建手動標籤體系，改用系統本來就有的屬性
+          （型別、時間、作者、來源日）。</td>
+      </tr>
+      <tr>
+        <td class="s">NN/g · Filter categories and values</td>
+        <td class="f">篩選值要「可預期、無術語、依使用者優先序排列」。</td>
+        <td class="d">chip 文字用 <b>Standup／會議紀錄／1:1</b>，不用 <code>doc_object</code> 這種內部 key；
+          chip 帶數量；排序依實際使用頻率而非字母。</td>
+      </tr>
+      <tr>
+        <td class="s">SaaS data table patterns</td>
+        <td class="f">識別欄放最左；表頭 sticky；列動作直接露出，不要藏進選單；
+          「參考與稽核」類表格用<b>分頁</b>而不是無限捲動。</td>
+        <td class="d">欄序＝型別→物件（識別）→建立時間→來源日誌→最後更新→動作；表頭與月份列都 sticky；分頁而非無限捲。</td>
+      </tr>
+      <tr>
+        <td class="s">RES-002 / ARC-030 / ARC-012（本地）</td>
+        <td class="f">resource index 必備 search／filter／sort／paginate／detail；
+          records 頁「<b>不要做成裝飾性活動卡牆</b>」；mock 資料不得看起來像正式資料。</td>
+        <td class="d">密集表格為主、時間軸為輔；右上角常駐 <code>Prototype</code> 標記；
+          空狀態寫清楚會出現什麼與下一步。</td>
+      </tr>
+      <tr>
+        <td class="s">RES-018（本地）</td>
+        <td class="f">參考碼建立時指派一次、永不重生成；以等寬可複製徽章顯示於顯示名稱旁，<b>不取代</b>名稱。</td>
+        <td class="d">名稱後加參考碼徽章。附帶發現：目前 <code>DOC-MEETING-x9k2ab</code> 用隨機字尾，
+          <b>不符合</b> RES-018 的 <code>{SEQ:6}-{YYYYMMDD}</code> 格式，需要一併校正。</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═════════ 設計 ═════════ -->
+<h2 class="sec">設計 · 表格檢視（預設）<span>索引狀態：無搜尋、全部型別、依建立時間新到舊</span></h2>
+<div class="frame"><div class="scroll"><div class="app">
+  <div class="topbar">
+    <div class="logo"></div><span class="brand">圓展 Operating System</span>
+    <span class="ver">v5 · two-person</span>
+    <div class="omni">
+      <svg class="ic sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜尋、新增或執行動作...</div>
+    <div class="user"><span class="av">宇</span>戴宇星</div>
+  </div>
+  <div class="body">
+    <div class="rail">
+      <i class="on"><s></s>日誌</i><i><s></s>營運</i><i><s></s>專案</i><i><s></s>金流</i>
+      <i><s></s>容量</i><i><s></s>承諾</i><i><s></s>訊號</i>
+    </div>
+    <div class="main">
+      <div class="phead"><h3>日誌</h3>
+        <div class="segs"><b>今天</b><b>回顧</b><b class="on">物件索引</b></div>
+        <div class="right"><span class="badge-mock">Prototype · 記憶體資料</span></div>
+      </div>
+
+      <div class="cmdbar">
+        <div class="search">
+          <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span style="flex:1">搜尋名稱與內文…</span>
+          <span class="hintx">⌘F</span>
+        </div>
+        <span class="sp"></span>
+        <span class="ctl">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M11 5h10M11 12h7M11 19h4"/><path d="M3 8V5m0 0L1.5 6.5M3 5l1.5 1.5"/><path d="M3 16v3m0 0 1.5-1.5M3 19l-1.5-1.5"/></svg>
+          排序 <b>建立時間 ↓</b></span>
+        <span class="segs">
+          <b class="on"><svg class="ic sm" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>表格</b>
+          <b><svg class="ic sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>時間軸</b>
+        </span>
+      </div>
+
+      <div class="facets">
+        <span class="fchip on">全部 <span class="n">137</span></span>
+        <span class="fdiv"></span>
+        <span class="fchip"><span class="dotc" style="background:#3b5bdb"></span>Standup <span class="n">42</span></span>
+        <span class="fchip"><span class="dotc" style="background:#2f80d8"></span>會議紀錄 <span class="n">18</span></span>
+        <span class="fchip"><span class="dotc" style="background:#0f9b8e"></span>1:1 檢核 <span class="n">11</span></span>
+        <span class="fchip"><span class="dotc" style="background:#17845a"></span>研究筆記 <span class="n">9</span></span>
+        <span class="fchip"><span class="dotc" style="background:#c07a00"></span>回顧 <span class="n">6</span></span>
+        <span class="fdiv"></span>
+        <span class="fchip"><span class="dotc" style="background:#6b7280"></span>工作 <span class="n">28</span></span>
+        <span class="fchip"><span class="dotc" style="background:#6b7280"></span>金流 <span class="n">14</span></span>
+        <span class="fchip"><span class="dotc" style="background:#6b7280"></span>決策 <span class="n">5</span></span>
+        <span class="fchip zero"><span class="dotc" style="background:#6b7280"></span>事件 <span class="n">0</span></span>
+      </div>
+
+      <table class="tbl">
+        <thead><tr>
+          <th style="width:96px">型別</th><th>物件</th>
+          <th style="width:118px">建立時間</th><th style="width:250px">來源日誌</th>
+          <th style="width:106px">最後更新</th><th style="width:76px"></th>
+        </tr></thead>
+        <tbody>
+          <tr class="grp"><td colspan="6">2026 年 9 月 <span class="n">23</span>
+            <span class="lmk">Q4 通路合約 · Sprint 24 收尾</span></td></tr>
+          <tr>
+            <td><span class="chip c-i">會議紀錄</span></td>
+            <td><span class="nm">會議紀錄：Q4 通路合約條款與分潤</span>
+              <span class="rc">MEET-JRNL-000118-20260912</span></td>
+            <td class="mono">9/12 14:20</td>
+            <td><span class="srcl"><span class="dt">9/12</span>
+              <span class="lm">通路合約週</span><span class="ln">L7</span></span></td>
+            <td class="mono dim">9/13 10:02</td>
+            <td><span class="acts">
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="m7 7 10 10"/><path d="M17 7v10H7"/></svg></span>
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg></span>
+            </span></td>
+          </tr>
+          <tr>
+            <td><span class="chip c-p">Standup</span></td>
+            <td><span class="nm">Standup：今日聚焦 Sprint 24 收尾</span>
+              <span class="rc">STAND-JRNL-000117-20260912</span></td>
+            <td class="mono">9/12 09:03</td>
+            <td><span class="srcl"><span class="dt">9/12</span>
+              <span class="lm">通路合約週</span><span class="ln">L2</span></span></td>
+            <td class="mono dim">9/12 18:40</td>
+            <td><span class="acts">
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="m7 7 10 10"/><path d="M17 7v10H7"/></svg></span>
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg></span>
+            </span></td>
+          </tr>
+          <tr>
+            <td><span class="chip c-n">工作</span></td>
+            <td><span class="nm">通路合約條款需法務複核</span>
+              <span class="rc">ISS-JRNL-000116-20260911</span></td>
+            <td class="mono dim" title="舊資料無建立時刻，退回來源日">9/11</td>
+            <td><span class="srcl"><span class="dt">9/11</span>
+              <span class="lm">法務窗口確認</span><span class="ln">L14</span></span></td>
+            <td class="mono dim">9/12 08:15</td>
+            <td><span class="acts">
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="m7 7 10 10"/><path d="M17 7v10H7"/></svg></span>
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg></span>
+            </span></td>
+          </tr>
+          <tr>
+            <td><span class="chip c-o">研究筆記</span></td>
+            <td><span class="nm">研究筆記：競品訂閱制定價區間調查</span>
+              <span class="rc">RSCH-JRNL-000112-20260908</span></td>
+            <td class="mono">9/08 16:47</td>
+            <td><span class="srcl"><span class="dt">9/08</span>
+              <span class="lm">定價假設盤點</span><span class="ln">L5</span></span></td>
+            <td class="mono dim">9/10 09:18</td>
+            <td><span class="acts">
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="m7 7 10 10"/><path d="M17 7v10H7"/></svg></span>
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg></span>
+            </span></td>
+          </tr>
+          <tr class="grp"><td colspan="6">2026 年 8 月 <span class="n">58</span>
+            <span class="lmk">供應商年度議價 · Sprint 22 回顧</span></td></tr>
+          <tr>
+            <td><span class="chip c-w">回顧</span></td>
+            <td><span class="nm">回顧：Sprint 22 交付延遲的三個摩擦點</span>
+              <span class="rc">RETRO-JRNL-000098-20260829</span></td>
+            <td class="mono">8/29 17:30</td>
+            <td><span class="srcl"><span class="dt">8/29</span>
+              <span class="lm">Sprint 22 收尾</span><span class="ln">L11</span></span></td>
+            <td class="mono dim">8/30 08:44</td>
+            <td><span class="acts">
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="m7 7 10 10"/><path d="M17 7v10H7"/></svg></span>
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg></span>
+            </span></td>
+          </tr>
+          <tr>
+            <td><span class="chip c-i">會議紀錄</span></td>
+            <td><span class="nm">會議紀錄：產品路線圖對齊</span>
+              <span class="rc">MEET-JRNL-000071-20260814</span></td>
+            <td class="mono">8/14 15:12</td>
+            <td class="dim" style="font-size:12px">來源日誌那一行已刪除</td>
+            <td class="mono dim">8/14 16:20</td>
+            <td><span class="acts">
+              <span><svg class="ic sm" viewBox="0 0 24 24"><path d="m7 7 10 10"/><path d="M17 7v10H7"/></svg></span>
+            </span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="foot">顯示 1–25，共 137 個物件
+        <span class="pg"><span class="on">1</span><span>2</span><span>3</span><span>4</span><span>…</span><span>6</span></span>
+      </div>
+    </div>
+  </div>
+</div></div></div>
+
+<div class="hint">
+  <svg class="ic" viewBox="0 0 24 24" style="margin-top:2px"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  <div><b>注意第六列。</b>「來源日誌那一行已刪除」而物件還在、還打得開 ——
+    這就是換資料來源的意義。舊做法會讓它整列消失，而你自己定的規則是「物件有唯一的家」。
+    同時注意第三列的建立時間是淡色的：舊資料沒有 <code>bornAt</code>，誠實退回來源日，不假裝有時刻。</div>
+</div>
+
+<div class="notes">
+  <div><h4>雙目的地 <span class="tag">Teevan 2004</span></h4>
+    ↗ 開啟物件本身；⤵ 跳回它誕生的那天日誌的那一行。研究說人是沿著「來源」走回去的，
+    所以不能只給一條路。</div>
+  <div><h4>來源欄帶地標 <span class="tag">Ringel 2003</span></h4>
+    不是只有 <code>9/12 L7</code>，而是 <code>9/12 · 通路合約週 · L7</code>。
+    那天的日誌標題是免費的時間地標，資料已經在 <code>DB.journal[k].title</code>。</div>
+  <div><h4>參考碼徽章 <span class="tag">RES-018</span></h4>
+    等寬、可複製、永不變動。因為 <code>docObjectName()</code> 會隨內容改寫標題 ——
+    標題可以變，引用不能跟著變。</div>
+  <div><h4>facet 用人話 <span class="tag">NN/g</span></h4>
+    「會議紀錄」不是 <code>doc_object</code>；數量直接寫在 chip 上；
+    0 筆的型別淡化但不隱藏，讓你知道那個型別存在。</div>
+  <div><h4>沿用既有機制</h4>
+    密度沿用全域 <code>S.compact</code> 切換（不自己做一個）；分組沿用 <code>S.groupBy</code>；
+    月份字串沿用 <code>slice(0,7)</code> 慣例。</div>
+  <div><h4>分頁而非無限捲</h4>
+    這是參考／稽核性質的表，位置要可預期、可回到同一頁。25 筆一頁。</div>
+</div>
+
+<!-- 搜尋 + 時間軸 -->
+<h2 class="sec">設計 · 搜尋中 ＋ 時間軸檢視<span>同一份資料的第二種讀法</span></h2>
+<div class="frame"><div class="scroll"><div class="app">
+  <div class="topbar">
+    <div class="logo"></div><span class="brand">圓展 Operating System</span>
+    <span class="ver">v5 · two-person</span>
+    <div class="omni">
+      <svg class="ic sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      搜尋、新增或執行動作...</div>
+    <div class="user"><span class="av">宇</span>戴宇星</div>
+  </div>
+  <div class="body">
+    <div class="rail">
+      <i class="on"><s></s>日誌</i><i><s></s>營運</i><i><s></s>專案</i><i><s></s>金流</i>
+      <i><s></s>容量</i><i><s></s>承諾</i><i><s></s>訊號</i>
+    </div>
+    <div class="main">
+      <div class="phead"><h3>日誌</h3>
+        <div class="segs"><b>今天</b><b>回顧</b><b class="on">物件索引</b></div>
+        <div class="right"><span class="badge-mock">Prototype · 記憶體資料</span></div>
+      </div>
+      <div class="cmdbar">
+        <div class="search act">
+          <svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span class="q">合約</span>
+          <svg class="ic sm" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </div>
+        <span class="sp"></span>
+        <span class="ctl">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M11 5h10M11 12h7M11 19h4"/><path d="M3 8V5m0 0L1.5 6.5M3 5l1.5 1.5"/><path d="M3 16v3m0 0 1.5-1.5M3 19l-1.5-1.5"/></svg>
+          排序 <b>建立時間 ↓</b></span>
+        <span class="segs">
+          <b><svg class="ic sm" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>表格</b>
+          <b class="on"><svg class="ic sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>時間軸</b>
+        </span>
+      </div>
+      <div class="facets">
+        <span class="fchip">全部 <span class="n">9</span></span>
+        <span class="fdiv"></span>
+        <span class="fchip on"><span class="dotc" style="background:#2f80d8"></span>會議紀錄 <span class="n">4</span></span>
+        <span class="fchip"><span class="dotc" style="background:#3b5bdb"></span>Standup <span class="n">2</span></span>
+        <span class="fchip"><span class="dotc" style="background:#6b7280"></span>工作 <span class="n">2</span></span>
+        <span class="fchip"><span class="dotc" style="background:#6b7280"></span>決策 <span class="n">1</span></span>
+      </div>
+      <div class="tl">
+        <div class="tlmonth">
+          <div class="h"><b>2026 年 9 月</b><span class="n">1 筆命中</span><i></i></div>
+          <div class="tlday">
+            <div class="d"><b>9/12 週六</b><s>通路合約週</s></div>
+            <div class="tlitems">
+              <div class="tlrow"><span class="chip c-i">會議紀錄</span>
+                <span class="nm">Q4 通路合約條款與分潤
+                  <span class="snip">…本次<mark>合約</mark>分潤級距改以季累計計算，法務要求補上終止條款…</span></span>
+                <span class="srcl"><span class="ln">L7</span></span>
+                <span class="tm">14:20</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tlmonth">
+          <div class="h"><b>2026 年 8 月</b><span class="n">2 筆命中</span><i></i></div>
+          <div class="tlday">
+            <div class="d"><b>8/21 週五</b><s>供應商議價週</s></div>
+            <div class="tlitems">
+              <div class="tlrow"><span class="chip c-i">會議紀錄</span>
+                <span class="nm">法務：合約範本修訂範圍確認
+                  <span class="snip">…現行<mark>合約</mark>範本第 7 條與第 11 條互相牴觸，先凍結對外用印…</span></span>
+                <span class="srcl"><span class="ln">L9</span></span>
+                <span class="tm">15:40</span></div>
+              <div class="tlrow"><span class="chip c-i">會議紀錄</span>
+                <span class="nm">供應商年度議價前置會
+                  <span class="snip">…今年<mark>合約</mark>要把交期罰則寫進去，否則不續約…</span></span>
+                <span class="srcl"><span class="ln">L4</span></span>
+                <span class="tm">10:05</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tlmonth">
+          <div class="h"><b>2026 年 7 月</b><span class="n">1 筆命中</span><i></i></div>
+          <div class="tlday">
+            <div class="d"><b>7/29 週三</b><s>年中預算重編</s></div>
+            <div class="tlitems">
+              <div class="tlrow"><span class="chip c-i">會議紀錄</span>
+                <span class="nm">年中預算重編：三個部門的取捨
+                  <span class="snip">…雲端<mark>合約</mark>年繳改月繳，換取第四季的現金彈性…</span></span>
+                <span class="srcl"><span class="ln">L12</span></span>
+                <span class="tm">13:30</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div></div>
+
+<div class="notes">
+  <div><h4>片段而非標題 <span class="tag">Allen 1989</span></h4>
+    你記得的是「那份寫到交期罰則的合約會議」，不是它叫什麼。所以命中時顯示的是<b>命中的那句內文</b>並標亮，
+    標題退居第二行。</div>
+  <div><h4>搜尋結果仍依時間排序 <span class="tag">Dumais 2003</span></h4>
+    不做相關度排序。依月、依日排下來，你可以直接跳到「大概是七月底」那一段。</div>
+  <div><h4>一天一列，看得到鄰居 <span class="tag">Teevan 2004</span></h4>
+    8/21 那天有兩場會 —— 這個「同一天的其他東西」就是研究裡說的 context，
+    常常是它讓你確認「對，就是這份」。</div>
+</div>
+
+<h2 class="sec">空狀態<span>RES-002：說明會出現什麼，以及下一步</span></h2>
+<div class="frame"><div class="app" style="min-width:0">
+  <div class="main">
+    <div class="empty">
+      <b>還沒有任何物件</b>
+      <p>在日誌裡打 <code>#</code> 召喚 Standup、會議紀錄、回顧，<br>
+        它們會自動出現在這裡，並記下建立時間與來源日誌。</p>
+      <span class="cta">前往今天的日誌</span>
+    </div>
+  </div>
+</div></div>
+
+<!-- ═════════ 否決 ═════════ -->
+<h2 class="sec">被否決的替代方案<span>研究要留下否決紀錄，不只是留下選中的</span></h2>
+<div class="rej">
+  <h4>這些看起來合理，但研究不支持</h4>
+  <ul>
+    <li><b>只做搜尋框，不做瀏覽路徑。</b>Teevan 2004：已知目標時仍有 61% 的搜尋不用關鍵字。
+      只給搜尋等於把六成的使用情境丟掉。</li>
+    <li><b>搜尋結果依相關度排序。</b>Dumais 2003：使用者明確偏好依日期。這裡是個人／兩人語料，
+      不是網頁檢索，相關度排序反而讓人失去方位感。</li>
+    <li><b>建一套手動標籤／資料夾。</b>Whittaker 2011：手動歸檔的投入報酬低，機會式搜尋主導找回。
+      也因此「標籤流」這個頁名該退場。</li>
+    <li><b>把索引做成卡片牆。</b><code>ARC-012 §5</code>：「Avoid making records a decorative activity card wall.」
+      <code>AGENTS.md §12</code> 也要求記錄頁優先用可篩選表格與時間軸。</li>
+    <li><b>自訂密度切換／自訂欄位設定面板。</b>全域已有 <code>S.compact</code>；
+      多一個區域性控制只會讓兩處不同步。</li>
+    <li><b>在索引上做批次操作（批次刪除／改狀態／匯出）。</b><code>ARC-030 §8</code> 在稽核與核可機制到位前一律拒絕，
+      且 <code>/company</code> 是高風險模組。</li>
+    <li><b>只顯示自動標題當物件身分。</b><code>RES-018</code>：顯示名稱會變、參考碼不會；
+      而 <code>docObjectName()</code> 恰好每次渲染都重算標題。</li>
+    <li><b>給標籤流一個新的 UI ID。</b><code>REF-003:202</code>：「UI-088 的 tabs／drawers 是同一工作台的依賴，不新增假 UI ID。」</li>
+  </ul>
+</div>
+
+<!-- ═════════ 契約 ═════════ -->
+<h2 class="sec">索引契約<span>ARC-030 形狀。即使現在是記憶體資料，先宣告，之後接 DB 不用重畫</span></h2>
+<div class="card">
+<pre class="contract"><b>ObjectIndexContract</b>
+  searchable   : 顯示名稱、各段落內文（TEXTY 區塊的 text）、參考碼
+  filters      : 型別（多選）｜作者｜日期區間｜是否仍有來源日誌行
+  sorts        : 建立時間 ↓（預設）｜最後更新 ↓｜型別＋建立時間
+  columns      : 型別 · 物件（名稱＋參考碼）· 建立時間 · 來源日誌（日期＋地標＋行號）· 最後更新
+  grouping     : 月份（預設）｜日（時間軸檢視）｜無
+  pagination   : 每頁 25，頁碼式（參考／稽核用途，位置需可預期）
+  rowId        : 物件 id（穩定）
+  rowActions   : 開啟物件 ↗｜開啟來源日誌那一行 ⤵｜複製參考碼
+  bulkActions  : <b>無</b>（ARC-030 §8：稽核與核可到位前拒絕批次寫入）
+  detail       : 沿用既有 drawer / 獨立頁，不另開新的詳情面板
+  states       : empty（說明會出現什麼＋前往今天）｜loading｜error｜
+                 partial（來源日誌行已刪除 → 標示但仍列出）
+  dataMode     : prototype（記憶體）— 右上常駐 Prototype 標記，不得看起來像正式資料
+  auditRefs    : 預留 object_index.open / object_index.jump_source 事件名，本階段不寫入
+</pre>
+<p class="cap">這份契約對應 <code>ARC-030</code> 的十項要求。本階段是 UI-only prototype，
+  不接 Prisma、不做服務層授權、不新增公開輸出 —— 但欄位與動作的形狀先對齊，未來換成 DB-backed 時不用重畫介面。</p>
+</div>
+
+<!-- ═════════ 驗收 ═════════ -->
+<h2 class="sec">驗收條件<span>可逐條勾，不是感覺對不對</span></h2>
+<div class="card">
+  <ol class="acc">
+    <li><b>型別正確。</b>Standup／1:1／會議紀錄／回顧／研究筆記在索引上顯示正確名稱與人話型別標籤，
+      沒有任何一列顯示「已刪除」除非物件真的被刪。</li>
+    <li><b>兩條路都通。</b>點 ↗ 開啟物件本身；點 ⤵ 跳到該物件誕生那天的日誌並定位到那一行。</li>
+    <li><b>孤兒物件仍在。</b>手動刪掉日誌裡那一行 obj 區塊後重新整理索引，該物件仍列出，
+      來源欄顯示「來源日誌那一行已刪除」。</li>
+    <li><b>段落內召喚也列得到。</b>在 Standup 的某個段落裡用 <code>#</code> 召喚一個工作物件，
+      該物件出現在索引，來源欄指到那份 Standup。</li>
+    <li><b>搜尋打得到內文。</b>用只出現在某份會議紀錄第三段的詞搜尋，該列命中並顯示標亮片段。</li>
+    <li><b>時間誠實。</b>新召喚的物件顯示到時分；沒有 <code>bornAt</code> 的舊物件以淡色只顯示日期，
+      不得偽造時刻。</li>
+    <li><b>facet 數字正確。</b>chip 上的數量等於套用該型別後的列數；0 筆的型別淡化但仍顯示。</li>
+    <li><b>空狀態可讀。</b>在 <code>ui-empty</code> 環境下顯示空狀態文案與「前往今天的日誌」，不是空白表格。</li>
+    <li><b>四主題可讀。</b>white／orange／black／brand 四個主題下文字對比與 chip 顏色皆可讀，
+      無任何硬編碼 hex。</li>
+    <li><b>圖示不空。</b>新用到的 icon key（<code>search</code>／<code>x</code>／<code>sort</code>）
+      已加進 icon 表，畫面上沒有空白方框。</li>
+    <li><b>390px 不爆版。</b>手機寬度下表格可橫向捲動、文字不溢出容器。</li>
+  </ol>
+</div>
+
+<h2 class="sec">實作範圍與驗證</h2>
+<div class="card">
+  <div class="files">
+    <b>新檔</b><br>
+    · <code>src/components/yuanzhan/v5/object-index.source.js</code> — 索引資料層（以物件帳本為準）、
+      反向索引（掃日誌區塊<b>與</b>各元件 <code>sec.blocks</code>，得 <code>rid → {day, line, landmark}</code>）、
+      facet／搜尋／排序／分組／分頁狀態、表格與時間軸兩種渲染。<br>
+    · <code>src/components/yuanzhan/v5/object-index.css</code> — 命令列、facet、分組列、時間軸樣式（全部走主題 token）。<br>
+    <b>修改</b><br>
+    · <code>source-patches.mjs</code> — 三筆窄 <code>rep()</code>：
+      ① icon 表補 <code>search</code>／<code>x</code>／<code>sort</code>；
+      ② <code>objJump</code> 補 <code>doc_object</code> 分支走 <code>openDocPage()</code>；
+      ③ <code>replaceWithObj</code>／<code>summonObject</code> 寫入 <code>obj.bornAt = Date.now()</code>。<br>
+    · <code>template-objects.source.js</code> — <code>createDocObject</code> 的 id 改為 RES-018 格式
+      <code>{TYPE}-JRNL-{SEQ:6}-{YYYYMMDD}</code>（舊 id 保留不動，只影響新建）。<br>
+    · <code>scripts/generate-yuanzhan-v5.mjs</code> — 併入新的 js／css。<br>
+    <b>不動</b>：<code>runtime.js</code>／<code>styles.ts</code>／<code>v5-seed.js</code> 手改一律禁止，
+      只由 <code>node scripts/generate-yuanzhan-v5.mjs</code> 重新產生。
+  </div>
+  <p class="cap" style="margin-top:12px">
+    <b>雲端可驗證</b>：<code>node scripts/generate-yuanzhan-v5.mjs</code> 重新產生成功 ·
+    <code>node --check runtime.js</code> · <code>npx tsc --noEmit</code> ·
+    <code>npx eslint</code>（touched 檔案，0 errors）· <code>verify-yuanzhan-v5.cjs</code> 與 details 兩組。<br>
+    <b>需要你在本機跑</b>：這台沙箱缺 linux/arm64 的 <code>@next/swc</code>，跑不了 <code>next dev</code>。
+    上面 11 條驗收裡的 2、3、4、5、9、11 必須由你在 <code>npm run dev</code> 實際操作確認 ——
+    在那之前這頁不算驗證通過。
+  </p>
+</div>
+
+<h2 class="sec">風險與停止條件</h2>
+<div class="card">
+  <div class="files">
+    · <b>反向索引成本</b>：每次渲染重掃全部日誌與所有 <code>sec.blocks</code>。三個月量級（約百餘天 × 數十區塊）
+      可接受；若之後明顯變慢，改成建立／刪除時增量維護一張 <code>DB.objIndex</code>。<br>
+    · <b>id 格式變更</b>：只影響新建物件，舊 id 保留。若之後要回填舊 id，<b>停下來問</b> ——
+      RES-018 規定參考碼永不重生成，回填等於重寫歷史引用。<br>
+    · <b>Revision Mode</b>：UI-088 已 <code>COMPLETED</code>，這是既有畫面的修訂。
+      分頁改名「標籤流 → 物件索引」屬行為／範圍變更，<b>需要你點頭</b>才動。<br>
+    · <b>停止條件</b>：若實作中發現需要改動 <code>DB</code> 結構（新增持久化欄位而非記憶體欄位）、
+      或需要新增任何寫入／批次動作，停下來回報，不自行擴大。
+  </div>
+</div>
+
+<h2 class="sec">研究來源</h2>
+<div class="card">
+  <div class="srcs">
+    <b>外部</b><br>
+    · <a href="https://people.csail.mit.edu/teevan/work/publications/papers/chi04.pdf">Teevan, Alvarado, Ackerman, Karger — The Perfect Search Engine Is Not Enough: A Study of Orienteering Behavior in Directed Search (CHI 2004)</a><br>
+    · <a href="https://arxiv.org/html/2412.12330v1">Searching Personal Collections（回顧 Dumais 2003 "Stuff I've Seen"、Ringel 2003、Allen 1989、Mackenzie 2019、Whittaker 2011）</a><br>
+    · <a href="https://www.nngroup.com/articles/filter-categories-values/">NN/g — Defining Helpful Filter Categories and Values</a><br>
+    · <a href="https://www.nngroup.com/articles/filters-vs-facets/">NN/g — Filters vs. Facets: Definitions</a><br>
+    · <a href="https://www.saasui.design/blog/saas-data-table-ui-patterns">SaaS Data Table UI Patterns</a><br>
+    <b>本地</b><br>
+    · <code>docs/07_research-and-design/RES-002_saas-os-operating-surface-maturity-research.md</code>（resource index / records 條款）<br>
+    · <code>docs/02_architecture-and-rules/ARC-030_module-resource-index-bff-contract.md</code>（索引契約十項）<br>
+    · <code>docs/07_research-and-design/RES-018_dual-naming-model-human-display-name-and-iso9001-style-ai-reference-code-research.md</code>（參考碼）<br>
+    · <code>docs/02_architecture-and-rules/ARC-012_frontend-operating-surface.md</code>（records 不得為卡片牆）<br>
+    · <code>docs/03_feature-reference/REF-003_ui-screen-registry.md</code>（UI-088、不新增假 UI ID、GD-001）<br>
+    · <code>src/components/yuanzhan/v5/runtime.js:4316-4361</code>、<code>template-objects.source.js:88-160</code>（現況程式碼）
+  </div>
+</div>
+
+</div>
+</body>
+</html>
