@@ -42,6 +42,14 @@ export const WORKSPACE_META: Record<
 /** 這些前綴屬於公司工作區，其餘視為個人。 */
 const COMPANY_PATH_PREFIXES = ["/company"]
 
+/**
+ * 公司工作區的實際入口是營運工作台；`/company` 只是願景／策略的定版頁。
+ * 已登入而落點是公司區首頁時，一律升級成營運工作台，避免每次還要再點一次。
+ */
+export function preferOperatingLanding(path: string) {
+  return path === "/company" ? WORKSPACE_LANDING.company : path
+}
+
 export function isWorkspaceMode(value: unknown): value is WorkspaceMode {
   return typeof value === "string" && (WORKSPACE_MODES as readonly string[]).includes(value)
 }
@@ -80,7 +88,10 @@ export function resolveWorkspaceSelection({
     const normalized = normalizeNextPath(nextParam)
 
     if (normalized === nextParam) {
-      return { workspace: workspaceFromNextPath(normalized), nextPath: normalized }
+      return {
+        workspace: workspaceFromNextPath(normalized),
+        nextPath: preferOperatingLanding(normalized),
+      }
     }
   }
 

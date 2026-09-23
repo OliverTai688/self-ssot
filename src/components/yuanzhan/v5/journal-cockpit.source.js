@@ -144,8 +144,53 @@ VIEWS.journal=function(tab){
  return guide('<b>雙人駕駛艙。</b>左邊是你（可編輯），右邊是對方（唯讀、點任一行留言）；右側是今天的統計、回覆追蹤、誕生的物件與脈絡。','i')
   +`<div class="jc">${jcMyColumn()}${peer?jcPeerColumn(peer):''}${jcCockpit()}</div>`;
 };
-function jcShift(n){saveJournalDraft();S.jday=dadd(S.jday,n);jcLineOpen='';render()}
-function jcToday(){saveJournalDraft();S.jday=TODAY;render()}
+/* ---- 日期選擇器：日曆 icon 展開月曆，點一下就跳到那天的日誌 ---- */
+let jcPickerOn=false,jcPickerMonth='';
+const JC_WEEKDAYS='日一二三四五六';
+function jcMonthOf(d){return d.slice(0,7)}
+function jcMonthShift(m,n){const d=new Date(m+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+n);return d.toISOString().slice(0,7)}
+/* 有內容的日子在月曆上點一個點，讓人一眼看出哪幾天寫過。 */
+function jcWrittenDays(){
+ const s=new Set();
+ for(const who of Object.keys(DB.people)){
+  const book=journals.team[who]||{};
+  for(const day of Object.keys(book)){
+   const blocks=book[day]?.blocks||[];
+   if(blocks.some(b=>b.t==='obj'||(b.text||'').trim()))s.add(day);
+  }
+ }
+ for(const day of Object.keys(DB.dayLog||{}))if((DB.dayLog[day]||[]).length)s.add(day);
+ for(const c of DB.lineComments)s.add(c.day);
+ return s;
+}
+function jcTogglePicker(){jcPickerOn=!jcPickerOn;jcPickerMonth=jcMonthOf(S.jday);render()}
+function jcClosePicker(){if(!jcPickerOn)return;jcPickerOn=false;render()}
+function jcPickerShift(n){jcPickerMonth=jcMonthShift(jcPickerMonth||jcMonthOf(S.jday),n);render()}
+function jcPickDay(d){jcPickerOn=false;if(d===S.jday)return render();saveJournalDraft();S.jday=d;jcLineOpen='';render()}
+function jcPickerHtml(){
+ if(!jcPickerOn)return '';
+ const m=jcPickerMonth||jcMonthOf(S.jday);
+ const first=new Date(m+'-01T00:00:00Z');
+ const lead=first.getUTCDay();
+ const total=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+ const written=jcWrittenDays();
+ let cells='';
+ for(let i=0;i<lead;i++)cells+='<span class="jc-dp-pad"></span>';
+ for(let i=1;i<=total;i++){
+  const d=m+'-'+String(i).padStart(2,'0');
+  const cls='jc-dp-d'+(d===S.jday?' on':'')+(d===TODAY?' today':'')+(written.has(d)?' has':'');
+  cells+=`<button class="${cls}" title="${d} ${jcWeek(d)}" onclick="jcPickDay('${d}')">${i}</button>`;
+ }
+ return `<div class="jc-dp-bd" aria-hidden="true" onclick="jcClosePicker()"></div>
+ <div class="jc-dp" id="jcPicker" role="dialog" aria-label="選擇日誌日期">
+  <div class="jc-dp-h"><button class="btn sm" aria-label="上個月" onclick="jcPickerShift(-1)">${svg('chevronLeft',13)}</button><b>${m.slice(0,4)} 年 ${m.slice(5)} 月</b><button class="btn sm" aria-label="下個月" onclick="jcPickerShift(1)">${svg('chevronRight',13)}</button></div>
+  <div class="jc-dp-w">${JC_WEEKDAYS.split('').map(w=>`<span>${w}</span>`).join('')}</div>
+  <div class="jc-dp-g">${cells}</div>
+  <div class="jc-dp-f"><button class="btn sm" onclick="jcPickDay('${TODAY}')">${svg('rotate',12)} 今天</button><button class="btn sm" onclick="jcClosePicker()">關閉</button></div>
+ </div>`;
+}
+function jcShift(n){jcPickerOn=false;saveJournalDraft();S.jday=dadd(S.jday,n);jcLineOpen='';render()}
+function jcToday(){jcPickerOn=false;saveJournalDraft();S.jday=TODAY;render()}
 // 其他地方要「看對方的日誌」時，改為停在同一個畫面、捲到對方欄。
 switchJournalAuthor=function(who){saveJournalDraft();closeSummon();closeDrawer(true);if(space==='team'&&who!==DB.me){jcFocus=who;journalAuthor=DB.me}else journalAuthor=who;UNDO=[];REDO=[];render()};
 const jcBaseInput=docInput;
@@ -167,8 +212,8 @@ enhanceView=function(){
  const on=S.wb==='journal'&&space==='team';
  root.querySelector('.wbhead')?.classList.toggle('jc-head',on);
  root.querySelector('#jcDate')?.remove();
- if(!on)return;
- if(S.tab===0)$('#wbName').insertAdjacentHTML('afterend',`<div class="jc-date" id="jcDate"><button class="btn sm" aria-label="前一天" onclick="jcShift(-1)">${svg('chevronLeft', 13)}</button><b>${S.jday} ${jcWeek(S.jday)}</b><button class="btn sm" aria-label="後一天" onclick="jcShift(1)">${svg('chevronRight', 13)}</button><button class="btn sm" aria-label="選擇日期" title="選擇或新增日期" onclick="newDay()">${svg('calendar', 13)}</button>${S.jday!==TODAY?'<button class="btn sm" onclick="jcToday()">回到今天</button>':''}</div>`);
+ if(!on){jcPickerOn=false;return}
+ if(S.tab===0)$('#wbName').insertAdjacentHTML('afterend',`<div class="jc-date" id="jcDate"><button class="btn sm jc-ico" aria-label="前一天" onclick="jcShift(-1)">${svg('chevronLeft', 13)}</button><b>${S.jday} ${jcWeek(S.jday)}</b><button class="btn sm jc-ico" aria-label="後一天" onclick="jcShift(1)">${svg('chevronRight', 13)}</button><button class="btn sm jc-ico jc-dp-btn${jcPickerOn?' on':''}" aria-label="選擇日期" aria-expanded="${jcPickerOn?'true':'false'}" title="選擇日期 · 跳到那天的日誌" onclick="jcTogglePicker()">${svg('calendar', 13)}</button>${S.jday!==TODAY?`<button class="btn sm jc-today" aria-label="回到今天" onclick="jcToday()">${svg('rotate', 12)} 回到今天</button>`:''}${jcPickerHtml()}</div>`);
  const start=DB.dayStart[DB.me]?.[S.jday];
  $('#wbRule').textContent=start||'尚未開始';
  $('#wbRule').classList.toggle('jc-started',!!start);
@@ -176,4 +221,4 @@ enhanceView=function(){
 };
 // 換人時收起尚未送出的行內留言與決策卡，避免殘留在另一個人的畫面。
 const jcSwitchUser=switchUser;
-switchUser=function(){jcLineOpen='';rqDecision=null;rqOpenReply.clear();return jcSwitchUser()};
+switchUser=function(){jcLineOpen='';jcPickerOn=false;rqDecision=null;rqOpenReply.clear();return jcSwitchUser()};

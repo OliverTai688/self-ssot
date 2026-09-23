@@ -1,18 +1,29 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { ArrowRightIcon, LockIcon, ShieldCheckIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { createLoginPath } from "@/lib/auth/redirect"
+import { WORKSPACE_LANDING } from "@/lib/auth/workspace"
+import { getCurrentUser } from "@/lib/services/auth.service"
 
 export const metadata: Metadata = {
   title: "Personal OS",
   description: "A private operating surface for work, research, and life context.",
 }
 
-const ownerLoginPath = createLoginPath("/company")
+// 公司工作區的入口是營運工作台，不是 /company 定版頁。
+const ownerLoginPath = createLoginPath(WORKSPACE_LANDING.company)
 
-export default function RootPage() {
+export const dynamic = "force-dynamic"
+
+export default async function RootPage() {
+  // 已登入就別再看一次登入頁：直接進營運工作台。
+  if (await getCurrentUser()) {
+    redirect(WORKSPACE_LANDING.company)
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="border-b bg-background/95 px-5 py-4">

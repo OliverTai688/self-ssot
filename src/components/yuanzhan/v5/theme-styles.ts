@@ -231,7 +231,9 @@ export const v5ThemeStyles = [
     vertical-align: -1.5px;
     display: inline-block;
   }
-  .jc-date .btn {
+  /* 只有「純 icon」的按鈕才壓成 28×28 正方形；
+     帶文字的按鈕（例如「回到今天」）維持自動寬度，否則文字會溢出外框。 */
+  .jc-date .btn.jc-ico {
     display: inline-flex;
     align-items: center;
     justify-content: center;
