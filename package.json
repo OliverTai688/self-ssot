@@ -138,6 +138,7 @@
     "ops:prisma:check": "node scripts/check-prisma-structure.mjs prisma/schema.prisma",
     "ops:commands:check": "tsx scripts/check-operating-commands.ts",
     "ops:fields:check": "node scripts/check-operating-command-fields.mjs",
+    "ops:proof:migrate": "node scripts/operating-proof-migrate.mjs",
     "ops:roundtrip": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-operating-roundtrip.ts",
     "ops:spine:reconcile": "tsx scripts/reconcile-time-spine.ts",
     "ops:verify": "node scripts/verify-operating-canvas.cjs",

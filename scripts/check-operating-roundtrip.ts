@@ -14,9 +14,10 @@
  *   brew install postgresql@16 && brew services start postgresql@16 && createdb operating_proof
  *   supabase start            （另一個 Supabase 專案也可以，那是真的可拋棄的遠端）
  *
- * 然後把 schema 推上去。注意這一步吃的是 DATABASE_URL —— prisma migrate 不認
- * OPERATING_PROOF_DATABASE_URL，用錯變數它會安靜地對正式庫執行：
- *   DATABASE_URL=postgresql://postgres:proof@localhost:5433/postgres pnpm prisma migrate deploy
+ * 然後把 schema 推上去。用 ops:proof:migrate，不要自己下 prisma migrate deploy：
+ * prisma.config.ts 的 datasource 是 DIRECT_DATABASE_URL || DATABASE_URL，只覆蓋
+ * DATABASE_URL 會被 .env.local 的 DIRECT_DATABASE_URL 蓋過去，安靜地打到正式庫。
+ *   OPERATING_PROOF_DATABASE_URL=postgresql://postgres:proof@localhost:5433/postgres pnpm ops:proof:migrate
  *
  * 最後跑測試：
  *   OPERATING_PROOF_DATABASE_URL=postgresql://postgres:proof@localhost:5433/postgres \
@@ -143,7 +144,7 @@ async function preflight(url: string) {
       console.error("  docker run -d --name operating-proof -e POSTGRES_PASSWORD=proof -p 5433:5432 postgres:16")
       console.error("  # 或：brew install postgresql@16 && brew services start postgresql@16")
       console.error("\n再把 schema 推上去（這一步吃 DATABASE_URL，不是 PROOF 變數）：")
-      console.error("  DATABASE_URL=<proof url> pnpm prisma migrate deploy")
+      console.error("  OPERATING_PROOF_DATABASE_URL=<proof url> pnpm ops:proof:migrate")
     } else {
       console.error("\n" + String(error))
     }
@@ -155,7 +156,7 @@ async function preflight(url: string) {
     await db.workspace.count()
   } catch {
     console.error("連得上，但 schema 還沒推上去。先執行：")
-    console.error("  DATABASE_URL=<proof url> pnpm prisma migrate deploy")
+    console.error("  OPERATING_PROOF_DATABASE_URL=<proof url> pnpm ops:proof:migrate")
     await db.$disconnect().catch(() => {})
     process.exit(1)
   }
