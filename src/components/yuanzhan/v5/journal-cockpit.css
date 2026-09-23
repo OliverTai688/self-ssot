@@ -75,6 +75,9 @@
 .jc-tl div::before{content:"";position:absolute;left:-15px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--av-yz-tl, #7c8cff)}
 .jc-tl div.lily::before{background:var(--av-lily-tl, #e58bc0)}
 .jc-tl-t{font-family:var(--mono);color:var(--text-3)}
+/* 誰做的：與左邊圓點同一個顏色，讓兩個人的動作在同一條時間軸上分得開。 */
+.jc-tl-w{font-weight:600;color:var(--av-yz-tl, #7c8cff)}
+.jc-tl div.lily .jc-tl-w{color:var(--av-lily-tl, #e58bc0)}
 .jc-side-f{border-top:1px solid var(--border);padding:12px 14px}
 .jc-pcs{display:flex;flex-direction:column;gap:8px;max-height:180px;overflow:auto}
 .jc-pc{display:flex;gap:8px;align-items:flex-start;font-size:12.5px}

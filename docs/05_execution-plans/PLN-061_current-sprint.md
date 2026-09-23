@@ -1,5 +1,19 @@
 # Current Sprint
 
+## Owner-directed 日誌右欄持久化 — 2026-09-24
+
+`YZUI-016` 已完成實作。今日脈絡由只活在記憶體裡的 `{日期:[...]}` 改為可逐列比對的 `DB.dayLogs`（一筆事件一列，`kind` 為 `start`／`close`／`act`），與今日議題一起接上 ARC-042 的寫入管線；新增 `operating_day_logs`、`operating_today_issues` 兩張表與對應的 applier／讀回。脈絡列不再把人名寫進內文，改由席位印出來並著色，宇星與 Lily 的動作合流成同一條時間軸。
+
+順帶修掉三件同一類的既有缺陷：`journalComments`／`files`／`objectComments`／`requests`／`lineComments` 五個集合在掛載時被無條件指派成空陣列，把剛讀回來的內容蓋掉；日誌讀回來時只用日期當鍵，同一天兩個人的日誌會互相覆蓋（Lily 登入時會看到空的編輯區，一打字就覆蓋掉她自己那一天）；`nid()` 的序號每次載入從 0 重來，新列會覆蓋上一次載入產生的那一列。
+
+關鍵順序修正：`jcLog()` 移到 `commit()` 之後。`commit()` 先取快照才 `apply()`，在那之前寫的脈絡列會落進基準線，永遠比不出差異、也就永遠不會被保存 —— 這正是「重新整理就消失」在程式上的落點。
+
+驗證：`scripts/check-journal-day-state.ts` 25/25 PASS（本輪新增，已併入 `ops:check`；含攔截送出命令批次的寫入路徑斷言）、`check-operating-commands` 30 PASS、`check-operating-command-fields` 279 PASS、`check-migration-coverage` 全覆蓋、`check-operating-runtime` 雙模式 0 錯誤、`check-operating-spine` 24 PASS、`check-operating-canvas` 18 PASS、`verify-object-index` 19/19 PASS（上一輪功能回歸）、`tsc --noEmit` 0 errors、eslint 0 errors。
+
+**尚未驗證**：沙箱 egress 擋掉 `binaries.prisma.sh`，`prisma generate`／`migrate deploy` NOT_RUN。Owner 需在本機執行 `pnpm db:generate`，並對正式資料庫執行 `pnpm db:deploy`，新表才會存在；在那之前寫入會以 `apply_failed` 被拒。重整後右欄仍在、兩人同時操作的合併、四主題與 390px 需 Owner 在實機確認。
+
+下一個候選：`YZUI-017`（脈絡按需求載入更早的日子）或 `YZUI-015`（ARC-030 契約套到第二個模組索引）。
+
 ## Owner-directed 日誌物件索引 — 2026-09-23
 
 `YZUI-012` 已完成實作：日誌第三分頁由「標籤流／召喚紀錄」改為「物件索引」（Owner 本次明確核可改名）。資料來源從日誌區塊改為物件帳本，日誌降級為「來源」欄；新增名稱與內文搜尋（標亮片段）、型別 facet（帶數量）、「僅日誌誕生」過濾、三種排序、月份分組（月份列掛當天日誌標題作時間地標）、25 筆分頁、表格／時間軸雙檢視、RES-018 參考碼徽章、回到來源行的定位閃爍。

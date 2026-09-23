@@ -1,5 +1,14 @@
 # Completed Log
 
+## 2026-09-24
+
+### YZUI-016 — 日誌右欄「今日脈絡／今日議題」持久化
+
+- Owner 回報今日脈絡重整就消失、希望同時記錄宇星與 Lily 並持續累積；追加回報今日議題已完成的標籤也會消失。根因三件互相獨立：今日脈絡與今日議題從來沒有進過 `PERSISTED_COLLECTIONS`（今日議題的 id 被寫回日誌 block 的 `today`，block 存得住、議題存不住，所以標籤指向空的）；`journalComments`／`files`／`objectComments`／`requests`／`lineComments` 有存也有讀回來，卻在掛載時被 `DB.x=[]` 蓋掉；日誌寫入分作者、讀回來卻只用日期當鍵，同一天兩個人會互相覆蓋。
+- 新增 `operating_day_logs`／`operating_today_issues` 兩張表（一筆事件一列，不是一天一列——一天一列會讓兩個席位同一天互相覆蓋）、`applyDayLog`／`applyTodayIssue`、90 天視窗的讀回；`DB.dayStart`／`DB.dayClose` 改由脈絡列推回來，不再各自存一份狀態。脈絡列的人名改由席位印出並著色。
+- 關鍵順序修正：`jcLog()` 移到 `commit()` 之後 —— `commit()` 先取快照才 `apply()`，在那之前寫的列會落進基準線，永遠不會被送出去。打字路徑改呼叫 `opTouch()` 而不是 `render()`（避免重建游標）。另修 `nid()` 跨次載入重號導致新列覆蓋舊列。
+- Verification：`scripts/check-journal-day-state.ts` 25/25 PASS（本輪新增，走完整 database 載入路徑並攔截送出的命令批次）、`check-operating-commands` 30 PASS、`check-operating-command-fields` 279 PASS、`check-prisma-structure` PASS、`check-migration-coverage` 全覆蓋、`check-operating-runtime` 雙模式 0 錯誤、`check-operating-spine` 24 PASS、`check-operating-canvas` 18 PASS、`verify-object-index` 19/19 PASS、`tsc --noEmit` 0 errors、eslint 0 errors。`prisma generate`／`migrate deploy` NOT_RUN（沙箱 egress 擋掉 `binaries.prisma.sh`），需 Owner 在本機執行；`verify-yuanzhan-v5.cjs` NOT_RUN（缺 playwright），依 Manual Blocker Fallback 以 harness 替代。[本次證據](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260924-journal-day-state-persistence.md)
+
 ## 2026-09-23
 
 ### YZUI-012 — 日誌「標籤流」改為「物件索引」

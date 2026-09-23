@@ -16,12 +16,17 @@
 /**
  * 有穩定業務 id、可以逐列比對的集合。
  *
+ * `dayLogs`（今日脈絡）與 `todayIssues`（今日議題）在這裡是**一筆事件一列**，不是「一天一列」：
+ * 一天一列的話，兩個席位同一天各寫一筆就會互相覆蓋整天的內容，最後只剩後寫的那個人的脈絡。
+ *
  * 刻意不含 `journal`／`repos`（以 key 索引的物件）、`weekly`／`capacity`／`timesheet`
  * （陣列的陣列）、`changelog`／`history`（前端 undo 暫存）。它們各自需要不同的比對策略，
  * 在能處理之前列進來只會產生假的變更。
  */
 export const PERSISTED_COLLECTIONS = [
   'journal',
+  'dayLogs',
+  'todayIssues',
   'phases',
   'milestones',
   'objectives',
@@ -95,6 +100,9 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   'repos',
   'capacity',
   'timesheet',
+  // M7：日誌右欄的兩人共用狀態（今日脈絡、今日議題）
+  'dayLogs',
+  'todayIssues',
   // M5：留言與請求
   'lineComments',
   'journalComments',

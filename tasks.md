@@ -2,6 +2,13 @@
 
 **Date:** 2026-09-15
 
+## Current owner priority — 日誌右欄持久化（2026-09-24）
+
+- [x] `YZUI-016`：今日脈絡與今日議題接上 ARC-042 寫入管線（新增 `operating_day_logs`／`operating_today_issues`）；修掉五個集合在掛載時被清空覆蓋；日誌讀回來分作者。`scripts/check-journal-day-state.ts` 25/25 PASS。
+- [ ] **Owner 待執行**：本機 `pnpm db:generate`，並對正式資料庫 `pnpm db:deploy`（新表不存在的話，寫入會以 `apply_failed` 被拒）。
+- [ ] `YZUI-017`：脈絡按需求載入更早的日子（目前讀取側固定 90 天視窗）。
+- [ ] `YZUI-018`：`DB.seq.DOCREF` 跨次載入重號（與本輪修掉的 `nid()` 同一類）。
+
 ## Current owner priority — 圓展帳號與上線規劃
 
 - [x] `YZLIVE-001`：已完成 [PLN-071](docs/05_execution-plans/PLN-071_yuanzhan-account-and-private-launch-plan.md)／[AUT-009](docs/02_architecture-and-rules/AUT-009_yuanzhan-email-otp-account-boundary.md)，確立三帳號六碼 OTP、個人與公司管理介面、正式資料／上線分期。

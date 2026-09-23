@@ -159,6 +159,12 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null
 }
 
+/** 工作台用 epoch 毫秒記時刻；欄位存 timestamp，轉換留在這條邊界上。 */
+function toInstant(value: unknown): Date | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null
+  return new Date(value)
+}
+
 /* ------------------------------------------------------------------ */
 /* 每個集合的處理器                                                     */
 /* ------------------------------------------------------------------ */
@@ -904,6 +910,73 @@ async function applyDocObject(change: RowChange, ctx: ApplyContext): Promise<voi
   await db.operatingDocObject.upsert({ where: { id }, create: { id, ...data }, update: data })
 }
 
+/* ------------------------------------------------------------------ */
+/* M7：日誌右欄的兩人共用狀態                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 今日脈絡的一列事件。
+ *
+ * 沒有 update 的概念：事件發生過就是發生過，工作台只會新增。upsert 仍然保留，
+ * 因為同一個 clientRef 重送時要落在同一列，而不是長出第二筆一模一樣的脈絡。
+ */
+async function applyDayLog(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("dayLogs", change.id)
+
+  if (change.op === "delete") {
+    await db.operatingDayLog.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const onDate = toDateOnly(row.day)
+  if (!onDate) throw new Error(`day log ${change.id} has no usable day`)
+
+  const actorKey = str(row.w)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    onDate,
+    actorId: (actorKey ? ctx.actors.get(actorKey) : undefined) ?? null,
+    actorKey,
+    atTime: str(row.t) ?? "",
+    kind: str(row.kind) ?? "act",
+    text: str(row.text) ?? "",
+  }
+
+  await db.operatingDayLog.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyTodayIssue(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("todayIssues", change.id)
+
+  if (change.op === "delete") {
+    await db.operatingTodayIssue.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  // 延後會把議題往後搬，所以 day 是「目前掛在哪一天」，不是標記那天。
+  const onDate = toDateOnly(row.day)
+  if (!onDate) throw new Error(`today issue ${change.id} has no usable day`)
+
+  const authorKey = str(row.author)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    authorId: (authorKey ? ctx.actors.get(authorKey) : undefined) ?? null,
+    authorKey,
+    onDate,
+    blockId: str(row.blockId),
+    text: str(row.text) ?? "",
+    flaggedAt: toInstant(row.at),
+    doneAt: toInstant(row.doneAt),
+    deferred: typeof row.deferred === "number" && row.deferred > 0 ? Math.floor(row.deferred) : 0,
+  }
+
+  await db.operatingTodayIssue.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
   occasions: applyOccasion,
   rhythms: applyRhythm,
@@ -926,6 +999,8 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   reimb: applyReimbursement,
   bank: applyBankEntry,
   payroll: applyPayrollDraft,
+  dayLogs: applyDayLog,
+  todayIssues: applyTodayIssue,
   lineComments: applyComment,
   journalComments: applyComment,
   objectComments: applyComment,

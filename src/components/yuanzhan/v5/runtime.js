@@ -354,7 +354,8 @@ const GATE = () => {
    ================================================================== */
 function nid(pre) {
   DB.seq[pre] = (DB.seq[pre] || 0) + 1;
-  return pre + '-' + String(DB.seq[pre]).padStart(3, '0');
+  DB.seq.run = DB.seq.run || Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 5);
+  return pre + '-' + DB.seq.run + '-' + String(DB.seq[pre]).padStart(3, '0');
 }
 function nowts() {
   const d = new Date();
@@ -6195,10 +6196,14 @@ function spineForProject(pid) {
 // Integration layer: preserve v5 markup; supply data boundaries and complete empty-state actions.
 let space = 'team',
   journalAuthor = DB.me;
+/* 書架照席位綁，不是寫死 yz：登入的人是誰，DB.journal 就是誰的那一本。
+   寫死 yz 的話，Lily 登入時她自己的日誌會被放進宇星的欄位，她的編輯區是空的，
+   一打字就等於用空白覆蓋掉她原本那一天。DB.journalPeer 是對方的（唯讀，不參與比對）。 */
+const jPeerKey = Object.keys(DB.people).find(w => w !== DB.me) || 'lily';
 const journals = {
   team: {
-    yz: DB.journal,
-    lily: {}
+    [DB.me]: DB.journal,
+    [jPeerKey]: DB.journalPeer || {}
   },
   personal: {
     yz: {},
@@ -6206,8 +6211,11 @@ const journals = {
   }
 };
 DB.journalBooks = journals;
-DB.journalComments = [];
-DB.files = [];
+/* 讀回來的內容不能被無條件蓋掉。這三個集合都有存進資料庫，但載入後又被指派成空陣列，
+   於是留言與檔案「重新整理就消失」——其實是存進去了、只是被清掉沒顯示出來。
+   seed 裡沒有這幾個鍵，所以 prototype／showcase 模式的行為與原本一模一樣。 */
+DB.journalComments = DB.journalComments || [];
+DB.files = DB.files || [];
 DB.payroll = initialState.mode === 'showcase' ? [{
   who: 'yz',
   base: 0,
@@ -7349,7 +7357,7 @@ function enhanceDrawer() {
   }
   if (cur.type === 'issue') $('#drBody').insertAdjacentHTML('beforeend', panel('留言協作', '', objectComments(cur.id)));
 }
-DB.objectComments = [];
+DB.objectComments = DB.objectComments || [];
 function objectComments(id) {
   const list = DB.objectComments.filter(x => x.parent === id);
   return `${list.map(c => `<div class="msg"><div class="bd"><div class="hd"><span class="nm">${person(c.w)}</span><span class="ts">${c.ts}</span></div><div class="tx">${esc(c.x)}</div></div></div>`).join('')}<div class="composer"><textarea id="objectReply" aria-label="物件留言" placeholder="留言…" ${bind("input", (event, element) => {
@@ -8370,8 +8378,12 @@ const REPLY_HOURS = 24,
   WARN_HOURS = 16,
   REPING_HOURS = 4,
   HOUR = 3600e3;
-DB.requests = [];
-DB.todayIssues = [];
+/* 請求與今日議題都會被保存（今日議題自 PLN-074 M7 起）。無條件指派成空陣列
+   會把剛讀回來的列蓋掉，日誌 block 上的 `today` 參照就指到一個不存在的議題，
+   已完成的標籤也跟著不見。seed 沒有這兩個鍵，prototype 模式行為不變。 */
+DB.requests = DB.requests || [];
+DB.todayIssues = DB.todayIssues || [];
+/* 收工時刻本身記在今日脈絡上（kind='close'）；這裡只是查詢索引，由 journal-cockpit 重建。 */
 DB.dayClose = {};
 const rqDrafts = new Map(),
   rqDeferDrafts = new Map(),
@@ -9319,9 +9331,17 @@ setTimeout(rqTick, 1500);
    · 右側駕駛艙：今日統計、回覆追蹤、今天誕生的物件（標出來源行）、今日脈絡
    只作用在圓展空間的「今天」分頁；個人空間與回顧／標籤流沿用原本畫面。
    ───────────────────────────────────────────────────────────────────────── */
-DB.lineComments = [];
-DB.dayStart = {};
-DB.dayLog = {};
+/* 這幾個集合是從伺服器讀回來的（database 模式）。無條件指派會把剛讀回來的內容
+   蓋成空的，看起來就像「重新整理就消失」—— 其實是存進去了、載入後又被清掉。 */
+DB.lineComments = DB.lineComments || [];
+/* 今日脈絡：一筆事件一列（kind：start 開始一天／close 收工／act 其他動作），
+   宇星與 Lily 的動作合流成同一條時間軸。原本是只活在記憶體裡的 {日期:[...]}，
+   重新整理就回到空白；改成可逐列比對的陣列之後，它跟日誌走同一條寫入管線，
+   會被保存、也會在另一個席位寫入時合併進來。 */
+DB.dayLogs = DB.dayLogs || [];
+/* 收工時刻是脈絡上的一個事件；replies 的 DB.dayClose 只是它的查詢索引，開頁時重建。 */
+for (const r of DB.dayLogs) if (r.kind === 'close') (DB.dayClose[r.w] ??= {})[r.day] = r.t;
+/* 「幾分鐘前更新」只在這一次瀏覽期間有意義；沒有 live 值時改由脈絡的最後一筆推回來。 */
 DB.journalEdits = {};
 let jcRendering = false,
   jcLineOpen = '',
@@ -9337,48 +9357,68 @@ const JC_TYPES = {
 function jcNow() {
   return nowts().slice(0, 5);
 }
-function jcLog(text, w = DB.me, day = S.jday) {
-  (DB.dayLog[day] ??= []).push({
-    t: jcNow(),
+function jcDayRows(day = S.jday) {
+  return DB.dayLogs.filter(r => r.day === day);
+}
+/* 回傳有沒有真的新增一列：呼叫端要據此決定重畫與排保存。 */
+function jcLog(text, w = DB.me, day = S.jday, kind = 'act') {
+  const t = jcNow();
+  // 同一分鐘的同一句話只留一筆：連續存檔會重複觸發，脈絡不該被同一件事洗版。
+  if (DB.dayLogs.some(r => r.day === day && r.w === w && r.t === t && r.text === text)) return false;
+  DB.dayLogs.push({
+    id: nid('DL'),
+    day,
     w,
+    t,
+    kind,
     text
   });
+  return true;
+}
+function jcStartAt(who, day = S.jday) {
+  return DB.dayLogs.find(r => r.day === day && r.w === who && r.kind === 'start')?.t || '';
 }
 function jcStart(who = DB.me, day = S.jday) {
-  const m = DB.dayStart[who] ??= {};
-  if (!m[day]) {
-    m[day] = jcNow();
-    jcLog(jcShort(who) + ' 開始一天', who, day);
-  }
+  return jcStartAt(who, day) ? false : jcLog('開始一天', who, day, 'start');
+}
+/* 對方最後一次有動靜的時刻。重整之後沒有 live 值，但脈絡上還留著那一筆。 */
+function jcTouched(who, day = S.jday) {
+  const live = DB.journalEdits[who]?.[day];
+  if (live) return live;
+  const rows = jcDayRows(day).filter(r => r.w === who);
+  if (!rows.length) return 0;
+  return Date.parse(day + 'T' + rows[rows.length - 1].t + ':00') || 0;
 }
 if (initialState.mode === 'showcase') {
-  DB.dayStart = {
-    yz: {
-      [TODAY]: '09:12'
-    },
-    lily: {
-      [TODAY]: '09:40'
-    }
-  };
-  DB.dayLog = {
-    [TODAY]: [{
-      t: '09:12',
-      w: 'yz',
-      text: '宇星 開始一天'
-    }, {
-      t: '09:40',
-      w: 'lily',
-      text: 'Lily 開始一天'
-    }, {
-      t: '10:05',
-      w: 'yz',
-      text: '召喚「工作」'
-    }, {
-      t: '10:20',
-      w: 'lily',
-      text: 'Lily 留言'
-    }]
-  };
+  DB.dayLogs = [{
+    id: 'DL-DEMO-1',
+    day: TODAY,
+    w: 'yz',
+    t: '09:12',
+    kind: 'start',
+    text: '開始一天'
+  }, {
+    id: 'DL-DEMO-2',
+    day: TODAY,
+    w: 'lily',
+    t: '09:40',
+    kind: 'start',
+    text: '開始一天'
+  }, {
+    id: 'DL-DEMO-3',
+    day: TODAY,
+    w: 'yz',
+    t: '10:05',
+    kind: 'act',
+    text: '召喚「工作」'
+  }, {
+    id: 'DL-DEMO-4',
+    day: TODAY,
+    w: 'lily',
+    t: '10:20',
+    kind: 'act',
+    text: '留言'
+  }];
   DB.journalEdits = {
     lily: {
       [TODAY]: Date.now() - 3 * 60e3
@@ -9531,7 +9571,7 @@ function jcPeerColumn(peer) {
   const d = jcDoc(peer),
     blocks = (d?.blocks || []).map(b => jcPeerBlock(peer, b)).join('');
   return `<section class="jc-col" id="jcPeer" data-author="${peer}">
-  <div class="jc-col-h">${rqAv(peer, 'md')}<b>${esc(jcShort(peer))}</b><span class="jc-col-m">· 唯讀 · ${jcAgo(DB.journalEdits[peer]?.[S.jday])}</span><span class="sp"></span></div>
+  <div class="jc-col-h">${rqAv(peer, 'md')}<b>${esc(jcShort(peer))}</b><span class="jc-col-m">· 唯讀 · ${jcAgo(jcTouched(peer))}</span><span class="sp"></span></div>
   <div class="jc-col-b"><div class="doc jc-doc">${blocks}</div>
   <div class="jc-hint">${blocks ? `${esc(person(peer))} 今天還在寫…<br>選取任一行或右鍵選單可展開對話串留言` : `${esc(person(peer))} 今天還沒開始寫<br>寫了之後會即時出現在這裡`}</div></div></section>`;
 }
@@ -9630,8 +9670,9 @@ function jcStats(objs) {
   return `<div class="jc-stats"><div><b>${objs.length}</b><span>今日物件</span></div><div><b class="ok">${total ? done + '/' + total : '—'}</b><span>承諾完成</span></div><div><b class="gold">${jcKFmt(money)}</b><span>金流</span></div></div>`;
 }
 function jcTimeline() {
-  const list = (DB.dayLog[S.jday] || []).slice().sort((a, b) => a.t.localeCompare(b.t)).slice(-12);
-  return list.length ? `<div class="jc-tl">${list.map(e => `<div class="${e.w}"><span class="jc-tl-t">${e.t}</span> ${esc(e.text)}</div>`).join('')}</div>` : '<div class="rq-empty">今天還沒有動靜</div>';
+  const list = jcDayRows(S.jday).slice().sort((a, b) => (a.t || '').localeCompare(b.t || '')).slice(-14);
+  // 名字從 e.w 印出來，不寫進 text：這樣同一條時間軸上看得出哪一筆是誰的。
+  return list.length ? `<div class="jc-tl">${list.map(e => `<div class="${e.w}"><span class="jc-tl-t">${esc(e.t)}</span> <span class="jc-tl-w">${esc(jcShort(e.w))}</span> ${esc(e.text)}</div>`).join('')}</div>` : '<div class="rq-empty">今天還沒有動靜</div>';
 }
 function jcPageKey() {
   return 'team:page:' + S.jday;
@@ -9713,7 +9754,7 @@ function jcWrittenDays() {
       if (blocks.some(b => b.t === 'obj' || (b.text || '').trim())) s.add(day);
     }
   }
-  for (const day of Object.keys(DB.dayLog || {})) if ((DB.dayLog[day] || []).length) s.add(day);
+  for (const r of DB.dayLogs) s.add(r.day);
   for (const c of DB.lineComments) s.add(c.day);
   return s;
 }
@@ -9804,7 +9845,8 @@ docInput = function (e) {
   jcBaseInput(e);
   if (space !== 'team' || COMPOSING) return;
   (DB.journalEdits[DB.me] ??= {})[S.jday] = Date.now();
-  jcStart();
+  // 打字中不能 render()（游標會被重建掉），所以直接排一次保存，讓「開始一天」存得下去。
+  if (jcStart()) opTouch();
 };
 const jcBaseCommit = commit;
 const JC_SHARED_LOG = {
@@ -9816,13 +9858,26 @@ const JC_SHARED_LOG = {
   '行內留言': '留言',
   '日誌留言': '留言'
 };
+function jcCommitLog(op, ent) {
+  if (ent === '收工') return jcLog('收工', DB.me, TODAY, 'close');
+  // 標記與完成走同一個 ent，靠 op 分開；否則脈絡上兩件事會長得一模一樣。
+  if (ent === '今日議題') return jcLog(op === 'create' ? '標記今日議題' : '完成今日議題', DB.me, TODAY);
+  if (JC_SHARED_LOG[ent]) return jcLog(JC_SHARED_LOG[ent], DB.me, ent === '行內留言' || ent === '日誌留言' ? S.jday : TODAY);
+  if (S.wb === 'journal') return jcLog(`${op === 'create' ? '召喚' : '更新'}「${ent}」`);
+  return false;
+}
+/* 記在 base commit 之後，不是之前。
+   commit() 是先取快照再 apply()，在那之前寫進去的脈絡列會一起落進基準線裡，
+   於是永遠比不出差異、也就永遠不會被保存 —— 正是「重新整理就消失」的那個成因。
+   之後補一次 render()，讓新的一列立刻出現在右欄。 */
 commit = function (op, ent, label, apply, undo) {
-  if (space === 'team' && JC_SHARED_LOG[ent]) jcLog(jcShort(DB.me) + ' ' + JC_SHARED_LOG[ent], DB.me, ent === '行內留言' || ent === '日誌留言' ? S.jday : TODAY);else if (space === 'team' && S.wb === 'journal' && ent !== '收工') jcLog(`${op === 'create' ? '召喚' : '更新'}「${ent}」`);
-  return jcBaseCommit(op, ent, label, apply, undo);
+  const out = jcBaseCommit(op, ent, label, apply, undo);
+  if (space === 'team' && jcCommitLog(op, ent)) render();
+  return out;
 };
 const jcBaseSummonObject = summonObject;
 summonObject = function (...args) {
-  jcStart();
+  if (jcStart()) opTouch();
   return jcBaseSummonObject(...args);
 };
 
@@ -9846,7 +9901,7 @@ enhanceView = function () {
   })}>${svg('calendar', 13)}</button>${S.jday !== TODAY ? `<button class="btn sm jc-today" aria-label="回到今天" ${bind("click", (event, element) => {
     jcToday();
   })}>${svg('rotate', 12)} 回到今天</button>` : ''}${jcPickerHtml()}</div>`);
-  const start = DB.dayStart[DB.me]?.[S.jday];
+  const start = jcStartAt(DB.me, S.jday);
   $('#wbRule').textContent = start || '尚未開始';
   $('#wbRule').classList.toggle('jc-started', !!start);
   if (jcFocus) {

@@ -1,5 +1,15 @@
 # Task Backlog
 
+## Owner-directed 日誌右欄持久化 — 2026-09-24
+
+Owner 回報「今日脈絡重新整理會消失」，並希望它同時記錄宇星與 Lily、持續累積；追加回報「今日議題已完成的標籤也會消失」。根因是三件獨立的事：今日脈絡與今日議題從來沒有被保存；有保存的集合（留言、文件庫、請求）在掛載時被 `DB.x=[]` 清空覆蓋；日誌讀回來時沒有分作者。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260924-journal-day-state-persistence.md)。
+
+| Task ID | 範圍 | Status | 依賴 | 驗收重點 |
+|---|---|---|---|---|
+| YZUI-016 | 今日脈絡／今日議題接上寫入管線；修掉載入後被清空覆蓋的集合；日誌讀回來分作者 | DONE — implementation（待 Owner 執行 `pnpm db:generate` + `pnpm db:deploy` 與瀏覽器驗收） | ARC-042 寫入管線；PLN-074 M1–M6 | `scripts/check-journal-day-state.ts` 25/25 PASS（已併入 `ops:check`）；重整後右欄仍在、兩人的脈絡合流 |
+| YZUI-017 | 脈絡按需求載入更早的日子 | PROPOSED | YZUI-016 | 目前讀取側固定 90 天視窗；走到更早的日子會看到空的脈絡 |
+| YZUI-018 | `DB.seq.DOCREF` 的跨次載入重號 | PROPOSED | RES-018 | 與 `nid()` 同一類問題：參考碼序號每次載入從 0 重來，本輪只修了 `nid()` |
+
 ## Owner-directed 日誌物件索引 — 2026-09-23
 
 Owner 指出日誌「標籤流」的召喚紀錄只顯示 `doc_object / 已刪除 / —`，且三個月後找不到會議紀錄或回顧。依 AGENTS.md §7 分數關卡（研究前 62／Medium → 4 輪研究 → 研究後 94／High）收斂為單一設計，Owner 核可全部採用並同意分頁改名。提案：`journal-tagstream-object-index-proposals.html`（repo root）。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260923-journal-object-index.md)。

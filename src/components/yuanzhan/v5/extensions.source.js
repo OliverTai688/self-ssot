@@ -1,9 +1,16 @@
 // Integration layer: preserve v5 markup; supply data boundaries and complete empty-state actions.
 let space='team', journalAuthor=DB.me;
-const journals={team:{yz:DB.journal,lily:{}},personal:{yz:{},lily:{}}};
+/* 書架照席位綁，不是寫死 yz：登入的人是誰，DB.journal 就是誰的那一本。
+   寫死 yz 的話，Lily 登入時她自己的日誌會被放進宇星的欄位，她的編輯區是空的，
+   一打字就等於用空白覆蓋掉她原本那一天。DB.journalPeer 是對方的（唯讀，不參與比對）。 */
+const jPeerKey=Object.keys(DB.people).find(w=>w!==DB.me)||'lily';
+const journals={team:{[DB.me]:DB.journal,[jPeerKey]:DB.journalPeer||{}},personal:{yz:{},lily:{}}};
 DB.journalBooks=journals;
-DB.journalComments=[];
-DB.files=[];
+/* 讀回來的內容不能被無條件蓋掉。這三個集合都有存進資料庫，但載入後又被指派成空陣列，
+   於是留言與檔案「重新整理就消失」——其實是存進去了、只是被清掉沒顯示出來。
+   seed 裡沒有這幾個鍵，所以 prototype／showcase 模式的行為與原本一模一樣。 */
+DB.journalComments=DB.journalComments||[];
+DB.files=DB.files||[];
 DB.payroll=initialState.mode==='showcase'?[{who:'yz',base:0,overtime:0,milestone:0,separate:true},{who:'lily',base:30000,overtime:1846,milestone:5000}]:[];
 DB.policy=initialState.mode==='showcase'?{normalHours:130,warningHours:143}:{};
 if(initialState.mode==='showcase') journals.team.lily[TODAY]={title:'20260912　週六 · Lily',blocks:[{id:'lily-1',t:'h2',ind:0,text:'Standup'},{id:'lily-2',t:'h3',ind:0,text:'Today'},{id:'lily-3',t:'p',ind:1,text:'整理柏翰成效報告與驗收資料，準備下週交付。'}]};
@@ -200,7 +207,7 @@ function enhanceDrawer(){
  if(cur.type==='txn'){const t=TX(cur.id);if(t?.fileIds?.length)$('#drBody').insertAdjacentHTML('beforeend',`<div class="flab" style="margin-top:12px">憑證檔案</div>${t.fileIds.map(id=>{const f=fileList().find(f=>f.id===id);return f?`<div class="row" onclick="openDrawer('file','${id}')">${esc(f.name)}<span class="m">v${f.versions.length}</span></div>`:''}).join('')}`);}
  if(cur.type==='issue')$('#drBody').insertAdjacentHTML('beforeend',panel('留言協作','',objectComments(cur.id)));
 }
-DB.objectComments=[];
+DB.objectComments=DB.objectComments||[];
 function objectComments(id){const list=DB.objectComments.filter(x=>x.parent===id);return `${list.map(c=>`<div class="msg"><div class="bd"><div class="hd"><span class="nm">${person(c.w)}</span><span class="ts">${c.ts}</span></div><div class="tx">${esc(c.x)}</div></div></div>`).join('')}<div class="composer"><textarea id="objectReply" aria-label="物件留言" placeholder="留言…" oninput="textDrafts.set('object:'+DB.me+':${id}',this.value)">${esc(textDrafts.get('object:'+DB.me+':'+id)||'')}</textarea><button class="btn pri" onclick="sendObjectReply('${id}')">送出</button></div>`}
 function sendObjectReply(id){const x=$('#objectReply').value.trim();if(!x)return;DB.objectComments.push({parent:id,w:DB.me,x,ts:nowts()});textDrafts.delete('object:'+DB.me+':'+id);paintDrawer()}
 // Modal focus trapping and restoration use the same visual shell as the reference.

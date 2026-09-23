@@ -1,6 +1,12 @@
 /** Narrow, reviewable corrections to the archived v5 source. Original file never changes. */
 export function patchSource(source) {
  const rep=(a,b)=>{if(!source.includes(a))throw Error('v5 patch no longer matches: '+a.slice(0,100));source=source.replace(a,b)};
+ // 工作台 id 走 DB.seq 計數，而 DB.seq 每次載入都從 0 重來：上一次開頁發出的 LC-001，
+ // 這一次會被原封不動地再發一次。伺服器的主鍵是由業務 id 推導出來的 UUID，
+ // 於是新留言直接覆蓋掉舊留言那一列 —— 集合被讀回來之後，這件事才真的會發生。
+ // 加一段每次載入各自不同的字段（時間＋亂數），兩個席位同時寫也不會撞。
+ rep("function nid(pre){DB.seq[pre]=(DB.seq[pre]||0)+1;return pre+'-'+String(DB.seq[pre]).padStart(3,'0')}",
+  "function nid(pre){DB.seq[pre]=(DB.seq[pre]||0)+1;DB.seq.run=DB.seq.run||Date.now().toString(36).slice(-5)+Math.random().toString(36).slice(2,5);return pre+'-'+DB.seq.run+'-'+String(DB.seq[pre]).padStart(3,'0')}");
  rep('function bonus(pid){const p=P(pid);return','function bonus(pid){const p=P(pid);if(!p)return 0;return');
  rep('function throughputAvg(){const w=DB.weekly.map(x=>x[1]);return (w.reduce((a,b)=>a+b,0)/w.length)}','function throughputAvg(){const w=DB.weekly.map(x=>x[1]);return w.length?w.reduce((a,b)=>a+b,0)/w.length:0}');
  rep("function jdoc(){\n  if(!DB.journal[S.jday])DB.journal[S.jday]={title:S.jday,blocks:[{id:newBid(),t:'p',ind:0,text:''}]};\n  const d=DB.journal[S.jday]; if(!d.blocks.length)d.blocks.push({id:newBid(),t:'p',ind:0,text:''});\n  return d;\n}","function jdoc(){return currentJournal()}");

@@ -23,6 +23,13 @@ function iso(value: Date | null | undefined): string {
   return value ? value.toISOString().slice(0, 10) : ""
 }
 
+function dayStateSince(): Date {
+  const since = new Date()
+  since.setUTCHours(0, 0, 0, 0)
+  since.setUTCDate(since.getUTCDate() - DAY_STATE_WINDOW_DAYS)
+  return since
+}
+
 function seatKeyMap(profiles: Array<{ id: string; email: string }>): Map<string, string> {
   const seats = getYuanzhanSeats()
   const byEmail = new Map(profiles.map((p) => [p.email.toLowerCase(), p.id]))
@@ -50,6 +57,15 @@ function withRef<T>(rows: T[]): Array<T & { workbenchRef: string }> {
     (row): row is T & { workbenchRef: string } => Boolean(row.workbenchRef),
   )
 }
+
+/**
+ * 今日脈絡與今日議題讀回多久。
+ *
+ * 這兩張表是一筆事件一列，會一直長；每次開頁都把一整年搬進瀏覽器沒有意義，
+ * 日誌的日期選擇器實際上也只走得到最近這一段。超過視窗的列留在資料庫裡，
+ * 不會被刪 —— 比對只發生在本地載到的列之間，沒載到的不會被當成「已刪除」送上去。
+ */
+const DAY_STATE_WINDOW_DAYS = 90
 
 const PROJECT_STATUS_FALLBACK = "進行中"
 const TASK_STATUS_FALLBACK = "Todo"
@@ -103,6 +119,8 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     payrollRows,
     fileRows,
     docObjectRows,
+    dayLogRows,
+    todayIssueRows,
   ] = await Promise.all([
     db.operatingGoal.findMany({ where: { workspaceId } }),
     db.operatingProjectProfile.findMany({ include: { project: true } }),
@@ -135,6 +153,14 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       where: { workspaceId, OR: [{ space: "team" }, { authorKey: { in: viewerSeatKeys } }] },
     }),
     db.operatingDocObject.findMany({ where: { workspaceId } }),
+    db.operatingDayLog.findMany({
+      where: { workspaceId, onDate: { gte: dayStateSince() } },
+      orderBy: [{ onDate: "asc" }, { atTime: "asc" }, { createdAt: "asc" }],
+    }),
+    db.operatingTodayIssue.findMany({
+      where: { workspaceId, onDate: { gte: dayStateSince() } },
+      orderBy: [{ onDate: "asc" }, { createdAt: "asc" }],
+    }),
   ])
 
   /** 主鍵 → 工作台 id，讓子列的關聯接得回父列。 */
@@ -144,9 +170,22 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
   const milestoneRefById = new Map(withRef(milestoneRows).map((row) => [row.id, row.workbenchRef]))
   const rhythmRefById = new Map(withRef(rhythmRows).map((row) => [row.id, row.workbenchRef]))
 
+  /**
+   * 日誌一定要分作者。
+   *
+   * 資料庫那一頭是 (workspace, author, date) 唯一，寫入也是照作者寫的；但讀回來時
+   * 只用日期當鍵的話，同一天兩個人的日誌會互相覆蓋，最後由查詢順序決定誰留下來——
+   * 看的人會在自己的編輯區看到對方的內容，一存檔就把它抄進自己那一列。
+   *
+   * `journalPeer` 只給右欄唯讀顯示用，不在可寫入的集合清單裡，所以它不會被比對、
+   * 也不會被送回伺服器。
+   */
   const journal: Record<string, unknown> = {}
+  const journalPeer: Record<string, unknown> = {}
   for (const row of journalRows) {
-    journal[iso(row.onDate)] = { title: row.title ?? iso(row.onDate), blocks: row.blocks, visibility: row.visibility }
+    const entry = { title: row.title ?? iso(row.onDate), blocks: row.blocks, visibility: row.visibility }
+    if (row.authorId === viewerProfileId) journal[iso(row.onDate)] = entry
+    else journalPeer[iso(row.onDate)] = entry
   }
 
   const repos: Record<string, unknown> = {}
@@ -414,11 +453,33 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     }),
 
     journal,
+    journalPeer,
     repos,
     capacity,
     timesheet,
     lineComments: commentsByKind.line,
     journalComments: commentsByKind.journal,
     objectComments: commentsByKind.object,
+
+    dayLogs: withRef(dayLogRows).map((row) => ({
+      id: row.workbenchRef,
+      day: iso(row.onDate),
+      w: row.actorKey ?? "",
+      t: row.atTime,
+      kind: row.kind,
+      text: row.text,
+    })),
+
+    todayIssues: withRef(todayIssueRows).map((row) => ({
+      id: row.workbenchRef,
+      author: row.authorKey ?? "",
+      day: iso(row.onDate),
+      blockId: row.blockId ?? "",
+      text: row.text,
+      at: row.flaggedAt ? row.flaggedAt.getTime() : row.createdAt.getTime(),
+      // 沒完成的議題不帶 doneAt：工作台判斷的是「這個欄位在不在」，帶個 0 會被當成已完成。
+      ...(row.doneAt ? { doneAt: row.doneAt.getTime() } : {}),
+      ...(row.deferred > 0 ? { deferred: row.deferred } : {}),
+    })),
   }
 }

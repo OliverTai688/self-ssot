@@ -2066,6 +2066,68 @@ model OperatingDocObject {
   @@map("operating_doc_objects")
 }
 
+/// 日誌右欄「今日脈絡」的一列事件（PLN-074 M7）。
+///
+/// 一筆事件一列，不是「一天一列」：一天一列的話，兩個席位同一天各做一件事就會
+/// 互相覆蓋整天的脈絡，最後只留下後寫的那個人。逐列之後，兩個人的動作自然合流成
+/// 同一條時間軸，跨裝置合併也只需要比對列，不必處理陣列的合併。
+///
+/// kind：start＝開始一天、close＝收工、act＝其他動作（召喚物件、留言、發出請求…）。
+/// 「開始一天」「收工」不另外開表：它們本來就是這條時間軸上的兩個事件，
+/// 拆出去只會讓同一件事有兩個真相。
+model OperatingDayLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  workbenchRef String?  @map("workbench_ref")
+  onDate       DateTime @map("on_date") @db.Date
+  /// Profile.id；對不到人時留空，身分仍由 actorKey 保住
+  actorId      String?  @map("actor_id") @db.Uuid
+  /// 席位字串（yz / lily）。工作台顯示與著色看的是這個
+  actorKey     String?  @map("actor_key")
+  /// 工作台顯示用的時間字串（'10:20'）
+  atTime       String   @map("at_time")
+  /// start | close | act
+  kind         String   @default("act")
+  text         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([workspaceId, onDate], map: "operating_day_logs_workspace_date_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_day_logs_ref_idx")
+  @@map("operating_day_logs")
+}
+
+/// 日誌裡標記的「今日議題」（PLN-074 M7）。
+///
+/// 議題的 id 被寫回日誌 block 的 `today` 欄位，而 block 本來就存得住。
+/// 少了這張表，重新整理之後 block 還指著一個已經不存在的議題，
+/// 已完成的標籤就跟著消失 —— 看起來像標記沒被記住，其實是被指到的那一頭不見了。
+model OperatingTodayIssue {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  workbenchRef String?   @map("workbench_ref")
+  /// Profile.id；對不到人時留空，身分仍由 authorKey 保住
+  authorId     String?   @map("author_id") @db.Uuid
+  authorKey    String?   @map("author_key")
+  /// 議題目前掛在哪一天（延後會往後移）
+  onDate       DateTime  @map("on_date") @db.Date
+  /// 日誌裡那一行的 block id
+  blockId      String?   @map("block_id")
+  text         String
+  /// 標記的時刻與完成的時刻。存 timestamp 而不是 epoch 數字：
+  /// 工作台要的是毫秒，但把毫秒存成 BIGINT 之後，JSON 序列化會在 BigInt 上炸掉，
+  /// 而且查帳時看到的是一串數字。轉換留在邊界上做，欄位本身保持可讀。
+  flaggedAt    DateTime? @map("flagged_at")
+  doneAt       DateTime? @map("done_at")
+  /// 延後過幾次；>0 時隔天日誌開頭會出現「從昨天帶來」
+  deferred     Int       @default(0)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([workspaceId, onDate], map: "operating_today_issues_workspace_date_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_today_issues_ref_idx")
+  @@map("operating_today_issues")
+}
+
 /// 營運工作台的命令紀錄（PLN-074 M7）。
 ///
 /// 為什麼不寫 operating_audit_events：那張表是 teamcollab 的高風險稽核目錄，

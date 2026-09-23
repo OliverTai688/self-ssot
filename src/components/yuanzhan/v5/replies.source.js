@@ -9,8 +9,12 @@
    與其他 v5 工作台相同，資料只存在頁面記憶體（UI-memory），重整即重置。
    ───────────────────────────────────────────────────────────────────────── */
 const REPLY_HOURS=24, WARN_HOURS=16, REPING_HOURS=4, HOUR=3600e3;
-DB.requests=[];
-DB.todayIssues=[];
+/* 請求與今日議題都會被保存（今日議題自 PLN-074 M7 起）。無條件指派成空陣列
+   會把剛讀回來的列蓋掉，日誌 block 上的 `today` 參照就指到一個不存在的議題，
+   已完成的標籤也跟著不見。seed 沒有這兩個鍵，prototype 模式行為不變。 */
+DB.requests=DB.requests||[];
+DB.todayIssues=DB.todayIssues||[];
+/* 收工時刻本身記在今日脈絡上（kind='close'）；這裡只是查詢索引，由 journal-cockpit 重建。 */
 DB.dayClose={};
 const rqDrafts=new Map(), rqDeferDrafts=new Map(), rqOpenReply=new Set();
 let rqDecision=null;
