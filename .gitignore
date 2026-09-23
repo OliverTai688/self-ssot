@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Large raw research datasets (kept locally, never committed)
+/docs/2_agent-input/raw/R-RAW-001_enron-mail-analysis/
