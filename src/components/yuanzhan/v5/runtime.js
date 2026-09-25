@@ -10228,12 +10228,41 @@ function blankSecBlocks() {
   }];
 }
 
-/* RES-018 參考碼。序號走 DB.seq（與 nid() 同一個計數來源），日期用物件誕生那天。 */
+/* RES-018 參考碼。序號走 DB.seq（與 nid() 同一個計數來源），日期用物件誕生那天。
+ *
+ * DB.seq 是每次載入才建的記憶體計數器，資料庫沒有存，也沒有從既有物件回填。只靠它
+ * 遞增的話，任何一次重新整理、任何第二個席位，同一天建立的第一個同型別物件都會拿到
+ * 000001：兩筆在 upsert 時互相覆蓋；更糟的是，如果新物件正好誕生在同 id 那個物件的
+ * section 裡，那張卡片就指向包著它自己的容器，渲染時無限遞迴（YZUI-020）。
+ *
+ * 修法維持 RES-018 的四段格式不變，只讓序號真的不重複：
+ *   1. 第一次用到時，序號從既有物件的最大值續號，而不是從 0 重來。
+ *   2. 產生後再比對一次既有 id，撞到就往下跳，直到空號為止。
+ * 舊物件的 id 原樣保留、不回填（回填等於重寫歷史引用）。
+ *
+ * 殘留缺口：兩個席位在各自載入之後、都還沒看到對方新列時同時建立，仍可能撞號。
+ * 要根治得把號碼改由伺服器指派；在那之前由 renderDocSectionBody 的循環保護兜底，
+ * 讓撞號最多變成資料錯亂，不會再讓整頁掛掉。
+ */
+function docObjectSeqFloor() {
+  let max = 0;
+  for (const d of DB.docObjects || []) {
+    const m = /^[A-Z0-9]+-JRNL-(\d{6})-/.exec(String(d.id || ''));
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max;
+}
 function docObjectRefCode(typeKey, day) {
   const type = String(typeKey || 'DOC').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  DB.seq.DOCREF = (DB.seq.DOCREF || 0) + 1;
-  const seq = String(DB.seq.DOCREF).padStart(6, '0');
-  return (type || 'DOC') + '-JRNL-' + seq + '-' + String(day || '').replace(/-/g, '');
+  if (DB.seq.DOCREF == null) DB.seq.DOCREF = docObjectSeqFloor();
+  const taken = new Set((DB.docObjects || []).map(d => String(d.id)));
+  const date = String(day || '').replace(/-/g, '');
+  let id = '';
+  do {
+    DB.seq.DOCREF = (DB.seq.DOCREF || 0) + 1;
+    id = (type || 'DOC') + '-JRNL-' + String(DB.seq.DOCREF).padStart(6, '0') + '-' + date;
+  } while (taken.has(id));
+  return id;
 }
 function createDocObject(typeKey, day, tpl) {
   const meta = DOC_METAS[typeKey] || {
@@ -10396,7 +10425,29 @@ function migrateLegacyTemplateBlocks(journal) {
 // 每個 section 的書寫區塊：跟主日誌的 #doc 用同一套 .doc/.eb 標記與事件（docClick/docKey/docInput），
 // 唯一差別是容器帶 data-doc-sec，讓 blks()（見 source-patches.mjs 的 BLKS_OVERRIDE）改指到這個 section 的 blocks 陣列。
 // 這樣 Enter/Tab/Backspace、# 召喚、@ 引用既有物件、?@ 請對方回覆／!今天 全部原封不動可用，不必另外重寫一套引擎。
+/* 展開路徑上已經出現過的物件，不再往下展開。
+ *
+ * renderDocSectionBody → ebHtml → renderDocObjectCard → renderDocSectionBody 這條環
+ * 沒有任何其他終止條件，所以只要資料裡有一張卡片指向包著它的物件（撞號的後果），
+ * 或兩個物件互相引用，整頁就會 RangeError: Maximum call stack size exceeded ——
+ * 在事件裡是「操作未完成」，在掛載時就是「工作台暫時無法載入」。
+ *
+ * 擋在 section 這一層而不是卡片那一層：每一條環都必經這裡，而 renderDocObjectCard
+ * 會被 agenda 之類的擴充覆寫，擋在那裡會被繞過。 */
+const DOC_SEC_STACK = [];
 function renderDocSectionBody(doc, sec, idx, meta) {
+  if (DOC_SEC_STACK.includes(doc.id)) {
+    return `<div class="eb-doc-inline-sec"><div class="eb-doc-inline-sec-title">${esc(sec.title)}</div>
+      <div class="eb-doc-cycle">這個物件已經在上層展開了，不再往下展開（循環引用：${esc(doc.id)}）</div></div>`;
+  }
+  DOC_SEC_STACK.push(doc.id);
+  try {
+    return renderDocSectionBodyInner(doc, sec, idx, meta);
+  } finally {
+    DOC_SEC_STACK.pop();
+  }
+}
+function renderDocSectionBodyInner(doc, sec, idx, meta) {
   const blocks = ensureSecBlocks(sec);
   let html = blocks.map(ebHtml).join('');
   if (blocks.length === 1 && !blocks[0].text) {
