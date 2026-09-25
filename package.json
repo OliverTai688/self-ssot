@@ -134,7 +134,7 @@
     "ops:runtime:check": "tsx scripts/check-operating-runtime.ts",
     "ops:runtime:regress": "tsx scripts/check-operating-runtime.ts --baseline docs/2_agent-input/generated/operating-transfer/runtime.converged.js",
     "ops:canvas:check": "tsx scripts/check-operating-canvas.ts",
-    "ops:check": "node scripts/check-prisma-structure.mjs prisma/schema.prisma && tsx scripts/check-operating-spine.ts && tsx scripts/check-operating-commands.ts && node scripts/check-operating-command-fields.mjs && node scripts/check-migration-coverage.mjs && tsx scripts/check-operating-runtime.ts && tsx scripts/check-journal-day-state.ts && tsx scripts/check-operating-canvas.ts",
+    "ops:check": "node scripts/check-prisma-structure.mjs prisma/schema.prisma && tsx scripts/check-operating-spine.ts && tsx scripts/check-operating-commands.ts && node scripts/check-operating-command-fields.mjs && node scripts/check-migration-coverage.mjs && tsx scripts/check-operating-runtime.ts && tsx scripts/check-journal-day-state.ts && tsx scripts/check-operating-canvas.ts && tsx scripts/check-reply-jump.ts",
     "ops:prisma:check": "node scripts/check-prisma-structure.mjs prisma/schema.prisma",
     "ops:commands:check": "tsx scripts/check-operating-commands.ts",
     "ops:day-state:check": "tsx scripts/check-journal-day-state.ts",
@@ -147,7 +147,8 @@
     "ops:spine:reconcile": "tsx scripts/reconcile-time-spine.ts",
     "ops:verify": "node scripts/verify-operating-canvas.cjs",
     "ops:runtime:regress:pre-t3": "tsx scripts/check-operating-runtime.ts --baseline docs/2_agent-input/generated/operating-transfer/runtime.baseline.js",
-    "ops:doc-cycles:check": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-doc-object-cycles.ts"
+    "ops:doc-cycles:check": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-doc-object-cycles.ts",
+    "ops:reply-jump:check": "tsx scripts/check-reply-jump.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",
@@ -199,6 +200,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "jsdom": "^27.4.0",
+    "playwright": "^1.63.0",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",

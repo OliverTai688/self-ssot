@@ -38,6 +38,9 @@ function rqPeers(){return Object.keys(DB.people).filter(w=>w!==DB.me)}
 function rqFind(id){return DB.requests.find(r=>r.id===id)}
 function rqAge(r,now=Date.now()){return (now-r.sentAt)/HOUR}
 function rqState(r,now=Date.now()){
+ /* kind:'notice' 是「只是讓你看到」的 @ 提及：沒有 24 小時義務，也不該出現在
+    逾期橫幅、回覆追蹤或收工檢查裡。在最上游擋掉，下游三十幾處都不用各自判斷。 */
+ if(r.kind==='notice')return 'notice';
  if(r.resolvedAt)return 'resolved';
  if(r.firstReplyAt)return 'replied';
  const h=rqAge(r,now);
@@ -46,20 +49,42 @@ function rqState(r,now=Date.now()){
 function rqDur(h){h=Math.max(0,h);return h<1?Math.max(1,Math.round(h*60))+'m':Math.floor(h)+'h'}
 function rqLeft(r){return rqDur(REPLY_HOURS-rqAge(r))}
 function rqOver(r){return rqDur(rqAge(r)-REPLY_HOURS)}
+const RQ_DAY=/^\d{4}-\d{2}-\d{2}$/;
 function rqDoc(r){return journals.team[r.from]?.[r.day]||null}
-function rqBlock(r){return rqDoc(r)?.blocks.find(b=>b.id===r.blockId)||null}
+/* 請求指向「誰的哪一天的哪一行」。這三件事都可能對不上：
+   日期可能沒存成日期（onDate 為 null 時讀回來是空字串）、那一行可能被延後或搬到別天、
+   發問的人可能是對方（那一行在右欄那一本，不在自己的日誌裡）。
+   先解析出它真正在哪裡，跳轉、行號與來源標籤才會指到同一個地方。 */
+function rqFindLine(r){
+ const book=journals.team[r.from]||{},day=RQ_DAY.test(r.day||'')?r.day:'';
+ if(r.blockId){
+  const here=day&&(book[day]?.blocks||[]).find(b=>b.id===r.blockId);
+  if(here)return{day,block:here,idx:book[day].blocks.indexOf(here)};
+  for(const k of Object.keys(book)){
+   const blocks=book[k]?.blocks||[],i=blocks.findIndex(b=>b.id===r.blockId);
+   if(i>=0)return{day:k,block:blocks[i],idx:i};
+  }
+ }
+ return{day,block:null,idx:-1};
+}
+function rqBlock(r){return rqFindLine(r).block}
 function rqText(r){return rqBlock(r)?.text?.trim()||r.text}
-function rqLine(r){const doc=rqDoc(r),i=doc?doc.blocks.findIndex(b=>b.id===r.blockId):-1;return i<0?'原行已刪除':'L'+(i+1)}
-function rqShortDay(d){return String(+d.slice(5,7))+'/'+String(+d.slice(8,10))}
-function rqSource(r){return `↩ ${person(r.from)} ${rqShortDay(r.day)} · ${rqLine(r)}`}
+function rqLine(r){const s=rqFindLine(r);return s.idx<0?'原行已刪除':'L'+(s.idx+1)}
+function rqShortDay(d){return RQ_DAY.test(d||'')?String(+d.slice(5,7))+'/'+String(+d.slice(8,10)):'日期不明'}
+function rqSource(r){const s=rqFindLine(r);return `↩ ${person(r.from)} ${rqShortDay(s.day||r.day)} · ${rqLine(r)}`}
 function rqInvolves(r,who=DB.me){return r.to===who||r.from===who}
-function rqPending(r){return !r.firstReplyAt&&!r.resolvedAt}
+function rqPending(r){return r.kind!=='notice'&&!r.firstReplyAt&&!r.resolvedAt}
 function rqLate(who=DB.me){return DB.requests.filter(r=>rqInvolves(r,who)&&rqState(r)==='late').sort((a,b)=>a.sentAt-b.sentAt)}
 function rqToMe(who=DB.me){return DB.requests.filter(r=>r.to===who&&rqPending(r)).sort((a,b)=>a.sentAt-b.sentAt)}
 function rqFromMe(who=DB.me){return DB.requests.filter(r=>r.from===who&&rqPending(r)).sort((a,b)=>a.sentAt-b.sentAt)}
 function rqLocalDay(ms){const d=new Date(ms);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function rqRepliedToday(who=DB.me){const today=rqLocalDay(Date.now());return DB.requests.filter(r=>rqInvolves(r,who)&&r.firstReplyAt&&rqLocalDay(r.firstReplyAt)===today).sort((a,b)=>b.firstReplyAt-a.firstReplyAt)}
 function rqTodayOpen(who=DB.me){return DB.todayIssues.filter(t=>t.author===who&&!t.doneAt&&t.day<=TODAY)}
+/* 議題的文字以日誌那一行為準。t.text 是標記當下的快照，之後改寫那一行，右欄仍顯示舊句子而且
+   沒有任何提示（today-agenda 研究的發現 A）。延後會改寫 t.day，所以要掃作者的所有日子，
+   不能只查 t.day 那一天；原行真的被刪掉時才退回快照。 */
+function rqTodayBlock(t){const days=journals.team[t.author]||{};for(const k of Object.keys(days)){const b=(days[k].blocks||[]).find(x=>x.id===t.blockId);if(b)return b}return null}
+function rqTodayText(t){const b=rqTodayBlock(t);return (b&&b.text.trim())||t.text}
 function rqSeen(r){if(r.to===DB.me&&!r.seenAt)r.seenAt=Date.now()}
 function rqAv(w,cls='xs'){const p=DB.people[w];return `<span class="av rq-av ${cls} ${p.cls}">${p.s}</span>`}
 function rqClock(r,suffix=''){
@@ -73,16 +98,22 @@ function rqReplyWord(r){const last=r.replies.find(m=>m.w===r.to);return r.choice
 
 /* ---- ② 行內觸發：?@人（↵ 一般／⇧↵ 決策卡）、!今天；句子裡 @人（無同名物件時）等同 ?@人 ---- */
 const RQ_ASK=/(?:^|\s)[?？][@＠]([^\s#@＠]{0,12})$/, RQ_FLAG=/(?:^|\s)[!！]([^\s#@!！]{0,6})$/, RQ_MENTION=/(?:^|\s)[@＠]([^\s#@＠]{0,12})$/;
-function rqAskHits(q){
+/* @人名 與 ?@人名 給的是同三個選項，差別只在誰排第一、誰是 ↵ 的預設：
+   單純 @ 是「讓他看到」，要求回覆是刻意的動作（?@）。 */
+function rqAskHits(q,mode){
  q=(q||'').toLowerCase();const out=[];
+ const plain=mode==='mention';
  for(const w of rqPeers()){const p=DB.people[w];if(q&&!(w+p.n).toLowerCase().includes(q))continue;
-  out.push({ask:'ask',to:w,g:'發給 '+p.n,ic:'?',nm:'請回覆（一般）',ds:'回覆掛在這行下面',k:'↵',mention:true,rid:w});
-  out.push({ask:'decision',to:w,g:'發給 '+p.n,ic:'◆',nm:'做決定（決策卡）',ds:'加選項，對方點選即回覆',k:'⇧↵',mention:true,rid:w});}
+  const notice={ask:'notice',to:w,g:'通知 '+p.n,ic:'@',nm:'只是讓他看到（不用回覆）',ds:'對方收到站內通知；不計時、不進回覆追蹤',k:plain?'↵':'',mention:true,rid:w};
+  const ask={ask:'ask',to:w,g:'發給 '+p.n,ic:'?',nm:'請回覆（一般）',ds:'回覆掛在這行下面 · 24 小時內提醒',k:plain?'':'↵',mention:true,rid:w};
+  const dec={ask:'decision',to:w,g:'發給 '+p.n,ic:'◆',nm:'做決定（決策卡）',ds:'加選項，對方點選即回覆',k:'⇧↵',mention:true,rid:w};
+  if(plain)out.push(notice,ask,dec);else out.push(ask,dec,notice);}
  return out;
 }
-const RQ_FLAG_HITS=[{flag:'today',g:'標記',ic:'!',nm:'今天要處理',ds:'加入今日議題，收工前檢查',k:'↵'}];
+const RQ_FLAG_HITS=[{flag:'today',g:'標記',ic:'!',nm:'今天要處理',ds:'加入今日議題，收工前檢查',k:'↵'},
+ {flag:'agenda',g:'標記',ic:'!',nm:'建立議題物件',ds:'這一行與底下的子項收成一個議題 · 可排期、討論、附檔、結案',k:'↵'}];
 function rqOpenMenu(tx,b,start,q,mode){
- const hits=mode==='ask'||mode==='mention'?rqAskHits(q):RQ_FLAG_HITS;
+ const hits=mode==='ask'||mode==='mention'?rqAskHits(q,mode):RQ_FLAG_HITS;
  if(!SM.open||SM.blockId!==b.id||SM.mode!==mode)openSummon(b.id,start,q,caretRect(tx),mode);
  SM.q=q;SM.start=start;SM.hits=hits;SM.sel=Math.min(SM.sel,Math.max(0,hits.length-1));paintSummon();
 }
@@ -91,7 +122,7 @@ paintSummon=function(){
  rqBasePaint();
  if(SM.mode!=='ask'&&SM.mode!=='flag'&&SM.mode!=='mention')return;
  root.querySelectorAll('#summonList .summon-i .kb').forEach((el,i)=>{el.textContent=SM.hits[i]?.k||''});
- if((SM.mode==='ask'||SM.mode==='mention')&&SM.hits.length)$('#summonList').insertAdjacentHTML('beforeend','<div class="summon-g">都會在 24 小時內提醒回覆</div>');
+ if((SM.mode==='ask'||SM.mode==='mention')&&SM.hits.length)$('#summonList').insertAdjacentHTML('beforeend','<div class="summon-g">'+(SM.mode==='mention'?'@ 只通知，不計時；要求回覆才會在 24 小時內提醒':'請回覆與決策卡都會在 24 小時內提醒')+'</div>');
 };
 const rqBaseTrigger=checkTrigger;
 checkTrigger=function(tx,b){
@@ -100,9 +131,9 @@ checkTrigger=function(tx,b){
   let m=upto.match(RQ_ASK);
   if(m)return rqOpenMenu(tx,b,upto.length-m[1].length-2,m[1],'ask');
   m=upto.match(RQ_FLAG);
-  if(m&&['今天','今日','today'].some(w=>w.startsWith(m[1].toLowerCase())))return rqOpenMenu(tx,b,upto.length-m[1].length-1,m[1],'flag');
+  if(m&&['今天','今日','today','議題','agenda'].some(w=>w.startsWith(m[1].toLowerCase())))return rqOpenMenu(tx,b,upto.length-m[1].length-1,m[1],'flag');
   m=upto.match(RQ_MENTION);
-  if(m){const askHits=rqAskHits(m[1]);if(askHits.length&&!mentionHits(m[1]).length)return rqOpenMenu(tx,b,upto.length-m[1].length-1,m[1],'mention')}
+  if(m){const askHits=rqAskHits(m[1],'mention');if(askHits.length&&!mentionHits(m[1]).length)return rqOpenMenu(tx,b,upto.length-m[1].length-1,m[1],'mention')}
  }
  if(SM.open&&(SM.mode==='ask'||SM.mode==='flag'||SM.mode==='mention'))closeSummon();
  return rqBaseTrigger(tx,b);
@@ -124,7 +155,9 @@ applySummon=function(n){
  const text=(b.text.slice(0,SM.start)+b.text.slice(SM.start+len)).replace(/\s+$/,'');
  closeSummon();snap();b.text=text;focusB(b.id,text.length);
  if(!text.trim()){render();return toast('先寫下要問或要處理的內容，再加上 '+(h.flag?'!今天':(via==='mention'?'@':'?@')+esc(person(h.to))))}
- if(h.flag)return rqFlagToday(b);
+ if(h.flag)return h.flag==='agenda'?agCreate(b):rqFlagToday(b);
+ // 只通知不佔用這一行的 b.req：同一行可以通知多個人，也可以之後再改成請求。
+ if(h.ask==='notice')return rqNotify(b,h.to,via);
  const current=b.req&&rqFind(b.req);
  if(current&&!current.resolvedAt){render();return toast('這一行已經有進行中的請求')}
  if(h.ask==='decision'){
@@ -138,6 +171,13 @@ function rqSend(b,to,kind,options,via='ask'){
  const r={id:nid('REQ'),from:DB.me,to,day:S.jday,blockId:b.id,text:b.text.trim(),kind,options,via,sentAt:Date.now(),replies:[],nudges:[],pinged:{}};
  commit('create',kind==='decision'?'決策卡':'請求',r.text,()=>{DB.requests.push(r);b.req=r.id;
   return[`已通知 <b>${esc(person(to))}</b>，24 小時內要回覆`,'16 小時起轉橘色；超過 24 小時雙方畫面亮紅色提醒','訊號頁同步出現']});
+}
+/* 只通知：與請求同一張表（kind 區分），所以會跟著保存、也會出現在對方的通知匣，
+   但不掛 b.req、不計時、不進回覆追蹤，收工檢查也不會攔它。 */
+function rqNotify(b,to,via='mention'){
+ const r={id:nid('REQ'),from:DB.me,to,day:S.jday,blockId:b.id,text:b.text.trim(),kind:'notice',options:[],via,sentAt:Date.now(),replies:[],nudges:[],pinged:{}};
+ commit('create','通知',r.text,()=>{DB.requests.push(r);
+  return[`已通知 <b>${esc(person(to))}</b>，不需要回覆`,'對方右上角的通知匣會出現這一行，點一下就跳到這裡','沒有 24 小時計時，也不會進回覆追蹤']});
 }
 function rqAddOption(){if(!rqDecision)return;if(rqDecision.opts.length>=6)return toast('最多 6 個選項');rqDecision.opts.push('');const i=rqDecision.opts.length-1;runtime._afterRender=()=>root.querySelector('[data-rq-opt="'+i+'"]')?.focus();render()}
 function rqOptionKey(e,i){if(e.key!=='Enter'||e.isComposing)return;e.preventDefault();const next=root.querySelector('[data-rq-opt="'+(i+1)+'"]');if(next)next.focus();else rqSendDecision()}
@@ -203,21 +243,34 @@ function rqDefer(id){
  r.deferReason=why;r.deferredAt=Date.now();r.replies.push({w:DB.me,x:'延後：'+why,defer:true,at:r.deferredAt,ts:nowts()});
  rqDeferDrafts.delete(id);toast('已記錄延後理由；逾期紀錄保留，仍需回覆');render();rqOpenClose();
 }
+/* 兩顆按鈕、兩個去處，不要混在一起：
+     「現在回覆」要落在能打字的地方 —— 收到的請求收在自己「今天」的日誌裡；
+     「跳到那一行」與「↩ 來源」要落在問題被寫下來的那一天，不管那一行是誰寫的。
+   原本兩者共用 `incoming` 一個判斷，於是只要請求還沒回，來源連結就永遠被拉回今天：
+   按鈕上明明寫著「↩ Lily 9/24 · L1」，按下去卻停在今天，跨日之後等於整顆失效。 */
 function rqJump(id,reply){
  const r=rqFind(id);if(!r)return;
+ rqSeen(r);
  closeModal();if(space!=='team')switchSpace('team');
  saveJournalDraft();UNDO=[];REDO=[];
- const incoming=r.to===DB.me&&rqPending(r);
+ const incoming=r.to===DB.me&&rqPending(r),toReply=!!reply&&incoming;
  if(reply&&r.to===DB.me&&!r.resolvedAt)rqOpenReply.add(r.id);
+ const src=rqFindLine(r);
+ // S.jday 一定是合法日期。沒解析出來就停在今天：寫進 DB.journal[''] 會產生一本存不回去的日誌。
+ const day=toReply?TODAY:(src.day||TODAY);
  // 雙人駕駛艙：自己的日誌在左欄，對方的在右欄；兩邊同一天。
- journalAuthor=DB.me;S.jday=incoming?TODAY:r.day;
- runtime._afterRender=()=>{
-  const el=incoming?root.querySelector('[data-rq-in="'+r.id+'"]'):r.from===DB.me?root.querySelector('#doc .eb[data-id="'+r.blockId+'"]'):root.querySelector('#jcPeer [data-jc-bid="'+r.blockId+'"]');
-  if(!el)return toast('原本那一行已刪除；請求仍保留在訊號頁');
-  el.scrollIntoView({block:'center'});el.classList.add('rq-flash');
-  if(reply)root.querySelector('[data-rq-input="'+r.id+'"]')?.focus();
- };
+ journalAuthor=DB.me;S.jday=day;
  nav('journal',0);
+ // nav() 在 render() 之後才把 #surface 捲回頂端，排在 _afterRender 之前定位會被它蓋掉。
+ const el=toReply?root.querySelector('[data-rq-in="'+r.id+'"]')
+  :r.from===DB.me?root.querySelector('#doc .eb[data-id="'+r.blockId+'"]')
+  :root.querySelector('#jcPeer [data-jc-bid="'+r.blockId+'"]');
+ if(el){el.scrollIntoView({block:'center'});el.classList.add('rq-flash')}
+ if(reply)root.querySelector('[data-rq-input="'+r.id+'"]')?.focus();
+ if(el||toReply)return;
+ // 找不到的原因不只一種，講清楚是哪一種；否則「原本那一行已刪除」會蓋掉「沒記到日期」。
+ toast(src.day?`已跳到 ${src.day}，但原本那一行已不在；請求仍保留在訊號頁`
+  :'這個請求沒有記下是哪一天發出的，無法跳到那一天；完整清單在訊號頁');
 }
 
 /* ---- 共用：訊息串與動作列 ---- */
@@ -247,8 +300,10 @@ function rqActions(r,{incoming}={}){
 }
 
 /* ---- ② 日誌：行內標籤、訊息串、決策卡、收到的請求、右欄 ---- */
+function rqNoticesOn(b){return b&&b.id?DB.requests.filter(r=>r.kind==='notice'&&r.blockId===b.id):[]}
 function rqLinePills(b){
  const r=b.req&&rqFind(b.req),t=b.today&&DB.todayIssues.find(x=>x.id===b.today),pills=[];
+ for(const n of rqNoticesOn(b))pills.push(`<span class="rq-pill note">${svg('at',10)} 已通知 ${esc(person(n.to===DB.me?n.from:n.to))}${n.seenAt?' · 已讀':''}</span>`);
  if(t)pills.push(t.doneAt?'<span class="rq-pill done">'+svg('check',11)+' 今日議題</span>':t.author===DB.me?`<button class="rq-pill today" title="點一下標記完成" onclick="rqCompleteToday('${t.id}')">${svg('dot',9)} 今日議題</button>`:'<span class="rq-pill today">'+svg('dot',9)+' 今日議題</span>');
  if(r){
   if(r.kind==='decision')pills.push('<span class="rq-pill dec">'+svg('diamond',11)+' 決策</span>');
@@ -268,7 +323,7 @@ function rqDecisionCard(){
 const rqBaseEb=ebHtml;
 ebHtml=function(b){
  const html=rqBaseEb(b);
- if(space!=='team'||!TEXTY(b.t)||(!b.req&&!b.today&&rqDecision?.blockId!==b.id))return html;
+ if(space!=='team'||!TEXTY(b.t)||(!b.req&&!b.today&&rqDecision?.blockId!==b.id&&!rqNoticesOn(b).length))return html;
  const r=b.req&&rqFind(b.req),t=b.today&&DB.todayIssues.find(x=>x.id===b.today);
  const st=r&&!r.resolvedAt?(r.firstReplyAt?'replied':rqState(r)==='late'?'late':'ask'):t&&!t.doneAt?'today':rqDecision?.blockId===b.id?'ask':'';
  const end=html.lastIndexOf('</div>');
@@ -297,13 +352,14 @@ function rqSideCard(r){
 }
 function rqSidePanel(){return panel('回覆追蹤','24 小時內回覆',rqSideBody())}
 function rqSideBody(){
- const late=rqLate(),wait=rqFromMe().filter(r=>rqState(r)!=='late'),mine=rqToMe().filter(r=>rqState(r)!=='late'),today=rqTodayOpen();
+ const late=rqLate(),wait=rqFromMe().filter(r=>rqState(r)!=='late'),mine=rqToMe().filter(r=>rqState(r)!=='late'),today=rqTodayOpen(),agendas=agOpenToday();
  const peers=[...new Set(wait.map(r=>person(r.to)))].join('、')||'對方';
  const sec=(title,cls,n,body)=>`<div class="rq-side-sec"><div class="rq-side-t ${cls}"><span>${title}</span><span>${n}</span></div>${body}</div>`;
  const body=(late.length?sec(svg('warn',12)+' 逾期','late',late.length,late.map(rqSideCard).join('')):'')
   +(mine.length?sec('? 待我回覆','ask',mine.length,mine.map(rqSideCard).join('')):'')
-  +sec(`等 ${esc(peers)} 回覆`,'',wait.length,wait.map(rqSideCard).join('')||'<div class="rq-empty">行尾或句子中打 @人名 加入</div>')
-  +sec('今日議題','today',today.length,today.map(t=>`<div class="rq-card today"><div class="rq-card-t">${esc(t.text)}</div><div class="rq-card-m">${t.deferred?'<span class="rq-pill warn">'+svg('refresh',11)+' 從昨天帶來</span>':''}<button class="btn sm" onclick="rqCompleteToday('${t.id}')">${svg('check',12)} 完成</button></div></div>`).join('')||'<div class="rq-empty">行尾打 !今天 加入</div>')
+  +sec(`等 ${esc(peers)} 回覆`,'',wait.length,wait.map(rqSideCard).join('')||'<div class="rq-empty">行尾打 ?@人名 請對方回覆；單純 @人名 只是通知</div>')
+  // 兩層一起列：議題物件（L2）排前面，輕量標記（L1）排後面，見 agenda-object.source.js。
+  +sec('今日議題','today',today.length+agendas.length,agTodayBody(today,agendas))
   +`<button class="rq-more" onclick="nav('signal',0)">完整清單在訊號頁 ${svg('goto',11)}</button>`;
  return `<div class="rq-side">${body}</div>`;
 }
@@ -348,7 +404,9 @@ const rqBaseEnhance=enhanceView;
 enhanceView=function(){
  rqBaseEnhance();
  if(space==='team'&&S.tab===0){
-  if(S.wb==='journal')DB.requests.forEach(r=>{if(r.to===DB.me&&(r.from===journalAuthor&&r.day===S.jday||journalAuthor===DB.me&&S.jday===TODAY))rqSeen(r)});
+  // 通知（kind:'notice'）不在這裡自動標已讀：它的去處是右上角的通知匣，
+  // 在這裡清掉的話，走過一次那天的日誌就等於整匣被讀完了。
+  if(S.wb==='journal')DB.requests.forEach(r=>{if(r.to===DB.me&&r.kind!=='notice'&&(r.from===journalAuthor&&r.day===S.jday||journalAuthor===DB.me&&S.jday===TODAY))rqSeen(r)});
   if(S.wb==='signal')rqToMe().forEach(rqSeen);
  }
  if(!rqAlarmEl||!rqAlarmEl.isConnected){rqAlarmEl=doc.createElement('div');rqAlarmEl.id='rqAlarm';$('.main').prepend(rqAlarmEl)}
@@ -394,13 +452,13 @@ VIEWS.signal=tab=>{const out=rqBaseSignal(tab);return tab===0&&space==='team'?rq
 function rqNudgedAfterLate(r){return r.nudges.some(n=>n.at>=r.sentAt+REPLY_HOURS*HOUR)}
 function rqBlockers(){return rqLate().filter(r=>r.to===DB.me?!r.deferReason:!rqNudgedAfterLate(r))}
 function rqOpenClose(){
- const late=rqLate(),today=rqTodayOpen(),blockers=rqBlockers();
+ const late=rqLate(),today=rqTodayOpen(),agendas=agOpenToday(),blockers=rqBlockers();
  const lateRows=late.map(r=>{const mine=r.to===DB.me;return `<div class="rq-row"><span class="rq-pill late">${mine?'待我':'等 '+esc(person(r.to))}</span><span class="rq-row-t">${esc(rqText(r))}</span>
   ${mine?`<button class="btn sm red" onclick="rqJump('${r.id}',true)">現在回</button>${r.deferReason?`<span class="rq-meta">已延後：${esc(r.deferReason)}</span>`:`<input data-rq-defer="${r.id}" aria-label="延後理由" placeholder="延後理由（只能一次）" value="${esc(rqDeferDrafts.get(r.id)||'')}" oninput="rqDeferDrafts.set('${r.id}',this.value)"><button class="btn sm" onclick="rqDefer('${r.id}')">延後</button>`}`
    :rqNudgedAfterLate(r)?'<span class="rq-meta">'+svg('check',11)+' 已追蹤</span>':`<button class="btn sm red" onclick="rqNudge('${r.id}');rqOpenClose()">${svg('bell',12)} 提醒他</button>`}</div>`}).join('');
- const todayRows=today.map(t=>`<div class="rq-row"><span class="rq-pill today">今日</span><span class="rq-row-t">${esc(t.text)}</span><button class="btn sm" onclick="rqCompleteToday('${t.id}');rqOpenClose()">${svg('check',12)} 完成</button><button class="btn sm pri" onclick="rqDeferToday('${t.id}');rqOpenClose()">${svg('goto',11)} 明天</button></div>`).join('');
+ const todayRows=agCloseRows()+today.map(t=>`<div class="rq-row"><span class="rq-pill today">今日</span><span class="rq-row-t">${esc(rqTodayText(t))}</span><button class="btn sm" onclick="rqCompleteToday('${t.id}');rqOpenClose()">${svg('check',12)} 完成</button><button class="btn sm pri" onclick="rqDeferToday('${t.id}');rqOpenClose()">${svg('goto',11)} 明天</button></div>`).join('');
  const moved=today[0];
- openModal(late.length||today.length?`收工前，還有 ${late.length+today.length} 件事沒結束`:'收工檢查',
+ openModal(late.length||today.length||agendas.length?`收工前，還有 ${late.length+today.length+agendas.length} 件事沒結束`:'收工檢查',
   blockers.length?'逾期項目必須先回覆、追蹤，或寫下延後理由才能收工；今日議題沒動的會自動延到明天。':'逐項決定怎麼處理，沒動的今日議題會自動延到明天。',
   `<div class="rq-close">${lateRows}${todayRows}${!lateRows&&!todayRows?'<div class="rq-empty">都處理完了</div>':''}${moved?`<div class="rq-carry">明天 ${rqShortDay(dadd(TODAY,1))} 日誌的開頭會出現：<br><span class="rq-pill today">${svg('refresh',11)} 從昨天帶來 · ${esc(moved.text)}</span></div>`:''}</div>`,
   `<button class="btn" onclick="closeModal()">返回</button><button class="btn ${blockers.length?'':'pri'}" ${blockers.length?'disabled title="先處理逾期項目"':''} onclick="rqConfirmClose()">確認收工</button>`);
@@ -409,8 +467,10 @@ function rqConfirmClose(){
  if(rqBlockers().length)return rqOpenClose();
  const moved=rqTodayOpen();
  closeModal();
- commit('update','收工',person(DB.me)+' '+TODAY,()=>{moved.forEach(t=>{t.day=dadd(TODAY,1);t.deferred=(t.deferred||0)+1});(DB.dayClose[DB.me]??={})[TODAY]=nowts().slice(0,5);
-  return[moved.length?`${moved.length} 件今日議題延到明天`:'今日議題已清空',`待我回覆 ${rqToMe().length} 件`]});
+ commit('update','收工',person(DB.me)+' '+TODAY,()=>{moved.forEach(t=>{t.day=dadd(TODAY,1);t.deferred=(t.deferred||0)+1});
+  // 議題物件也一起帶到明天，但改到期日之前先把今天記進 carried，原本是哪天提出的才留得下來。
+  const movedAg=agCarryAllOpen();(DB.dayClose[DB.me]??={})[TODAY]=nowts().slice(0,5);
+  return[moved.length?`${moved.length} 件今日議題延到明天`:'今日議題已清空',movedAg?`${movedAg} 件議題物件延到明天，並記下帶過次數`:'議題物件都已處理',`待我回覆 ${rqToMe().length} 件`]});
 }
 // 隔天日誌開頭顯示從昨天帶來的今日議題。
 const rqCarryJournal=VIEWS.journal;

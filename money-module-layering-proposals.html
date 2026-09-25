@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>金流模組分層提案｜收單 · 帳務 · 洞察</title>
+<style>
+:root{
+  --bg:#07090d; --panel:#0e1117; --panel2:#131720; --line:#1f2430; --line2:#2a3040;
+  --text:#e6e8ee; --dim:#8a91a3; --faint:#5b6273; --accent:#7c8cff; --accent2:#a78bfa;
+  --gold:#e0b25a; --green:#4fc38a; --red:#ef6b6b; --blue:#4ea1ff; --warn:#e0b25a;
+  --pri:#5b8def; --teal:#2bb3a3; --info:#8b7cf6;
+  --yz-bg:#2b4a63; --yz-fg:#9ecbf5; --lily-bg:#3d3357; --lily-fg:#c4a2f5;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1320px;margin:0 auto;padding:28px 20px 80px}
+h1{font-size:22px;margin:0 0 6px}
+h2{font-size:15px;margin:30px 0 10px;padding-top:4px}
+h3{font-size:12px;margin:20px 0 8px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+h4{margin:0 0 6px;font-size:13.5px}
+.sub{color:var(--dim);margin:0 0 20px;line-height:1.75;max-width:940px}
+.sub b{color:var(--text)}
+code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-family:var(--mono);font-size:11.5px;color:var(--gold)}
+small{font-size:11.5px}
+
+/* 現況痛點 */
+.pain{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:10px;margin-bottom:24px}
+.pain div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--dim);font-size:12.5px;line-height:1.65}
+.pain b{color:var(--text);display:block;margin-bottom:3px}
+.pain .src{display:block;margin-top:5px;color:var(--faint);font-family:var(--mono);font-size:10.5px}
+
+/* 三層前提 */
+.premise{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:900px){.premise{grid-template-columns:1fr}}
+.pc{border:1px solid var(--line);border-radius:11px;padding:13px 14px;background:var(--panel);border-top:3px solid}
+.pc.k1{border-top-color:var(--teal)}
+.pc.k2{border-top-color:var(--pri)}
+.pc.k3{border-top-color:var(--info)}
+.pc .q{font-size:11.5px;color:var(--gold);margin-bottom:8px}
+.pc ul{margin:0;padding-left:16px;color:var(--dim);font-size:12px;line-height:1.75}
+.pc li b{color:var(--text)}
+
+/* 生命週期 */
+.life{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:12px 0 6px}
+@media(max-width:1000px){.life{grid-template-columns:1fr 1fr}}
+.lf{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:11px 12px;position:relative}
+.lf .n{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.lf .t{font-size:13px;font-weight:600;margin:2px 0 4px}
+.lf .d{font-size:11.5px;color:var(--dim);line-height:1.6}
+.lf .who{margin-top:7px;font-size:10.5px;padding:2px 7px;border-radius:99px;display:inline-block}
+.w-in{background:#123028;color:#7fd9b3}
+.w-bk{background:#152442;color:#9dc0ff}
+.w-ov{background:#241c3d;color:#c0b0f8}
+.lf.miss{border-style:dashed;border-color:#4a3a2a}
+.lf.miss .t{color:var(--gold)}
+
+/* tabs */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0 0}
+@media(max-width:900px){.tabs{grid-template-columns:1fr}}
+.tabs button{background:var(--panel);color:var(--dim);border:1px solid var(--line);padding:12px 14px;border-radius:10px;cursor:pointer;font:inherit;text-align:left;transition:.12s}
+.tabs button:hover{border-color:var(--line2)}
+.tabs button.on{color:var(--text);border-color:var(--accent);background:#151a2c}
+.tabs button b{display:block;font-size:13.5px;margin-bottom:3px}
+.tabs button small{color:var(--faint);display:block;font-weight:400;line-height:1.55}
+.tabs button.on small{color:var(--dim)}
+.proposal{display:none;margin-top:20px}
+.proposal.on{display:block}
+.lead{color:var(--dim);line-height:1.8;margin:0 0 18px;max-width:940px;font-size:13px}
+.lead b{color:var(--text)}
+
+/* wireframe frame */
+.frame{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a0c11;box-shadow:0 20px 50px #0008}
+.fbar{height:34px;display:flex;align-items:center;gap:10px;padding:0 13px;border-bottom:1px solid var(--line);background:#0c0f15;font-size:11px;color:var(--faint)}
+.fbar b{color:var(--dim);font-weight:600}
+.fbar .sp{flex:1}
+.app{display:flex;min-height:330px}
+.rail{width:74px;border-right:1px solid var(--line);background:#0b0e14;padding:9px 0;flex-shrink:0}
+.rail i{display:block;text-align:center;font-size:10.5px;color:var(--faint);padding:9px 0;font-style:normal;line-height:1.5}
+.rail i b{display:block;font-size:14px;color:var(--line2);font-weight:400;margin-bottom:1px}
+.rail i.on{color:var(--text);background:#141a2b;border-left:2px solid var(--accent)}
+.rail i.on b{color:var(--accent)}
+.rail i.lock{opacity:.4}
+.main{flex:1;padding:12px 14px;min-width:0}
+.mhead{display:flex;align-items:baseline;gap:10px;margin-bottom:9px}
+.mhead .ti{font-size:15px;font-weight:600}
+.mhead .scn{font-size:11.5px;color:var(--gold)}
+.mhead .rt{margin-left:auto;font-size:10.5px;color:var(--faint)}
+
+/* tab bar mock */
+.tbar{display:flex;gap:16px;border-bottom:1px solid var(--line);margin-bottom:11px;font-size:12px;flex-wrap:wrap}
+.tbar span{padding:0 0 7px;color:var(--faint);border-bottom:2px solid transparent;cursor:default}
+.tbar span.on{color:var(--text);border-bottom-color:var(--accent)}
+.tbar .divider{width:1px;background:var(--line);padding:0;margin:0 2px 7px;align-self:stretch}
+.tbar .grp{color:var(--faint);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding-bottom:7px;opacity:.75}
+
+/* segmented face switcher */
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#0b0e14;border:1px solid var(--line);border-radius:10px;padding:5px;margin-bottom:11px}
+.seg div{padding:7px 10px;border-radius:7px;text-align:left;border:1px solid transparent}
+.seg div b{display:block;font-size:12.5px;color:var(--dim)}
+.seg div small{color:var(--faint);font-size:10.5px}
+.seg div.on{background:#151a2c;border-color:var(--accent)}
+.seg div.on b{color:var(--text)}
+.seg div.on small{color:var(--dim)}
+.seg div.lock b:after{content:" 🔒";font-size:9px;opacity:.6}
+
+/* generic panel inside wireframe */
+.pnl{border:1px solid var(--line);border-radius:9px;background:var(--panel);margin-bottom:10px;overflow:hidden}
+.pnl-h{padding:7px 11px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;background:var(--panel2)}
+.pnl-h b{font-size:12px}
+.pnl-h span{font-size:10.5px;color:var(--faint)}
+.pnl-h .sp{flex:1}
+.pnl-b{padding:9px 11px}
+.btn{display:inline-block;font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid var(--line2);color:var(--dim);background:#10141c}
+.btn.pri{border-color:#2d3f6b;background:#16203a;color:#9dc0ff}
+
+/* mock table */
+table.mk{width:100%;border-collapse:collapse;font-size:11.5px}
+table.mk th{text-align:left;color:var(--faint);font-weight:500;padding:5px 7px;border-bottom:1px solid var(--line);font-size:10.5px}
+table.mk td{padding:5px 7px;border-bottom:1px solid #161a23;color:var(--dim)}
+table.mk td.k{color:var(--text)}
+table.mk td.num{text-align:right;font-family:var(--mono)}
+table.mk tr.dim td{opacity:.5}
+.chip{display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;border:1px solid}
+.c-green{background:#10281f;border-color:#1d4436;color:#6fce9f}
+.c-blue{background:#101c30;border-color:#223b60;color:#8fb8f0}
+.c-gold{background:#2a220f;border-color:#4a3c1c;color:#d9b463}
+.c-red{background:#2c1416;border-color:#4d2327;color:#e88f92}
+.c-grey{background:#171a22;border-color:#262b36;color:var(--dim)}
+.c-purple{background:#1e1733;border-color:#372a5c;color:#b9a5f0}
+
+/* inbox rows */
+.inbox .r{display:flex;align-items:center;gap:9px;padding:8px 10px;border-bottom:1px solid #161a23;font-size:12px}
+.inbox .r:last-child{border-bottom:none}
+.inbox .r .dt{font-family:var(--mono);font-size:10.5px;color:var(--faint);width:42px;flex-shrink:0}
+.inbox .r .t{color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox .r .need{font-size:10.5px;color:var(--gold)}
+.inbox .r .amt{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.drop{border:1.5px dashed var(--line2);border-radius:10px;padding:16px;text-align:center;color:var(--faint);font-size:12px;margin-bottom:10px;background:#0b0e14}
+.drop b{display:block;color:var(--dim);font-size:12.5px;margin-bottom:5px}
+.drop .m{margin-top:7px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+
+/* recon 3 col */
+.recon3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rcol{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.rcol-h{padding:5px 9px;background:var(--panel2);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;font-size:11px}
+.rcol-h .sum{font-family:var(--mono);color:var(--dim)}
+.rline{display:flex;gap:7px;padding:4px 9px;font-size:10.5px;border-bottom:1px solid #161a23;color:var(--dim)}
+.rline .d{font-family:var(--mono);color:var(--faint);width:34px}
+.rline .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rline .a{font-family:var(--mono)}
+.rline.matched{opacity:.45}
+.rline.sugg{background:#121a12;border-left:2px solid var(--green)}
+.rline.bad{color:#e88f92}
+
+/* checklist */
+.chk .c{display:flex;align-items:center;gap:9px;padding:6px 2px;font-size:12px;color:var(--dim);border-bottom:1px solid #161a23}
+.chk .c:last-child{border-bottom:none}
+.chk .bx{width:14px;height:14px;border:1px solid var(--line2);border-radius:4px;flex-shrink:0;font-size:10px;text-align:center;line-height:13px}
+.chk .bx.y{background:#12301f;border-color:#2b5e40;color:#6fce9f}
+.chk .c .sp{flex:1}
+.chk .c .cnt{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+/* kanban */
+.kan{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+@media(max-width:1000px){.kan{grid-template-columns:repeat(3,1fr)}}
+.kcol{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden;min-height:150px}
+.kcol-h{padding:5px 8px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:10.5px;color:var(--dim);display:flex;justify-content:space-between}
+.kcol-h b{font-size:11px;color:var(--text)}
+.kc{margin:6px;padding:6px 7px;border:1px solid var(--line2);border-radius:6px;background:#10141c;font-size:10.5px;color:var(--dim);line-height:1.5}
+.kc b{display:block;color:var(--text);font-size:11px;margin-bottom:2px;font-weight:500}
+.kc .m{font-family:var(--mono);color:var(--faint);font-size:10px}
+.kcol.locked{opacity:.6;background:#0b0e14}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+@media(max-width:900px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:8px 10px}
+.kpi .lb{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
+.kpi .v{font-size:17px;font-family:var(--mono);margin-top:2px}
+.kpi .s{font-size:10.5px;color:var(--faint);margin-top:2px}
+.kpi .drill{font-size:10px;color:var(--pri);margin-top:4px}
+.kpi.unset .v{color:var(--faint);font-size:12px;font-family:inherit;padding:4px 0}
+
+/* schema */
+.schema{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:10px}
+.ent{border:1px solid var(--line2);border-radius:10px;background:var(--panel);overflow:hidden}
+.ent-h{padding:6px 11px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+.ent-h .tag{font-size:9.5px;font-weight:400;padding:1px 5px;border-radius:99px}
+.tag.new{background:#12301f;color:#6fce9f}
+.tag.ext{background:#2a220f;color:#d9b463}
+.tag.keep{background:#171a22;color:var(--faint)}
+.ent-b{padding:8px 11px;font-family:var(--mono);font-size:10.5px;line-height:1.85;color:var(--dim)}
+.ent-b .f{color:var(--dim)}
+.ent-b .nw{color:#6fce9f}
+.ent-b .ty{color:var(--faint)}
+
+/* pros cons */
+.pc2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+@media(max-width:900px){.pc2{grid-template-columns:1fr}}
+.box{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.box.good{border-left:3px solid var(--green)}
+.box.bad{border-left:3px solid var(--red)}
+.box ul{margin:0;padding-left:17px;color:var(--dim);font-size:12px;line-height:1.8}
+.box li b{color:var(--text)}
+
+/* compare */
+table.compare{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+table.compare th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);color:var(--dim);font-weight:600;font-size:12px;vertical-align:bottom}
+table.compare td{padding:8px 10px;border-bottom:1px solid #161a23;color:var(--dim);vertical-align:top;line-height:1.6}
+table.compare td:first-child{color:var(--faint);font-size:11.5px}
+.yes{color:#6fce9f}.mid{color:#d9b463}.no{color:#e88f92}
+
+/* note */
+.note{border:1px solid var(--line2);border-radius:11px;padding:15px 17px;background:linear-gradient(180deg,#121722,#0e1117)}
+.note ul{margin:8px 0 0;padding-left:18px;color:var(--dim);font-size:12.5px;line-height:1.85}
+.note li b{color:var(--text)}
+.note p{color:var(--dim);font-size:12.5px;line-height:1.8}
+
+.gap{height:12px}
+.cap{font-size:11px;color:var(--faint);margin:6px 0 0;line-height:1.6}
+.foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);color:var(--faint);font-size:11.5px;line-height:1.85}
+.foot b{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>金流模組分層提案</h1>
+  <p class="sub">你的觀察是對的，而且問題比「要不要分區」更深一層。<b>金流的六個分頁現在是等權並列，但它們承載的是三種完全不同的節奏</b> —— 收單是每天幾十秒、帳務是每週半小時、洞察是每月看一眼做決定。沒有分層的代價已經寫在畫面上：六個分頁的空狀態長得一樣、對帳在沒有資料時仍渲染一張全為 0 的調節表、洞察的 Runway 與應收未收是寫死的字面值。<br>三案的差別不在畫面美醜，而在<b>「分層的切口切在哪裡」</b> —— 切在分頁之間（A）、切在模組之內（B）、還是切在模組之間（C）。這個決定會影響員工能不能在 30 秒內把一張收據交出去。</p>
+
+  <div class="pain">
+    <div><b>空狀態不一致，且會製造假訊號</b>對帳在毫無資料時仍完整渲染銀行往來調節表五行 0 —— 這不只是噪音，還誤導為「三本帳已對平」。帳本則渲染空表頭＋「9 月淨額 0」footer，看起來像壞掉。<span class="src">截圖 1、3｜reconView() 無空狀態分支</span></div>
+    <div><b>關鍵數字是硬編碼</b>應收未收 <code>const recv = 88000</code>、Runway 字面值 <code>6.8</code>。原因不是偷懶，是系統裡根本沒有「現金帳戶」與「應收」這兩個實體。<span class="src">runtime.js:4927、4933</span></div>
+    <div><b>人事頁的文案與實作矛盾</b>該頁 guide 寫「這頁沒有一個數字是人工填的」，但薪資列 30,000 / 1,846 / 5,000 全是寫在 view 裡的字面值，且 <code>OperatingPayrollDraft</code> 沒有被讀。<span class="src">runtime.js:4977-4979</span></div>
+    <div><b>員工的動線被切成三段</b>補憑證在金流·帳本抽屜、送報帳在金流·報帳、確認出勤在<b>容量</b>·出勤紀錄 —— 三件同性質的事分散在兩模組三分頁，而且大半被 §18 遮成鎖頭。<span class="src">buildSignals() ⑥⑦</span></div>
+    <div><b>憑證是標籤不是檔案</b><code>addVoucher(id, kind)</code> 只 push 一個字串，憑證庫顯示的是文字方塊。<code>OperatingLibraryFile</code> 已有 R2 <code>objectKey</code> 路徑，但憑證沒走它。台灣會計憑證鏈要求原始憑證附隨傳票、保存 5 年。<span class="src">runtime.js:2003</span></div>
+    <div><b>沒有期間，也沒有鎖帳</b><code>editable()</code> 只判斷作者是不是自己 —— 上個月已對完帳的交易現在仍可自由改動。期間硬編碼 <code>month='2026-09'</code>，無月份切換器。<span class="src">runtime.js:6297、5343</span></div>
+    <div><b>介面承諾了未實作的能力</b>報帳頁 hint 寫「發布報帳連結會產生一個外部 token 頁，對方不需要帳號」，但表單 sub 寫「尚未發布外部連結」。<span class="src">runtime.js:4965 vs 2179</span></div>
+    <div><b>洞察硬綁單一專案</b>瀑布圖固定 <code>vWaterfall('PRJ-2026-004')</code>，沒有專案切換器；有第二個專案時看不到。<span class="src">runtime.js:4943</span></div>
+  </div>
+
+  <h2>共同前提一：三層的本質差異</h2>
+  <p class="sub" style="margin-bottom:12px">三案都建立在這張表上。關鍵不是「哪些分頁該放一起」，而是<b>三層的使用者、頻率與資料確定性根本不同</b> —— 一個要快、一個要準、一個要唯讀。把三者放在同一個 tab bar 上，等於讓「幾十秒的事」和「半小時的事」搶同一個位置。</p>
+  <div class="premise">
+    <div class="pc k1">
+      <h4>1 · 收單層</h4>
+      <div class="q">「我把東西交出去了嗎？」</div>
+      <ul>
+        <li>節奏：<b>每天 · 幾十秒</b>，常在手機上</li>
+        <li>使用者：<b>全員</b>（含外包／接案者）</li>
+        <li>資料狀態：<b>未定、可改、可丟</b></li>
+        <li>要的能力：投遞口、缺件清單、一個動作</li>
+        <li>設計目標：<b>容錯</b> —— 不要求使用者懂分類</li>
+        <li>現有素材：報帳分頁、憑證庫、訊號 ⑥⑦</li>
+      </ul>
+    </div>
+    <div class="pc k2">
+      <h4>2 · 帳務層</h4>
+      <div class="q">「這筆錢是什麼、對得起來嗎？」</div>
+      <ul>
+        <li>節奏：<b>每週／每月 · 半小時</b>，桌機</li>
+        <li>使用者：<b>負責人或記帳者</b></li>
+        <li>資料狀態：<b>逐步定案，錯了要留痕</b></li>
+        <li>要的能力：歸類、勾稽、鎖定、匯出</li>
+        <li>設計目標：<b>嚴謹</b> —— 每個動作可追溯可撤銷</li>
+        <li>現有素材：帳本、對帳（三欄＋調節表）</li>
+      </ul>
+    </div>
+    <div class="pc k3">
+      <h4>3 · 洞察層</h4>
+      <div class="q">「所以我該做什麼決定？」</div>
+      <ul>
+        <li>節奏：<b>每月／每季 · 掃視一眼</b></li>
+        <li>使用者：<b>負責人</b></li>
+        <li>資料狀態：<b>唯讀、已封存</b></li>
+        <li>要的能力：切片角度、下鑽回原始列</li>
+        <li>設計目標：<b>可信</b> —— 每個數字都要能點開看來源</li>
+        <li>現有素材：洞察、人事、專案預算</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>共同前提二：一筆錢的五格生命週期</h2>
+  <p class="sub" style="margin-bottom:8px">這是整份提案的骨幹，也是目前最深的結構缺口。<code>OperatingTransaction</code> 一列同時代表「發生／收付／證明／歸屬／確定性」五種身分，而<b>第五項完全缺席</b> —— 交易一出生就是最終狀態。補上這五格之後，收單與帳務的分界才有客觀依據：<b>收單面只能把東西推到 ②，不能直接產生 ③。</b></p>
+  <div class="life">
+    <div class="lf"><div class="n">①</div><div class="t">進件 intake</div><div class="d">一張收據、一個檔案、一句話。任何人可建，可刪。</div><span class="who w-in">收單面</span></div>
+    <div class="lf"><div class="n">②</div><div class="t">待歸帳 unfiled</div><div class="d">有金額但缺類別或專案歸屬。可補、可丟。</div><span class="who w-in">收單 → 帳務</span></div>
+    <div class="lf"><div class="n">③</div><div class="t">已入帳 posted</div><div class="d">完整交易，在帳本可見。改動留痕。</div><span class="who w-bk">帳務面</span></div>
+    <div class="lf"><div class="n">④</div><div class="t">已勾稽 reconciled</div><div class="d">與銀行明細配對成立。可解除。</div><span class="who w-bk">帳務面</span></div>
+    <div class="lf miss"><div class="n">⑤</div><div class="t">已結帳 closed</div><div class="d">期間鎖定，唯讀。解鎖需留痕。<b style="color:var(--gold)">目前完全不存在</b></div><span class="who w-ov">洞察面唯讀</span></div>
+  </div>
+  <p class="cap">補上 ⑤ 之後，<code>editable()</code> 才有第二個判斷維度（目前只判作者）；應收未收與 Runway 才有計算依據（目前只能寫死）；月結才成為一個可勾選的物件而不是一種感覺。</p>
+
+  <h2>三個方向</h2>
+  <div class="tabs">
+    <button class="on" data-p="a"><b>提案 A · 分組單層</b><small>保留現有 tab bar，插入分組小標與分隔線，加角色預設落點與統一空狀態。不動資料模型，1–3 天可上線。</small></button>
+    <button data-p="b"><b>提案 B · 三面 × 三分頁</b><small>模組標題列加「面」切換器，收單／帳務／洞察各帶三個次分頁。角色決定預設落點。RES-032 主張。</small></button>
+    <button data-p="c"><b>提案 C · 收單外移 + 錢流看板</b><small>收單升格為側欄頂層「交件匣」，金流只剩帳務與洞察，帳務主操作面改為五格生命週期看板。</small></button>
+  </div>
+
+  <!-- ══════════════════════════ 提案 A ══════════════════════════ -->
+  <div class="proposal on" id="p-a">
+    <p class="lead"><b>核心想法：</b>不動導覽層級、不動資料模型，只做三件事 —— ①在現有 tab bar 上<b>插入分組小標與分隔線</b>，讓六個分頁視覺上分成三群；②<b>角色決定預設落點</b>，非負責人登入金流時直接停在「報帳」而非「帳本」；③<b>統一六個分頁的空狀態</b>，沒有資料時不渲染表格骨架與全 0 調節表。<br><b>適合你如果：</b>想這週就讓畫面不再說謊，把結構性重構留到確認方向之後。這是一個<b>止血方案</b>，不是終局。</p>
+
+    <h3>導覽結構</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 A</b><span>金流 · 單層分組 tab bar</span><span class="sp"></span><span>負責人視角</span></div>
+      <div class="app">
+        <div class="rail">
+          <i><b>▤</b>日誌</i><i><b>▦</b>營運</i><i><b>▣</b>專案</i>
+          <i class="on"><b>▧</b>金流</i><i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i>
+        </div>
+        <div class="main">
+          <div class="mhead"><span class="ti">金流</span><span class="scn">「這筆錢是什麼、對得起來嗎」</span><span class="rt">主操作面：試算表格</span></div>
+          <div class="tbar">
+            <span class="grp">收單</span>
+            <span>報帳</span><span>憑證庫</span>
+            <span class="divider"></span>
+            <span class="grp">帳務</span>
+            <span class="on">帳本</span><span>對帳</span>
+            <span class="divider"></span>
+            <span class="grp">洞察</span>
+            <span>公司</span><span>專案預算</span><span>人事</span>
+          </div>
+          <div class="pnl">
+            <div class="pnl-h"><b>交易內帳</b><span>主操作面 · 點一列開抽屜</span><span class="sp"></span><span class="chip c-grey">2026-09 ▾</span><span class="btn">憑證庫</span><span class="btn pri">＋ 新增交易</span></div>
+            <div class="pnl-b" style="padding:0">
+              <table class="mk">
+                <thead><tr><th>日期</th><th>摘要</th><th>專案</th><th>類別</th><th class="num">金額</th><th>代收付</th><th>憑證</th></tr></thead>
+                <tbody>
+                  <tr><td>09-22</td><td class="k">Lisa 顧問費</td><td><span class="chip c-purple">004</span></td><td>收入</td><td class="num" style="color:#6fce9f">120,000</td><td>—</td><td><span class="chip c-green">2</span></td></tr>
+                  <tr><td>09-18</td><td class="k">雲端月費</td><td><span class="chip c-grey">公司</span></td><td>工具</td><td class="num">-9,800</td><td>—</td><td><span class="chip c-red">缺</span></td></tr>
+                  <tr><td>09-15</td><td class="k">廣告媒體費</td><td><span class="chip c-purple">004</span></td><td>媒體</td><td class="num" style="opacity:.55">-45,000</td><td><span class="chip c-gold">是</span></td><td><span class="chip c-green">1</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="pnl"><div class="pnl-b" style="color:var(--faint);font-size:11.5px">9 月淨額（不含代收代付）<b style="color:#6fce9f;font-family:var(--mono);margin-left:8px">110,200</b><span style="margin-left:10px;color:var(--faint)">← 與洞察 KPI 讀同一函式</span></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">分組小標（收單／帳務／洞察）不可點選，只是視覺分群。分隔線用 <code>--line</code>，小標用 10px 大寫字距。分頁順序重排為 <b>報帳 · 憑證庫 ｜ 帳本 · 對帳 ｜ 公司 · 專案預算 · 人事</b>，憑證庫從帳本的 segmented 切換移出來成為獨立分頁。</p>
+
+    <div class="gap"></div>
+    <h3>角色預設落點 · 非負責人視角</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 A</b><span>同一個 tab bar，不同的預設分頁與遮蔽</span><span class="sp"></span><span>Lily 視角</span></div>
+      <div class="app" style="min-height:240px">
+        <div class="rail">
+          <i><b>▤</b>日誌</i><i><b>▦</b>營運</i><i><b>▣</b>專案</i>
+          <i class="on"><b>▧</b>金流</i><i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i>
+        </div>
+        <div class="main">
+          <div class="mhead"><span class="ti">金流</span><span class="scn">「我把東西交出去了嗎」</span></div>
+          <div class="tbar">
+            <span class="grp">收單</span>
+            <span class="on">報帳</span><span>憑證庫</span>
+            <span class="divider"></span>
+            <span class="grp">帳務</span>
+            <span style="opacity:.4">帳本 🔒</span><span style="opacity:.4">對帳 🔒</span>
+            <span class="divider"></span>
+            <span class="grp">洞察</span>
+            <span style="opacity:.4">公司 🔒</span><span>專案預算</span><span>人事</span>
+          </div>
+          <div class="pnl">
+            <div class="pnl-h"><b>報帳紀錄</b><span>待送 → 已送 → 已核 → 已付</span><span class="sp"></span><span class="btn pri">＋ 新增報帳</span></div>
+            <div class="pnl-b inbox" style="padding:0">
+              <div class="r"><span class="chip c-gold">待送</span><span class="dt">09-22</span><span class="t">高鐵票 · 台南客戶會議</span><span class="amt">1,490</span></div>
+              <div class="r"><span class="chip c-blue">已送</span><span class="dt">09-18</span><span class="t">客戶餐敘</span><span class="amt">2,400</span></div>
+              <div class="r"><span class="chip c-green">已付</span><span class="dt">09-05</span><span class="t">影印費</span><span class="amt">320</span></div>
+            </div>
+          </div>
+          <div class="pnl" style="border-color:#3a3020;background:#14110b">
+            <div class="pnl-b" style="color:var(--gold);font-size:11.5px">⚡ 你還有 <b>2 件事</b>沒完成：09/15 雲端月費缺原始憑證 · 09 月第 3 週出勤紀錄尚未確認 <span class="btn" style="margin-left:6px">前往訊號</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">A 案的限制在這張圖上很明顯：<b>員工的第三件事（出勤確認）仍在容量模組</b>，只能用一條提示把人導到訊號模組。這是 A 案不動導覽層級所付出的代價。</p>
+
+    <h3>資料模型</h3>
+    <div class="schema">
+      <div class="ent"><div class="ent-h">OperatingTransaction<span class="tag keep">不動</span></div><div class="ent-b"><span class="f">onDate / title / amount</span><br><span class="f">projectRef / category</span><br><span class="f">passThrough / vouchers</span><br><span class="ty">/* 完全不改 */</span></div></div>
+      <div class="ent"><div class="ent-h">前端狀態<span class="tag ext">小改</span></div><div class="ent-b"><span class="nw">S.moneyMonth</span> <span class="ty">'2026-09'</span><br><span class="ty">/* 取代硬編碼 */</span><br><span class="nw">TAB_GROUPS</span> <span class="ty">分組定義</span><br><span class="nw">defaultTab(role)</span></div></div>
+      <div class="ent"><div class="ent-h">can()<span class="tag ext">小改</span></div><div class="ent-b"><span class="f">cash / projectFinance</span><br><span class="f">otherPayroll / budget</span><br><span class="nw">ledger</span> <span class="ty">新增 · 帳本與對帳</span></div></div>
+    </div>
+
+    <div class="pc2">
+      <div class="box good"><h4>優點</h4><ul>
+        <li><b>一到三天可上線。</b>沒有 migration、沒有新元件，只動 <code>WB[money].tabs</code>、<code>VIEWS.money</code> 的空狀態分支與一組分組定義。</li>
+        <li><b>零遷移風險。</b>資料模型完全不動，現有交易、報帳、銀行明細不受影響。</li>
+        <li><b>立刻解決最丟臉的三件事</b> —— 全 0 調節表、硬編碼 Runway、與實作矛盾的人事文案。</li>
+        <li><b>可逆。</b>若之後改採 B 或 C，A 做的空狀態與期間切換器都是可直接沿用的資產。</li>
+      </ul></div>
+      <div class="box bad"><h4>風險與限制</h4><ul>
+        <li><b>沒有真正解決收單問題。</b>員工仍然要進入一個以「試算表格」為主操作面的模組，仍然看到一排鎖頭。</li>
+        <li><b>出勤確認仍在容量模組。</b>員工的三件事只收斂了兩件。</li>
+        <li><b>憑證仍是字串。</b>拍照／拖放上傳不在 A 的範圍內，法遵缺口（憑證鏈、保存 5 年）沒有動。</li>
+        <li><b>八個分頁的 tab bar 在筆電上會擠。</b>分組小標本身佔位，分頁數從 6 變 7–8。</li>
+        <li><b>止血不治本。</b>三個月後大概率還是要做 B。</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ 提案 B ══════════════════════════ -->
+  <div class="proposal" id="p-b">
+    <p class="lead"><b>核心想法：</b>在模組標題列加一組 <b>segmented「面」切換器</b>，把六個分頁重組成<b>三面 × 三分頁</b>：收單（收件匣／我的報帳／憑證庫）、帳務（帳本／對帳／月結）、洞察（公司／專案／人事）。切換器上直接標示節奏與對象（「每天 · 全員」），因為這正是三層的差異所在。<b>角色決定預設落點</b> —— 負責人進帳務·帳本，非負責人進收單·收件匣。導覽總量從 6 個等權分頁降為 3 面 + 3 分頁。<br>資料上補兩張表：<code>OperatingIntakeItem</code>（進件與待歸帳）與 <code>OperatingPeriod</code>（月結與鎖帳）。<br><b>適合你如果：</b>你認為金流仍應是一個模組，但內部需要真正的層級 —— 而且你願意為「員工 30 秒交件」這件事投資三週。</p>
+
+    <h3>導覽結構 · 面切換器</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 B</b><span>金流 · 三面 × 三分頁</span><span class="sp"></span><span>負責人視角 · 預設落在帳務</span></div>
+      <div class="app">
+        <div class="rail">
+          <i><b>▤</b>日誌</i><i><b>▦</b>營運</i><i><b>▣</b>專案</i>
+          <i class="on"><b>▧</b>金流</i><i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i>
+        </div>
+        <div class="main">
+          <div class="mhead"><span class="ti">金流</span><span class="scn">「這筆錢是什麼、對得起來嗎」</span><span class="rt">2026-09 · 未鎖定</span></div>
+          <div class="seg">
+            <div><b>收單</b><small>每天 · 全員</small></div>
+            <div class="on"><b>帳務</b><small>每週 · 記帳</small></div>
+            <div><b>洞察</b><small>每月 · 決策</small></div>
+          </div>
+          <div class="tbar"><span class="on">帳本</span><span>對帳</span><span>月結</span></div>
+          <div class="pnl">
+            <div class="pnl-h"><b>待歸帳</b><span>從收單面推過來 · 3 筆</span><span class="sp"></span><span class="chip c-gold">需要類別或歸屬</span></div>
+            <div class="pnl-b inbox" style="padding:0">
+              <div class="r"><span class="dt">09-22</span><span class="t">高鐵票 收據.jpg</span><span class="need">待填 歸屬專案</span><span class="amt">1,490</span><span class="btn pri">歸帳</span></div>
+              <div class="r"><span class="dt">09-21</span><span class="t">誠品發票 IMG_4471.heic</span><span class="need">待填 金額 · 類別</span><span class="amt">—</span><span class="btn pri">歸帳</span></div>
+            </div>
+          </div>
+          <div class="pnl">
+            <div class="pnl-h"><b>交易內帳</b><span>主操作面 · 點一列開抽屜</span><span class="sp"></span><span class="chip c-grey">專案 ▾</span><span class="chip c-grey">類別 ▾</span><span class="chip c-grey">搜尋</span><span class="btn pri">＋ 新增</span></div>
+            <div class="pnl-b" style="padding:0">
+              <table class="mk">
+                <thead><tr><th>狀態</th><th>日期</th><th>摘要</th><th>專案</th><th class="num">金額</th><th>憑證</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="chip c-green">④ 已勾稽</span></td><td>09-22</td><td class="k">Lisa 顧問費</td><td><span class="chip c-purple">004</span></td><td class="num" style="color:#6fce9f">120,000</td><td><span class="chip c-green">2</span></td></tr>
+                  <tr><td><span class="chip c-blue">③ 已入帳</span></td><td>09-18</td><td class="k">雲端月費</td><td><span class="chip c-grey">公司</span></td><td class="num">-9,800</td><td><span class="chip c-red">缺</span></td></tr>
+                  <tr class="dim"><td><span class="chip c-grey">⑤ 已結帳</span></td><td>08-30</td><td class="k">8 月網域續約</td><td><span class="chip c-grey">公司</span></td><td class="num">-2,100</td><td><span class="chip c-green">1</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">帳本第一欄改為<b>生命週期狀態</b>，取代目前僅「缺憑證」一種警示。⑤ 已結帳的列以降低不透明度呈現並禁止編輯 —— 這是鎖帳在介面上的樣子。左上「待歸帳」面板是收單層與帳務層的交接口。</p>
+
+    <div class="gap"></div>
+    <h3>收單面 · 非負責人的預設落點</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 B</b><span>金流 · 收單 · 收件匣</span><span class="sp"></span><span>Lily 視角 · 預設落在收單</span></div>
+      <div class="app" style="min-height:300px">
+        <div class="rail">
+          <i><b>▤</b>日誌</i><i><b>▦</b>營運</i><i><b>▣</b>專案</i>
+          <i class="on"><b>▧</b>金流</i><i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i>
+        </div>
+        <div class="main">
+          <div class="mhead"><span class="ti">金流</span><span class="scn">「我把東西交出去了嗎」</span></div>
+          <div class="seg">
+            <div class="on"><b>收單</b><small>每天 · 全員</small></div>
+            <div class="lock"><b>帳務</b><small>依 §18 限負責人</small></div>
+            <div><b>洞察</b><small>僅自己的專案</small></div>
+          </div>
+          <div class="tbar"><span class="on">收件匣</span><span>我的報帳</span><span>憑證庫</span></div>
+          <div class="drop">
+            <b>把收據拖進來，或</b>
+            <div class="m"><span class="btn">📷 拍照</span><span class="btn">📎 選檔案</span><span class="btn">📋 貼上</span></div>
+            <div style="margin-top:8px;font-size:10.5px">分類、專案歸屬、金額都可以之後再補 —— 先交出來就好</div>
+          </div>
+          <div class="pnl">
+            <div class="pnl-h"><b>待處理</b><span>3 筆</span></div>
+            <div class="pnl-b inbox" style="padding:0">
+              <div class="r"><span class="dt">09-22</span><span class="t">高鐵票</span><span class="amt">1,490</span><span class="need">待補 歸屬專案</span><span class="btn pri">補齊</span></div>
+              <div class="r"><span class="dt">09-21</span><span class="t">誠品發票 IMG_4471.heic</span><span class="amt">—</span><span class="need">待填 金額</span><span class="btn pri">補齊</span></div>
+              <div class="r"><span class="dt">09-18</span><span class="t">客戶餐敘</span><span class="amt">2,400</span><span class="need" style="color:var(--dim)">已送出 · 等待核准</span><span class="btn">查看</span></div>
+            </div>
+          </div>
+          <div class="pnl" style="border-color:#3a3020">
+            <div class="pnl-h" style="background:#14110b"><b style="color:var(--gold)">需要你確認</b><span>2 筆</span></div>
+            <div class="pnl-b inbox" style="padding:0">
+              <div class="r"><span class="dt">W38</span><span class="t">09 月第 3 週 出勤紀錄尚未確認<small style="color:var(--faint);margin-left:6px">勞基法 §30 · 發薪前須完成</small></span><span class="btn pri">確認</span></div>
+              <div class="r"><span class="dt">09-15</span><span class="t">雲端月費 缺原始憑證</span><span class="btn pri">上傳</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap"><b>「需要你確認」區塊直接跨模組承載容量·出勤紀錄的確認動作</b> —— 員工不必切模組。訊號模組仍保留全系統視角，兩者讀同一個資料源（<code>buildSignals()</code> ⑥⑦ 只是換個地方呈現，不重寫邏輯）。帳務面不隱藏，而是顯示 §18 的鎖，維持既有的 <code>MASK()</code> 哲學：不可見要明白標出來。</p>
+
+    <div class="gap"></div>
+    <h3>帳務面 · 對帳（補上 Xero 四動作）與月結</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 B</b><span>金流 · 帳務 · 對帳 ＋ 月結</span><span class="sp"></span><span>負責人視角</span></div>
+      <div class="app" style="min-height:280px">
+        <div class="rail"><i><b>▤</b>日誌</i><i><b>▦</b>營運</i><i><b>▣</b>專案</i><i class="on"><b>▧</b>金流</i><i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i></div>
+        <div class="main">
+          <div class="seg"><div><b>收單</b><small>每天 · 全員</small></div><div class="on"><b>帳務</b><small>每週 · 記帳</small></div><div><b>洞察</b><small>每月 · 決策</small></div></div>
+          <div class="tbar"><span>帳本</span><span class="on">對帳</span><span>月結</span></div>
+          <div class="pnl">
+            <div class="pnl-h"><b>三方對照</b><span>內帳 / 發票 / 銀行</span><span class="sp"></span><span class="btn">📥 匯入 CSV</span><span class="btn">⚙ 規則</span><span class="btn">批次歸類</span></div>
+            <div class="pnl-b">
+              <div class="recon3">
+                <div class="rcol"><div class="rcol-h"><span>內帳</span><span class="sum">110,200</span></div>
+                  <div class="rline matched"><span class="d">09-22</span><span class="t">Lisa 顧問費</span><span class="a">120,000</span></div>
+                  <div class="rline sugg"><span class="d">09-18</span><span class="t">雲端月費</span><span class="a">-9,800</span></div>
+                  <div class="rline"><span class="d">09-15</span><span class="t">廣告媒體費</span><span class="a">-45,000</span></div>
+                </div>
+                <div class="rcol"><div class="rcol-h"><span>發票</span><span class="sum">120,000</span></div>
+                  <div class="rline matched"><span class="d">09-22</span><span class="t">Lisa 顧問費</span><span class="a">120,000</span></div>
+                  <div class="rline bad"><span class="d">09-18</span><span class="t">雲端月費</span><span class="a">缺發票</span></div>
+                </div>
+                <div class="rcol"><div class="rcol-h"><span>銀行</span><span class="sum">108,450</span></div>
+                  <div class="rline matched"><span class="d">09-22</span><span class="t">匯入 LISA CONS</span><span class="a">120,000</span></div>
+                  <div class="rline sugg"><span class="d">09-19</span><span class="t">VERCEL INC</span><span class="a">-9,800</span></div>
+                  <div class="rline"><span class="d">09-30</span><span class="t">手續費</span><span class="a">-30</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="pnl" style="margin:0">
+              <div class="pnl-h"><b>差異清單</b><span>2 筆待處理</span></div>
+              <div class="pnl-b inbox" style="padding:0">
+                <div class="r"><span class="chip c-green">建議配對</span><span class="t">雲端月費 ↔ VERCEL INC　-9,800</span><span class="btn pri">確認</span></div>
+                <div class="r"><span class="chip c-red">銀行有 · 內帳無</span><span class="t">手續費　-30</span><span class="btn">補入帳</span></div>
+              </div>
+            </div>
+            <div class="pnl" style="margin:0">
+              <div class="pnl-h"><b>2026 年 9 月結帳</b><span>月結分頁</span></div>
+              <div class="pnl-b chk">
+                <div class="c"><span class="bx y">✓</span><span class="sp">所有交易已歸屬</span><span class="cnt">12/12</span></div>
+                <div class="c"><span class="bx"></span><span class="sp">所有交易附原始憑證</span><span class="cnt">11/12</span></div>
+                <div class="c"><span class="bx"></span><span class="sp">銀行明細全數勾稽</span><span class="cnt">9/12</span></div>
+                <div class="c"><span class="bx y">✓</span><span class="sp">無待歸帳項目</span><span class="cnt">0</span></div>
+                <div class="c"><span class="bx"></span><span class="sp">出勤紀錄全員確認</span><span class="cnt">1/2</span></div>
+                <div style="margin-top:9px"><span class="btn" style="opacity:.5">🔒 鎖定 9 月</span> <small style="color:var(--faint)">勾滿才可鎖定</small></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">綠底列＝系統建議配對（金額 ±0、日期 ±3 日內），一鍵確認。既有的「補入帳」<code>adoptBank()</code> 等同 Xero 的 Create，原樣保留。<b>月結第四項「無待歸帳項目」是收單層的安全閥</b> —— 防止進件匣變成沒人清的垃圾桶。</p>
+
+    <div class="gap"></div>
+    <h3>洞察面 · 三個切片角度，每個數字都能下鑽</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 B</b><span>金流 · 洞察 · 公司</span><span class="sp"></span><span>誠實的空狀態</span></div>
+      <div class="app" style="min-height:230px">
+        <div class="rail"><i><b>▤</b>日誌</i><i><b>▦</b>營運</i><i><b>▣</b>專案</i><i class="on"><b>▧</b>金流</i><i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i></div>
+        <div class="main">
+          <div class="seg"><div><b>收單</b><small>每天 · 全員</small></div><div><b>帳務</b><small>每週 · 記帳</small></div><div class="on"><b>洞察</b><small>每月 · 決策</small></div></div>
+          <div class="tbar"><span class="on">公司</span><span>專案</span><span>人事</span></div>
+          <div class="kpis">
+            <div class="kpi"><div class="lb">9 月淨額</div><div class="v" style="color:#6fce9f">110,200</div><div class="s">不含代收代付</div><div class="drill">→ 下鑽帳本 9 月</div></div>
+            <div class="kpi unset"><div class="lb">現金水位</div><div class="v">尚未設定現金帳戶</div><div class="s"><span class="btn">設定帳戶</span></div></div>
+            <div class="kpi unset"><div class="lb">Runway</div><div class="v">需要現金帳戶與固定支出</div><div class="s"><span class="btn">設定</span></div></div>
+            <div class="kpi"><div class="lb">應收未收</div><div class="v" style="color:var(--gold)">88,000</div><div class="s">1 筆逾期 21 天</div><div class="drill">→ 下鑽逾期清單</div></div>
+          </div>
+          <div class="pnl">
+            <div class="pnl-h"><b>可分配毛利</b><span class="sp"></span><span class="chip c-purple">PRJ-2026-004 ▾</span></div>
+            <div class="pnl-b" style="color:var(--faint);font-size:11px;line-height:1.75">
+              <div style="display:flex;gap:4px;align-items:flex-end;height:54px;margin-bottom:8px">
+                <div style="width:56px;height:52px;background:#1d4436;border-radius:3px"></div>
+                <div style="width:56px;height:24px;background:#4d2327;border-radius:3px;align-self:flex-start;margin-top:8px"></div>
+                <div style="width:56px;height:14px;background:#3a3020;border-radius:3px;align-self:flex-start;margin-top:32px"></div>
+                <div style="width:56px;height:30px;background:#223b60;border-radius:3px"></div>
+              </div>
+              毛利率 <b style="color:var(--text)">38%</b>。獎金乘在<b style="color:var(--text)">可分配毛利</b>上，不是乘在收入上 —— 契約 §9、§10。代收代付的廣告媒體費 45,000 依 §9.3 分列且不計入。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap"><b>沒有資料來源的 KPI 顯示「尚未設定」＋一個設定按鈕，而不是硬編碼一個看起來很真的數字。</b>這是 B 案最重要的誠實性原則。瀑布圖加上專案切換器，取代目前固定的 <code>PRJ-2026-004</code>。既有的質化說明文案（獎金乘在毛利上、§9.3 代收代付）是全系統最好的設計，保留並套用到每個專案。</p>
+
+    <h3>資料模型</h3>
+    <div class="schema">
+      <div class="ent"><div class="ent-h">OperatingIntakeItem<span class="tag new">新增</span></div><div class="ent-b">
+        <span class="nw">id / workspaceId</span><br>
+        <span class="nw">actorKey</span> <span class="ty">誰交的</span><br>
+        <span class="nw">kind</span> <span class="ty">receipt|invoice|note</span><br>
+        <span class="nw">fileRef</span> <span class="ty">R2 objectKey</span><br>
+        <span class="nw">amount?</span> <span class="ty">int</span><br>
+        <span class="nw">status</span> <span class="ty">intake|unfiled|<br>　　posted|discarded</span><br>
+        <span class="nw">postedTxnId?</span></div></div>
+      <div class="ent"><div class="ent-h">OperatingPeriod<span class="tag new">新增</span></div><div class="ent-b">
+        <span class="nw">workspaceId</span><br>
+        <span class="nw">period</span> <span class="ty">'2026-09'</span><br>
+        <span class="nw">status</span> <span class="ty">open|closed</span><br>
+        <span class="nw">checklist</span> <span class="ty">Json</span><br>
+        <span class="nw">closedBy / closedAt</span></div></div>
+      <div class="ent"><div class="ent-h">OperatingTransaction<span class="tag ext">擴充</span></div><div class="ent-b">
+        <span class="f">onDate / title / amount</span><br>
+        <span class="f">projectRef / passThrough</span><br>
+        <span class="nw">+ status</span> <span class="ty">posted|reconciled|closed</span><br>
+        <span class="nw">+ periodKey</span> <span class="ty">'2026-09'</span><br>
+        <span class="nw">+ counterparty?</span> <span class="ty">對象／統編</span></div></div>
+      <div class="ent"><div class="ent-h">vouchers<span class="tag ext">型別改變</span></div><div class="ent-b">
+        <span class="f">String[]</span> <span class="ty">→</span> <span class="nw">Json[]</span><br>
+        <span class="ty">{ kind, fileRef,<br>　uploadedBy, at }</span><br>
+        <span class="ty">/* 指向 R2 而非標籤 */</span></div></div>
+    </div>
+    <p class="cap">第二階段才需要的：<code>OperatingAccount</code>（帳戶，讓現金水位與 Runway 有來源）、<code>OperatingBankRule</code>（重複支出規則）、<code>dueDate/settledDate</code>（拆開「發生」與「收付」，讓應收未收成為計算值）。</p>
+
+    <div class="pc2">
+      <div class="box good"><h4>優點</h4><ul>
+        <li><b>員工的三件事收斂在一頁。</b>補憑證、送報帳、確認出勤 —— 包含跨模組的出勤確認。這是使用者最初觀察真正被解決的地方。</li>
+        <li><b>導覽總量下降。</b>從 6 個等權分頁變成 3 面 + 3 分頁，任何一個畫面上只有 3 個選項。</li>
+        <li><b>分層有客觀依據。</b>五格生命週期定義了「哪些狀態屬於哪一面」，不是憑感覺分組。</li>
+        <li><b>金流仍是一個模組。</b>側欄不變，不影響其他模組的導覽習慣。</li>
+        <li><b>補上「確定性」維度。</b>月結與鎖帳讓帳本從「一堆列」變成「一個可交付的期間」。</li>
+      </ul></div>
+      <div class="box bad"><h4>風險與限制</h4><ul>
+        <li><b>多一層點擊。</b>負責人要從帳本跳到人事，得先切面。緩解：記住上次落點；<code>⌘K</code> 命令面板直達次分頁（系統已有搜尋列）。</li>
+        <li><b>三週工期。</b>兩張新表 + 檔案上傳 + 期間鎖定，不是一個週末能完成的。</li>
+        <li><b>鎖帳影響 <code>editable()</code> 所有呼叫點。</b>迴歸風險。緩解：比照 <code>can()</code> 收斂到單一判斷函式。</li>
+        <li><b>待歸帳可能變垃圾桶。</b>緩解：月結檢核第四項＋超過 14 天進訊號。</li>
+        <li><b>員工仍要進入「金流」這個模組名稱。</b>對一位只想交收據的人，這個心智門檻還在 —— 這正是 C 案要處理的。</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════ 提案 C ══════════════════════════ -->
+  <div class="proposal" id="p-c">
+    <p class="lead"><b>核心想法：</b>把分層的切口拉到<b>模組之間</b>。收單升格為側欄的頂層項目「<b>交件</b>」—— 它不只收金流的收據，也收出勤確認、待補 Evidence、待回寫的 Thread，成為全系統唯一的「我今天要交什麼」入口。金流模組因此<b>只剩帳務與洞察</b>，並把帳務的主操作面從試算表格改為<b>五格生命週期看板</b>：進件 → 待歸帳 → 已入帳 → 已勾稽 → 已結帳，拖拉推進，每一欄就是一個狀態。<br><b>適合你如果：</b>你認為「交件」是一件獨立於任何模組的日常行為，而且你想要一個能一眼看出「錢卡在哪一格」的操作面。這是三案中操作感最強、但工程量也最大的一案。</p>
+
+    <h3>導覽結構 · 側欄多一個頂層項目</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 C</b><span>交件 · 全系統收單入口</span><span class="sp"></span><span>Lily 視角 · 完全不需進金流</span></div>
+      <div class="app" style="min-height:300px">
+        <div class="rail">
+          <i><b>▤</b>日誌</i>
+          <i class="on"><b>📥</b>交件</i>
+          <i><b>▦</b>營運</i><i><b>▣</b>專案</i>
+          <i class="lock"><b>▧</b>金流</i>
+          <i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i>
+        </div>
+        <div class="main">
+          <div class="mhead"><span class="ti">交件</span><span class="scn">「我今天要交什麼」</span><span class="rt">主操作面：單欄清單</span></div>
+          <div class="tbar"><span class="on">待交</span><span>已交</span><span>我的報帳</span></div>
+          <div class="drop">
+            <b>把任何東西丟進來</b>
+            <div class="m"><span class="btn">📷 拍照</span><span class="btn">📎 選檔案</span><span class="btn">📋 貼上</span><span class="btn">✉ receipts@…</span></div>
+            <div style="margin-top:8px;font-size:10.5px">收據、發票、合約、一句話。它會被送到該去的地方 —— 你不需要知道那是哪個模組</div>
+          </div>
+          <div class="pnl">
+            <div class="pnl-h"><b>待交</b><span>5 件</span><span class="sp"></span><span class="chip c-grey">全部</span><span class="chip c-grey">金流 3</span><span class="chip c-grey">出勤 1</span><span class="chip c-grey">專案 1</span></div>
+            <div class="pnl-b inbox" style="padding:0">
+              <div class="r"><span class="chip c-gold">金流</span><span class="dt">09-22</span><span class="t">高鐵票 · 待補歸屬專案</span><span class="amt">1,490</span><span class="btn pri">補齊</span></div>
+              <div class="r"><span class="chip c-gold">金流</span><span class="dt">09-21</span><span class="t">誠品發票 IMG_4471.heic · 待填金額</span><span class="amt">—</span><span class="btn pri">補齊</span></div>
+              <div class="r"><span class="chip c-gold">金流</span><span class="dt">09-15</span><span class="t">雲端月費 · 缺原始憑證</span><span class="amt">-9,800</span><span class="btn pri">上傳</span></div>
+              <div class="r"><span class="chip c-blue">出勤</span><span class="dt">W38</span><span class="t">09 月第 3 週 出勤紀錄尚未確認</span><span class="amt"></span><span class="btn pri">確認</span></div>
+              <div class="r"><span class="chip c-purple">專案</span><span class="dt">09-12</span><span class="t">「品牌日視覺」已完成但沒有 Evidence</span><span class="amt"></span><span class="btn pri">補上</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">「交件」吃的是現有 <code>buildSignals()</code> 的第 ④⑥⑦ 條（Evidence 未留、缺憑證、出勤未確認）加上新的進件。<b>與訊號模組的分工：訊號是「有什麼需要我注意」（含他人的、系統的），交件是「我該交出什麼」（只有自己的、且有明確動作）。</b>側欄的金流對非負責人可直接隱藏或顯示為鎖 —— 因為他們已經不需要它了。</p>
+
+    <div class="gap"></div>
+    <h3>金流 · 帳務主操作面改為五格看板</h3>
+    <div class="frame">
+      <div class="fbar"><b>提案 C</b><span>金流 · 帳務 · 錢流看板</span><span class="sp"></span><span>負責人視角 · 2026-09</span></div>
+      <div class="app" style="min-height:300px">
+        <div class="rail">
+          <i><b>▤</b>日誌</i><i><b>📥</b>交件</i><i><b>▦</b>營運</i><i><b>▣</b>專案</i>
+          <i class="on"><b>▧</b>金流</i><i><b>▥</b>容量</i><i><b>☑</b>承諾</i><i><b>◔</b>訊號</i>
+        </div>
+        <div class="main">
+          <div class="mhead"><span class="ti">金流</span><span class="scn">「這筆錢在哪一格」</span><span class="rt">主操作面：生命週期看板</span></div>
+          <div class="tbar"><span class="on">看板</span><span>表格</span><span>對帳</span><span>月結</span><span class="divider"></span><span>公司</span><span>專案</span><span>人事</span></div>
+          <div class="kan">
+            <div class="kcol"><div class="kcol-h"><b>① 進件</b><span>2</span></div>
+              <div class="kc"><b>誠品發票</b><span class="m">IMG_4471 · Lily · 09-21</span></div>
+              <div class="kc"><b>停車費收據</b><span class="m">IMG_4468 · Lily · 09-20</span></div>
+            </div>
+            <div class="kcol"><div class="kcol-h"><b>② 待歸帳</b><span>1</span></div>
+              <div class="kc"><b>高鐵票</b><span class="m">1,490 · 待補歸屬</span></div>
+            </div>
+            <div class="kcol"><div class="kcol-h"><b>③ 已入帳</b><span>3</span></div>
+              <div class="kc"><b>雲端月費</b><span class="m">-9,800 · <span style="color:#e88f92">缺憑證</span></span></div>
+              <div class="kc"><b>廣告媒體費</b><span class="m">-45,000 · 代收代付</span></div>
+              <div class="kc"><b>素材授權</b><span class="m">-3,200</span></div>
+            </div>
+            <div class="kcol"><div class="kcol-h"><b>④ 已勾稽</b><span>1</span></div>
+              <div class="kc"><b>Lisa 顧問費</b><span class="m" style="color:#6fce9f">120,000 · 銀行已入</span></div>
+            </div>
+            <div class="kcol locked"><div class="kcol-h"><b>⑤ 已結帳</b><span>🔒 8月</span></div>
+              <div class="kc"><b>8 月網域續約</b><span class="m">-2,100</span></div>
+              <div class="kc" style="opacity:.6"><b>8 月其餘 7 筆</b><span class="m">已鎖定 · 唯讀</span></div>
+            </div>
+          </div>
+          <div class="pnl" style="margin-top:10px">
+            <div class="pnl-b" style="color:var(--faint);font-size:11px;line-height:1.7">
+              拖一張卡片從 ② 到 ③ → 彈出歸帳表單（類別、歸屬專案、代收代付）。拖到 ④ → 跳到對帳頁並預選該筆。<br>
+              <b style="color:var(--dim)">卡在 ① 超過 14 天</b>的進件自動進訊號；<b style="color:var(--dim)">③ 欄的紅字</b>就是本月結不了帳的原因。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="cap">看板的價值在於<b>「錢卡在哪一格」是一眼可見的</b> —— 目前要看三個分頁才能拼出同一件事。表格檢視仍然保留（切換器第二項），因為逐列核對與大量編輯仍然是表格比較好用。這呼應系統既有的「兩個視圖、同一份資料，雙向可達」設計。</p>
+
+    <h3>資料模型</h3>
+    <div class="schema">
+      <div class="ent"><div class="ent-h">OperatingIntakeItem<span class="tag new">新增</span></div><div class="ent-b">
+        <span class="ty">同 B 案，但<br>不限金流用途</span><br>
+        <span class="nw">target</span> <span class="ty">money|capacity|<br>　　project|…</span><br>
+        <span class="ty">/* 決定補齊表單長相 */</span></div></div>
+      <div class="ent"><div class="ent-h">OperatingPeriod<span class="tag new">新增</span></div><div class="ent-b"><span class="ty">同 B 案</span><br><span class="nw">period / status</span><br><span class="nw">checklist / closedBy</span></div></div>
+      <div class="ent"><div class="ent-h">統一待辦來源<span class="tag ext">重構</span></div><div class="ent-b">
+        <span class="f">buildSignals()</span> <span class="ty">→</span><br>
+        <span class="nw">buildSignals()</span> <span class="ty">全系統</span><br>
+        <span class="nw">buildMyTodo()</span> <span class="ty">只有自己的<br>　　且有動作的</span></div></div>
+      <div class="ent"><div class="ent-h">WB 註冊表<span class="tag ext">新增一項</span></div><div class="ent-b">
+        <span class="nw">{ id:'intake',</span><br>
+        <span class="nw">　nm:'交件',</span><br>
+        <span class="nw">　scn:'我今天要交什麼',</span><br>
+        <span class="nw">　tabs:['待交','已交',</span><br>
+        <span class="nw">　　'我的報帳'] }</span></div></div>
+    </div>
+
+    <div class="pc2">
+      <div class="box good"><h4>優點</h4><ul>
+        <li><b>員工完全不必進入金流。</b>心智門檻最低 —— 「交件」這個詞不需要任何會計知識。</li>
+        <li><b>收單不只服務金流。</b>Evidence、出勤、未來的合約簽回都能走同一個入口，投資可攤提到全系統。</li>
+        <li><b>看板讓阻塞可見。</b>「這個月結不了帳」的原因是哪三張卡，一眼就能指出來。</li>
+        <li><b>金流模組變乾淨。</b>只剩帳務與洞察，符合它原本的場景句「這筆錢是什麼、對得起來嗎」。</li>
+        <li><b>外部協作者有天然的家。</b>外包／接案者的 token 頁就是「交件」的無帳號版本。</li>
+      </ul></div>
+      <div class="box bad"><h4>風險與限制</h4><ul>
+        <li><b>側欄多一項，總模組數 7 → 8。</b>與系統長期收斂導覽的方向相反，需要說服自己這一項值得。</li>
+        <li><b>與訊號模組的界線容易模糊。</b>兩者都是「收件匣」。若分工說不清楚，使用者會兩邊都不看。</li>
+        <li><b>工程量最大。</b>新模組 + 看板拖拉 + 跨模組補齊表單，估 6–8 週。</li>
+        <li><b>拖拉即改狀態，誤操作風險高。</b>必須做 undo —— 所幸系統已有 <code>commit()</code> 的 undo 機制可沿用。</li>
+        <li><b>看板在交易量大時會失效。</b>③ 欄每月幾十張卡就滑不動了，表格仍是主力，看板可能淪為擺設。</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <h2>三案對照</h2>
+  <table class="compare">
+    <thead><tr><th style="width:135px"></th><th>A · 分組單層</th><th>B · 三面 × 三分頁</th><th>C · 收單外移 + 看板</th></tr></thead>
+    <tbody>
+      <tr><td>分層切口</td><td>分頁之間（視覺分群）</td><td>模組之內（面切換器）</td><td>模組之間（新頂層項目）</td></tr>
+      <tr><td>側欄項目數</td><td><b class="yes">7</b>（不變）</td><td><b class="yes">7</b>（不變）</td><td><b class="mid">8</b>（＋交件）</td></tr>
+      <tr><td>單一畫面上的選項</td><td><span class="no">7–8 個分頁</span></td><td><span class="yes">3 面 + 3 分頁</span></td><td><span class="yes">3 分頁</span>（交件）</td></tr>
+      <tr><td>員工交件步數</td><td><span class="no">5+ 步</span>　進金流→找分頁→開表單→填六格</td><td><span class="mid">2 步</span>　進金流（預設收單）→拖放</td><td><b class="yes">1 步</b>　進交件→拖放</td></tr>
+      <tr><td>員工三件事收斂</td><td><span class="no">2/3</span>　出勤仍在容量</td><td><span class="yes">3/3</span></td><td><span class="yes">3/3 + Evidence</span></td></tr>
+      <tr><td>憑證成為檔案</td><td><span class="no">不含</span></td><td><span class="yes">含</span>　R2 objectKey</td><td><span class="yes">含</span></td></tr>
+      <tr><td>期間鎖帳</td><td><span class="no">無</span>（僅月份切換）</td><td><span class="yes">有</span>　月結分頁</td><td><span class="yes">有</span>　⑤ 欄即鎖定區</td></tr>
+      <tr><td>硬編碼數字修正</td><td><span class="yes">全部</span></td><td><span class="yes">全部</span></td><td><span class="yes">全部</span></td></tr>
+      <tr><td>資料模型改動</td><td><b class="yes">0 張表</b></td><td><b class="mid">2 張新表 + 2 處擴充</b></td><td><b class="no">2 張新表 + 新模組 + 待辦來源重構</b></td></tr>
+      <tr><td>估計工期</td><td><b class="yes">1–3 天</b></td><td><b class="mid">3 週</b></td><td><b class="no">6–8 週</b></td></tr>
+      <tr><td>可逆性</td><td><span class="yes">高</span>　成果可被 B/C 沿用</td><td><span class="mid">中</span>　新表可留用於 C</td><td><span class="no">低</span>　導覽習慣一旦改難回頭</td></tr>
+      <tr><td>主要風險</td><td>止血不治本，三個月後仍要做 B</td><td>多一層點擊；待歸帳變垃圾桶</td><td>與訊號界線模糊；看板在量大時失效</td></tr>
+    </tbody>
+  </table>
+
+  <h2>我的建議</h2>
+  <div class="note">
+    <h4>立刻做 A，接著做 B，把 C 的「交件」留成第三階段的選項</h4>
+    <p style="margin:0 0 8px">三案不互斥，而且它們的不可逆程度差很多。<b>導覽習慣一旦改變最難回頭，資料模型次之，空狀態與文案隨時可改</b>。所以順序應該倒過來走：</p>
+    <ul>
+      <li><b>本週（1–3 天）：做 A 的全部。</b>分組小標、角色預設落點、統一空狀態、月份切換器、移除硬編碼的 Runway／應收未收／薪資列、刪掉報帳那句未實作的承諾文案、淨額收斂成單一計算來源。<b>這一步不需要任何決策，因為現況是錯的。</b></li>
+      <li><b>接著（3 週）：做 B。</b>面切換器 + <code>OperatingIntakeItem</code> + <code>OperatingPeriod</code> + 憑證改檔案。A 做的空狀態與期間切換器直接成為 B 的零件，不會白做。做完之後，員工的三件事收斂在一頁、憑證符合法遵、帳本有了「確定性」維度。</li>
+      <li><b>三個月後再決定要不要做 C。</b>B 上線跑三個月，你會有一個客觀依據：Lily 究竟是從「金流·收單」進來的，還是每次都得你提醒她？如果是後者，代表模組名稱真的是心智門檻，C 的「交件」值得投資；如果她用得很順，那 C 就是不划算的重構。</li>
+    </ul>
+    <p style="margin:10px 0 0"><b>三案都需要、且與分層無關的兩件事，可以現在就併進 A：</b>①把 <code>editable()</code> 的判斷收斂到單一函式（為之後的鎖帳鋪路，現在只是重構不改行為）；②把「9 月淨額」的計算抽成一個函式，讓帳本 footer 與洞察 KPI 共用 —— 同一個數字在兩處各自計算，遲早會對不起來。</p>
+  </div>
+
+  <h2>三個需要你拍板的問題</h2>
+  <div class="pain" style="margin-top:8px">
+    <div><b>1 · 走哪一案？</b>建議 A → B → 視情況 C。若你只想先止血，做完 A 就停也是完整的一步。</div>
+    <div><b>2 · 收單面的第一個投遞管道？</b>拖放上傳（服務內部同事）還是外部報帳 token 連結（服務外包／接案者）？前者一週、後者兩週且需要 token 安全設計。</div>
+    <div><b>3 · 月結鎖帳的嚴格度？</b>鎖定後完全唯讀（需解鎖且留痕），還是允許加註但不允許改金額？前者嚴謹、後者實務摩擦小。</div>
+  </div>
+
+  <div class="foot">
+    <b>本檔案</b>是靜態提案稿（可點三個頁籤切換），所有畫面為 wireframe，不含實際資料。<br>
+    <b>配套研究</b>：<code>docs/07_research-and-design/RES-032_cashflow-module-intake-ledger-insight-layering-research.md</code> —— 含 27 項缺口清單（分層 × 嚴重度 × 程式碼行號）、外部產品研究（Ramp 收單四步流水線、Xero 對帳四動作與 bank rules、Productive 專案毛利三視角、FloQast 月結檢核）、台灣法遵約束（會計憑證保存 5 年、帳簿 10 年、電子發票 API）與 P0–P2 分期驗收。<br>
+    <b>現有素材對照</b>：三欄對帳與銀行往來調節表（<code>reconView()</code>）、報帳狀態機、憑證庫雙向可達、每張表單的 <code>effects</code> 預告、<code>can()</code> 單一可見性判斷、<code>commit()</code> 的 undo —— 三案均以延用為前提設計，不重寫這些已經做對的部分。<br>
+    <b>下一步</b>：挑一案（或挑建議的混合路線）後，可展開成正式 ARC／PLN 文件並拆成 backlog 任務列。
+  </div>
+
+</div>
+<script>
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    document.querySelectorAll('.proposal').forEach(function(p){p.classList.remove('on')});
+    document.getElementById('p-'+b.dataset.p).classList.add('on');
+    window.scrollTo({top:document.querySelector('.tabs').offsetTop-20,behavior:'smooth'});
+  });
+});
+</script>
+</body>
+</html>

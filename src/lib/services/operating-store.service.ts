@@ -121,6 +121,8 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     docObjectRows,
     dayLogRows,
     todayIssueRows,
+    intakeRows,
+    periodRows,
   ] = await Promise.all([
     db.operatingGoal.findMany({ where: { workspaceId } }),
     db.operatingProjectProfile.findMany({ include: { project: true } }),
@@ -161,6 +163,16 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       where: { workspaceId, onDate: { gte: dayStateSince() } },
       orderBy: [{ onDate: "asc" }, { createdAt: "asc" }],
     }),
+    // 收件是個人的：成員只讀得到自己交的，負責人讀全部（RES-032 §5.7）。
+    db.operatingIntakeItem.findMany({
+      where: {
+        workspaceId,
+        status: { not: "discarded" },
+        ...(viewerSeatKeys.includes("yz") ? {} : { actorKey: { in: viewerSeatKeys } }),
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.operatingPeriod.findMany({ where: { workspaceId }, orderBy: { period: "desc" } }),
   ])
 
   /** 主鍵 → 工作台 id，讓子列的關聯接得回父列。 */
@@ -379,7 +391,32 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       ...(row.formula ? { formula: row.formula } : {}),
       pass: row.passThrough,
       v: row.vouchers,
+      files: Array.isArray(row.attachments) ? row.attachments : [],
       note: row.note ?? "",
+    })),
+
+    intake: withRef(intakeRows).map((row) => ({
+      id: row.workbenchRef,
+      who: row.actorKey ?? "",
+      t: row.title,
+      amt: row.amount,
+      d: iso(row.onDate),
+      p: row.projectRef ?? "",
+      st: row.status,
+      file: row.file ?? null,
+      reimb: row.reimbRef ?? "",
+      txn: row.postedRef ?? "",
+      at: row.createdAt.getTime(),
+    })),
+
+    // 月份本身就是身分（YYYY-MM），不需要 workbenchRef。
+    periods: periodRows.map((row) => ({
+      id: row.period,
+      st: row.status,
+      by: row.closedBy ?? "",
+      at: row.closedAt ? row.closedAt.getTime() : 0,
+      checklist: row.checklist,
+      log: row.log,
     })),
 
     reimb: withRef(reimbRows).map((row) => ({
@@ -422,6 +459,15 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
         replies: payload.replies ?? [],
         nudges: payload.nudges ?? [],
         pinged: payload.pinged ?? {},
+        // 讀回已讀／已回覆／已結案，否則重整之後所有請求都會回到「沒人讀過」的狀態，
+        // 逾期提醒重新開始跑，通知匣的未讀數也會一直是滿的。
+        ...(payload.via == null ? {} : { via: payload.via }),
+        ...(payload.seenAt == null ? {} : { seenAt: payload.seenAt }),
+        ...(payload.firstReplyAt == null ? {} : { firstReplyAt: payload.firstReplyAt }),
+        ...(payload.resolvedAt == null ? {} : { resolvedAt: payload.resolvedAt }),
+        ...(payload.choice == null ? {} : { choice: payload.choice }),
+        ...(payload.deferReason == null ? {} : { deferReason: payload.deferReason }),
+        ...(payload.deferredAt == null ? {} : { deferredAt: payload.deferredAt }),
       }
     }),
 
@@ -449,6 +495,9 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
         createdAt: row.createdAt.getTime(),
         updatedAt: row.updatedAt.getTime(),
         secs: payload.secs ?? [],
+        // 議題物件把到期日、帶過紀錄、討論與附件放在 payload.agenda，原樣帶回工作台。
+        // 不攤平成欄位是刻意的：docObject 的 payload 是 JSON，議題多一個欄位不必動 schema。
+        ...(payload.agenda ? { agenda: payload.agenda } : {}),
       }
     }),
 

@@ -8,6 +8,8 @@ button.rq-pill{cursor:pointer}
 .rq-pill.today{border-color:var(--rq-warn-br,#6a4520);color:var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c)}
 .rq-pill.late{border-color:var(--rq-alarm,#ff4d4f);color:#fff;background:var(--rq-alarm,#ff4d4f);font-weight:700}
 .rq-pill.done{border-color:var(--rq-done-br,#2d4d3d);color:var(--ok,#4fc38a);background:var(--ok-bg,#0f1f18)}
+/* 只通知（@人名）：刻意最安靜的一顆，它不代表任何人欠誰一件事。 */
+.rq-pill.note{border-color:var(--border-2);color:var(--text-3);background:var(--surface-2)}
 .rq-pink{color:var(--rq-ask,#e58bc0)}
 .rq-meta{font-size:11px;color:var(--text-3)}
 .av.rq-av{width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;font-size:10px;font-weight:700;flex:none;vertical-align:middle}
@@ -28,11 +30,12 @@ button.rq-pill{cursor:pointer}
 .rail-i .bdg.rq-bdg{background:var(--rq-alarm,#ff4d4f);color:#fff}
 
 /* ② 日誌：行內標籤與訊息串 */
-.eb.rq-line{flex-wrap:wrap;border-radius:6px;margin:1px 0}
-.eb.rq-ask{box-shadow:inset 3px 0 var(--rq-ask,#e58bc0);background:var(--rq-ask-bg,#1e1019)}
-.eb.rq-today{box-shadow:inset 3px 0 var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c)}
-.eb.rq-late{box-shadow:inset 4px 0 var(--rq-alarm,#ff4d4f);background:var(--danger-bg,#2a0c0e)}
-.eb.rq-replied{box-shadow:inset 3px 0 var(--ok,#4fc38a)}
+.eb.rq-line{flex-wrap:wrap;border-radius:6px;margin:1px 0;padding-left:12px}
+.eb.rq-line::before{content:"";position:absolute;left:3px;top:4px;bottom:4px;width:3px;border-radius:999px;background:var(--rq-tone,transparent);pointer-events:none}
+.eb.rq-ask{--rq-tone:var(--rq-ask,#e58bc0);background:var(--rq-ask-bg,#1e1019)}
+.eb.rq-today{--rq-tone:var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c)}
+.eb.rq-late{--rq-tone:var(--rq-alarm,#ff4d4f);background:var(--danger-bg,#2a0c0e)}
+.eb.rq-replied{--rq-tone:var(--ok,#4fc38a)}
 .eb.rq-flash,.rq-in.rq-flash{animation:rq-flash 1.4s ease-out 2}
 @keyframes rq-flash{0%{outline:2px solid var(--rq-flash,#7c8cff)}100%{outline:2px solid transparent}}
 .rq-pills{display:inline-flex;flex-wrap:wrap;gap:5px;align-items:center;padding-top:3px;flex:none;max-width:55%;justify-content:flex-end;user-select:none}
@@ -58,9 +61,10 @@ button.rq-pill{cursor:pointer}
 .rq-dec-f{display:flex;justify-content:flex-end;gap:6px}
 /* 收到的請求（顯示在自己的日誌） */
 .rq-in{margin:4px 0 8px;border-radius:6px}
-.rq-in-line{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;flex-wrap:wrap;font-size:14px;line-height:1.7}
-.rq-in.ask .rq-in-line{box-shadow:inset 3px 0 var(--rq-ask,#e58bc0);background:var(--rq-ask-bg,#1e1019)}
-.rq-in.late .rq-in-line{box-shadow:inset 4px 0 var(--rq-alarm,#ff4d4f);background:var(--danger-bg,#2a0c0e)}
+.rq-in-line{position:relative;display:flex;align-items:center;gap:8px;padding:5px 8px 5px 14px;border-radius:6px;flex-wrap:wrap;font-size:14px;line-height:1.7}
+.rq-in-line::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:3px;border-radius:999px;background:var(--rq-tone,transparent)}
+.rq-in.ask .rq-in-line{--rq-tone:var(--rq-ask,#e58bc0);background:var(--rq-ask-bg,#1e1019)}
+.rq-in.late .rq-in-line{--rq-tone:var(--rq-alarm,#ff4d4f);background:var(--danger-bg,#2a0c0e)}
 .rq-in-ic{color:var(--text-3);width:14px;text-align:center}
 .rq-in-t{color:var(--text)}
 .rq-in .rq-thread{margin:2px 0 0 28px}
@@ -75,11 +79,40 @@ button.rq-pill{cursor:pointer}
 .rq-more{background:none;border:0;padding:0;text-align:left;font-size:12px;color:var(--text-3);cursor:pointer}
 .rq-more:hover{color:var(--pri)}
 .rq-empty{font-size:12px;color:var(--text-3);padding:6px 2px}
-.rq-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px;font-size:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.rq-card.late{border:2px solid var(--rq-alarm,#ff4d4f);background:var(--danger-bg,#2a0c0e)}
-.rq-card.warn{box-shadow:inset 3px 0 var(--rq-warn,#f0924f)}
-.rq-card.today{box-shadow:inset 3px 0 var(--rq-warn,#f0924f)}
-.rq-card.done{opacity:.85}
+/* ── 狀態卡片：一套重音系統 ─────────────────────────────────────────────────
+   舊版靠 `box-shadow:inset 3px 0` 畫左邊那條狀態色帶。inset 陰影會被卡片的
+   border-radius 一起裁掉，色帶到了上下兩端就跟著圓角收成月牙——左上／左下各缺一角，
+   正是「顏色在左邊圓角很醜」的成因；`.late` 又改用 2px 外框，於是同一排卡片裡
+   逾期那張比別張寬 1px，列表邊緣是歪的。
+
+   改成：色帶獨立成 ::before 的短膠囊，離卡片邊與上下都有內距，完全不碰圓角；
+   狀態只換 --rq-tone 一個變數，邊框一律 1px，不再有位移。
+   所有 .rq-card（回覆追蹤、今日議題、議題物件 L2、訊號頁看板、通知）共用同一套。 */
+.rq-card{
+  --rq-tone:var(--border-3,var(--border-2));
+  position:relative;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px 10px 17px;
+  font-size:12px;display:flex;flex-direction:column;gap:7px;min-width:0;
+  transition:border-color .12s,background .12s;
+}
+.rq-card::before{
+  content:"";position:absolute;left:7px;top:11px;bottom:11px;width:3px;
+  border-radius:999px;background:var(--rq-tone);
+}
+.rq-card:hover{border-color:var(--border-2)}
+.rq-card.open{--rq-tone:var(--rq-ok,#4ea1ff)}
+.rq-card.ask{--rq-tone:var(--rq-ask,#e58bc0)}
+.rq-card.warn,.rq-card.today{--rq-tone:var(--rq-warn,#f0924f)}
+.rq-card.replied,.rq-card.resolved{--rq-tone:var(--ok,#4fc38a)}
+.rq-card.notice{--rq-tone:var(--text-3)}
+/* 逾期是唯一需要整張變色的狀態，但邊框仍是 1px，排列不位移。 */
+.rq-card.late{--rq-tone:var(--rq-alarm,#ff4d4f);border-color:var(--rq-alarm,#ff4d4f);background:var(--danger-bg,#2a0c0e)}
+.rq-card.done,.rq-card.resolved{opacity:.82}
+/* 已讀的通知退到背景，未讀維持實色。 */
+.rq-card.seen{--rq-tone:var(--border-2);opacity:.72}
 .rq-card-t{font-size:13px;color:var(--text);line-height:1.55;overflow-wrap:anywhere}
 .rq-card-m{display:flex;gap:6px;align-items:center;color:var(--text-3);font-size:11px;flex-wrap:wrap}
 .rq-strike{text-decoration:line-through;color:var(--text-2)}

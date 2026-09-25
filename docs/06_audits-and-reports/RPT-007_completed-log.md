@@ -2,6 +2,14 @@
 
 ## 2026-09-24
 
+### YZUI-020 — 今日議題升格為第一級物件（提案 B）
+
+- Owner 回報今日議題只能標注與完成、只能單行、沒有日期、不能展開討論與上傳檔案。先產出研究與三案介面提案（`journal-today-agenda-proposals.html`，七份外部來源），Owner 直接指定採用提案 B。
+- 新增 `agenda` 型文件物件：`!議題`／`#議題` 把母行與縮排子樹收成一個物件（外部依據 Workflowy／Tana 的節點語意，不需要多選手勢），右欄的 L1 標記可按「升格」。物件帶提出日、選填到期日、帶過紀錄、討論串、附件、結論段與 RES-018 參考碼，並自動出現在物件索引（`DOC_METAS` 一註冊 facet 就有）。收工檢查一併納入，沒動的延到明天並記下 `carried`——舊的 `rqDeferToday` 是直接覆寫 `t.day`，被延三次的事看不出原本哪天提出。
+- 形狀決定：議題專屬狀態收在 `docObjects` 的 `payload.agenda`，不動 `todayIssues` 的型別化欄位，因此**零 schema 變更**；讀回與寫入各加一行原樣帶過。討論不沿用 `DB.threads`（Thread 的家在專案，掛到日誌議題會讓「有結論未回寫」信號對不上），附件仍走既有的 `uploadFile()` → R2 管線。圖示全用 lucide 字形經 `svg()` 輸出，顏色全走 V5_PALETTES token（AGENTS.md §12.1）。
+- 順帶修掉兩件既有缺陷：右欄議題顯示的是標記當下的文字快照（改寫那一行右欄不更新且無提示）→ 改讀日誌那一行；圖示表 `I` 缺 `flag`／`grip`（兩者早已被 runtime 引用，`svg()` 對未知 key 靜默畫空 `<svg>`）→ 連同 `paperclip`／`send` 一起補上。
+- Verification：`verify-agenda-object.mjs` 50/50 PASS（本輪新增）、`verify-object-index` 19/19 PASS、`generate-yuanzhan-v5` PASS（387 handler templates）、`node --check runtime.js` PASS、`tsc --noEmit` 0 errors、eslint 0 errors（runtime.js 781 warnings，基準 739）、`check-prisma-structure` PASS、`check-operating-command-fields` 279 PASS、`check-migration-coverage` 全覆蓋。`ops:check` 的四支 `tsx` 檢查 NOT_RUN——執行環境是 linux-arm64 VM 而 `node_modules` 是 macOS 安裝，esbuild 原生檔對不上（Owner 在自己終端機執行正常）；`verify-yuanzhan-v5.cjs` NOT_RUN（需 playwright 與兩個 dev server）。依 Manual Blocker Fallback 以 harness 與型別檢查替代。[本次證據](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260924-journal-agenda-object.md)
+
 ### YZUI-019 — database 模式的「今天」改用真實日期
 
 - Owner 回報畫面日期停在 2026-09-12。`createV5State` 的 `referenceDate` 取自 `data.today`，而 database 模式的清空迴圈只清陣列，seed 的 `today` 常數留著沒換 —— 日誌、今日脈絡、今日議題全部寫進 fixture 那一天。

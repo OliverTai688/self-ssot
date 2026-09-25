@@ -76,11 +76,16 @@ const DEPENDENCIES = {
   OperatingTimesheet: ['workspaceId', 'actorKey', 'weeks'],
   OperatingTransaction: [
     'id', 'workspaceId', 'onDate', 'title', 'projectRef', 'category',
-    'amount', 'formula', 'passThrough', 'vouchers', 'note',
+    'amount', 'formula', 'passThrough', 'vouchers', 'attachments', 'note',
   ],
   OperatingReimbursement: ['id', 'workspaceId', 'actorKey', 'title', 'amount', 'status', 'onDate'],
   OperatingBankEntry: ['id', 'workspaceId', 'onDate', 'title', 'amount', 'matchedRef'],
   OperatingPayrollDraft: ['workspaceId', 'actorKey', 'baseAmount', 'overtime', 'milestone', 'separate'],
+  OperatingIntakeItem: [
+    'id', 'workspaceId', 'workbenchRef', 'actorKey', 'title', 'amount', 'onDate',
+    'projectRef', 'status', 'file', 'reimbRef', 'postedRef', 'createdAt',
+  ],
+  OperatingPeriod: ['workspaceId', 'period', 'status', 'closedBy', 'closedAt', 'checklist', 'log'],
   OperatingComment: [
     'id', 'workspaceId', 'authorId', 'authorKey', 'workbenchRef',
     'targetType', 'targetRef', 'body', 'meta', 'deletedAt',
@@ -114,6 +119,7 @@ const REVERSE_LOOKUP_MODELS = [
   'OperatingDocument', 'OperatingCommitment', 'OperatingThread', 'OperatingTransaction',
   'OperatingReimbursement', 'OperatingBankEntry', 'OperatingEvidenceRepo',
   'OperatingComment', 'OperatingRequest', 'OperatingLibraryFile', 'OperatingDocObject',
+  'OperatingIntakeItem',
 ]
 
 /** 服務層用到的複合唯一鍵；Prisma 的 where 鍵名由這些欄位組出來。 */
@@ -125,6 +131,7 @@ const COMPOSITE_KEYS = {
   OperatingCapacityPlan: ['workspaceId', 'actorKey'],
   OperatingTimesheet: ['workspaceId', 'actorKey'],
   OperatingPayrollDraft: ['workspaceId', 'actorKey'],
+  OperatingPeriod: ['workspaceId', 'period'],
 }
 
 let failed = 0

@@ -175,7 +175,11 @@ const I = {
   rotate: '<path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
-  sort: '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/>'
+  sort: '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  paperclip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  grip: '<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>'
 };
 const svg = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"${w ? ` style="width:${w}px;height:${w}px"` : ''}>${I[k] || ''}</svg>`;
 
@@ -3244,7 +3248,7 @@ function syncAll() {
 
 /* ---- 區塊 HTML ---- */
 const PH = {
-  p: '寫點什麼：# 召喚 component、@ 引用既有物件或請對方回覆、?@ 直接發送請求',
+  p: '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆',
   h1: '大標題',
   h2: '中標題',
   h3: '小標題',
@@ -6479,7 +6483,7 @@ function enhanceView() {
   root.querySelectorAll('.rail-i').forEach(e => {
     if (!e.getAttribute('aria-label')) e.setAttribute('aria-label', e.querySelector('em')?.textContent || e.title);
   });
-  if (S.wb === 'money' && S.tab === 0 && S.ledgerView === '表格') enhanceLedger();
+  if (S.wb === 'money' && cfKey() === 'ledger' && S.ledgerView === '表格') enhanceLedger();
   if (S.wb === 'capacity' && S.tab === 3) enhanceTimesheet();
   if (S.wb === 'project' && S.tab === 2) enhanceThread();
   root.querySelectorAll('.row,.rline,.sig,.blk-i,.cmdk-i,.tree .f,.rel .tt,.clause').forEach(e => {
@@ -7580,7 +7584,7 @@ function viewRepoSnapshot(pid) {
 const baseEnhanceView = enhanceView;
 enhanceView = function () {
   baseEnhanceView();
-  if (S.wb === 'money' && S.tab === 0 && S.ledgerView === '表格') applyLedgerFilter();
+  if (S.wb === 'money' && cfKey() === 'ledger' && S.ledgerView === '表格') applyLedgerFilter();
   if (S.wb === 'desk' && S.tab === 2 || S.wb === 'commit') {
     const a = $('#inner > .source-actions');
     if (a) {
@@ -7917,7 +7921,7 @@ enhanceView = function () {
     const panel = [...root.querySelectorAll('.panel')].find(p => p.querySelector('h3')?.textContent === '錢');
     if (panel) panel.querySelector('.panel-b').innerHTML = MASK('專案財務限參與者查看');
   }
-  if (S.wb === 'money' && S.tab === 5) root.querySelectorAll('table.tbl tbody tr').forEach(row => {
+  if (S.wb === 'money' && cfKey() === 'project') root.querySelectorAll('table.tbl tbody tr').forEach(row => {
     const p = DB.projects.find(p => p.t === row.firstElementChild?.textContent);
     if (p && !can('budget', p.id)) row.remove();
   });
@@ -8485,6 +8489,9 @@ function rqAge(r, now = Date.now()) {
   return (now - r.sentAt) / HOUR;
 }
 function rqState(r, now = Date.now()) {
+  /* kind:'notice' 是「只是讓你看到」的 @ 提及：沒有 24 小時義務，也不該出現在
+     逾期橫幅、回覆追蹤或收工檢查裡。在最上游擋掉，下游三十幾處都不用各自判斷。 */
+  if (r.kind === 'notice') return 'notice';
   if (r.resolvedAt) return 'resolved';
   if (r.firstReplyAt) return 'replied';
   const h = rqAge(r, now);
@@ -8500,31 +8507,62 @@ function rqLeft(r) {
 function rqOver(r) {
   return rqDur(rqAge(r) - REPLY_HOURS);
 }
+const RQ_DAY = /^\d{4}-\d{2}-\d{2}$/;
 function rqDoc(r) {
   return journals.team[r.from]?.[r.day] || null;
 }
+/* 請求指向「誰的哪一天的哪一行」。這三件事都可能對不上：
+   日期可能沒存成日期（onDate 為 null 時讀回來是空字串）、那一行可能被延後或搬到別天、
+   發問的人可能是對方（那一行在右欄那一本，不在自己的日誌裡）。
+   先解析出它真正在哪裡，跳轉、行號與來源標籤才會指到同一個地方。 */
+function rqFindLine(r) {
+  const book = journals.team[r.from] || {},
+    day = RQ_DAY.test(r.day || '') ? r.day : '';
+  if (r.blockId) {
+    const here = day && (book[day]?.blocks || []).find(b => b.id === r.blockId);
+    if (here) return {
+      day,
+      block: here,
+      idx: book[day].blocks.indexOf(here)
+    };
+    for (const k of Object.keys(book)) {
+      const blocks = book[k]?.blocks || [],
+        i = blocks.findIndex(b => b.id === r.blockId);
+      if (i >= 0) return {
+        day: k,
+        block: blocks[i],
+        idx: i
+      };
+    }
+  }
+  return {
+    day,
+    block: null,
+    idx: -1
+  };
+}
 function rqBlock(r) {
-  return rqDoc(r)?.blocks.find(b => b.id === r.blockId) || null;
+  return rqFindLine(r).block;
 }
 function rqText(r) {
   return rqBlock(r)?.text?.trim() || r.text;
 }
 function rqLine(r) {
-  const doc = rqDoc(r),
-    i = doc ? doc.blocks.findIndex(b => b.id === r.blockId) : -1;
-  return i < 0 ? '原行已刪除' : 'L' + (i + 1);
+  const s = rqFindLine(r);
+  return s.idx < 0 ? '原行已刪除' : 'L' + (s.idx + 1);
 }
 function rqShortDay(d) {
-  return String(+d.slice(5, 7)) + '/' + String(+d.slice(8, 10));
+  return RQ_DAY.test(d || '') ? String(+d.slice(5, 7)) + '/' + String(+d.slice(8, 10)) : '日期不明';
 }
 function rqSource(r) {
-  return `↩ ${person(r.from)} ${rqShortDay(r.day)} · ${rqLine(r)}`;
+  const s = rqFindLine(r);
+  return `↩ ${person(r.from)} ${rqShortDay(s.day || r.day)} · ${rqLine(r)}`;
 }
 function rqInvolves(r, who = DB.me) {
   return r.to === who || r.from === who;
 }
 function rqPending(r) {
-  return !r.firstReplyAt && !r.resolvedAt;
+  return r.kind !== 'notice' && !r.firstReplyAt && !r.resolvedAt;
 }
 function rqLate(who = DB.me) {
   return DB.requests.filter(r => rqInvolves(r, who) && rqState(r) === 'late').sort((a, b) => a.sentAt - b.sentAt);
@@ -8545,6 +8583,21 @@ function rqRepliedToday(who = DB.me) {
 }
 function rqTodayOpen(who = DB.me) {
   return DB.todayIssues.filter(t => t.author === who && !t.doneAt && t.day <= TODAY);
+}
+/* 議題的文字以日誌那一行為準。t.text 是標記當下的快照，之後改寫那一行，右欄仍顯示舊句子而且
+   沒有任何提示（today-agenda 研究的發現 A）。延後會改寫 t.day，所以要掃作者的所有日子，
+   不能只查 t.day 那一天；原行真的被刪掉時才退回快照。 */
+function rqTodayBlock(t) {
+  const days = journals.team[t.author] || {};
+  for (const k of Object.keys(days)) {
+    const b = (days[k].blocks || []).find(x => x.id === t.blockId);
+    if (b) return b;
+  }
+  return null;
+}
+function rqTodayText(t) {
+  const b = rqTodayBlock(t);
+  return b && b.text.trim() || t.text;
 }
 function rqSeen(r) {
   if (r.to === DB.me && !r.seenAt) r.seenAt = Date.now();
@@ -8570,24 +8623,38 @@ function rqReplyWord(r) {
 const RQ_ASK = /(?:^|\s)[?？][@＠]([^\s#@＠]{0,12})$/,
   RQ_FLAG = /(?:^|\s)[!！]([^\s#@!！]{0,6})$/,
   RQ_MENTION = /(?:^|\s)[@＠]([^\s#@＠]{0,12})$/;
-function rqAskHits(q) {
+/* @人名 與 ?@人名 給的是同三個選項，差別只在誰排第一、誰是 ↵ 的預設：
+   單純 @ 是「讓他看到」，要求回覆是刻意的動作（?@）。 */
+function rqAskHits(q, mode) {
   q = (q || '').toLowerCase();
   const out = [];
+  const plain = mode === 'mention';
   for (const w of rqPeers()) {
     const p = DB.people[w];
     if (q && !(w + p.n).toLowerCase().includes(q)) continue;
-    out.push({
+    const notice = {
+      ask: 'notice',
+      to: w,
+      g: '通知 ' + p.n,
+      ic: '@',
+      nm: '只是讓他看到（不用回覆）',
+      ds: '對方收到站內通知；不計時、不進回覆追蹤',
+      k: plain ? '↵' : '',
+      mention: true,
+      rid: w
+    };
+    const ask = {
       ask: 'ask',
       to: w,
       g: '發給 ' + p.n,
       ic: '?',
       nm: '請回覆（一般）',
-      ds: '回覆掛在這行下面',
-      k: '↵',
+      ds: '回覆掛在這行下面 · 24 小時內提醒',
+      k: plain ? '' : '↵',
       mention: true,
       rid: w
-    });
-    out.push({
+    };
+    const dec = {
       ask: 'decision',
       to: w,
       g: '發給 ' + p.n,
@@ -8597,7 +8664,8 @@ function rqAskHits(q) {
       k: '⇧↵',
       mention: true,
       rid: w
-    });
+    };
+    if (plain) out.push(notice, ask, dec);else out.push(ask, dec, notice);
   }
   return out;
 }
@@ -8608,9 +8676,16 @@ const RQ_FLAG_HITS = [{
   nm: '今天要處理',
   ds: '加入今日議題，收工前檢查',
   k: '↵'
+}, {
+  flag: 'agenda',
+  g: '標記',
+  ic: '!',
+  nm: '建立議題物件',
+  ds: '這一行與底下的子項收成一個議題 · 可排期、討論、附檔、結案',
+  k: '↵'
 }];
 function rqOpenMenu(tx, b, start, q, mode) {
-  const hits = mode === 'ask' || mode === 'mention' ? rqAskHits(q) : RQ_FLAG_HITS;
+  const hits = mode === 'ask' || mode === 'mention' ? rqAskHits(q, mode) : RQ_FLAG_HITS;
   if (!SM.open || SM.blockId !== b.id || SM.mode !== mode) openSummon(b.id, start, q, caretRect(tx), mode);
   SM.q = q;
   SM.start = start;
@@ -8625,7 +8700,7 @@ paintSummon = function () {
   root.querySelectorAll('#summonList .summon-i .kb').forEach((el, i) => {
     el.textContent = SM.hits[i]?.k || '';
   });
-  if ((SM.mode === 'ask' || SM.mode === 'mention') && SM.hits.length) $('#summonList').insertAdjacentHTML('beforeend', '<div class="summon-g">都會在 24 小時內提醒回覆</div>');
+  if ((SM.mode === 'ask' || SM.mode === 'mention') && SM.hits.length) $('#summonList').insertAdjacentHTML('beforeend', '<div class="summon-g">' + (SM.mode === 'mention' ? '@ 只通知，不計時；要求回覆才會在 24 小時內提醒' : '請回覆與決策卡都會在 24 小時內提醒') + '</div>');
 };
 const rqBaseTrigger = checkTrigger;
 checkTrigger = function (tx, b) {
@@ -8634,10 +8709,10 @@ checkTrigger = function (tx, b) {
     let m = upto.match(RQ_ASK);
     if (m) return rqOpenMenu(tx, b, upto.length - m[1].length - 2, m[1], 'ask');
     m = upto.match(RQ_FLAG);
-    if (m && ['今天', '今日', 'today'].some(w => w.startsWith(m[1].toLowerCase()))) return rqOpenMenu(tx, b, upto.length - m[1].length - 1, m[1], 'flag');
+    if (m && ['今天', '今日', 'today', '議題', 'agenda'].some(w => w.startsWith(m[1].toLowerCase()))) return rqOpenMenu(tx, b, upto.length - m[1].length - 1, m[1], 'flag');
     m = upto.match(RQ_MENTION);
     if (m) {
-      const askHits = rqAskHits(m[1]);
+      const askHits = rqAskHits(m[1], 'mention');
       if (askHits.length && !mentionHits(m[1]).length) return rqOpenMenu(tx, b, upto.length - m[1].length - 1, m[1], 'mention');
     }
   }
@@ -8675,7 +8750,9 @@ applySummon = function (n) {
     render();
     return toast('先寫下要問或要處理的內容，再加上 ' + (h.flag ? '!今天' : (via === 'mention' ? '@' : '?@') + esc(person(h.to))));
   }
-  if (h.flag) return rqFlagToday(b);
+  if (h.flag) return h.flag === 'agenda' ? agCreate(b) : rqFlagToday(b);
+  // 只通知不佔用這一行的 b.req：同一行可以通知多個人，也可以之後再改成請求。
+  if (h.ask === 'notice') return rqNotify(b, h.to, via);
   const current = b.req && rqFind(b.req);
   if (current && !current.resolvedAt) {
     render();
@@ -8713,6 +8790,29 @@ function rqSend(b, to, kind, options, via = 'ask') {
     DB.requests.push(r);
     b.req = r.id;
     return [`已通知 <b>${esc(person(to))}</b>，24 小時內要回覆`, '16 小時起轉橘色；超過 24 小時雙方畫面亮紅色提醒', '訊號頁同步出現'];
+  });
+}
+/* 只通知：與請求同一張表（kind 區分），所以會跟著保存、也會出現在對方的通知匣，
+   但不掛 b.req、不計時、不進回覆追蹤，收工檢查也不會攔它。 */
+function rqNotify(b, to, via = 'mention') {
+  const r = {
+    id: nid('REQ'),
+    from: DB.me,
+    to,
+    day: S.jday,
+    blockId: b.id,
+    text: b.text.trim(),
+    kind: 'notice',
+    options: [],
+    via,
+    sentAt: Date.now(),
+    replies: [],
+    nudges: [],
+    pinged: {}
+  };
+  commit('create', '通知', r.text, () => {
+    DB.requests.push(r);
+    return [`已通知 <b>${esc(person(to))}</b>，不需要回覆`, '對方右上角的通知匣會出現這一行，點一下就跳到這裡', '沒有 24 小時計時，也不會進回覆追蹤'];
   });
 }
 function rqAddOption() {
@@ -8883,29 +8983,42 @@ function rqDefer(id) {
   render();
   rqOpenClose();
 }
+/* 兩顆按鈕、兩個去處，不要混在一起：
+     「現在回覆」要落在能打字的地方 —— 收到的請求收在自己「今天」的日誌裡；
+     「跳到那一行」與「↩ 來源」要落在問題被寫下來的那一天，不管那一行是誰寫的。
+   原本兩者共用 `incoming` 一個判斷，於是只要請求還沒回，來源連結就永遠被拉回今天：
+   按鈕上明明寫著「↩ Lily 9/24 · L1」，按下去卻停在今天，跨日之後等於整顆失效。 */
 function rqJump(id, reply) {
   const r = rqFind(id);
   if (!r) return;
+  rqSeen(r);
   closeModal();
   if (space !== 'team') switchSpace('team');
   saveJournalDraft();
   UNDO = [];
   REDO = [];
-  const incoming = r.to === DB.me && rqPending(r);
+  const incoming = r.to === DB.me && rqPending(r),
+    toReply = !!reply && incoming;
   if (reply && r.to === DB.me && !r.resolvedAt) rqOpenReply.add(r.id);
+  const src = rqFindLine(r);
+  // S.jday 一定是合法日期。沒解析出來就停在今天：寫進 DB.journal[''] 會產生一本存不回去的日誌。
+  const day = toReply ? TODAY : src.day || TODAY;
   // 雙人駕駛艙：自己的日誌在左欄，對方的在右欄；兩邊同一天。
   journalAuthor = DB.me;
-  S.jday = incoming ? TODAY : r.day;
-  runtime._afterRender = () => {
-    const el = incoming ? root.querySelector('[data-rq-in="' + r.id + '"]') : r.from === DB.me ? root.querySelector('#doc .eb[data-id="' + r.blockId + '"]') : root.querySelector('#jcPeer [data-jc-bid="' + r.blockId + '"]');
-    if (!el) return toast('原本那一行已刪除；請求仍保留在訊號頁');
+  S.jday = day;
+  nav('journal', 0);
+  // nav() 在 render() 之後才把 #surface 捲回頂端，排在 _afterRender 之前定位會被它蓋掉。
+  const el = toReply ? root.querySelector('[data-rq-in="' + r.id + '"]') : r.from === DB.me ? root.querySelector('#doc .eb[data-id="' + r.blockId + '"]') : root.querySelector('#jcPeer [data-jc-bid="' + r.blockId + '"]');
+  if (el) {
     el.scrollIntoView({
       block: 'center'
     });
     el.classList.add('rq-flash');
-    if (reply) root.querySelector('[data-rq-input="' + r.id + '"]')?.focus();
-  };
-  nav('journal', 0);
+  }
+  if (reply) root.querySelector('[data-rq-input="' + r.id + '"]')?.focus();
+  if (el || toReply) return;
+  // 找不到的原因不只一種，講清楚是哪一種；否則「原本那一行已刪除」會蓋掉「沒記到日期」。
+  toast(src.day ? `已跳到 ${src.day}，但原本那一行已不在；請求仍保留在訊號頁` : '這個請求沒有記下是哪一天發出的，無法跳到那一天；完整清單在訊號頁');
 }
 
 /* ---- 共用：訊息串與動作列 ---- */
@@ -8967,10 +9080,14 @@ function rqActions(r, {
 }
 
 /* ---- ② 日誌：行內標籤、訊息串、決策卡、收到的請求、右欄 ---- */
+function rqNoticesOn(b) {
+  return b && b.id ? DB.requests.filter(r => r.kind === 'notice' && r.blockId === b.id) : [];
+}
 function rqLinePills(b) {
   const r = b.req && rqFind(b.req),
     t = b.today && DB.todayIssues.find(x => x.id === b.today),
     pills = [];
+  for (const n of rqNoticesOn(b)) pills.push(`<span class="rq-pill note">${svg('at', 10)} 已通知 ${esc(person(n.to === DB.me ? n.from : n.to))}${n.seenAt ? ' · 已讀' : ''}</span>`);
   if (t) pills.push(t.doneAt ? '<span class="rq-pill done">' + svg('check', 11) + ' 今日議題</span>' : t.author === DB.me ? `<button class="rq-pill today" title="點一下標記完成" ${bind("click", (event, element) => {
     rqCompleteToday(t.id);
   })}>${svg('dot', 9)} 今日議題</button>` : '<span class="rq-pill today">' + svg('dot', 9) + ' 今日議題</span>');
@@ -9002,7 +9119,7 @@ function rqDecisionCard() {
 const rqBaseEb = ebHtml;
 ebHtml = function (b) {
   const html = rqBaseEb(b);
-  if (space !== 'team' || !TEXTY(b.t) || !b.req && !b.today && rqDecision?.blockId !== b.id) return html;
+  if (space !== 'team' || !TEXTY(b.t) || !b.req && !b.today && rqDecision?.blockId !== b.id && !rqNoticesOn(b).length) return html;
   const r = b.req && rqFind(b.req),
     t = b.today && DB.todayIssues.find(x => x.id === b.today);
   const st = r && !r.resolvedAt ? r.firstReplyAt ? 'replied' : rqState(r) === 'late' ? 'late' : 'ask' : t && !t.doneAt ? 'today' : rqDecision?.blockId === b.id ? 'ask' : '';
@@ -9046,12 +9163,13 @@ function rqSideBody() {
   const late = rqLate(),
     wait = rqFromMe().filter(r => rqState(r) !== 'late'),
     mine = rqToMe().filter(r => rqState(r) !== 'late'),
-    today = rqTodayOpen();
+    today = rqTodayOpen(),
+    agendas = agOpenToday();
   const peers = [...new Set(wait.map(r => person(r.to)))].join('、') || '對方';
   const sec = (title, cls, n, body) => `<div class="rq-side-sec"><div class="rq-side-t ${cls}"><span>${title}</span><span>${n}</span></div>${body}</div>`;
-  const body = (late.length ? sec(svg('warn', 12) + ' 逾期', 'late', late.length, late.map(rqSideCard).join('')) : '') + (mine.length ? sec('? 待我回覆', 'ask', mine.length, mine.map(rqSideCard).join('')) : '') + sec(`等 ${esc(peers)} 回覆`, '', wait.length, wait.map(rqSideCard).join('') || '<div class="rq-empty">行尾或句子中打 @人名 加入</div>') + sec('今日議題', 'today', today.length, today.map(t => `<div class="rq-card today"><div class="rq-card-t">${esc(t.text)}</div><div class="rq-card-m">${t.deferred ? '<span class="rq-pill warn">' + svg('refresh', 11) + ' 從昨天帶來</span>' : ''}<button class="btn sm" ${bind("click", (event, element) => {
-    rqCompleteToday(t.id);
-  })}>${svg('check', 12)} 完成</button></div></div>`).join('') || '<div class="rq-empty">行尾打 !今天 加入</div>') + `<button class="rq-more" ${bind("click", (event, element) => {
+  const body = (late.length ? sec(svg('warn', 12) + ' 逾期', 'late', late.length, late.map(rqSideCard).join('')) : '') + (mine.length ? sec('? 待我回覆', 'ask', mine.length, mine.map(rqSideCard).join('')) : '') + sec(`等 ${esc(peers)} 回覆`, '', wait.length, wait.map(rqSideCard).join('') || '<div class="rq-empty">行尾打 ?@人名 請對方回覆；單純 @人名 只是通知</div>')
+  // 兩層一起列：議題物件（L2）排前面，輕量標記（L1）排後面，見 agenda-object.source.js。
+  + sec('今日議題', 'today', today.length + agendas.length, agTodayBody(today, agendas)) + `<button class="rq-more" ${bind("click", (event, element) => {
     nav('signal', 0);
   })}>完整清單在訊號頁 ${svg('goto', 11)}</button>`;
   return `<div class="rq-side">${body}</div>`;
@@ -9124,8 +9242,10 @@ const rqBaseEnhance = enhanceView;
 enhanceView = function () {
   rqBaseEnhance();
   if (space === 'team' && S.tab === 0) {
+    // 通知（kind:'notice'）不在這裡自動標已讀：它的去處是右上角的通知匣，
+    // 在這裡清掉的話，走過一次那天的日誌就等於整匣被讀完了。
     if (S.wb === 'journal') DB.requests.forEach(r => {
-      if (r.to === DB.me && (r.from === journalAuthor && r.day === S.jday || journalAuthor === DB.me && S.jday === TODAY)) rqSeen(r);
+      if (r.to === DB.me && r.kind !== 'notice' && (r.from === journalAuthor && r.day === S.jday || journalAuthor === DB.me && S.jday === TODAY)) rqSeen(r);
     });
     if (S.wb === 'signal') rqToMe().forEach(rqSeen);
   }
@@ -9206,6 +9326,7 @@ function rqBlockers() {
 function rqOpenClose() {
   const late = rqLate(),
     today = rqTodayOpen(),
+    agendas = agOpenToday(),
     blockers = rqBlockers();
   const lateRows = late.map(r => {
     const mine = r.to === DB.me;
@@ -9221,7 +9342,7 @@ function rqOpenClose() {
       rqOpenClose();
     })}>${svg('bell', 12)} 提醒他</button>`}</div>`;
   }).join('');
-  const todayRows = today.map(t => `<div class="rq-row"><span class="rq-pill today">今日</span><span class="rq-row-t">${esc(t.text)}</span><button class="btn sm" ${bind("click", (event, element) => {
+  const todayRows = agCloseRows() + today.map(t => `<div class="rq-row"><span class="rq-pill today">今日</span><span class="rq-row-t">${esc(rqTodayText(t))}</span><button class="btn sm" ${bind("click", (event, element) => {
     rqCompleteToday(t.id);
     rqOpenClose();
   })}>${svg('check', 12)} 完成</button><button class="btn sm pri" ${bind("click", (event, element) => {
@@ -9229,7 +9350,7 @@ function rqOpenClose() {
     rqOpenClose();
   })}>${svg('goto', 11)} 明天</button></div>`).join('');
   const moved = today[0];
-  openModal(late.length || today.length ? `收工前，還有 ${late.length + today.length} 件事沒結束` : '收工檢查', blockers.length ? '逾期項目必須先回覆、追蹤，或寫下延後理由才能收工；今日議題沒動的會自動延到明天。' : '逐項決定怎麼處理，沒動的今日議題會自動延到明天。', `<div class="rq-close">${lateRows}${todayRows}${!lateRows && !todayRows ? '<div class="rq-empty">都處理完了</div>' : ''}${moved ? `<div class="rq-carry">明天 ${rqShortDay(dadd(TODAY, 1))} 日誌的開頭會出現：<br><span class="rq-pill today">${svg('refresh', 11)} 從昨天帶來 · ${esc(moved.text)}</span></div>` : ''}</div>`, `<button class="btn" ${bind("click", (event, element) => {
+  openModal(late.length || today.length || agendas.length ? `收工前，還有 ${late.length + today.length + agendas.length} 件事沒結束` : '收工檢查', blockers.length ? '逾期項目必須先回覆、追蹤，或寫下延後理由才能收工；今日議題沒動的會自動延到明天。' : '逐項決定怎麼處理，沒動的今日議題會自動延到明天。', `<div class="rq-close">${lateRows}${todayRows}${!lateRows && !todayRows ? '<div class="rq-empty">都處理完了</div>' : ''}${moved ? `<div class="rq-carry">明天 ${rqShortDay(dadd(TODAY, 1))} 日誌的開頭會出現：<br><span class="rq-pill today">${svg('refresh', 11)} 從昨天帶來 · ${esc(moved.text)}</span></div>` : ''}</div>`, `<button class="btn" ${bind("click", (event, element) => {
     closeModal();
   })}>返回</button><button class="btn ${blockers.length ? '' : 'pri'}" ${blockers.length ? 'disabled title="先處理逾期項目"' : ''} ${bind("click", (event, element) => {
     rqConfirmClose();
@@ -9244,8 +9365,10 @@ function rqConfirmClose() {
       t.day = dadd(TODAY, 1);
       t.deferred = (t.deferred || 0) + 1;
     });
+    // 議題物件也一起帶到明天，但改到期日之前先把今天記進 carried，原本是哪天提出的才留得下來。
+    const movedAg = agCarryAllOpen();
     (DB.dayClose[DB.me] ??= {})[TODAY] = nowts().slice(0, 5);
-    return [moved.length ? `${moved.length} 件今日議題延到明天` : '今日議題已清空', `待我回覆 ${rqToMe().length} 件`];
+    return [moved.length ? `${moved.length} 件今日議題延到明天` : '今日議題已清空', movedAg ? `${movedAg} 件議題物件延到明天，並記下帶過次數` : '議題物件都已處理', `待我回覆 ${rqToMe().length} 件`];
   });
 }
 // 隔天日誌開頭顯示從昨天帶來的今日議題。
@@ -9603,7 +9726,7 @@ function jcMyColumn() {
   <div class="jc-col-h doc-bar">${rqAv(DB.me, 'md')}<b>${esc(jcShort(DB.me))}</b><span class="jc-col-m">· 你 · 編輯中</span><span class="sp"></span>
    <button class="btn sm" aria-label="召喚" title="# 召喚 component" ${bind("click", (event, element) => {
     insertAt('#');
-  })}>${svg('hash', 13)} 召喚</button><button class="btn sm" aria-label="引用" title="@ 引用既有物件" ${bind("click", (event, element) => {
+  })}>${svg('hash', 13)} 召喚</button><button class="btn sm" aria-label="引用" title="@ 引用既有物件或通知對方" ${bind("click", (event, element) => {
     insertAt('@');
   })}>${svg('at', 13)} 引用</button></div>
   <div class="jc-col-b">${carry}<div class="doc" id="doc" ${bind("click", (event, element) => {
@@ -10447,11 +10570,34 @@ function renderDocSectionBody(doc, sec, idx, meta) {
     DOC_SEC_STACK.pop();
   }
 }
+/* 誰能寫這個物件的正文，和日誌正文是同一條規則：作者自己能編輯，其他人只能留言。
+ *
+ * 少了這道判斷，雙人駕駛艙裡同一頁會出現兩種規則 —— 對方日誌的每一行只能點開留言，
+ * 但對方 Standup 卡片裡的字可以直接改掉，而且改的是對方那一份、不是副本。
+ *
+ * 擋在 section 這一層而不是卡片那一層：卡片會被 agenda-object 覆寫，而三個進入點
+ * （日誌行內卡片、議題卡、獨立頁面）都必經 renderDocSectionBody。 */
+function docWritable(doc) {
+  if (space === 'personal') return true;
+  return !doc || !doc.author || doc.author === DB.me;
+}
+
+/* 對方的段落：沿用駕駛艙右欄那一套唯讀行（jcPeerBlock），點任一行就展開行內留言串，
+   跟讀對方日誌完全一樣的操作。 */
+function renderDocSectionReadonly(doc, sec, idx, blocks) {
+  const rows = blocks.map(b => jcPeerBlock(doc.author, b)).join('');
+  return `<div class="eb-doc-inline-sec ro">
+    <div class="eb-doc-inline-sec-title">${esc(sec.title)}</div>
+    <div class="doc jc-doc eb-doc-secbody ro" data-doc-ro="1" data-doc-id="${doc.id}" data-sec-idx="${idx}"
+      >${rows || `<div class="eb-doc-ro-empty">${esc(person(doc.author))} 還沒寫這一段</div>`}</div>
+  </div>`;
+}
 function renderDocSectionBodyInner(doc, sec, idx, meta) {
   const blocks = ensureSecBlocks(sec);
+  if (!docWritable(doc)) return renderDocSectionReadonly(doc, sec, idx, blocks);
   let html = blocks.map(ebHtml).join('');
   if (blocks.length === 1 && !blocks[0].text) {
-    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用既有物件或請對方回覆、?@ 直接發送請求';
+    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆';
     html = html.replace(/data-ph="[^"]*"/, `data-ph="${esc(ph)}"`);
   }
   return `<div class="eb-doc-inline-sec">
@@ -10494,6 +10640,7 @@ function renderDocObjectCard(b) {
         <span class="chip ${meta.chip}">${meta.nm}</span>
         <span class="eb-doc-bar-title">${esc(name)}</span>
         <span class="eb-doc-bar-meta">${isCollapsed ? esc(docObjectTimestamp(doc)) : `${doc.day} · ${person(doc.author)}${doc.secs.reduce((a, sec) => a + secWordCount(sec), 0) ? ' · ' + doc.secs.reduce((a, sec) => a + secWordCount(sec), 0) + ' 字' : ''}`}</span>
+        ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 可留言</span>'}
       </div>
       <div class="eb-doc-bar-right">
         <!-- 收合展開按鈕 -->
@@ -10505,7 +10652,7 @@ function renderDocObjectCard(b) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="eb-doc-arr ${isCollapsed ? 'down' : 'up'}"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <!-- 小 icon 點選進到獨立頁面寫 -->
-        <button type="button" class="eb-doc-icon-btn" title="進到獨立頁面撰寫" ${bind("click", (event, element) => {
+        <button type="button" class="eb-doc-icon-btn" title="${docWritable(doc) ? '進到獨立頁面撰寫' : '開啟獨立頁面（唯讀）'}" ${bind("click", (event, element) => {
     event.stopPropagation();
     openDocPage(doc.id);
   })}>
@@ -10546,13 +10693,14 @@ DRAWERS.doc_object = id => {
   const meta = metaOf(doc);
   return {
     crumb: `日誌 › ${meta.nm} 獨立頁面`,
-    title: `<span class="doc-page-title ed" contenteditable="true" data-doc-id="${doc.id}" data-ph="輸入標題...">${esc(docObjectName(doc))}</span>`,
+    title: docWritable(doc) ? `<span class="doc-page-title ed" contenteditable="true" data-doc-id="${doc.id}" data-ph="輸入標題...">${esc(docObjectName(doc))}</span>` : `<span class="doc-page-title">${esc(docObjectName(doc))}</span>`,
     sub: `<span class="doc-page-meta">
         <span class="chip ${meta.chip}">${meta.nm}</span>
         <span>${doc.day}</span>
         <span>由 ${person(doc.author)} 撰寫</span>
         <span>${esc(docObjectTimestamp(doc))}</span>
         <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
+        ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 點任一行留言</span>'}
       </span>`,
     body: `
       <!-- 統一的大綱式文件編輯器，與日誌完全相同的書寫體驗（同一套 docClick/docKey/docInput 引擎） -->
@@ -10563,17 +10711,17 @@ DRAWERS.doc_object = id => {
     foot: `
       <button class="btn pri" ${bind("click", (event, element) => {
       closeDrawer();
-    })}>${svg('commit', 12)} 完成並返回日誌</button>
+    })}>${svg('commit', 12)} ${docWritable(doc) ? '完成並返回日誌' : '返回日誌'}</button>
       <button class="btn" ${bind("click", (event, element) => {
       copyDocMarkdown(doc.id);
     })}>${svg('copy', 12)} 複製全文</button>
-      <button class="btn dgr" style="margin-left:auto" ${bind("click", (event, element) => {
+      ${docWritable(doc) ? `<button class="btn dgr" style="margin-left:auto" ${bind("click", (event, element) => {
       deleteDocObject(doc.id);
-    })}>${svg('trash', 12)} 刪除物件</button>
+    })}>${svg('trash', 12)} 刪除物件</button>` : ''}
     `,
     after: () => {
       // Setup title sync — 手動改標題後關閉自動命名，尊重使用者的命名。
-      const titleEl = root.querySelector('.doc-page-title');
+      const titleEl = root.querySelector('.doc-page-title.ed');
       if (titleEl) {
         titleEl.oninput = () => {
           doc.title = titleEl.innerText.replace(/\n$/, '');
@@ -10605,6 +10753,8 @@ function copyDocMarkdown(id) {
   }
 }
 function deleteDocObject(id) {
+  const target = (DB.docObjects || []).find(d => d.id === id);
+  if (!docWritable(target)) return deny();
   if (!confirm('確定要刪除此物件嗎？日誌中的卡片也將一併移除。')) return;
   const docIdx = (DB.docObjects || []).findIndex(d => d.id === id);
   if (docIdx >= 0) DB.docObjects.splice(docIdx, 1);
@@ -10624,7 +10774,8 @@ root.addEventListener('focusin', e => {
   if (secEl) {
     const doc = (DB.docObjects || []).find(d => d.id === secEl.dataset.docId);
     const sec = doc && doc.secs[Number(secEl.dataset.secIdx)];
-    if (sec) {
+    // 唯讀段落根本不帶 data-doc-sec，這裡是第二道：避免任何路徑把編輯指到別人的物件上。
+    if (sec && docWritable(doc)) {
       ensureSecBlocks(sec);
       BLKS_OVERRIDE = () => {
         doc.updatedAt = Date.now();
@@ -10642,6 +10793,556 @@ currentJournal = function () {
   const j = prevCurrentJournal();
   if (j) migrateLegacyTemplateBlocks(j);
   return j;
+};
+
+/* 議題物件（提案 B）—— 把「今日議題」從一行上的旗標，升格成系統裡的一個物件。
+ *
+ * 為什麼是物件而不是把欄位長在 todayIssues 上：
+ *   todayIssues 在 Prisma 是型別化欄位（blockId/text/onDate/flaggedAt/doneAt/deferred），
+ *   多加一個到期日或討論串都要改 schema 與遷移。docObjects 則帶一個 payload JSON 欄位，
+ *   議題需要的到期日、帶過紀錄、討論、附件全部塞得進去，不動 schema。
+ *   而且召喚、參考碼（RES-018）、物件索引、獨立頁面、回到來源行這幾套都已經寫好，
+ *   議題本來就是唯一沒被物件化的標記 —— 補上它是讓系統一致，不是長出新機制。
+ *
+ * 兩層（研究依據：GitHub sub-issues 的「升格是明確動作」）：
+ *   L1 = 既有的 `!今天`，一行、一天、標記與完成，什麼都不用填。
+ *   L2 = 這裡的議題物件。`!議題`／`#議題` 直接建立，或從右欄把 L1 升格上來。
+ *
+ * 範圍取「節點＋子樹」（研究依據：Workflowy／Tana 的節點語意）：
+ *   標在母行上，底下縮排的子項自動屬於同一個議題，不需要多選手勢。
+ */
+
+/* ---------- 型別註冊 ---------- */
+
+// DOC_METAS 一註冊，物件索引的型別 facet（Object.keys(DOC_METAS)）就自動多一格，不必另外接線。
+DOC_METAS.agenda = {
+  k: 'agenda',
+  nm: '議題',
+  chip: 'c-w',
+  color: 'var(--rq-warn,#f0924f)',
+  secs: ['內文', '結論'],
+  placeholders: ['今天要處理掉的是什麼；# 召喚、@ 引用在這裡照常可用...', '結論、決定與下一步 —— 結案前一定要寫...']
+};
+// TPL 是 applySummon 判斷「這是文件模板」的依據；SUMMON 是 # 選單的來源。
+TPL.agenda = {
+  h: '議題',
+  secs: ['內文', '結論']
+};
+SUMMON[0].items.push({
+  k: 'agenda',
+  nm: '議題',
+  ds: '今天要處理的一件事 · 可排期、討論、附檔、結案',
+  ic: 'flag'
+});
+
+/* ---------- 狀態存取 ---------- */
+
+const agDrafts = new Map();
+
+/** 議題專屬狀態全部收在 doc.agenda 一個物件裡，保存時原樣進 payload.agenda。 */
+function agState(d) {
+  return d.agenda ??= {
+    due: '',
+    bornDay: d.day || TODAY,
+    carried: [],
+    doneAt: 0,
+    watcher: '',
+    msgs: [],
+    files: [],
+    fileIds: [],
+    issueId: ''
+  };
+}
+function agIs(d) {
+  return !!d && d.type === 'agenda';
+}
+function agFind(id) {
+  const d = (DB.docObjects || []).find(x => x.id === id);
+  return agIs(d) ? d : null;
+}
+function agAll() {
+  return (DB.docObjects || []).filter(agIs);
+}
+function agDone(d) {
+  return !!agState(d).doneAt;
+}
+/** 右欄與收工檢查要看的：自己的、還沒結案、而且到期日沒有排到今天之後。 */
+function agOpenToday(who = DB.me) {
+  return agAll().filter(d => d.author === who && !agDone(d) && (!agState(d).due || agState(d).due <= TODAY));
+}
+function agDueLabel(due) {
+  if (!due) return '未排期';
+  if (due === TODAY) return '今天到期';
+  if (due === dadd(TODAY, 1)) return '明天到期';
+  if (due < TODAY) return '逾期 · ' + rqShortDay(due);
+  return rqShortDay(due) + ' 到期';
+}
+/** 結論段有沒有內容。結案要求寫結論，沿用 Thread Close 的紀律。 */
+function agConclusion(d) {
+  const sec = d.secs && d.secs[1];
+  if (!sec) return '';
+  return ensureSecBlocks(sec).filter(b => TEXTY(b.t) && b.text).map(b => b.text.trim()).join('\n').trim();
+}
+
+/* ---------- 建立與升格 ---------- */
+
+/** 母行底下縮排更深的連續文字行＝同一件事。碰到非文字區塊（例如另一張卡）就停。 */
+function agSubtree(b) {
+  const arr = blks(),
+    i = bIdx(b.id),
+    kids = [];
+  if (i < 0) return {
+    arr,
+    i: -1,
+    kids
+  };
+  for (let j = i + 1; j < arr.length; j++) {
+    const x = arr[j];
+    if (!TEXTY(x.t) || (x.ind || 0) <= (b.ind || 0)) break;
+    kids.push(x);
+  }
+  return {
+    arr,
+    i,
+    kids
+  };
+}
+
+/**
+ * 把一行（＋子樹）收成一個議題物件，原本那幾行搬進物件的「內文」段。
+ * opts.apply 在同一個 commit 裡執行，讓升格時 L1 的收尾跟物件的建立是同一筆變更。
+ */
+function agCreate(b, opts = {}) {
+  if (!canWriteJournal()) return null;
+  const title = (b.text || '').trim();
+  if (!title) {
+    toast('先寫下要處理的事，再標成議題');
+    return null;
+  }
+  const {
+    arr,
+    i,
+    kids
+  } = agSubtree(b);
+  if (i < 0) {
+    toast('找不到這一行');
+    return null;
+  }
+  syncAll();
+  let made = null;
+  commit('create', '議題物件', title, () => {
+    const d = createDocObject('agenda', S.jday || TODAY, TPL.agenda);
+    const st = agState(d);
+    st.bornDay = opts.bornDay || S.jday || TODAY;
+    st.due = opts.due || '';
+    st.carried = opts.carried || [];
+    st.issueId = opts.issueId || '';
+    // 內文＝母行＋子樹，縮排改成以母行為基準，物件內看起來才是完整的一段。
+    const body = ensureSecBlocks(d.secs[0]);
+    body.length = 0;
+    body.push({
+      id: newBid(),
+      t: 'p',
+      ind: 0,
+      text: title
+    });
+    kids.forEach(k => body.push({
+      id: newBid(),
+      t: k.t,
+      ind: Math.max(0, (k.ind || 0) - (b.ind || 0)),
+      text: k.text,
+      ...(k.done != null ? {
+        done: k.done
+      } : {})
+    }));
+    // 日誌那幾行換成一張卡；後面補一個空行，維持 replaceWithObj 一樣的書寫節奏。
+    const card = {
+      id: newBid(),
+      t: 'obj',
+      ind: b.ind || 0,
+      obj: {
+        ty: 'doc_object',
+        rid: d.id,
+        bornAt: Date.now()
+      }
+    };
+    const after = {
+      id: newBid(),
+      t: 'p',
+      ind: b.ind || 0,
+      text: ''
+    };
+    arr.splice(i, 1 + kids.length, card, after);
+    focusB(after.id, 0);
+    if (opts.apply) opts.apply(d);
+    made = d;
+    return [`把這一行${kids.length ? `與底下 ${kids.length} 個子項` : ''}收成議題物件`, '可以排到期日、討論、附檔；結案時要寫下結論', '同時進入物件索引，之後查得到'];
+  });
+  return made;
+}
+
+/** 右欄的 L1 議題升格成物件。原行找不到就明說，不要偷偷造一個空物件。 */
+function agPromote(issueId) {
+  const t = DB.todayIssues.find(x => x.id === issueId);
+  if (!t) return;
+  if (t.author !== DB.me) return deny();
+  const b = bOf(t.blockId);
+  if (!b) return toast('這個議題的來源那一行不在目前開著的日誌裡，先切到那一天再升格');
+  agCreate(b, {
+    issueId: t.id,
+    bornDay: t.day,
+    carried: t.deferred ? Array.from({
+      length: t.deferred
+    }, () => t.day) : [],
+    // L1 收掉，右欄才不會同一件事出現兩筆。doneAt 表示「這一層結束了」，實際狀態改看物件。
+    apply: () => {
+      t.doneAt = Date.now();
+    }
+  });
+}
+
+/* ---------- 到期日、延期、結案 ---------- */
+
+function agOwned(d) {
+  return d && d.author === DB.me;
+}
+function agSetDue(id, due) {
+  const d = agFind(id);
+  if (!d) return;
+  if (!agOwned(d)) return deny();
+  const st = agState(d);
+  const next = (due || '').slice(0, 10);
+  commit('update', '議題物件', docObjectName(d), () => {
+    st.due = next;
+    d.updatedAt = Date.now();
+    return [next ? `到期日設為 ${next}` : '清除到期日，回到未排期'];
+  });
+}
+
+/**
+ * 延期。把「今天」記進 carried 再改到期日 —— 舊的 rqDeferToday 是直接覆寫 t.day，
+ * 於是一件被延三次的事看不出它其實是週一提出的（今日議題研究的發現 B）。
+ */
+function agCarryTo(id, day) {
+  const d = agFind(id);
+  if (!d) return;
+  if (!agOwned(d)) return deny();
+  const st = agState(d);
+  const to = day || dadd(TODAY, 1);
+  commit('update', '議題物件', docObjectName(d), () => {
+    (st.carried ??= []).push(TODAY);
+    st.due = to;
+    d.updatedAt = Date.now();
+    return [`延到 ${to}`, `提出於 ${st.bornDay}，已經帶過 ${st.carried.length} 次`];
+  });
+}
+function agComplete(id) {
+  const d = agFind(id);
+  if (!d) return;
+  if (!agOwned(d)) return deny();
+  if (!agConclusion(d)) {
+    openDocPage(id);
+    return toast('結案前先在「結論」寫下決定或下一步');
+  }
+  const st = agState(d);
+  commit('update', '議題物件', docObjectName(d), () => {
+    st.doneAt = Date.now();
+    d.updatedAt = Date.now();
+    return ['議題結案，結論留在物件裡', '從收工檢查與右欄移除'];
+  });
+}
+function agReopen(id) {
+  const d = agFind(id);
+  if (!d) return;
+  if (!agOwned(d)) return deny();
+  const st = agState(d);
+  commit('update', '議題物件', docObjectName(d), () => {
+    st.doneAt = 0;
+    d.updatedAt = Date.now();
+    return ['重新開啟這個議題'];
+  });
+}
+
+/* ---------- 討論與附件 ---------- */
+
+function agSay(id) {
+  const d = agFind(id);
+  if (!d) return;
+  const x = (agDrafts.get(id) || '').trim();
+  if (!x) return toast('先寫點什麼再送出');
+  const st = agState(d);
+  // commit() 自己會 render()，所以要在 commit 之前排好回焦點，否則這一次渲染會吃不到。
+  runtime._afterRender = () => root.querySelector('[data-ag-input="' + id + '"]')?.focus();
+  commit('update', '議題物件', docObjectName(d), () => {
+    st.msgs.push({
+      w: DB.me,
+      x,
+      ts: nowts().slice(0, 5),
+      at: Date.now()
+    });
+    agDrafts.delete(id);
+    d.updatedAt = Date.now();
+    return [`討論累積 ${st.msgs.length} 則`];
+  });
+}
+
+/** 附件沿用既有的上傳管線（DB.files → R2 或本頁記憶體），議題這邊只記 id 與檔名。 */
+function agAttach(id) {
+  const d = agFind(id);
+  if (!d) return;
+  uploadFile(null, f => {
+    const st = agState(d);
+    commit('update', '議題物件', docObjectName(d), () => {
+      st.files.push(f.name);
+      st.fileIds.push(f.id);
+      d.updatedAt = Date.now();
+      return [`附件 ${st.files.length} 個`, '檔案同時進入文件庫'];
+    });
+  });
+}
+
+/* ---------- 畫面：日誌裡的卡片 ---------- */
+
+function agPills(d) {
+  const st = agState(d),
+    out = [];
+  if (st.doneAt) out.push(`<span class="rq-pill done">${svg('check', 11)} 已結案</span>`);else if (st.due) out.push(`<span class="ag-pill ${st.due < TODAY ? 'over' : st.due === TODAY ? 'due' : 'set'}">${svg('calendar', 11)} ${esc(agDueLabel(st.due))}</span>`);else out.push(`<span class="ag-pill soft">${svg('calendar', 11)} 未排期</span>`);
+  if (st.carried.length) out.push(`<span class="ag-pill warn">${svg('refresh', 11)} 帶過 ${st.carried.length} 次</span>`);
+  if (st.msgs.length) out.push(`<span class="ag-pill soft">${svg('message', 11)} ${st.msgs.length}</span>`);
+  if (st.files.length) out.push(`<span class="ag-pill soft">${svg('paperclip', 11)} ${st.files.length}</span>`);
+  return out.join('');
+}
+function agFilesHtml(d) {
+  const st = agState(d);
+  if (!st.files.length) return '';
+  return `<div class="ag-files">${st.files.map((f, i) => st.fileIds[i] ? `<button type="button" class="ag-file" ${bind("click", (event, element) => {
+    openDrawer('file', st.fileIds[i]);
+  })}>${svg('paperclip', 11)} ${esc(f)}</button>` : `<span class="ag-file">${svg('paperclip', 11)} ${esc(f)}</span>`).join('')}</div>`;
+}
+
+/** 討論串：卡片與議題頁共用同一段，只有容器 class 不同。 */
+function agThreadHtml(d, where) {
+  const st = agState(d);
+  const msgs = st.msgs.length ? st.msgs.map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${esc(m.ts || '')}</span><div class="rq-msg-x">${esc(m.x)}</div></div></div>`).join('') : '<div class="rq-empty">還沒有討論</div>';
+  const box = st.doneAt ? '' : `<div class="rq-compose ag-compose">
+    <input data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…" value="${esc(agDrafts.get(d.id) || '')}" ${bind("input", (event, element) => {
+    agDrafts.set(d.id, element.value);
+  })} ${bind("keydown", (event, element) => {
+    if (event.key === 'Enter' && !event.isComposing) {
+      event.preventDefault();
+      agSay(d.id);
+    }
+  })}>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    agAttach(d.id);
+  })}>${svg('paperclip', 12)} 附檔</button>
+    <button class="btn sm pri" ${bind("click", (event, element) => {
+    agSay(d.id);
+  })}>${svg('send', 12)} 送出</button></div>`;
+  // contenteditable="false"：這一段在日誌卡片裡是長在 #doc 內的，不加的話輸入框的
+  // Enter 會冒泡到 docKey()，被當成「在日誌裡換行」處理（同 rq-wrap 的作法）。
+  return `<div class="ag-thread ${where}" contenteditable="false">
+    <div class="ag-sec-t">討論 · ${st.msgs.length}${st.files.length ? ` · 附件 ${st.files.length}` : ''}</div>
+    ${msgs}${agFilesHtml(d)}${box}</div>`;
+}
+
+// 議題卡跟文件物件卡是同一個容器，只換掉頭部的資訊列與底下多一段討論。
+const agBaseCard = renderDocObjectCard;
+renderDocObjectCard = function (b) {
+  const o = b.obj || {},
+    d = (DB.docObjects || []).find(x => x.id === o.rid);
+  if (!agIs(d)) return agBaseCard(b);
+  const meta = metaOf(d),
+    collapsed = !!d.collapsed,
+    st = agState(d);
+  return `
+  <div class="eb-obj eb-doc-card ag-card ${st.doneAt ? 'ag-done' : ''} ${collapsed ? 'collapsed' : 'expanded'}" data-doc-id="${d.id}">
+    <div class="eb-doc-bar">
+      <div class="eb-doc-bar-left" ${bind("click", (event, element) => {
+    toggleDocCollapse(d.id);
+  })}>
+        <span class="chip ${meta.chip}">${svg('flag', 11)} ${meta.nm}</span>
+        <span class="eb-doc-bar-title">${esc(docObjectName(d))}</span>
+        <span class="ag-pills">${agPills(d)}</span>
+      </div>
+      <div class="eb-doc-bar-right">
+        <button type="button" class="eb-doc-toggle-btn" title="${collapsed ? '展開議題' : '收合議題'}" ${bind("click", (event, element) => {
+    event.stopPropagation();
+    toggleDocCollapse(d.id);
+  })}>
+          <span class="eb-doc-btn-lbl">${collapsed ? '展開' : '收合'}</span>
+        </button>
+        <button type="button" class="eb-doc-icon-btn" title="開啟議題頁" ${bind("click", (event, element) => {
+    event.stopPropagation();
+    openDocPage(d.id);
+  })}>${svg('goto', 13)}</button>
+      </div>
+    </div>
+    ${collapsed ? '' : `<div class="eb-doc-inline-body">
+      ${d.secs.map((sec, idx) => renderDocSectionBody(d, sec, idx, meta)).join('')}
+      ${agThreadHtml(d, 'card')}
+    </div>`}
+  </div>`;
+};
+
+/* ---------- 畫面：議題頁（抽屜） ---------- */
+
+function agDueControls(d) {
+  const st = agState(d);
+  if (st.doneAt) return `<b>${esc(st.due ? agDueLabel(st.due) : '未排期')}</b>`;
+  return `<span class="ag-due">
+    <input type="date" class="ag-date" aria-label="到期日" value="${esc(st.due)}" ${bind("change", (event, element) => {
+    agSetDue(d.id, element.value);
+  })}>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    agSetDue(d.id, TODAY);
+  })}>今天</button>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    agSetDue(d.id, dadd(TODAY, 1));
+  })}>明天</button>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    agSetDue(d.id, dadd(TODAY, 3));
+  })}>+3 天</button>
+    ${st.due ? `<button class="btn sm" ${bind("click", (event, element) => {
+    agSetDue(d.id, '');
+  })}>清除</button>` : ''}
+  </span>`;
+}
+const agBaseDrawer = DRAWERS.doc_object;
+DRAWERS.doc_object = id => {
+  const d = agFind(id);
+  if (!d) return agBaseDrawer(id);
+  const meta = metaOf(d),
+    st = agState(d);
+  return {
+    crumb: '日誌 › 議題',
+    title: `<span class="doc-page-title ed" contenteditable="true" data-doc-id="${d.id}" data-ph="輸入議題標題...">${esc(docObjectName(d))}</span>`,
+    sub: `<span class="doc-page-meta">
+        <span class="chip ${meta.chip}">${svg('flag', 11)} ${meta.nm}</span>
+        <span class="ag-ref">${esc(d.id)}</span>
+        <span>${esc(docObjectTimestamp(d))}</span>
+        <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
+      </span>`,
+    body: `
+      <div class="ag-fields">
+        <div class="ag-f"><span class="k">提出</span><span class="v"><b>${esc(st.bornDay || d.day)}</b> · ${esc(person(d.author))}</span></div>
+        <div class="ag-f"><span class="k">到期</span><span class="v">${agDueControls(d)}</span></div>
+        <div class="ag-f"><span class="k">帶過</span><span class="v">${st.carried.length ? `<b>${st.carried.length} 次</b> · ${esc(st.carried.join('、'))}` : '沒有延期過'}</span></div>
+        <div class="ag-f"><span class="k">狀態</span><span class="v">${st.doneAt ? `<span class="rq-pill done">${svg('check', 11)} 已結案</span>` : `<span class="ag-pill due">${svg('dot', 9)} 處理中</span>`}</span></div>
+      </div>
+      <div class="doc-page-workspace">
+        ${d.secs.map((sec, idx) => renderDocSectionBody(d, sec, idx, meta)).join('')}
+      </div>
+      ${agThreadHtml(d, 'page')}
+    `,
+    foot: `
+      ${st.doneAt ? `<button class="btn" ${bind("click", (event, element) => {
+      agReopen(d.id);
+    })}>${svg('refresh', 12)} 重新開啟</button>` : `<button class="btn" ${bind("click", (event, element) => {
+      agCarryTo(d.id, dadd(TODAY, 1));
+    })}>${svg('goto', 12)} 延到明天</button>
+           <button class="btn pri" ${bind("click", (event, element) => {
+      agComplete(d.id);
+    })}>${svg('check', 12)} 完成並結案</button>`}
+      <button class="btn" ${bind("click", (event, element) => {
+      copyDocMarkdown(d.id);
+    })}>${svg('copy', 12)} 複製全文</button>
+      <button class="btn dgr" style="margin-left:auto" ${bind("click", (event, element) => {
+      deleteDocObject(d.id);
+    })}>${svg('trash', 12)} 刪除議題</button>
+    `,
+    after: () => {
+      const titleEl = root.querySelector('.doc-page-title');
+      if (titleEl) titleEl.oninput = () => {
+        d.title = titleEl.innerText.replace(/\n$/, '');
+        d.titleAuto = false;
+        d.updatedAt = Date.now();
+        render();
+      };
+    }
+  };
+};
+
+/* ---------- 畫面：右欄「今日議題」 ---------- */
+
+/** L1 輕量議題的卡：多一顆升格按鈕。文字讀日誌那一行，不用建立當下的快照。 */
+function agL1Card(t) {
+  return `<div class="rq-card today"><div class="rq-card-t">${esc(rqTodayText(t))}</div>
+    <div class="rq-card-m"><span class="ag-pill soft">L1 輕量</span>${t.deferred ? `<span class="rq-pill warn">${svg('refresh', 11)} 從昨天帶來</span>` : ''}
+    <button class="btn sm" ${bind("click", (event, element) => {
+    agPromote(t.id);
+  })}>${svg('flag', 11)} 升格</button>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    rqCompleteToday(t.id);
+  })}>${svg('check', 12)} 完成</button></div></div>`;
+}
+function agL2Card(d) {
+  const st = agState(d);
+  return `<div class="rq-card today ag-rail"><div class="rq-card-t">${esc(docObjectName(d))}</div>
+    <div class="rq-card-m">${agPills(d)}
+    <button class="btn sm" ${bind("click", (event, element) => {
+    openDocPage(d.id);
+  })}>${svg('goto', 11)} 開啟</button>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    agComplete(d.id);
+  })}>${svg('check', 12)} 完成</button></div></div>`;
+}
+
+/** 右欄今日議題整段的內容：物件排前面（有到期日的先），L1 排後面。 */
+function agTodayBody(l1, l2) {
+  const objs = l2.slice().sort((a, b) => (agState(a).due || '9999').localeCompare(agState(b).due || '9999'));
+  const body = objs.map(agL2Card).join('') + l1.map(agL1Card).join('');
+  return body || '<div class="rq-empty">行尾打 !今天 加入；打 !議題 直接建立議題物件</div>';
+}
+
+/* ---------- 收工檢查 ---------- */
+
+/** 收工列：沒排期或到期在今天以前的議題物件，收工時要逐件決定。 */
+function agCloseRows() {
+  return agOpenToday().map(d => `<div class="rq-row"><span class="rq-pill today">${svg('flag', 11)} 議題</span>
+    <span class="rq-row-t">${esc(docObjectName(d))}</span>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    openDocPage(d.id);
+  })}>${svg('goto', 11)} 開啟</button>
+    <button class="btn sm" ${bind("click", (event, element) => {
+    agComplete(d.id);
+    rqOpenClose();
+  })}>${svg('check', 12)} 完成</button>
+    <button class="btn sm pri" ${bind("click", (event, element) => {
+    agCarryTo(d.id, dadd(TODAY, 1));
+    rqOpenClose();
+  })}>${svg('goto', 11)} 明天</button></div>`).join('');
+}
+
+/** 確認收工時，沒動的議題物件跟 L1 一樣自動延到明天，但會留下 carried 紀錄。 */
+function agCarryAllOpen() {
+  const open = agOpenToday();
+  open.forEach(d => {
+    const st = agState(d);
+    (st.carried ??= []).push(TODAY);
+    st.due = dadd(TODAY, 1);
+    d.updatedAt = Date.now();
+  });
+  return open.length;
+}
+
+/* ---------- 命令面板 ---------- */
+
+const agBaseCmdk = buildCmdk;
+buildCmdk = () => {
+  const items = agBaseCmdk();
+  if (space !== 'team') return items;
+  const open = agOpenToday();
+  return [...items, {
+    g: '日誌',
+    t: '今日議題（物件）',
+    s: `${open.length} 件未結案`,
+    h: '議題 agenda 到期 討論 附件',
+    ic: 'flag',
+    run: () => {
+      if (open[0]) openDocPage(open[0].id);else nav('journal', 0);
+    }
+  }];
 };
 
 /* ── 物件索引（日誌第三分頁，取代原「標籤流」）────────────────────────────
@@ -12648,6 +13349,1428 @@ if (OP_LIVE) {
     if (payload && typeof payload.version === 'number') OP_VERSION = payload.version;
   }).catch(() => {});
 }
+
+/* ── 通知匣（右上角鈴鐺）─────────────────────────────────────────────────────
+   @人名 之後多了一種「只是讓他看到」的路徑（replies.source.js 的 kind:'notice'）。
+   那種東西不佔回覆追蹤、不計時，所以它必須有另一個落點，否則送出去就消失了。
+
+   這裡是那個落點：一個站內收件匣，把「跟我有關、但不一定要我做事」的四件事收在一起 ——
+     · 有人 @ 我（只通知）
+     · 有人請我回覆／做決定（還沒回）
+     · 我發出的請求有人回了
+     · 有人在我的日誌行上或整頁留言
+   徽章只數「還沒讀」的前兩類：那兩類背後是 requests 這張表，seenAt 會被保存下來；
+   留言沒有逐人已讀狀態，列出來但不計數，比造一個重整就歸零的紅點誠實。
+
+   同時移除頂欄的密度切換 icon（⌘K 的「切換密度」仍在，設定頁的 ui.density 也還在）。
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* 密度切換：留著行為，收掉頂欄那顆 icon —— extensions.source.js 對 #densBtn 的兩處
+   讀取都有 if(b) 防護，移除之後是 no-op。 */
+root.querySelector('#densBtn')?.remove();
+
+/* 鈴鐺放在資料流右邊、稽核軌跡左邊，沿用 .iconbtn 與 .n 徽章，不自創一套。 */
+(function mountNoticeButton() {
+  if (root.querySelector('#noticeBtn')) return;
+  const audit = root.querySelector('#auditBtn');
+  if (!audit) return;
+  const btn = doc.createElement('button');
+  btn.className = 'iconbtn';
+  btn.id = 'noticeBtn';
+  btn.type = 'button';
+  btn.title = '通知：有人 @ 我、請我回覆，或在我的日誌留言';
+  btn.setAttribute('aria-label', '通知');
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/></svg><i class="n" id="noticeN">0</i>`;
+  btn.addEventListener('click', () => openNotices());
+  audit.before(btn);
+})();
+function ntTime(ms) {
+  if (!ms) return '';
+  const d = new Date(ms),
+    day = rqLocalDay(ms),
+    hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  return day === rqLocalDay(Date.now()) ? hm : rqShortDay(day) + ' ' + hm;
+}
+
+/* 一則通知＝{kind, ref, at, seen, title, text, tone}。ref 是可以跳回去的那筆資料的 id，
+   ntOpen() 用 kind 決定怎麼跳；HTML 只帶字串，不帶閉包。 */
+function ntItems() {
+  const out = [];
+  for (const r of DB.requests) {
+    if (r.kind === 'notice') {
+      if (r.to !== DB.me) continue;
+      out.push({
+        kind: 'notice',
+        ref: r.id,
+        at: r.sentAt,
+        seen: !!r.seenAt,
+        tone: 'notice',
+        title: `${person(r.from)} 提到你`,
+        text: rqText(r)
+      });
+      continue;
+    }
+    if (r.to === DB.me && rqPending(r)) out.push({
+      kind: 'ask',
+      ref: r.id,
+      at: r.sentAt,
+      seen: !!r.seenAt,
+      tone: rqState(r) === 'late' ? 'late' : 'ask',
+      title: `${person(r.from)} 請你${r.kind === 'decision' ? '做決定' : '回覆'}`,
+      text: rqText(r)
+    });else if (r.from === DB.me && r.firstReplyAt && !r.resolvedAt) out.push({
+      kind: 'reply',
+      ref: r.id,
+      at: r.firstReplyAt,
+      seen: true,
+      tone: 'replied',
+      title: `${person(r.to)} 回覆了你`,
+      text: rqText(r)
+    });
+  }
+  for (const c of DB.lineComments) {
+    if (c.author !== DB.me || c.w === DB.me) continue;
+    out.push({
+      kind: 'line',
+      ref: c.id,
+      at: Date.parse(c.day + 'T' + (c.ts || '00:00') + ':00') || 0,
+      seen: true,
+      tone: '',
+      title: `${person(c.w)} 在你 ${rqShortDay(c.day)} 的日誌留言`,
+      text: c.x
+    });
+  }
+  for (const c of DB.journalComments) {
+    if (c.w === DB.me) continue;
+    const day = String(c.parent || '').split(':').pop();
+    out.push({
+      kind: 'page',
+      ref: c.id,
+      at: Date.parse(day + 'T' + (c.ts || '00:00') + ':00') || 0,
+      seen: true,
+      tone: '',
+      title: `${person(c.w)} 在 ${rqShortDay(day)} 的日誌留言`,
+      text: c.x
+    });
+  }
+  return out.sort((a, b) => (b.at || 0) - (a.at || 0));
+}
+function ntUnread() {
+  return ntItems().filter(i => !i.seen).length;
+}
+function openNotices() {
+  openDrawer('notice', 'x', true);
+}
+
+/* 跳到通知指的那個地方。請求類交給 rqJump（它會處理跨日、找不到那一行等情況）；
+   留言類就停在那一天的日誌。 */
+function ntOpen(kind, ref) {
+  if (kind === 'notice' || kind === 'reply') return rqJump(ref);
+  if (kind === 'ask') return rqJump(ref, true);
+  const c = kind === 'line' ? DB.lineComments.find(x => x.id === ref) : DB.journalComments.find(x => x.id === ref);
+  if (!c) return toast('這則留言已不存在');
+  const day = kind === 'line' ? c.day : String(c.parent || '').split(':').pop();
+  closeDrawer();
+  if (space !== 'team') switchSpace('team');
+  saveJournalDraft();
+  if (RQ_DAY.test(day || '')) S.jday = day;
+  journalAuthor = DB.me;
+  nav('journal', 0);
+}
+
+/* 讀過就是讀過：只標記背後有 seenAt 可存的那兩類，留言沒有逐人已讀欄位，不假裝有。 */
+function ntMarkAllSeen() {
+  let n = 0;
+  for (const r of DB.requests) if (r.to === DB.me && !r.seenAt && (r.kind === 'notice' || rqPending(r))) {
+    r.seenAt = Date.now();
+    n++;
+  }
+  if (n) opTouch();
+  return n;
+}
+
+/* 打開就算讀過（徽章歸零），但這一次瀏覽仍要看得出哪幾則是新的 ——
+   所以在標記之前先記下當下的未讀集合，畫面用它來畫圓點。 */
+let ntFresh = new Set();
+const ntKey = i => i.kind + ':' + i.ref;
+DRAWERS.notice = () => {
+  const items = ntItems(),
+    fresh = items.filter(i => ntFresh.has(ntKey(i))).length;
+  const row = i => {
+    const isNew = ntFresh.has(ntKey(i));
+    return `<button class="rq-card nt-card ${i.tone} ${isNew ? '' : 'seen'}" ${bind("click", (event, element) => {
+      ntOpen(i.kind, i.ref);
+    })}>
+   <div class="nt-top"><span class="nt-title">${esc(i.title)}</span><span class="nt-at">${esc(ntTime(i.at))}</span></div>
+   <div class="rq-card-t nt-text">${esc(i.text || '')}</div>
+   <div class="rq-card-m">${isNew ? '<span class="nt-dot" aria-label="新的"></span>' : ''}<span>${esc(NT_LABEL[i.kind] || '')}</span></div>
+  </button>`;
+  };
+  return {
+    crumb: '通知',
+    title: '通知',
+    sub: items.length ? `${items.length} 則${fresh ? ' · ' + fresh + ' 則新的' : ' · 都讀過了'}` : '目前沒有通知',
+    body: items.length ? `<div class="nt-list">${items.map(row).join('')}</div>` : `<div class="empty">還沒有通知。<br><br>在日誌行尾打 <b>@人名</b> 只通知對方（不用回覆）；打 <b>?@人名</b> 才會要求 24 小時內回覆。</div>`,
+    foot: `<button class="btn" ${bind("click", (event, element) => {
+      closeDrawer();
+    })}>關閉</button>`
+  };
+};
+const NT_LABEL = {
+  notice: '只通知 · 不用回覆',
+  ask: '需要你回覆',
+  reply: '你的請求有回覆',
+  line: '行內留言',
+  page: '整頁留言'
+};
+function paintNoticeBadge() {
+  const el = root.querySelector('#noticeN');
+  if (!el) return;
+  const n = space === 'team' ? ntUnread() : 0;
+  el.textContent = n > 99 ? '99+' : String(n);
+  el.style.display = n ? 'grid' : 'none';
+  root.querySelector('#noticeBtn')?.classList.toggle('has-unread', !!n);
+}
+const ntBaseEnhance = enhanceView;
+enhanceView = function () {
+  ntBaseEnhance();
+  paintNoticeBadge();
+};
+
+/* 打開抽屜＝讀過，跟一般收件匣一樣：先記下哪幾則是新的，再標記，最後才畫。 */
+const ntBaseOpenDrawer = openDrawer;
+openDrawer = function (type, id, replace) {
+  if (type === 'notice') {
+    ntFresh = new Set(ntItems().filter(i => !i.seen).map(ntKey));
+    ntMarkAllSeen();
+  }
+  const out = ntBaseOpenDrawer(type, id, replace);
+  if (type === 'notice') paintNoticeBadge();
+  return out;
+};
+buildCmdk = (base => () => [...base(), {
+  g: '訊號',
+  t: '通知',
+  s: '誰 @ 了我、誰請我回覆',
+  h: '誰 @ 了我、誰請我回覆',
+  ic: 'goto',
+  run: openNotices
+}])(buildCmdk);
+
+/* ==================================================================
+   金流三面：收單 / 帳務 / 洞察（RES-032 · Owner 決策 2026-09-25）
+
+   六個等權分頁 → 三面 × 三分頁，角色決定預設落點：
+     負責人 → 帳務 · 帳本；成員 → 收單 · 收件匣。
+
+   一筆錢的生命週期：① 進件 → ② 待歸帳 → ③ 已入帳 → ④ 已勾稽 → ⑤ 已結帳
+   ①② 存在 DB.intake；③④⑤ 由既有資料推導（銀行明細 m 指向交易、該月已結帳），
+   不另存狀態欄 —— 存了就會和它的來源不一致。
+
+   收單面只能把東西推到 ②，不能直接產生交易：成員不需要懂類別。
+   月結後金額、日期、歸屬唯讀；可以加註、補憑證（伺服器同樣擋，見 applyTransaction）。
+   ================================================================== */
+
+if (!Array.isArray(DB.intake)) DB.intake = [];
+if (!Array.isArray(DB.periods)) DB.periods = [];
+const CF_TABS = [['inbox', '收件匣'], ['mine', '我的報帳'], ['vault', '憑證庫'], ['ledger', '帳本'], ['recon', '對帳'], ['close', '月結'], ['company', '公司'], ['project', '專案'], ['people', '人事']];
+const CF_FACES = [{
+  id: 'intake',
+  nm: '收單',
+  sub: '每天 · 全員',
+  from: 0
+}, {
+  id: 'books',
+  nm: '帳務',
+  sub: '每週 · 記帳',
+  from: 3
+}, {
+  id: 'insight',
+  nm: '洞察',
+  sub: '每月 · 決策',
+  from: 6
+}];
+/** 舊的六分頁索引 → 新索引。訊號、指令面板、其他模組的連結都還在用舊索引。 */
+const CF_LEGACY = {
+  1: 6,
+  2: 4,
+  3: 1,
+  4: 8,
+  5: 7
+};
+const CF_MAX_BYTES = 5 * 1024 * 1024;
+const CF_FILE_TYPES = /\.(png|jpe?g|webp|pdf)$/i;
+const cfWb = WB.find(w => w.id === 'money');
+if (cfWb) {
+  cfWb.tabs = CF_TABS.map(t => t[1]);
+  cfWb.rule = '主操作面：收單每天、帳務每週、洞察每月';
+}
+S.cfFaceTab = S.cfFaceTab || {};
+S.cfFilter = S.cfFilter || 'all';
+S.cfDraft = S.cfDraft || {};
+function cfKey() {
+  return (CF_TABS[S.tab] || CF_TABS[0])[0];
+}
+function cfIdx(k) {
+  return CF_TABS.findIndex(t => t[0] === k);
+}
+function cfFace() {
+  return CF_FACES[Math.floor((S.tab || 0) / 3)] || CF_FACES[0];
+}
+function cfLanding() {
+  return isOwner() ? cfIdx('ledger') : cfIdx('inbox');
+}
+const cfBaseRedirect = opRedirect;
+opRedirect = (wb, tab) => {
+  const r = cfBaseRedirect(wb, tab);
+  if (r[0] === 'money') {
+    const t = r[1] || 0;
+    r[1] = t === 0 ? cfLanding() : t in CF_LEGACY ? CF_LEGACY[t] : t;
+  }
+  return r;
+};
+
+/** 面內導覽不經過 opRedirect：新索引不需要、也不能被當成舊索引再轉一次。 */
+function cfGo(k, extra) {
+  if (extra) Object.assign(S, extra);
+  saveJournalDraft();
+  S.wb = 'money';
+  S.tab = cfIdx(k);
+  closeDrawer(true);
+  renderRail();
+  render();
+  const surface = $('#surface');
+  if (surface) surface.scrollTop = 0;
+}
+function cfFaceGo(id) {
+  const f = CF_FACES.find(x => x.id === id);
+  const last = S.cfFaceTab[id];
+  cfGo(CF_TABS[last != null ? last : f.from][0]);
+}
+
+/* ---------- 期間 ---------- */
+function cfMonth() {
+  return S.cfMonth || TODAY.slice(0, 7);
+}
+function cfMonthLabel(m) {
+  return m.slice(0, 4) + ' 年 ' + Number(m.slice(5)) + ' 月';
+}
+function cfMonths() {
+  const set = new Set([TODAY.slice(0, 7)]);
+  DB.txns.forEach(t => t.d && set.add(t.d.slice(0, 7)));
+  DB.bank.forEach(b => b.d && set.add(b.d.slice(0, 7)));
+  DB.periods.forEach(p => set.add(p.id));
+  return [...set].filter(m => /^\d{4}-\d{2}$/.test(m)).sort().reverse();
+}
+function cfPeriod(m) {
+  return DB.periods.find(p => p.id === m);
+}
+function cfLocked(m) {
+  return cfPeriod(m)?.st === 'closed';
+}
+function cfTxLocked(t) {
+  return !!t && !!t.d && cfLocked(t.d.slice(0, 7));
+}
+function cfSetMonth(m) {
+  S.cfMonth = m;
+  S.cfLockAsk = false;
+  render();
+}
+function cfPeriodBar() {
+  const m = cfMonth(),
+    locked = cfLocked(m);
+  return `<span class="cf-period"><select aria-label="期間" ${bind("change", (event, element) => {
+    cfSetMonth(element.value);
+  })}>${cfMonths().map(x => `<option value="${x}" ${x === m ? 'selected' : ''}>${cfMonthLabel(x)}</option>`).join('')}</select>${locked ? `<span class="chip c-n">${svg('lock', 11)} 已結帳</span>` : '<span class="chip c-o">未結帳</span>'}</span>`;
+}
+
+/* ---------- 共用判斷 ---------- */
+const cfMatched = t => DB.bank.some(b => b.m === t.id);
+function cfStage(t) {
+  if (cfTxLocked(t)) return '<span class="chip c-n">⑤ 已結帳</span>';
+  if (cfMatched(t)) return '<span class="chip c-t">④ 已勾稽</span>';
+  return '<span class="chip c-p">③ 已入帳</span>';
+}
+const cfReimbOf = x => x.reimb ? DB.reimb.find(r => r.id === x.reimb) : null;
+/** 待歸帳：已送出、而且（沒有報帳，或報帳已核准）。等核准的還不能歸帳。 */
+function cfUnfiled() {
+  return DB.intake.filter(x => x.st === 'unfiled' && (!x.reimb || ['已核', '已付'].includes(cfReimbOf(x)?.st)));
+}
+const cfApprovals = () => DB.reimb.filter(r => r.st === '已送');
+const cfProjLabel = p => !p || p === '公司層級' ? '公司層級' : P(p) ? P(p).t : p;
+const cfProjOptions = () => [...(isOwner() ? DB.projects.map(p => p.id) : myProjects()), '公司層級'];
+function cfBadge(face) {
+  if (face === 'intake') return isOwner() ? cfApprovals().length : DB.intake.filter(x => x.who === DB.me && x.st === 'draft').length;
+  if (face === 'books' && isOwner()) return cfUnfiled().length + DB.bank.filter(b => !b.m && b.d.slice(0, 7) === cfMonth()).length;
+  return 0;
+}
+function cfEmpty(title, body, actions) {
+  return `<div class="panel cf-empty"><h3>${title}</h3><p>${body}</p>${actions ? `<div class="cf-empty-act">${actions}</div>` : ''}</div>`;
+}
+function cfBoundary(title, body) {
+  return `<div class="panel cf-empty"><h3>${svg('lock', 14)} ${title}</h3><p>${body}</p><div class="cf-empty-act"><button class="btn pri" ${bind("click", (event, element) => {
+    cfGo('inbox');
+  })}>回到收件匣</button></div></div>`;
+}
+
+/* ---------- 面切換器 ---------- */
+function cfPaintTabs() {
+  const tabs = $('#tabs');
+  if (!tabs) return;
+  if (S.wb !== 'money') {
+    tabs.classList.remove('cf-tabs');
+    return;
+  }
+  const face = cfFace();
+  S.cfFaceTab[face.id] = S.tab;
+  tabs.classList.add('cf-tabs');
+  tabs.innerHTML = `<div class="cf-faces" role="tablist" aria-label="金流的三個面">${CF_FACES.map(f => {
+    const n = cfBadge(f.id);
+    return `<button class="cf-face ${f.id === face.id ? 'on' : ''}" role="tab" aria-selected="${f.id === face.id}" ${bind("click", (event, element) => {
+      cfFaceGo(f.id);
+    })}><b>${f.nm}</b><small>${f.sub}</small>${n ? `<i class="cf-bdg">${n}</i>` : ''}</button>`;
+  }).join('')}</div><div class="cf-subtabs" role="tablist" aria-label="${face.nm}">${[0, 1, 2].map(i => {
+    const idx = face.from + i;
+    return `<button class="tab ${S.tab === idx ? 'on' : ''}" role="tab" aria-selected="${S.tab === idx}" ${bind("click", (event, element) => {
+      setTab(idx);
+    })}>${CF_TABS[idx][1]}</button>`;
+  }).join('')}</div>`;
+}
+const cfBaseEnhance = enhanceView;
+enhanceView = function () {
+  cfBaseEnhance();
+  cfPaintTabs();
+};
+
+/* ---------- 檔案：R2（database 模式）或頁面記憶體（prototype 模式） ---------- */
+async function cfReadFile(file) {
+  if (file.size > CF_MAX_BYTES) throw Error('檔案上限 5 MB');
+  if (!CF_FILE_TYPES.test(file.name)) throw Error('請上傳 JPG、PNG、WEBP 或 PDF');
+  const meta = {
+    name: file.name,
+    type: file.type,
+    bytes: file.size,
+    at: TODAY + ' ' + nowts(),
+    by: DB.me
+  };
+  if (OP_LIVE) {
+    const signed = await presignUpload(file);
+    await putToR2(signed.uploadUrl, file);
+    return {
+      ...meta,
+      objectKey: signed.objectKey
+    };
+  }
+  const data = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+  return {
+    ...meta,
+    data
+  };
+}
+function cfPick(camera, onFile) {
+  const input = doc.createElement('input');
+  input.type = 'file';
+  input.accept = camera ? 'image/*' : '.png,.jpg,.jpeg,.webp,.pdf';
+  if (camera) input.setAttribute('capture', 'environment');
+  input.style.display = 'none';
+  root.append(input);
+  input.onchange = () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (file) onFile(file);
+  };
+  input.click();
+}
+function cfFileTile(f, key) {
+  const pid = 'cfImg-' + key;
+  const isImage = /^image\//.test(f.type || '') || /\.(png|jpe?g|webp)$/i.test(f.name || '');
+  if (isImage && f.objectKey) {
+    setTimeout(() => paintFilePreview(pid, f.objectKey), 0);
+    return `<img id="${pid}" class="cf-thumb" alt="${esc(f.name)}">`;
+  }
+  if (isImage && f.data) return `<img class="cf-thumb" src="${f.data}" alt="${esc(f.name)}">`;
+  return `<span class="cf-thumb cf-doc">${svg('file', 18)}<em>${esc((f.name || '').split('.').pop() || '檔案')}</em></span>`;
+}
+async function cfOpenFile(f) {
+  try {
+    if (f.objectKey) {
+      const res = await fetch('/api/company/operating/uploads?key=' + encodeURIComponent(f.objectKey));
+      if (!res.ok) throw Error('取得檔案失敗');
+      const {
+        downloadUrl
+      } = await res.json();
+      window.open(downloadUrl, '_blank', 'noopener');
+    } else if (f.data) window.open(f.data, '_blank', 'noopener');
+  } catch (e) {
+    toast(esc(e.message));
+  }
+}
+
+/* ==================================================================
+   面 A：收單
+   ================================================================== */
+async function cfIngest(file) {
+  try {
+    toast(OP_LIVE ? '上傳中…' : '讀取中…');
+    const f = await cfReadFile(file);
+    if (!active) return;
+    const x = {
+      id: nid('INT'),
+      who: DB.me,
+      t: file.name.replace(/\.[^.]+$/, '').slice(0, 40) || '收據',
+      amt: null,
+      d: TODAY,
+      p: '',
+      st: 'draft',
+      file: f,
+      reimb: '',
+      txn: '',
+      at: Date.now()
+    };
+    S.cfEditing = x.id;
+    S.cfDraft[x.id] = {};
+    commit('create', '收件', x.t, () => {
+      DB.intake.unshift(x);
+      return ['收件匣 +1 · 補上金額與歸屬就能送出'];
+    }, () => {
+      DB.intake = DB.intake.filter(y => y.id !== x.id);
+    });
+    if (!(S.wb === 'money' && cfKey() === 'inbox')) cfGo('inbox');
+    setTimeout(() => getById('cfAmt-' + x.id)?.focus(), 0);
+  } catch (e) {
+    toast(esc(e.message));
+  }
+}
+function cfDrop(e, el) {
+  e.preventDefault();
+  el.classList.remove('over');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) cfIngest(file);
+}
+function cfMissing(x) {
+  const miss = [];
+  if (x.amt == null || x.amt === '') miss.push('金額');
+  if (!x.p) miss.push('歸屬');
+  return miss;
+}
+function cfReadDraft(id) {
+  const d = S.cfDraft[id] || (S.cfDraft[id] = {});
+  const amt = getById('cfAmt-' + id),
+    t = getById('cfTitle-' + id);
+  if (amt) d.amt = amt.value;
+  if (t) d.t = t.value;
+  return d;
+}
+function cfEdit(id) {
+  S.cfEditing = id;
+  S.cfDraft[id] = {};
+  S.cfErr = '';
+  render();
+  setTimeout(() => getById('cfAmt-' + id)?.focus(), 0);
+}
+function cfCancel() {
+  S.cfEditing = null;
+  S.cfErr = '';
+  render();
+}
+function cfPickProj(id, p) {
+  cfReadDraft(id).p = p;
+  S.cfErr = '';
+  render();
+}
+function cfSubmit(id) {
+  const x = DB.intake.find(y => y.id === id);
+  if (!x || x.who !== DB.me) return deny();
+  const d = cfReadDraft(id);
+  const raw = String(d.amt != null ? d.amt : x.amt ?? '').replace(/[^\d]/g, '');
+  const amt = raw ? Number(raw) : null;
+  const p = d.p || x.p;
+  const t = (d.t != null ? d.t : x.t).trim() || x.t;
+  const miss = [];
+  if (!amt) miss.push('金額');
+  if (!p) miss.push('歸屬');
+  if (miss.length) {
+    S.cfErr = '還差' + miss.join('與') + '。';
+    render();
+    return;
+  }
+  const before = {
+    ...x
+  };
+  const r = isOwner() ? null : {
+    id: nid('RMB'),
+    who: DB.me,
+    t,
+    amt,
+    st: '已送',
+    d: x.d || TODAY
+  };
+  S.cfEditing = null;
+  S.cfErr = '';
+  commit('update', '收件', t + ' 送出', () => {
+    Object.assign(x, {
+      amt,
+      p,
+      t,
+      st: 'unfiled'
+    });
+    if (r) {
+      DB.reimb.unshift(r);
+      x.reimb = r.id;
+    }
+    return r ? ['已送出，等負責人核准代墊', '核准後進入帳本的待歸帳'] : ['已送出 → 帳本的<b>待歸帳</b>'];
+  }, () => {
+    Object.assign(x, before);
+    if (r) DB.reimb = DB.reimb.filter(y => y.id !== r.id);
+  });
+  toast(r ? '已送出，等負責人核准' : '已送出，出現在帳本的待歸帳');
+}
+function cfDiscard(id) {
+  const x = DB.intake.find(y => y.id === id);
+  if (!x || x.st !== 'draft' || x.who !== DB.me && !isOwner()) return deny();
+  const i = DB.intake.indexOf(x);
+  S.cfEditing = null;
+  commit('delete', '收件', x.t, () => {
+    DB.intake.splice(i, 1);
+    return ['收件匣 −1'];
+  }, () => DB.intake.splice(i, 0, x));
+}
+function cfAttach(id) {
+  const t = TX(id);
+  if (!t || !(isOwner() || t.author === DB.me)) return deny();
+  cfPick(false, async file => {
+    try {
+      toast(OP_LIVE ? '上傳中…' : '讀取中…');
+      const f = await cfReadFile(file);
+      if (!active) return;
+      const beforeFiles = t.files,
+        beforeV = t.v.slice();
+      commit('update', '憑證', t.t + ' ＋' + f.name, () => {
+        t.files = [...(t.files || []), f];
+        if (!t.v.length) t.v.push(/pdf$/i.test(f.name) ? '發票' : '收據');
+        return [`交易 <b>${esc(t.t)}</b> 附上憑證檔`, '離開「缺憑證」清單'];
+      }, () => {
+        t.files = beforeFiles;
+        t.v = beforeV;
+      });
+      if (S.stack.length) paintDrawer();
+    } catch (e) {
+      toast(esc(e.message));
+    }
+  });
+}
+function cfDropzone() {
+  return `<div class="cf-drop" ${bind("dragover", (event, element) => {
+    event.preventDefault();
+    element.classList.add('over');
+  })} ${bind("dragleave", (event, element) => {
+    element.classList.remove('over');
+  })} ${bind("drop", (event, element) => {
+    cfDrop(event, element);
+  })}>
+    <p>把收據或發票拖到這裡，分類是之後的事</p>
+    <div class="cf-drop-act"><button class="btn pri" ${bind("click", (event, element) => {
+    cfPick(true, cfIngest);
+  })}>拍照</button><button class="btn" ${bind("click", (event, element) => {
+    cfPick(false, cfIngest);
+  })}>${svg('paperclip', 13)} 選檔案</button></div>
+    <span class="cf-muted">JPG、PNG、WEBP、PDF · 5 MB 以內${OP_LIVE ? '' : ' · 示範模式：檔案只存在本頁記憶體'}</span></div>`;
+}
+function cfDraftForm(x) {
+  const d = S.cfDraft[x.id] || {};
+  const amt = d.amt != null ? d.amt : x.amt ?? '';
+  const p = d.p || x.p;
+  const title = d.t != null ? d.t : x.t;
+  return `<div class="cf-form">
+    <label class="cf-field">金額（NT$）<input id="cfAmt-${x.id}" inputmode="numeric" value="${esc(amt)}" placeholder="例如 1490"></label>
+    <label class="cf-field">這是什麼<input id="cfTitle-${x.id}" value="${esc(title)}" placeholder="例如 高鐵 台北→台中"></label>
+    <div class="cf-field">歸屬<div class="chipset">${cfProjOptions().map(o => `<button type="button" class="${p === o ? 'on' : ''}" ${bind("click", (event, element) => {
+    cfPickProj(x.id, o);
+  })}>${esc(cfProjLabel(o))}</button>`).join('')}</div></div>
+    ${S.cfErr ? `<div class="cf-err" role="alert">${S.cfErr}</div>` : ''}
+    <div class="cf-form-act"><button class="btn pri" ${bind("click", (event, element) => {
+    cfSubmit(x.id);
+  })}>送出</button><button class="btn" ${bind("click", (event, element) => {
+    cfCancel();
+  })}>取消</button><button class="btn dgr" style="margin-left:auto" ${bind("click", (event, element) => {
+    cfDiscard(x.id);
+  })}>${svg('trash', 12)}</button></div></div>`;
+}
+function cfSentStatus(x) {
+  const r = cfReimbOf(x);
+  if (x.st === 'posted') return r && r.st === '已付' ? '<span class="chip c-o">已付款</span>' : '<span class="chip c-p">已入帳</span>';
+  if (r && r.st === '已送') return '<span class="chip c-i">等待核准</span>';
+  return '<span class="chip c-w">已核准 · 待歸帳</span>';
+}
+function cfInboxView() {
+  const own = DB.intake.filter(x => x.who === DB.me);
+  const drafts = own.filter(x => x.st === 'draft');
+  const sent = own.filter(x => x.st !== 'draft' && x.st !== 'discarded').slice(0, 12);
+  const missing = DB.txns.filter(t => !t.v.length && t.author === DB.me);
+  let h = cfDropzone();
+  if (isOwner()) {
+    const ap = cfApprovals();
+    h += panel('需要你核准', ap.length ? ap.length + ' 筆代墊' : '', ap.length ? `<div class="rows">${ap.map(r => {
+      const x = DB.intake.find(y => y.reimb === r.id);
+      return `<div class="row cf-li"><span class="m">${(r.d || '').slice(5)}</span><span class="t">${esc(r.t)}<small>${person(r.who)} 代墊${x && x.p ? ' · ' + esc(cfProjLabel(x.p)) : ''}</small></span><span class="n">${nt(r.amt)}</span><button class="btn sm pri" ${bind("click", (event, element) => {
+        event.stopPropagation();
+        advReimb(r.id);
+      })}>核准</button></div>`;
+    }).join('')}</div>` : '<div class="empty">沒有等你核准的代墊</div>', '', true);
+  }
+  h += panel('待補', drafts.length ? drafts.length + ' 筆' : '', drafts.length ? `<div class="rows">${drafts.map(x => {
+    const miss = cfMissing(x);
+    return `<div class="cf-item">${x.file ? cfFileTile(x.file, x.id) : `<span class="cf-thumb cf-doc">${svg('file', 18)}</span>`}
+      <div class="cf-item-b"><div class="cf-item-t"><b>${esc(x.t)}</b>${x.amt != null ? `<span class="n">${nt(x.amt)}</span>` : ''}</div>
+      <div class="cf-muted">${miss.length ? `<span class="cf-need">缺${miss.join('、')}</span> · ` : ''}${(x.d || '').slice(5)}</div>
+      ${S.cfEditing === x.id ? cfDraftForm(x) : ''}</div>
+      ${S.cfEditing === x.id ? '' : `<button class="btn sm pri" ${bind("click", (event, element) => {
+      cfEdit(x.id);
+    })}>補齊</button>`}</div>`;
+  }).join('')}</div>` : '<div class="empty">沒有要補的單據</div>', '', true);
+  if (missing.length) h += panel('需要你補憑證', missing.length + ' 筆交易', `<div class="rows">${missing.map(t => `<div class="row cf-li"><span class="m">${t.d.slice(5)}</span><span class="t">${esc(t.t)}<small>缺原始憑證，沒有入帳依據</small></span><span class="n">${nt(t.amt)}</span><button class="btn sm" ${bind("click", (event, element) => {
+    event.stopPropagation();
+    cfAttach(t.id);
+  })}>上傳</button></div>`).join('')}</div>`, '', true);
+  if (sent.length) h += panel('最近送出', '', `<div class="rows">${sent.map(x => `<div class="row cf-li"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${esc(cfProjLabel(x.p))}</small></span><span class="n">${x.amt != null ? nt(x.amt) : '—'}</span>${cfSentStatus(x)}</div>`).join('')}</div>`, '', true);
+  return h;
+}
+
+/** 核准代墊不再自動以「公司層級／場地」寫進帳本：它進待歸帳，由記帳者補類別。 */
+const cfBaseAdvReimb = advReimb;
+advReimb = id => {
+  const r = DB.reimb.find(x => x.id === id);
+  if (!r) return;
+  if (RSTEPS[RSTEPS.indexOf(r.st) + 1] !== '已核') return cfBaseAdvReimb(id);
+  if (!isOwner()) return deny();
+  const linked = DB.intake.find(x => x.reimb === id);
+  const x = linked ? null : {
+    id: nid('INT'),
+    who: r.who,
+    t: r.t,
+    amt: r.amt,
+    d: r.d || TODAY,
+    p: '',
+    st: 'unfiled',
+    file: null,
+    reimb: r.id,
+    txn: '',
+    at: Date.now()
+  };
+  commit('update', '報帳狀態', r.t + ' → 已核', () => {
+    r.st = '已核';
+    if (x) DB.intake.unshift(x);
+    return ['核准 → 進入帳本的<b>待歸帳</b>，補上類別後入帳'];
+  }, () => {
+    r.st = '已送';
+    if (x) DB.intake = DB.intake.filter(y => y.id !== x.id);
+  });
+};
+function cfMineView() {
+  const list = DB.reimb.filter(r => isOwner() || r.who === DB.me);
+  const steps = RSTEPS;
+  if (!list.length) return cfEmpty('還沒有報帳', '自己代墊的費用，從收件匣交出來就會出現在這裡，看得到走到哪一步。', `<button class="btn pri" ${bind("click", (event, element) => {
+    cfGo('inbox');
+  })}>前往收件匣</button>`);
+  return panel(isOwner() ? '報帳' : '我的報帳', '待送 → 已送 → 已核 → 已付', `<div class="rows">${list.map(r => {
+    const i = steps.indexOf(r.st);
+    const canAdvance = r.st === '待送' ? r.who === DB.me : isOwner() && r.st !== '已付';
+    return `<div class="row cf-li" ${bind("click", (event, element) => {
+      (r.who === DB.me ? (event, element) => {
+        formReimb(r.id);
+      } : (event, element) => {})(event, element);
+    })}><span class="m">${(r.d || '').slice(5)}</span><span class="t">${esc(r.t)}${isOwner() ? `<small>${person(r.who)}</small>` : ''}</span><span class="cf-steps">${steps.map((s, j) => `<i class="${j < i ? 'past' : j === i ? 'on' : ''}">${s}</i>`).join('')}</span><span class="n">${nt(r.amt)}</span>${canAdvance ? `<button class="btn sm" ${bind("click", (event, element) => {
+      event.stopPropagation();
+      advReimb(r.id);
+    })}>${r.st === '待送' ? '送出' : r.st === '已核' ? '標記已付' : '推進'}</button>` : '<span></span>'}</div>`;
+  }).join('')}</div>`, '', true) + `<div class="note" style="margin-top:10px">給外包、接案者的外部報帳連結尚未開放；目前由成員從收件匣交單。</div>`;
+}
+function cfVaultView() {
+  const m = cfMonth();
+  const txns = DB.txns.filter(t => t.d.slice(0, 7) === m);
+  const missing = txns.filter(t => !t.v.length);
+  const tiles = [];
+  txns.forEach(t => (t.files || []).forEach((f, i) => tiles.push({
+    f,
+    key: t.id + '-' + i,
+    label: t.t,
+    sub: t.d.slice(5) + ' · ' + nt(t.amt),
+    open: `openDrawer('txn','${t.id}')`
+  })));
+  DB.intake.filter(x => x.file && x.st !== 'posted' && x.st !== 'discarded' && (isOwner() || x.who === DB.me)).forEach(x => tiles.push({
+    f: x.file,
+    key: x.id,
+    label: x.t,
+    sub: x.st === 'draft' ? '待補' : '待歸帳',
+    open: `cfGo('inbox')`
+  }));
+  const labelOnly = txns.filter(t => t.v.length && !(t.files || []).length).length;
+  let h = `<div class="cf-bar">${cfPeriodBar()}</div>`;
+  if (missing.length) h += `<div class="hint w" style="margin-bottom:12px">${svg('bolt', 13)}<div><b>${missing.length} 筆交易缺原始憑證</b>：${missing.map(t => `<span class="lnk" ${bind("click", (event, element) => {
+    cfAttach(t.id);
+  })}>${esc(t.t)}</span>`).join('、')}。點名稱直接上傳。</div></div>`;
+  if (!tiles.length && !labelOnly) return h + cfEmpty('這個月還沒有憑證', '收件匣交出的收據、帳本補上的發票都會收在這裡。', `<button class="btn pri" ${bind("click", (event, element) => {
+    cfGo('inbox');
+  })}>前往收件匣</button>`);
+  h += panel('憑證檔案', tiles.length + ' 份', tiles.length ? `<div class="cf-vault">${tiles.map(v => `<button class="cf-vch" ${bind("click", (event, element) => {
+    ((event, element) => v.open(event, element))(event, element);
+  })}>${cfFileTile(v.f, v.key)}<b>${esc(v.label)}</b><span>${esc(v.sub)}</span></button>`).join('')}</div>` : '<div class="empty">這個月還沒有上傳的檔案</div>');
+  if (labelOnly) h += `<div class="note" style="margin-top:10px">另有 ${labelOnly} 筆交易只標了憑證種類、沒有檔案 —— 從交易抽屜可以補上檔案。</div>`;
+  return h;
+}
+
+/* ==================================================================
+   面 B：帳務
+   ================================================================== */
+const CF_FILTERS = {
+  all: ['全部', () => true],
+  unrec: ['未勾稽', t => !cfMatched(t)],
+  novch: ['缺憑證', t => !t.v.length],
+  income: ['收入', t => t.amt > 0],
+  expense: ['支出', t => t.amt < 0]
+};
+function cfSetFilter(k) {
+  S.cfFilter = k;
+  render();
+}
+function cfFileStart(id) {
+  S.cfFiling = id;
+  render();
+}
+function cfFilePick(id, p) {
+  (S.cfDraft[id] || (S.cfDraft[id] = {})).p = p;
+  render();
+}
+function cfFile(id, cat) {
+  if (!isOwner()) return deny();
+  const x = DB.intake.find(y => y.id === id);
+  if (!x) return;
+  const p = x.p || S.cfDraft[id]?.p;
+  if (!p) return toast('先選歸屬');
+  const d = x.d || TODAY;
+  if (cfLocked(d.slice(0, 7))) return toast(cfMonthLabel(d.slice(0, 7)) + ' 已結帳，請先解鎖或改日期');
+  const t = {
+    id: nid('TXN'),
+    d,
+    t: x.t,
+    p,
+    cat,
+    amt: -Math.abs(Number(x.amt) || 0),
+    pass: false,
+    v: x.file ? ['收據'] : [],
+    files: x.file ? [x.file] : [],
+    note: '由收件 ' + x.id + (x.reimb ? ' · 報帳 ' + x.reimb : '')
+  };
+  const r = cfReimbOf(x);
+  S.cfFiling = null;
+  commit('create', '交易（歸帳）', x.t, () => {
+    DB.txns.unshift(t);
+    Object.assign(x, {
+      st: 'posted',
+      txn: t.id,
+      p
+    });
+    if (r) r.txn = t.id;
+    return [`${esc(x.t)} → <b>${cat}</b> 入帳 ${nt(t.amt)}`, ...(p.startsWith('PRJ') ? effProject(p) : ['公司層級支出，不進入任何專案毛利'])];
+  }, () => {
+    DB.txns = DB.txns.filter(y => y.id !== t.id);
+    Object.assign(x, {
+      st: 'unfiled',
+      txn: ''
+    });
+    if (r) r.txn = null;
+  });
+}
+function cfUnfiledStrip() {
+  const list = cfUnfiled();
+  if (!list.length) return '';
+  const cats = CATS.filter(c => c !== '收入');
+  return `<div class="cf-strip"><div class="cf-strip-h"><b>待歸帳 ${list.length}</b><span>補上類別就會進帳本</span></div>${list.map(x => {
+    const p = x.p || S.cfDraft[x.id]?.p;
+    const filing = S.cfFiling === x.id;
+    return `<div class="cf-strip-i"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${person(x.who)} · ${p ? esc(cfProjLabel(p)) : '<span class="cf-need">未選歸屬</span>'}${x.file ? ` · <span class="lnk" ${bind("click", (event, element) => {
+      cfOpenIntakeFile(x.id);
+    })}>看憑證</span>` : ''}</small></span><span class="n">${nt(-Math.abs(Number(x.amt) || 0))}</span>
+      ${filing ? `<span class="cf-strip-pick">${!x.p ? `<span class="chipset">${cfProjOptions().map(o => `<button type="button" class="${p === o ? 'on' : ''}" ${bind("click", (event, element) => {
+      cfFilePick(x.id, o);
+    })}>${esc(cfProjLabel(o))}</button>`).join('')}</span>` : ''}<span class="chipset">${cats.map(c => `<button type="button" ${bind("click", (event, element) => {
+      cfFile(x.id, c);
+    })}>${c}</button>`).join('')}</span><button class="btn sm" ${bind("click", (event, element) => {
+      cfFileStart(null);
+    })}>取消</button></span>` : `<button class="btn sm pri" ${bind("click", (event, element) => {
+      cfFileStart(x.id);
+    })}>歸帳</button>`}</div>`;
+  }).join('')}</div>`;
+}
+function cfOpenIntakeFile(id) {
+  const x = DB.intake.find(y => y.id === id);
+  if (x?.file) cfOpenFile(x.file);
+}
+function cfLedgerView() {
+  if (!isOwner()) return cfBoundary('帳務由負責人處理', '帳本、對帳與月結是記帳的工作。你交出的單據核准後會出現在這裡等待歸帳，你不需要選類別。');
+  const m = cfMonth(),
+    locked = cfLocked(m);
+  const rows = DB.txns.filter(t => t.d.slice(0, 7) === m);
+  const f = CF_FILTERS[S.cfFilter] ? S.cfFilter : 'all';
+  const shown = rows.filter(CF_FILTERS[f][1]).sort((a, b) => a.d < b.d ? 1 : -1);
+  const sum = rows.filter(t => !t.pass).reduce((a, b) => a + b.amt, 0);
+  const bar = `<div class="cf-bar">${cfPeriodBar()}<div class="seg">${Object.entries(CF_FILTERS).map(([k, [nm]]) => `<button class="${f === k ? 'on' : ''}" ${bind("click", (event, element) => {
+    cfSetFilter(k);
+  })}>${nm}</button>`).join('')}</div><span class="sp"></span><button class="btn pri" ${bind("click", (event, element) => {
+    formTxn();
+  })}>${svg('plus')} 新增交易</button></div>`;
+  let h = bar + cfUnfiledStrip();
+  if (!rows.length) return h + cfEmpty('帳本的每一列就是一張傳票', `${cfMonthLabel(m)} 還沒有交易。從上方待歸帳挑一筆，或直接新增。`, `<button class="btn pri" ${bind("click", (event, element) => {
+    formTxn();
+  })}>${svg('plus')} 新增交易</button>`);
+  h += panel('交易內帳', locked ? '已結帳 · 可加註與補憑證，金額、日期、歸屬唯讀' : '點一列開抽屜 · 雙擊摘要、類別或金額可直接改', `<div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>日期</th><th>摘要</th><th>專案</th><th>類別</th><th class="num">金額</th><th>代收付</th><th>憑證</th><th>狀態</th><th></th></tr></thead>
+    <tbody>${shown.map(t => `<tr data-tx="${t.id}" class="${S.selTxn === t.id ? 'sel' : ''}" ${bind("click", (event, element) => {
+    selectTxn(t.id);
+  })}>
+      <td>${t.d.slice(5)}</td><td class="k">${esc(t.t)}</td>
+      <td>${t.p.startsWith('PRJ') ? `<span class="chip c-p">${t.p.slice(-3)}</span>` : '<span class="chip c-n">公司</span>'}</td>
+      <td>${esc(t.cat)}</td>
+      <td class="num" style="${t.pass ? 'color:var(--text-3)' : t.amt > 0 ? 'color:var(--ok)' : ''}">${nt(t.amt)}</td>
+      <td>${t.pass ? '<span class="chip c-w">是</span>' : '—'}</td>
+      <td>${(t.files || []).length ? `<span class="chip c-o">${svg('paperclip', 10)} ${(t.files || []).length}</span>` : t.v.length ? `<span class="chip c-n">${t.v.length}</span>` : '<span class="chip c-d">缺</span>'}</td>
+      <td>${cfStage(t)}</td>
+      <td><span class="rowacts">${mini('paperclip', (event, element) => {
+    cfAttach(t.id);
+  }, '', '上傳憑證')}${mini('pen', (event, element) => {
+    formTxn(t.id);
+  })}${locked ? '' : mini('trash', (event, element) => {
+    delTxn(t.id);
+  }, 'dgr')}</span></td></tr>`).join('') || `<tr><td colspan="9"><div class="empty">沒有符合「${CF_FILTERS[f][0]}」的交易</div></td></tr>`}</tbody>
+    <tfoot><tr><td colspan="4">${cfMonthLabel(m)} 淨額（不含代收代付）</td><td class="num" style="color:${sum < 0 ? 'var(--danger)' : 'var(--ok)'}">${nt(sum)}</td><td colspan="4"></td></tr></tfoot>
+  </table></div>`, '', true);
+  return h;
+}
+
+/* 已結帳月份：編輯改為加註；刪除、改金額由 editable() 擋。 */
+const cfBaseEditable = editable;
+editable = x => x && DB.txns.includes(x) && cfTxLocked(x) ? false : cfBaseEditable(x);
+const cfBaseFormTxn = formTxn;
+formTxn = id => {
+  const t = id ? TX(id) : null;
+  if (t && cfTxLocked(t)) return cfNoteForm(id);
+  return cfBaseFormTxn(id);
+};
+function cfNoteForm(id) {
+  const t = TX(id);
+  if (!(isOwner() || t.author === DB.me)) return deny();
+  const before = t.note;
+  openForm({
+    crumb: '加註',
+    title: '在已結帳的交易上加註',
+    sub: `${t.d} · ${esc(t.t)} · ${cfMonthLabel(t.d.slice(0, 7))} 已結帳，金額、日期與歸屬唯讀`,
+    fields: [{
+      k: 'note',
+      label: '備註',
+      type: 'textarea',
+      ph: '例如：會計師詢問後補充的用途說明'
+    }],
+    values: {
+      note: t.note || ''
+    },
+    effects: ['只更新備註；金額、日期、歸屬維持鎖定'],
+    onSave: v => commit('update', '交易加註', t.t, () => {
+      t.note = v.note;
+      return ['備註已更新'];
+    }, () => {
+      t.note = before;
+    })
+  });
+}
+const cfBaseDelVoucher = delVoucher;
+delVoucher = (id, idx) => cfTxLocked(TX(id)) ? toast('已結帳的交易不能移除憑證') : cfBaseDelVoucher(id, idx);
+const cfBaseAdoptBank = adoptBank;
+adoptBank = bid => {
+  const b = DB.bank.find(x => x.id === bid);
+  if (b && cfLocked(b.d.slice(0, 7))) return toast(cfMonthLabel(b.d.slice(0, 7)) + ' 已結帳');
+  return cfBaseAdoptBank(bid);
+};
+
+/* 交易抽屜：憑證檔案放在最上面，已結帳時說清楚能做什麼。 */
+const cfBaseTxnDrawer = DRAWERS.txn;
+DRAWERS.txn = id => {
+  const d = cfBaseTxnDrawer(id);
+  const t = TX(id);
+  if (!t || !canSeeTxn(t)) return d;
+  const files = t.files || [];
+  const strip = `<div class="cf-files">${files.map((f, i) => `<button class="cf-vch" ${bind("click", (event, element) => {
+    cfOpenTxnFile(t.id, i);
+  })}>${cfFileTile(f, t.id + '-d' + i)}<b>${esc(f.name)}</b><span>${esc(f.at || '')}</span></button>`).join('')}<button class="cf-vch cf-add" ${bind("click", (event, element) => {
+    cfAttach(t.id);
+  })}>${svg('paperclip', 16)}<b>上傳憑證檔</b><span>JPG、PNG、PDF</span></button></div>`;
+  const lock = cfTxLocked(t) ? `<div class="hint" style="margin-bottom:12px">${svg('lock', 13)}<div><b>${cfMonthLabel(t.d.slice(0, 7))} 已結帳。</b>可以加註與補憑證；金額、日期與歸屬要先由負責人解鎖才能改。</div></div>` : '';
+  return {
+    ...d,
+    body: lock + strip + d.body,
+    foot: cfTxLocked(t) ? d.foot.replace('編輯', '加註') : d.foot
+  };
+};
+function cfOpenTxnFile(id, i) {
+  const f = TX(id)?.files?.[i];
+  if (f) cfOpenFile(f);
+}
+
+/* ---------- 對帳 ---------- */
+function cfSuggest(m) {
+  const used = new Set(DB.bank.filter(b => b.m).map(b => b.m));
+  const out = [];
+  DB.bank.filter(b => !b.m && b.d.slice(0, 7) === m).forEach(b => {
+    const bd = new Date(b.d).getTime();
+    const cands = DB.txns.filter(t => !used.has(t.id) && t.amt === b.amt && Math.abs(new Date(t.d).getTime() - bd) <= 3 * 864e5).sort((x, y) => Math.abs(new Date(x.d).getTime() - bd) - Math.abs(new Date(y.d).getTime() - bd));
+    if (cands[0]) {
+      used.add(cands[0].id);
+      const days = Math.round(Math.abs(new Date(cands[0].d).getTime() - bd) / 864e5);
+      out.push({
+        b,
+        t: cands[0],
+        why: '金額相同 · ' + (days ? '差 ' + days + ' 日' : '同日')
+      });
+    }
+  });
+  return out;
+}
+function cfAccept(bid, tid) {
+  const b = DB.bank.find(x => x.id === bid);
+  if (!isOwner() || !b || cfLocked(b.d.slice(0, 7))) return deny();
+  commit('update', '對帳', b.t + ' ↔ ' + TX(tid).t, () => {
+    b.m = tid;
+    return ['銀行與內帳勾稽', '差異清單 −1'];
+  }, () => {
+    b.m = '';
+  });
+}
+function cfAcceptAll() {
+  const m = cfMonth(),
+    list = cfSuggest(m);
+  if (!isOwner() || !list.length || cfLocked(m)) return;
+  commit('update', '對帳', '確認 ' + list.length + ' 筆建議配對', () => {
+    list.forEach(s => {
+      s.b.m = s.t.id;
+    });
+    return ['銀行與內帳勾稽 ' + list.length + ' 筆'];
+  }, () => list.forEach(s => {
+    s.b.m = '';
+  }));
+}
+function cfUnmatch(bid) {
+  const b = DB.bank.find(x => x.id === bid);
+  if (!isOwner() || !b || cfLocked(b.d.slice(0, 7))) return deny();
+  const was = b.m;
+  commit('update', '對帳', '解除 ' + b.t, () => {
+    b.m = '';
+    return ['回到差異清單'];
+  }, () => {
+    b.m = was;
+  });
+}
+function cfMatchForm(bid) {
+  const b = DB.bank.find(x => x.id === bid);
+  const used = new Set(DB.bank.filter(x => x.m).map(x => x.m));
+  const cands = DB.txns.filter(t => !used.has(t.id) && Math.sign(t.amt) === Math.sign(b.amt)).sort((x, y) => Math.abs(x.amt - b.amt) - Math.abs(y.amt - b.amt)).slice(0, 30);
+  if (!cands.length) return toast('帳本裡沒有可配對的交易，可以用「補入帳」');
+  openForm({
+    crumb: '對帳',
+    title: '找內帳配對',
+    sub: `${b.d} · ${esc(b.t)} · ${nt(b.amt)}`,
+    fields: [{
+      k: 't',
+      label: '內帳交易',
+      type: 'select',
+      opts: cands.map(t => [t.id, `${t.d.slice(5)} ${t.t} ${nt(t.amt)}`]),
+      req: true
+    }],
+    values: {
+      t: cands[0].id
+    },
+    effects: ['銀行與內帳勾稽', '金額不同時，差額仍會留在調節表'],
+    onSave: v => cfAccept(bid, v.t)
+  });
+}
+function cfCsvCells(line) {
+  const out = [];
+  let cur = '',
+    q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (c === '"') q = false;else cur += c;
+    } else if (c === '"') q = true;else if (c === ',' || c === '\t') {
+      out.push(cur);
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+function cfCsvDate(s) {
+  const m = String(s || '').match(/(\d{3,4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (!m) return null;
+  const y = Number(m[1]) < 1000 ? Number(m[1]) + 1911 : Number(m[1]); // 民國年
+  return `${y}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+}
+function cfCsvNum(s) {
+  const t = String(s || '').replace(/[,\sNT$元]/g, '');
+  if (!t) return 0;
+  const neg = /^\(.*\)$/.test(t) || t.startsWith('-');
+  const n = Number(t.replace(/[()\-+]/g, ''));
+  return Number.isFinite(n) ? neg ? -n : n : NaN;
+}
+/** 支援兩種常見匯出：單一「金額」欄（支出為負），或「支出／存入」兩欄。 */
+function cfParseBank(text) {
+  const rows = text.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim()).map(cfCsvCells);
+  let header = null;
+  if (rows.length && !rows[0].some(cfCsvDate)) header = rows.shift();
+  const col = re => header ? header.findIndex(h => re.test(h)) : -1;
+  const iOut = col(/支出|提款|支領|debit|withdraw/i),
+    iIn = col(/存入|存款|收入|credit|deposit/i),
+    iAmt = col(/金額|amount/i),
+    iDesc = col(/摘要|說明|備註|附言|description|memo/i);
+  if (!header || iOut < 0 && iIn < 0 && iAmt < 0) throw Error('找不到金額欄。第一列需要欄名，例如：日期,摘要,金額（或 支出、存入）');
+  const out = [];
+  for (const r of rows) {
+    const d = r.map(cfCsvDate).find(Boolean);
+    if (!d) continue;
+    const amt = iAmt >= 0 ? cfCsvNum(r[iAmt]) : cfCsvNum(r[iIn]) - cfCsvNum(r[iOut]);
+    if (!Number.isFinite(amt) || !amt) continue;
+    const t = (iDesc >= 0 ? r[iDesc] : r.find(c => c && !cfCsvDate(c) && !Number.isFinite(cfCsvNum(c)))) || '銀行明細';
+    out.push({
+      d,
+      t: t.slice(0, 60),
+      amt: Math.round(amt)
+    });
+  }
+  return out;
+}
+let cfPendingBank = [];
+function cfImportBank() {
+  if (!isOwner()) return deny();
+  const input = doc.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv,.txt';
+  input.style.display = 'none';
+  root.append(input);
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    input.remove();
+    if (!file) return;
+    try {
+      if (file.size > 2 * 1024 * 1024) throw Error('檔案上限 2 MB');
+      const parsed = cfParseBank(await file.text());
+      const seen = new Set(DB.bank.map(b => b.d + '|' + b.amt + '|' + b.t));
+      const fresh = parsed.filter(r => !seen.has(r.d + '|' + r.amt + '|' + r.t));
+      const locked = fresh.filter(r => cfLocked(r.d.slice(0, 7)));
+      cfPendingBank = fresh.filter(r => !cfLocked(r.d.slice(0, 7)));
+      if (!parsed.length) throw Error('沒有讀到任何含日期與金額的列');
+      openModal('匯入銀行明細', `讀到 ${parsed.length} 列 · 新的 ${cfPendingBank.length} 列${parsed.length - fresh.length ? ` · 已存在 ${parsed.length - fresh.length} 列略過` : ''}${locked.length ? ` · 已結帳月份 ${locked.length} 列略過` : ''}`, `<div class="rows">${cfPendingBank.slice(0, 8).map(r => `<div class="row"><span class="m">${r.d}</span><span class="t">${esc(r.t)}</span><span class="n">${nt(r.amt)}</span></div>`).join('')}${cfPendingBank.length > 8 ? `<div class="empty">⋯ 另 ${cfPendingBank.length - 8} 列</div>` : ''}</div>`, `<button class="btn" ${bind("click", (event, element) => {
+        closeModal();
+      })}>取消</button>${cfPendingBank.length ? `<button class="btn pri" ${bind("click", (event, element) => {
+        cfCommitBank();
+      })}>匯入 ${cfPendingBank.length} 列</button>` : ''}`);
+    } catch (e) {
+      toast(esc(e.message));
+    }
+  };
+  input.click();
+}
+function cfCommitBank() {
+  const rows = cfPendingBank.map(r => ({
+    id: nid('BK'),
+    d: r.d,
+    t: r.t,
+    amt: r.amt,
+    m: ''
+  }));
+  cfPendingBank = [];
+  closeModal();
+  if (!rows.length) return;
+  const months = [...new Set(rows.map(r => r.d.slice(0, 7)))].sort();
+  if (!months.includes(cfMonth())) S.cfMonth = months[months.length - 1];
+  commit('create', '銀行明細', '匯入 ' + rows.length + ' 列', () => {
+    DB.bank.push(...rows);
+    return ['匯入 ' + rows.length + ' 列', '系統會找金額相同、日期差 3 日內的內帳當作建議配對'];
+  }, () => {
+    DB.bank = DB.bank.filter(b => !rows.includes(b));
+  });
+}
+function cfReconView() {
+  if (!isOwner()) return cfBoundary('對帳由負責人處理', '對帳涉及公司整體現金部位，依契約 §18 僅負責人可檢視。');
+  const m = cfMonth(),
+    locked = cfLocked(m);
+  const ledger = DB.txns.filter(t => t.d.slice(0, 7) === m);
+  const bank = DB.bank.filter(b => b.d.slice(0, 7) === m);
+  const tools = locked ? '' : `<button class="btn" ${bind("click", (event, element) => {
+    formBank();
+  })}>${svg('plus')} 手動新增</button><button class="btn pri" ${bind("click", (event, element) => {
+    cfImportBank();
+  })}>匯入銀行明細</button>`;
+  const bar = `<div class="cf-bar">${cfPeriodBar()}<span class="sp"></span>${tools}</div>`;
+  if (!bank.length) return bar + cfEmpty('三本帳永遠不會自己相等', `先匯入 ${cfMonthLabel(m)} 的銀行明細（CSV），系統會幫你找出對得上的內帳。`, locked ? '' : `<button class="btn pri" ${bind("click", (event, element) => {
+    cfImportBank();
+  })}>匯入銀行明細</button><button class="btn" ${bind("click", (event, element) => {
+    formBank();
+  })}>手動新增一筆</button>`);
+  const matchedTx = new Set(bank.filter(b => b.m).map(b => b.m));
+  const sug = locked ? [] : cfSuggest(m);
+  const sugBank = new Set(sug.map(s => s.b.id));
+  const unmatchedL = ledger.filter(t => !matchedTx.has(t.id));
+  const unmatchedB = bank.filter(b => !b.m && !sugBank.has(b.id));
+  const done = bank.filter(b => b.m).length;
+  let h = bar + `<div class="cf-progress"><b>${done} / ${bank.length}</b> 筆銀行明細已勾稽${done === bank.length ? ` · <span class="lnk" ${bind("click", (event, element) => {
+    cfGo('close');
+  })}>可以去月結了</span>` : ''}</div>`;
+  if (sug.length) h += panel('建議配對', '金額相同、日期差 3 日內', `<div class="rows">${sug.map(s => `<div class="row cf-li"><span class="m">${s.b.d.slice(5)}</span><span class="t">${esc(s.b.t)}<small class="cf-why">↔ ${esc(s.t.t)}（${s.t.d.slice(5)}） · ${s.why}</small></span><span class="n">${nt(s.b.amt)}</span><button class="btn sm" ${bind("click", (event, element) => {
+    event.stopPropagation();
+    cfAccept(s.b.id, s.t.id);
+  })}>確認</button></div>`).join('')}</div>`, sug.length > 1 ? `<button class="btn sm pri" ${bind("click", (event, element) => {
+    cfAcceptAll();
+  })}>${svg('check', 12)} 確認全部 ${sug.length} 筆</button>` : '', true) + '<div style="height:12px"></div>';
+  h += `<div class="g g2">${panel('差異清單', unmatchedB.length + unmatchedL.length + ' 筆待處理', [...unmatchedB.map(b => `<div class="rel"><span class="ty ty-block">銀行有 · 內帳無</span><span class="tt">${esc(b.t)}　${nt(b.amt)}</span>${locked ? '' : `<span class="cf-rel-act"><button class="btn sm" ${bind("click", (event, element) => {
+    cfMatchForm(b.id);
+  })}>找配對</button><button class="btn sm pri" ${bind("click", (event, element) => {
+    adoptBank(b.id);
+  })}>補入帳</button></span>`}</div>`), ...unmatchedL.map(t => `<div class="rel"><span class="ty ty-wait">內帳有 · 銀行無</span><span class="tt" ${bind("click", (event, element) => {
+    selectTxn(t.id);
+  })}>${esc(t.t)}　${nt(t.amt)}</span><span class="m cf-muted">${t.amt > 0 ? '在途存款' : '未兌現'}</span></div>`)].join('') || '<div class="empty">三本帳已對平</div>')}
+    ${cfAdjustTable(ledger, bank, unmatchedL)}</div>`;
+  h += '<div style="height:12px"></div>' + panel('已勾稽', done + ' 筆', `<div class="rows">${bank.filter(b => b.m).map(b => `<div class="row cf-li"><span class="m">${b.d.slice(5)}</span><span class="t">${esc(b.t)}<small class="cf-why">↔ ${esc(TX(b.m)?.t || b.m)}</small></span><span class="n">${nt(b.amt)}</span>${locked ? '<span></span>' : `<button class="btn sm" ${bind("click", (event, element) => {
+    event.stopPropagation();
+    cfUnmatch(b.id);
+  })}>解除</button>`}</div>`).join('') || '<div class="empty">尚無</div>'}</div>`, '', true);
+  return h;
+}
+function cfAdjustTable(ledger, bank, unmatchedL) {
+  const bsum = bank.reduce((a, b) => a + b.amt, 0);
+  const adj = [['銀行帳面餘額（本月明細合計）', '', bsum, 'base'], ['在途存款（公司已記、銀行未入）', unmatchedL.filter(t => t.amt > 0).map(t => t.t).join('、'), unmatchedL.filter(t => t.amt > 0).reduce((a, b) => a + b.amt, 0), 'add'], ['未兌現支票（公司已記、銀行未扣）', unmatchedL.filter(t => t.amt < 0).map(t => t.t).join('、'), unmatchedL.filter(t => t.amt < 0).reduce((a, b) => a + b.amt, 0), 'sub'], ['銀行代收代付（手續費、利息）', '已含於銀行餘額，僅供辨識', bank.filter(b => !b.m).reduce((a, b) => a + b.amt, 0), 'note']];
+  const correct = bsum + unmatchedL.reduce((a, b) => a + b.amt, 0);
+  return panel('銀行往來調節表', '調整項以正負號表示', `<div class="adjtbl">${adj.map(([lb, ds, v, k]) => `<div class="r"><span class="lb">${lb}${ds ? `<span class="cf-muted" style="display:block">${esc(ds)}</span>` : ''}</span><span class="vv" style="${k === 'note' ? 'color:var(--text-3)' : ''}">${nt(v)}</span></div>`).join('')}<div class="r tot"><span class="lb">＝ 調節後正確餘額</span><span class="vv" style="color:var(--ok)">${nt(correct)}</span></div></div>`);
+}
+
+/* ---------- 月結 ---------- */
+function cfChecks(m) {
+  const txns = DB.txns.filter(t => t.d.slice(0, 7) === m);
+  const bank = DB.bank.filter(b => b.d.slice(0, 7) === m);
+  const intake = DB.intake.filter(x => (x.d || '').slice(0, 7) === m && (x.st === 'draft' || x.st === 'unfiled'));
+  const pending = DB.reimb.filter(r => (r.d || '').slice(0, 7) === m && r.st === '已送');
+  return [{
+    l: '所有交易已歸屬（專案或公司層級）',
+    n: txns.filter(t => t.p).length,
+    of: txns.length,
+    go: 'ledger'
+  }, {
+    l: '所有交易附原始憑證',
+    n: txns.filter(t => t.v.length).length,
+    of: txns.length,
+    go: 'vault'
+  }, {
+    l: '銀行明細已匯入且全數勾稽',
+    n: bank.filter(b => b.m).length,
+    of: bank.length,
+    go: 'recon',
+    empty: '尚未匯入銀行明細'
+  }, {
+    l: '收件與代墊都已處理',
+    n: 0,
+    of: intake.length + pending.length,
+    go: 'ledger',
+    inverse: true
+  }].map(c => ({
+    ...c,
+    ok: c.inverse ? c.of === 0 : c.of > 0 && c.n >= c.of
+  }));
+}
+function cfLockAsk(on) {
+  S.cfLockAsk = on;
+  render();
+}
+function cfLock() {
+  const m = cfMonth();
+  if (!isOwner()) return deny();
+  const checks = cfChecks(m);
+  if (checks.some(c => !c.ok)) return toast('還有未完成的項目');
+  const prev = cfPeriod(m);
+  const before = prev ? JSON.parse(JSON.stringify(prev)) : null;
+  const log = [...(prev?.log || []), {
+    at: Date.now(),
+    by: DB.me,
+    action: 'close'
+  }];
+  const rec = {
+    id: m,
+    st: 'closed',
+    by: DB.me,
+    at: Date.now(),
+    checklist: checks.map(c => ({
+      l: c.l,
+      n: c.n,
+      of: c.of
+    })),
+    log
+  };
+  S.cfLockAsk = false;
+  commit('update', '月結', cfMonthLabel(m) + ' 結帳', () => {
+    if (prev) Object.assign(prev, rec);else DB.periods.push(rec);
+    return [cfMonthLabel(m) + ' 交易改為唯讀', '可以加註與補憑證；解鎖會留下紀錄'];
+  }, () => {
+    if (before) Object.assign(prev, before);else DB.periods = DB.periods.filter(p => p !== rec);
+  });
+}
+function cfReopen() {
+  const m = cfMonth(),
+    rec = cfPeriod(m);
+  if (!isOwner() || !rec) return deny();
+  const why = (getById('cfReopenWhy')?.value || '').trim();
+  if (!why) return toast('請寫下解鎖原因');
+  const before = JSON.parse(JSON.stringify(rec));
+  commit('update', '月結', cfMonthLabel(m) + ' 解鎖', () => {
+    rec.st = 'open';
+    rec.log = [...(rec.log || []), {
+      at: Date.now(),
+      by: DB.me,
+      action: 'reopen',
+      reason: why
+    }];
+    return [cfMonthLabel(m) + ' 恢復可編輯', '原因已留在月結紀錄'];
+  }, () => Object.assign(rec, before));
+}
+function cfCloseView() {
+  if (!isOwner()) return cfBoundary('月結由負責人處理', '月結會把整個月的帳鎖起來交給會計師。');
+  const m = cfMonth(),
+    rec = cfPeriod(m),
+    locked = cfLocked(m);
+  const checks = cfChecks(m),
+    left = checks.filter(c => !c.ok).length;
+  const hasData = DB.txns.some(t => t.d.slice(0, 7) === m) || DB.bank.some(b => b.d.slice(0, 7) === m);
+  const bar = `<div class="cf-bar">${cfPeriodBar()}</div>`;
+  if (!hasData && !rec) return bar + cfEmpty(`${cfMonthLabel(m)} 還沒有可結帳的項目`, '帳本有交易之後，這裡會列出鎖帳前要完成的事。', `<button class="btn pri" ${bind("click", (event, element) => {
+    cfGo('ledger');
+  })}>前往帳本</button>`);
+  const rows = checks.map(c => `<div class="cf-chk ${c.ok ? 'ok' : ''}"><span class="ic">${c.ok ? svg('check', 12) : ''}</span><span class="lb">${c.l}</span><span class="cnt">${c.inverse ? c.of ? '還有 ' + c.of + ' 筆' : '—' : c.of ? c.n + '/' + c.of : c.empty || '—'}</span>${c.ok || locked ? '<span></span>' : `<button class="link" ${bind("click", (event, element) => {
+    cfGo(c.go);
+  })}>前往 ${svg('chevronRight', 11)}</button>`}</div>`).join('');
+  let foot;
+  if (locked) foot = `<div class="cf-close-foot"><div class="cf-reopen"><input id="cfReopenWhy" placeholder="解鎖原因（必填，會留在紀錄）" aria-label="解鎖原因"><button class="btn" ${bind("click", (event, element) => {
+    cfReopen();
+  })}>解鎖 ${Number(m.slice(5))} 月</button></div><p>鎖定期間可以加註與補憑證；金額、日期與歸屬需要解鎖才能改。</p></div>`;else if (S.cfLockAsk) foot = `<div class="cf-close-foot"><div class="cf-confirm">${svg('warn', 13)}<span>鎖定後 ${cfMonthLabel(m)} 的交易改為唯讀，解鎖需要填原因並留下紀錄。</span><button class="btn pri" ${bind("click", (event, element) => {
+    cfLock();
+  })}>確認鎖定</button><button class="btn" ${bind("click", (event, element) => {
+    cfLockAsk(false);
+  })}>取消</button></div></div>`;else foot = `<div class="cf-close-foot"><button class="btn pri" ${left ? 'disabled' : ''} ${bind("click", (event, element) => {
+    cfLockAsk(true);
+  })}>${svg('lock', 12)} 鎖定 ${Number(m.slice(5))} 月</button><p>${left ? `先完成上面 ${left} 項才能鎖定。` : '鎖定後可以加註與補憑證，金額、日期、歸屬唯讀。'}</p></div>`;
+  let h = bar + panel(cfMonthLabel(m) + ' 結帳', locked ? '已鎖定' : left ? `還有 ${left} 項` : '可以鎖定', `<div class="cf-checks">${rows}</div>${foot}`, '', true);
+  const history = [...DB.periods].sort((a, b) => a.id < b.id ? 1 : -1).flatMap(p => (p.log || []).map(l => ({
+    ...l,
+    id: p.id
+  }))).sort((a, b) => b.at - a.at).slice(0, 12);
+  if (history.length) h += '<div style="height:12px"></div>' + panel('月結紀錄', '', `<div class="rows">${history.map(l => `<div class="row cf-li"><span class="m">${new Date(l.at).toISOString().slice(0, 10)}</span><span class="t">${cfMonthLabel(l.id)} ${l.action === 'close' ? '結帳' : '解鎖'}${l.reason ? `<small>原因：${esc(l.reason)}</small>` : ''}</span><span class="chip ${l.action === 'close' ? 'c-n' : 'c-w'}">${person(l.by)}</span><span></span></div>`).join('')}</div>`, '', true);
+  return h;
+}
+
+/* ==================================================================
+   面 C：洞察（只讀帳本；每個數字都能下鑽）
+   ================================================================== */
+function cfCompanyView() {
+  if (!isOwner()) return cfBoundary('公司整體數字只有負責人看得到', '你可以在「專案」看參與專案的預算與毛利，在「人事」看自己的薪資試算。');
+  const m = cfMonth();
+  const rows = DB.txns.filter(t => t.d.slice(0, 7) === m && !t.pass);
+  const bar = `<div class="cf-bar">${cfPeriodBar()}</div>`;
+  if (!rows.length) return bar + cfEmpty('建立交易後計算', `洞察只讀帳本；${cfMonthLabel(m)} 還沒有交易。`, `<button class="btn pri" ${bind("click", (event, element) => {
+    cfGo('ledger');
+  })}>前往帳本</button>`);
+  const inc = rows.filter(t => t.amt > 0).reduce((a, b) => a + b.amt, 0);
+  const exp = rows.filter(t => t.amt < 0).reduce((a, b) => a + b.amt, 0);
+  const unrec = rows.filter(t => !cfMatched(t)).length;
+  const kpi = (lb, v, s, f, color) => `<button class="kpi cf-kpi" ${bind("click", (event, element) => {
+    cfGo('ledger', {
+      cfFilter: f,
+      cfMonth: m
+    });
+  })}><div class="lb">${lb} ${svg('chevronRight', 11)}</div><div class="v" style="${color || ''}">${nt(v)}</div><div class="s">${s}</div></button>`;
+  let h = bar + `<div class="kpis" style="margin-bottom:12px">
+    ${kpi(Number(m.slice(5)) + ' 月淨額', inc + exp, unrec ? `含 ${unrec} 筆尚未勾稽` : '全部已勾稽', 'all', `color:${inc + exp < 0 ? 'var(--danger)' : 'var(--ok)'}`)}
+    ${kpi('收入', inc, rows.filter(t => t.amt > 0).length + ' 筆', 'income', 'color:var(--ok)')}
+    ${kpi('支出', exp, rows.filter(t => t.amt < 0).length + ' 筆', 'expense')}
+    <div class="kpi cf-unset"><div class="lb">現金水位 · Runway</div><div class="v">尚未設定現金帳戶</div><div class="s">設定銀行帳戶與期初餘額後計算，不推測</div></div>
+    <div class="kpi cf-unset"><div class="lb">應收未收</div><div class="v">交易還沒有到期日</div><div class="s">補上到期與收付日期後計算</div></div></div>`;
+  const byCat = {};
+  rows.filter(t => t.amt < 0).forEach(t => {
+    byCat[t.cat] = (byCat[t.cat] || 0) - t.amt;
+  });
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const max = cats.length ? cats[0][1] : 1;
+  const months = cfMonths().slice(0, 6).reverse();
+  const net = months.map(x => [x, DB.txns.filter(t => t.d.slice(0, 7) === x && !t.pass).reduce((a, b) => a + b.amt, 0)]);
+  const nmax = Math.max(1, ...net.map(n => Math.abs(n[1])));
+  h += `<div class="g g2">${panel(Number(m.slice(5)) + ' 月支出構成', '來源：帳本 ' + rows.length + ' 筆', cats.length ? `<div class="cf-bars">${cats.map(([c, v]) => `<div class="cf-bar-r" ${bind("click", (event, element) => {
+    cfGo('ledger', {
+      cfFilter: 'expense'
+    });
+  })}><span>${esc(c)}</span><span class="tr"><i style="width:${v / max * 100}%"></i></span><span class="num">${nt(v)}</span></div>`).join('')}</div>` : '<div class="empty">本月沒有支出</div>')}
+    ${panel('近月淨額', '不含代收代付', `<div class="cf-bars">${net.map(([x, v]) => `<div class="cf-bar-r"><span>${Number(x.slice(5))} 月${cfLocked(x) ? ' ' + svg('lock', 10) : ''}</span><span class="tr"><i class="${v < 0 ? 'neg' : ''}" style="width:${Math.abs(v) / nmax * 100}%"></i></span><span class="num" style="${v < 0 ? 'color:var(--danger)' : ''}">${nt(v)}</span></div>`).join('')}</div>`)}</div>`;
+  return h;
+}
+function cfSetProj(pid) {
+  S.proj = pid;
+  render();
+}
+function cfProjectView() {
+  const ids = (isOwner() ? DB.projects.map(p => p.id) : myProjects()).filter(id => P(id));
+  if (!ids.length) return cfEmpty('還沒有專案', isOwner() ? '建立專案後，這裡會顯示每個專案的收入、成本與可分配毛利。' : '你目前沒有參與的專案。', isOwner() ? newProjectAction() : '');
+  if (!ids.includes(S.proj)) S.proj = ids[0];
+  const bar = `<div class="cf-bar"><div class="seg">${ids.map(id => `<button class="${S.proj === id ? 'on' : ''}" ${bind("click", (event, element) => {
+    cfSetProj(id);
+  })}>${esc(P(id).t)}</button>`).join('')}</div>${isOwner() ? '' : '<span class="cf-muted">只顯示你參與的專案</span>'}</div>`;
+  return bar + vWaterfall(S.proj) + '<div style="height:12px"></div>' + cfPrev(5);
+}
+
+/* ---------- 路由 ---------- */
+const cfPrev = VIEWS.money;
+VIEWS.money = tab => {
+  const k = (CF_TABS[tab] || CF_TABS[0])[0];
+  const run = () => {
+    switch (k) {
+      case 'inbox':
+        return cfInboxView();
+      case 'mine':
+        return cfMineView();
+      case 'vault':
+        return cfVaultView();
+      case 'ledger':
+        return cfLedgerView();
+      case 'recon':
+        return cfReconView();
+      case 'close':
+        return cfCloseView();
+      case 'company':
+        return cfCompanyView();
+      case 'project':
+        return cfProjectView();
+      default:
+        return cfPrev(4);
+    }
+  };
+  if (isOwner()) return run();
+  const all = DB.txns;
+  DB.txns = all.filter(canSeeTxn);
+  try {
+    return run();
+  } finally {
+    DB.txns = all;
+  }
+};
 paintUser();
 renderRail();
 render();

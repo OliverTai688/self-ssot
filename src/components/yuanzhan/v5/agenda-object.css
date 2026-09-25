@@ -1,0 +1,54 @@
+/* 議題物件（提案 B）：日誌裡的議題卡、議題頁的欄位列、討論串與附件。
+   顏色一律走 company-theme.ts 的 V5_PALETTES token，var(--token, fallback) 形式，
+   四個主題（white/orange/black/brand）都跟著換。 */
+
+/* ---- 小標籤 ---- */
+.ag-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:20px;
+  border:1px solid var(--border-2);color:var(--text-2);background:var(--surface-2);white-space:nowrap;line-height:1.6;font-family:var(--sans)}
+.ag-pill.soft{color:var(--text-3)}
+.ag-pill.set{border-color:var(--pri-br,#2c3a5c);color:var(--rq-ok,#4ea1ff);background:var(--rq-ok-bg,#0f1726)}
+.ag-pill.due{border-color:var(--rq-warn-br,#6a4520);color:var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c)}
+.ag-pill.warn{border-color:var(--rq-warn-br,#6a4520);color:var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c)}
+.ag-pill.over{border-color:var(--rq-alarm,#ff4d4f);color:var(--on-danger,#fff);background:var(--rq-alarm,#ff4d4f);font-weight:700}
+
+/* ---- 日誌裡的議題卡 ---- */
+/* 與 .rq-card 同一套重音：3px 膠囊色柱，不用 border-left（在圓角卡上會被切成斜角）。 */
+.eb-doc-card.ag-card{position:relative;padding-left:7px}
+.eb-doc-card.ag-card::before{content:"";position:absolute;left:5px;top:9px;bottom:9px;width:3px;
+  border-radius:999px;background:var(--rq-warn,#f0924f);z-index:1;pointer-events:none}
+.eb-doc-card.ag-card.ag-done{opacity:.82}
+.eb-doc-card.ag-card.ag-done::before{background:var(--ok,#4fc38a)}
+.ag-card .ag-pills{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;margin-left:8px}
+.ag-card .eb-doc-bar-left{flex-wrap:wrap;row-gap:4px}
+
+/* ---- 討論串（卡片與議題頁共用） ---- */
+.ag-thread{border-top:1px dashed var(--border-2);margin-top:10px;padding-top:10px}
+.ag-thread.page{border-top:1px solid var(--border);margin-top:18px;padding-top:14px}
+.ag-sec-t{font-size:11.5px;color:var(--text-3);margin-bottom:8px;letter-spacing:.02em}
+.ag-thread .rq-msg{margin-bottom:8px}
+.ag-thread .rq-empty{font-size:12px;color:var(--text-3);padding:2px 0 6px}
+.rq-compose.ag-compose{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.rq-compose.ag-compose input{flex:1;min-width:180px}
+
+/* ---- 附件 ---- */
+.ag-files{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.ag-file{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:2px 9px;border-radius:7px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-2);font-family:var(--sans)}
+button.ag-file{cursor:pointer}
+button.ag-file:hover{background:var(--hover-overlay,var(--surface-3));color:var(--text)}
+
+/* ---- 議題頁的欄位列 ---- */
+.ag-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px 18px;
+  padding:12px 0 14px;margin-bottom:6px;border-bottom:1px solid var(--border)}
+.ag-f{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;min-height:24px}
+.ag-f .k{flex:none;width:36px;color:var(--text-3)}
+.ag-f .v{color:var(--text-2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ag-f .v b{color:var(--text);font-weight:600}
+.ag-due{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ag-date{font:inherit;font-size:12px;padding:2px 7px;border-radius:7px;color:var(--text);
+  border:1px solid var(--border-2);background:var(--surface-2);color-scheme:light dark}
+.ag-ref{font-family:var(--mono);font-size:10.5px;color:var(--text-3);
+  border:1px solid var(--border);background:var(--surface-2);border-radius:5px;padding:1px 6px}
+
+/* ---- 右欄卡片 ---- */
+.rq-card.ag-rail .rq-card-m{gap:5px;flex-wrap:wrap}

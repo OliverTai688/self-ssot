@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今日議題：研究後的介面提案</title>
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f7f8fa; --surface-3:#eef0f4;
+  --border:#e4e7ec; --border-2:#d3d8e0;
+  --text:#191c20; --text-2:#5b6370; --text-3:#98a0ad;
+  --pri:#3b5bdb; --pri-soft:#eef2fe;
+  --teal:#0f9b8e; --teal-soft:#e6f6f4;
+  --info:#2f80d8; --info-soft:#e9f2fd;
+  --warn:#c07a00; --warn-soft:#fdf3e0;
+  --ok:#17845a; --ok-soft:#e6f5ee;
+  --today:#d9480f; --today-soft:#fff1e8;
+  --pink:#c2255c; --pink-soft:#fdeef4;
+  --neutral:#6b7280; --neutral-soft:#f0f1f4;
+  --danger:#c0392b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1300px;margin:0 auto;padding:30px 20px 90px}
+h1{font-size:23px;margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:var(--text-2);margin:0 0 10px;max-width:78ch}
+.lede b{color:var(--text)}
+.stamp{display:inline-flex;align-items:center;gap:7px;background:var(--pri-soft);color:var(--pri);
+  border:1px solid #d4defb;border-radius:20px;padding:3px 12px;font-size:12px;margin-bottom:18px}
+code{font-family:var(--mono);font-size:12.5px;background:var(--surface-3);
+  border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+h2.sec{font-size:16px;margin:36px 0 10px;padding-top:4px}
+h2.sec span{color:var(--text-3);font-weight:400;font-size:13px;margin-left:8px}
+h3.sub{font-size:13.5px;margin:20px 0 8px;color:var(--text-2)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+p.note{color:var(--text-2);font-size:13px;margin:8px 0 0;max-width:80ch}
+a{color:var(--pri)}
+
+/* 缺口 */
+.gaps{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-top:10px}
+.gap{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 15px;
+  border-left:3px solid var(--danger)}
+.gap.minor{border-left-color:var(--warn)}
+.gap .no{font-family:var(--mono);font-size:11px;color:var(--text-3);display:block;margin-bottom:4px}
+.gap h4{margin:0 0 5px;font-size:13.5px}
+.gap p{margin:0;color:var(--text-2);font-size:12.7px;line-height:1.62}
+.gap p b{color:var(--text)}
+.model{font-family:var(--mono);font-size:12.2px;background:#1d2128;color:#d7dce4;
+  border-radius:10px;padding:13px 15px;overflow-x:auto;line-height:1.7;margin:10px 0 0}
+.model .k{color:#8fb8ff}.model .c{color:#7f8a9b}.model .bad{color:#ff9b8a}
+
+/* 研究輪次 */
+.rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.round{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 15px}
+.round .no{font-family:var(--mono);font-size:11px;color:var(--pri);background:var(--pri-soft);
+  border-radius:5px;padding:1px 7px;display:inline-block;margin-bottom:6px}
+.round h4{margin:0 0 6px;font-size:13.5px}
+.round p{margin:0 0 8px;color:var(--text-2);font-size:12.8px;line-height:1.65}
+.round .verdict{font-size:12.5px;line-height:1.6;border-top:1px solid var(--border);padding-top:8px}
+.round .verdict b{color:var(--ok)}
+
+/* 研究依據表 */
+table.ev{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);
+  border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table.ev th,table.ev td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+table.ev tr:last-child td{border-bottom:none}
+table.ev th{color:var(--text-3);font-weight:500;font-size:12px;white-space:nowrap;background:var(--surface-2)}
+table.ev td.s{color:var(--text);width:190px}
+table.ev td.s em{display:block;font-style:normal;color:var(--text-3);font-size:11.5px;margin-top:2px}
+table.ev td.f{color:var(--text-2);width:40%}
+table.ev td.d{color:var(--text)}
+
+/* 提案頭 */
+.phead{display:flex;align-items:flex-start;gap:12px;margin:30px 0 10px}
+.pbadge{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  font-weight:700;font-size:15px;color:#fff;background:var(--pri)}
+.pbadge.b{background:var(--teal)}.pbadge.c{background:var(--today)}
+.phead h2{margin:0;font-size:17px}
+.phead .one{margin:2px 0 0;color:var(--text-2);font-size:13px}
+.tagrow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+.tag{font-size:11.5px;border:1px solid var(--border-2);border-radius:20px;padding:2px 9px;color:var(--text-2);background:var(--surface)}
+.tag.ok{background:var(--ok-soft);border-color:#bfe3d2;color:var(--ok)}
+.tag.warn{background:var(--warn-soft);border-color:#ecd9ae;color:var(--warn)}
+.tag.cost{background:var(--neutral-soft);color:var(--neutral)}
+
+/* app frame */
+.frame{border:1px solid var(--border-2);border-radius:12px;overflow:hidden;
+  background:var(--surface);box-shadow:0 10px 30px rgba(20,24,32,.07)}
+.scroll{overflow-x:auto}
+.app{min-width:980px}
+.topbar{height:40px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  border-bottom:1px solid var(--border);background:var(--surface)}
+.logo{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,#8ea0ff,#b39cff)}
+.brand{font-weight:600;font-size:12.5px}
+.ver{color:var(--text-3);font-family:var(--mono);font-size:11px}
+.omni{margin:0 auto;width:300px;height:24px;border:1px solid var(--border);border-radius:7px;
+  background:var(--surface-2);display:flex;align-items:center;padding:0 9px;
+  color:var(--text-3);font-size:11.5px}
+.daybar{height:38px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  border-bottom:1px solid var(--border);background:var(--surface-2);font-size:12.5px}
+.daybar b{font-size:13px}
+.daybar .seg{margin-left:auto;display:flex;gap:4px}
+.daybar .seg span{font-size:11.5px;padding:2px 9px;border-radius:6px;color:var(--text-3)}
+.daybar .seg span.on{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.cols{display:grid;grid-template-columns:1fr 300px}
+.cols.wide{grid-template-columns:1fr 340px}
+.jrn{padding:14px 16px;border-right:1px solid var(--border);min-height:330px}
+.rail{padding:12px 13px;background:var(--surface-2);font-size:12.5px}
+
+/* 日誌行 */
+.who{display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:10px}
+.who .av{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;background:#dfe4f5;color:#3b5bdb}
+.who .m{color:var(--text-3)}
+.who .tools{margin-left:auto;display:flex;gap:6px}
+.tbtn{font-size:11.5px;border:1px solid var(--border);background:var(--surface);
+  border-radius:7px;padding:2px 9px;color:var(--text-2);cursor:pointer}
+.tbtn:hover{border-color:var(--border-2)}
+.tbtn.on{background:var(--pri-soft);border-color:#c8d4fb;color:var(--pri)}
+.tstamp{font-family:var(--mono);font-size:11.5px;color:var(--text-3);margin:9px 0 5px}
+.ln{display:flex;gap:8px;align-items:flex-start;padding:3px 6px 3px 2px;border-radius:7px;position:relative}
+.ln .bul{flex:none;color:var(--text-3);line-height:1.7;font-size:12px;width:10px;text-align:center}
+.ln .tx{font-size:13.2px;line-height:1.7}
+.ln.i1{margin-left:22px}
+.ln.i2{margin-left:44px}
+.ln.sel{background:var(--pri-soft);box-shadow:inset 0 0 0 1px #cbd6fb}
+.ln .pills{display:inline-flex;gap:5px;margin-left:7px;vertical-align:1px}
+.pill{font-size:11px;border-radius:20px;padding:1px 8px;white-space:nowrap;display:inline-flex;
+  align-items:center;gap:4px;border:1px solid transparent}
+.pill.today{background:var(--today-soft);color:var(--today);border-color:#f6d6c2;cursor:pointer}
+.pill.done{background:var(--ok-soft);color:var(--ok);border-color:#bfe3d2}
+.pill.ask{background:var(--pink-soft);color:var(--pink);border-color:#f4cddc}
+.pill.clock{background:var(--surface-3);color:var(--text-2);border-color:var(--border)}
+.pill.date{background:var(--info-soft);color:var(--info);border-color:#cfe2f8}
+.pill.n{background:var(--surface-3);color:var(--text-2);border-color:var(--border);
+  font-family:var(--mono);font-size:10.5px}
+.ck{flex:none;width:14px;height:14px;border:1px solid var(--border-2);border-radius:4px;
+  margin-top:4px;background:var(--surface);cursor:pointer}
+.ck.on{background:var(--pri);border-color:var(--pri);position:relative}
+.ck.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(42deg)}
+
+/* 範圍括號 */
+.scope{position:relative;border-left:2px solid var(--today);border-radius:2px;
+  margin-left:2px;padding-left:8px;background:linear-gradient(90deg,var(--today-soft),transparent 62%)}
+.scope.plain{border-left-color:var(--teal);background:linear-gradient(90deg,var(--teal-soft),transparent 62%)}
+
+/* 就地展開的議題盤 */
+.tray{margin:6px 0 10px 12px;border:1px solid #f0d9c8;background:#fffaf6;
+  border-radius:11px;padding:11px 13px}
+.tray.hide{display:none}
+.tray .th{display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  padding-bottom:9px;border-bottom:1px dashed #f0dccd;margin-bottom:9px}
+.tray .th .t{font-size:12.5px;font-weight:600}
+.tray .th .sp{margin-left:auto}
+.fieldrow{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-bottom:10px}
+.fieldrow div b{color:var(--text);font-weight:500}
+.msg{display:flex;gap:7px;margin-bottom:8px}
+.msg .av{flex:none;width:19px;height:19px;border-radius:50%;display:grid;place-items:center;
+  font-size:9.5px;background:#dfe4f5;color:#3b5bdb;margin-top:1px}
+.msg .av.l{background:#f3dbe6;color:#c2255c}
+.msg .b{font-size:12.3px;line-height:1.6}
+.msg .b .w{font-weight:600;margin-right:6px}
+.msg .b .tm{color:var(--text-3);font-size:11px;font-family:var(--mono)}
+.filechip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;background:var(--surface);
+  border:1px solid var(--border);border-radius:7px;padding:2px 8px;margin:2px 5px 2px 0;color:var(--text-2)}
+.filechip i{font-style:normal;color:var(--info)}
+.composer{display:flex;gap:6px;align-items:center;margin-top:9px}
+.composer .inp{flex:1;height:27px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface);display:flex;align-items:center;padding:0 9px;color:var(--text-3);font-size:12px}
+.btn{font-size:11.5px;border:1px solid var(--border);background:var(--surface);
+  border-radius:7px;padding:3px 10px;color:var(--text-2);cursor:pointer}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.ok{background:var(--ok-soft);border-color:#bfe3d2;color:var(--ok)}
+.btn:hover{filter:brightness(.98)}
+
+/* 浮動多選工具列 */
+.floatbar{display:flex;align-items:center;gap:8px;background:#1d2128;color:#e6eaf0;
+  border-radius:10px;padding:7px 11px;font-size:12px;margin:8px 0 10px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.floatbar b{color:#fff}
+.floatbar .sp{margin-left:auto;display:flex;gap:6px}
+.floatbar .fb{font-size:11.5px;border:1px solid #39414d;background:#262c35;border-radius:7px;
+  padding:3px 10px;color:#d7dce4;cursor:pointer}
+.floatbar .fb.go{background:#3b5bdb;border-color:#3b5bdb;color:#fff}
+.kbd{font-family:var(--mono);font-size:10.5px;background:#2c333d;border:1px solid #39414d;
+  border-radius:4px;padding:0 5px;color:#aeb7c4}
+
+/* 物件卡（B） */
+.objcard{border:1px solid #cfe7e3;background:var(--teal-soft);border-radius:11px;
+  padding:9px 11px;margin:5px 0 5px 12px}
+.objcard .oh{display:flex;align-items:center;gap:8px}
+.objcard .kind{font-size:10.5px;font-family:var(--mono);background:#fff;border:1px solid #bfe0da;
+  color:var(--teal);border-radius:5px;padding:1px 6px}
+.objcard .ot{font-size:13px;font-weight:600}
+.objcard .om{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--text-2)}
+.objbody{margin-top:9px;padding-top:9px;border-top:1px dashed #c6e0db;font-size:12.3px}
+.objbody.hide{display:none}
+.objbody ul{margin:4px 0 0;padding-left:17px;color:var(--text-2);line-height:1.75}
+.secline{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--text-3);margin-top:9px}
+.secline span{background:#fff;border:1px solid #cfe7e3;border-radius:6px;padding:1px 7px;color:var(--teal)}
+
+/* 物件頁（B 右側） */
+.docpane{padding:12px 13px;background:var(--surface);font-size:12.5px}
+.docpane .dh{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.docpane .dt{font-size:14px;font-weight:600;margin:2px 0 3px;line-height:1.45}
+.ref{font-family:var(--mono);font-size:10.5px;color:var(--text-3);background:var(--surface-3);
+  border:1px solid var(--border);border-radius:5px;padding:1px 6px}
+.kv{display:grid;grid-template-columns:62px 1fr;gap:5px 8px;font-size:12px;
+  margin:10px 0;padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.kv .k{color:var(--text-3)}
+.kv .v b{font-weight:500}
+.dsec{font-size:11.5px;color:var(--text-3);margin:11px 0 5px;letter-spacing:.02em}
+
+/* 右欄（rail） */
+.rsec{font-size:11.5px;color:var(--text-3);margin:12px 0 6px;display:flex;align-items:center;gap:6px}
+.rsec b{color:var(--today);font-weight:500;font-size:12px}
+.rsec .n{margin-left:auto;font-family:var(--mono);font-size:11px}
+.rcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:9px 10px;margin-bottom:7px}
+.rcard.today{border-left:3px solid var(--today)}
+.rcard .rt{font-size:12.3px;line-height:1.55;margin-bottom:6px}
+.rcard .rm{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rcard.click{cursor:pointer}
+.rcard.click:hover{border-color:var(--border-2);background:#fcfcfd}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:7px 9px}
+.stat b{display:block;font-size:17px;line-height:1.2}
+.stat span{font-size:11px;color:var(--text-3)}
+.mini{font-size:11.5px;color:var(--text-3);line-height:1.8}
+.mini .d{color:var(--pri);font-weight:500}
+
+/* 詳情面板（C） */
+.detail{font-size:12.5px}
+.detail .dbk{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-2);
+  cursor:pointer;margin-bottom:9px}
+.quoted{border-left:2px solid var(--border-2);padding-left:9px;margin:6px 0;color:var(--text-2);font-size:12px;line-height:1.7}
+.quoted .q1{color:var(--text);font-size:12.4px}
+.addline{border:1px dashed var(--border-2);border-radius:8px;padding:5px 9px;font-size:11.5px;
+  color:var(--text-3);text-align:center;cursor:pointer;margin-top:5px}
+.plusbtn{position:absolute;right:6px;top:3px;font-size:11px;border:1px solid var(--pri);
+  background:var(--pri-soft);color:var(--pri);border-radius:6px;padding:0 7px;cursor:pointer}
+
+/* 切換頁籤 */
+.states{display:flex;gap:6px;margin:0 0 10px}
+.st{font-size:12px;border:1px solid var(--border);background:var(--surface);border-radius:8px;
+  padding:4px 11px;color:var(--text-2);cursor:pointer}
+.st.on{background:var(--text);border-color:var(--text);color:#fff}
+.stage{display:none}.stage.on{display:block}
+
+/* 資料模型 diff */
+.diff{font-family:var(--mono);font-size:12px;background:#1d2128;color:#c8cfd9;border-radius:10px;
+  padding:12px 14px;overflow-x:auto;line-height:1.75;margin:12px 0 0}
+.diff .add{color:#8ce39a}
+.diff .del{color:#ff9b8a}
+.diff .c{color:#7f8a9b}
+
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:900px){.pgrid{grid-template-columns:1fr}}
+.pnl{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 15px}
+.pnl h5{margin:0 0 7px;font-size:12.5px;color:var(--text-3);font-weight:500}
+.pnl ul{margin:0;padding-left:17px;font-size:12.8px;color:var(--text-2);line-height:1.78}
+.pnl ul b{color:var(--text)}
+.pnl.risk{border-left:3px solid var(--warn)}
+
+/* 比較 */
+table.cmp{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);
+  border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table.cmp th,table.cmp td{padding:9px 11px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+table.cmp tr:last-child td{border-bottom:none}
+table.cmp th{background:var(--surface-2);color:var(--text-3);font-weight:500;font-size:12px}
+table.cmp td.y{color:var(--ok)}
+table.cmp td.n{color:var(--text-3)}
+table.cmp td.p{color:var(--warn)}
+table.cmp td.dim{color:var(--text-2);font-size:12.5px}
+.reco{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--ok);
+  border-radius:12px;padding:15px 18px;margin-top:12px}
+.reco h4{margin:0 0 8px;font-size:14.5px}
+.reco p{margin:0 0 9px;color:var(--text-2);font-size:13px;line-height:1.7}
+.reco p b{color:var(--text)}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px;margin-top:12px}
+.step{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+.step .n{font-family:var(--mono);font-size:11px;color:var(--pri);margin-bottom:4px}
+.step h5{margin:0 0 5px;font-size:13px}
+.step p{margin:0;font-size:12.3px;color:var(--text-2);line-height:1.65}
+.open{font-size:12.5px;color:var(--text-2);line-height:1.8;margin:8px 0 0;padding-left:18px}
+.open b{color:var(--text)}
+.foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--border);
+  color:var(--text-3);font-size:12px}
+.foot a{color:var(--text-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="stamp">研究後的介面提案 · 2026-09-24 · 日誌 / 今日議題</div>
+<h1>今日議題：從「一行上的旗標」變成「可以處理的一件事」</h1>
+<p class="lede">
+現在的今日議題只有兩個動詞（<b>標記</b>、<b>完成</b>），綁在單一行上，沒有自己的日期，也沒有地方放討論和檔案。
+這份文件先把現況的資料模型攤開、指出四個缺口與兩個順帶發現的既有缺陷，接著是七份外部產品的研究依據，
+然後給三種介面提案（可點擊試操作），最後是比較與建議。
+</p>
+
+<!-- ================= 現況診斷 ================= -->
+<h2 class="sec">一、現況：程式碼裡的今日議題長這樣<span>src/components/yuanzhan/v5/runtime.js</span></h2>
+
+<div class="model">
+<span class="c">// rqFlagToday(b) —— 標記一行為今日議題</span>
+t = {
+  <span class="k">id</span>: nid('TDY'),
+  <span class="k">author</span>: DB.me,
+  <span class="k">day</span>: S.jday,        <span class="c">// 掛在哪一天的日誌（延後時會被覆寫）</span>
+  <span class="k">blockId</span>: b.id,      <span class="c">// ← 單數。一個議題 = 一行</span>
+  <span class="k">text</span>: b.text.trim(),<span class="c">// ← 標記當下的文字快照，之後不再同步</span>
+  <span class="k">at</span>: Date.now(),
+  <span class="bad">doneAt?</span>, <span class="bad">deferred?</span>   <span class="c">// 全部能力就這兩個欄位</span>
+}
+<span class="c">// 動詞：rqFlagToday（建立）／rqCompleteToday（完成）／rqDeferToday（day = 明天）</span>
+</div>
+
+<div class="gaps">
+  <div class="gap"><span class="no">缺口 1</span><h4>只能綁單行</h4>
+    <p><code>blockId</code> 是單數，<code>b.today</code> 也是單數。畫面上那條「[行動] 繼續開發PersonalOS」底下三個子項，
+    語意上是同一件事，但系統只認得母行。<b>沒有任何 API 讓一個議題涵蓋多行。</b></p></div>
+  <div class="gap"><span class="no">缺口 2</span><h4>沒有自己的日期</h4>
+    <p>只有 <code>day</code>＝「掛在哪一天的日誌」。沒有<b>到期日</b>、沒有<b>提出日</b>。
+    延後時 <code>t.day = 明天</code> 直接覆寫，議題是「被搬走」而不是「被帶著走」。</p></div>
+  <div class="gap"><span class="no">缺口 3</span><h4>不能展開討論</h4>
+    <p>請求（<code>rq</code>）有 <code>replies[]</code>，Thread 有 <code>msgs[]</code>，
+    文件物件有 <code>sec.blocks</code>。<b>只有議題什麼都沒有</b>——想討論只能另外發一個請求，兩件事就此分家。</p></div>
+  <div class="gap"><span class="no">缺口 4</span><h4>不能掛檔案</h4>
+    <p>系統其實已經有上傳（<code>uploadFile()</code> → R2、<code>uploadThreadFile()</code>、<code>attachVoucher()</code>）。
+    <b>基礎設施在，議題沒有接上去。</b></p></div>
+  <div class="gap minor"><span class="no">順帶發現 A</span><h4>右欄文字會過期</h4>
+    <p><code>t.text</code> 是標記當下的快照。之後把那一行改寫，右欄的議題卡仍顯示舊句子。
+    兩邊對不起來，而且沒有任何提示。<b>建議一併改成讀 <code>bOf(blockId).text</code>。</b></p></div>
+  <div class="gap minor"><span class="no">順帶發現 B</span><h4>延後會抹掉歷史</h4>
+    <p><code>deferred</code> 有記次數，但「原本是哪一天提出的」被 <code>t.day</code> 覆寫掉了。
+    一件被延三次的事，看不出它其實是週一就提出來的。<b>需要 <code>bornDay</code> 與 <code>carried[]</code>。</b></p></div>
+</div>
+
+<!-- ================= 研究 ================= -->
+<h2 class="sec">二、研究輪次<span>七份外部產品，五個問題</span></h2>
+
+<div class="rounds">
+  <div class="round"><span class="no">R1</span><h4>「議題」到底是哪一種列？</h4>
+    <p>Fellow 把會議筆記的行分成三層：Bullet（不追蹤）／Talking point（可指派、可帶到下次，<b>沒有到期日</b>）／Action item（可指派、有到期日、可帶到下次）。</p>
+    <div class="verdict"><b>判定：議題 ≠ 行動。</b>它是「今天要處理掉的一段話」，要能被帶走、要能結束，但不該被逼著填專案級欄位。到期日應該是<b>選填</b>。</div></div>
+
+  <div class="round"><span class="no">R2</span><h4>討論該掛在哪裡？</h4>
+    <p>Basecamp 2008 年把「檔案與留言」從 message 區搬到 to-do 本身，理由正是討論散在別處。Fellow 也是每一行從 ⋯ 開留言、留言就地顯示、可 resolve。</p>
+    <div class="verdict"><b>掛在議題本身，不要另開請求。</b>並且議題要能被單獨連結——Basecamp 當年把「可以深連結到單一 to-do」列為同等重要的效果。</div></div>
+
+  <div class="round"><span class="no">R3</span><h4>一行還是一段？</h4>
+    <p>Linear 支援「選取文字 → Create issue from selection」。Notion 可把選取的多個區塊 turn into page。大綱類工具（Workflowy／Tana）的預設更直接：<b>一個節點天生包含它的子樹</b>。</p>
+    <div class="verdict"><b>預設吃子樹，非連續多行才用明確多選。</b>畫面上那三個縮排子項不需要任何手勢就該屬於母議題；跨段落的行才需要勾選。</div></div>
+
+  <div class="round"><span class="no">R4</span><h4>要不要把議題物件化？</h4>
+    <p>Tana 的 supertag 把一個 bullet 變成「有欄位模板的物件」，還能帶子節點與彙總頁。GitHub 的 sub-issue 則相反地強調<b>升格是明確動作</b>：checklist 項目要按了才變成完整 issue。</p>
+    <div class="verdict"><b>分層。</b>本系統已經有召喚／物件索引／參考碼——議題是唯一沒被物件化的標記。但不該每個議題都變物件，要留輕量層。</div></div>
+
+  <div class="round"><span class="no">R5</span><h4>討論會不會把日誌淹掉？</h4>
+    <p>Notion 的留言預設顯示在右側，可切成 Minimal 只留 icon；多則回覆預設收合。Basecamp 用留言 icon 的顏色區分未讀／已讀，不展開內容。</p>
+    <div class="verdict"><b>密度要可調。</b>日誌行預設只出現「💬 3 · 📎 2」這種計數，展開是使用者的決定，不是預設狀態。</div></div>
+</div>
+
+<h2 class="sec">三、研究依據<span>可查證的外部來源</span></h2>
+<table class="ev">
+  <tr><th>來源</th><th>查到什麼</th><th>對本案的意義</th></tr>
+  <tr>
+    <td class="s">Fellow<em>Action items v. Talking points v. Bullets</em></td>
+    <td class="f">三層行型別。Talking point 可指派、未完成可帶到下一次會議，但明確<b>不支援到期日</b>；Action item 才有。</td>
+    <td class="d">「今日議題」對應 talking point 那一層：到期日選填，帶到明天是內建行為而非例外處理。</td>
+  </tr>
+  <tr>
+    <td class="s">Fellow<em>Comments &amp; Reactions</em></td>
+    <td class="f">任何一行（talking point／action item／bullet）都能從行尾 ⋯ 選「Add a comment」，留言就地顯示，並有「顯示已解決留言」。</td>
+    <td class="d">行級討論是成熟做法。入口放在行尾既有的 pill 區，不需要新元件。</td>
+  </tr>
+  <tr>
+    <td class="s">Basecamp<em>Attach files and post comments on to-dos（37signals）</em></td>
+    <td class="f">把討論從 messages 搬進 to-do 本身；用留言 icon 的顏色表示未讀／已讀／無；同時開放<b>深連結到單一 to-do</b>。</td>
+    <td class="d">附件與討論必須跟著項目走。收合狀態用計數與顏色，不是內容。議題需要自己的可引用位址。</td>
+  </tr>
+  <tr>
+    <td class="s">Tana<em>Supertags</em></td>
+    <td class="f">「Supertags turn a node into a typed object with a template of fields」：tag 一下，欄位、子節點模板就生出來，並有彙總所有實例的 supertag page。</td>
+    <td class="d">本系統的召喚＋物件索引就是同一招。議題物件化不是新機制，是把既有機制套到唯一漏掉的地方。</td>
+  </tr>
+  <tr>
+    <td class="s">GitHub<em>Adding sub-issues</em></td>
+    <td class="f">清單項目可升格為完整 issue（自帶討論），母 issue 顯示進度；上限 100 個子項、8 層巢狀。</td>
+    <td class="d">升格是明確動作而非自動。也提醒要設上限——否則一天的日誌可以長成一棵樹。</td>
+  </tr>
+  <tr>
+    <td class="s">Notion<em>Comments, mentions &amp; reminders</em></td>
+    <td class="f">留言預設顯示在文字右側，可切 Minimal 只顯示 icon；多則回覆預設收合；可 resolve 並之後重開。</td>
+    <td class="d">展開／收合要是使用者可控的檢視模式，不是每個議題各自的狀態。</td>
+  </tr>
+  <tr>
+    <td class="s">Linear<em>Create issues</em></td>
+    <td class="f">「Highlight text and click the Create issue from selection icon in the formatting bar」——選取文字直接生成 issue。</td>
+    <td class="d">多行選取 → 建立物件，是使用者已經熟悉的手勢。浮動工具列比右鍵選單更容易被發現。</td>
+  </tr>
+</table>
+
+<!-- ================= 提案 A ================= -->
+<div class="phead">
+  <div class="pbadge">A</div>
+  <div><h2>議題盤（就地展開）</h2>
+  <p class="one">議題仍然活在日誌行上，但 pill 變成開關：按下去，同一行底下長出一個盤子，裡面有日期、討論、附件。</p></div>
+</div>
+<div class="tagrow">
+  <span class="tag cost">改動範圍：小</span>
+  <span class="tag ok">不新增頁面</span>
+  <span class="tag ok">節點＋子樹自動成為議題範圍</span>
+  <span class="tag warn">議題多時日誌會變長</span>
+  <span class="tag">依據 R2 / R3 / R5</span>
+</div>
+
+<div class="states">
+  <button class="st on" data-g="a" data-s="0">① 收合（日常狀態）</button>
+  <button class="st" data-g="a" data-s="1">② 展開議題盤</button>
+  <button class="st" data-g="a" data-s="2">③ 多行選取合併</button>
+</div>
+
+<div class="frame"><div class="scroll"><div class="app">
+  <div class="topbar"><div class="logo"></div><div class="brand">圓展 Operating System</div>
+    <div class="ver">v5 · two-person</div><div class="omni">搜尋、新增或執行動作…</div></div>
+  <div class="daybar"><b>日誌</b><span style="color:var(--text-2)">2026-09-24 週四</span>
+    <div class="seg"><span class="on">今天</span><span>回顧</span><span>物件索引</span></div></div>
+  <div class="cols">
+    <div class="jrn">
+      <div class="who"><span class="av">宇</span><b>宇星</b><span class="m">· 你 · 編輯中</span>
+        <div class="tools"><span class="tbtn"># 召喚</span><span class="tbtn">@ 引用</span></div></div>
+
+      <div class="stage on" data-g="a" data-s="0">
+        <div class="tstamp">0924. 12:38</div>
+        <div class="scope">
+          <div class="ln"><span class="bul">·</span><span class="tx">[行動] 繼續開發PersonalOS：這週目標是內部整理包含
+            <span class="pills"><span class="pill today">▸ 今日議題</span><span class="pill date">到期 09-26</span><span class="pill n">💬 2 · 📎 1</span></span></span></div>
+          <div class="ln i1"><span class="bul">·</span><span class="tx">金流模組：可以上傳發票記錄，並搭配實體搜集公司發票的地方</span></div>
+          <div class="ln i1"><span class="bul">·</span><span class="tx">專案模組：可以記錄目前實體專案有哪些資料</span></div>
+          <div class="ln i1"><span class="bul">·</span><span class="tx">要把年度營運目標書和團隊節奏執行方式放進來</span></div>
+        </div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 整理提案與獎學金可申請資源</span></div>
+        <p class="note" style="margin-top:14px">
+          收合時一行只多兩個小 pill：<b>到期日</b>與<b>計數</b>（依 R5，Notion／Basecamp 都只顯示計數不顯示內容）。
+          左側那條橘色邊線就是議題範圍——母行加它的縮排子樹，<b>不需要任何手勢</b>（依 R3）。
+        </p>
+      </div>
+
+      <div class="stage" data-g="a" data-s="1">
+        <div class="tstamp">0924. 12:38</div>
+        <div class="scope">
+          <div class="ln"><span class="bul">·</span><span class="tx">[行動] 繼續開發PersonalOS：這週目標是內部整理包含
+            <span class="pills"><span class="pill today">▾ 今日議題</span></span></span></div>
+          <div class="ln i1"><span class="bul">·</span><span class="tx">金流模組：可以上傳發票記錄，並搭配實體搜集公司發票的地方</span></div>
+          <div class="ln i1"><span class="bul">·</span><span class="tx">專案模組：可以記錄目前實體專案有哪些資料</span></div>
+          <div class="ln i1"><span class="bul">·</span><span class="tx">要把年度營運目標書和團隊節奏執行方式放進來</span></div>
+        </div>
+        <div class="tray">
+          <div class="th"><span class="pill today">今日議題</span><span class="t">涵蓋 1 母行 + 3 子行</span>
+            <span class="sp"></span><span class="btn">延到明天</span><span class="btn ok">✓ 完成</span></div>
+          <div class="fieldrow">
+            <div>提出 <b>09-23</b>（已帶過 1 次）</div>
+            <div>到期 <b>09-26 週六</b></div>
+            <div>誰處理 <b>宇星</b></div>
+            <div>要誰看 <b>Lily</b></div>
+          </div>
+          <div class="msg"><span class="av">宇</span><div class="b"><span class="w">宇星</span><span class="tm">12:41</span><br>金流模組先做上傳，實體收集那段這週不做。</div></div>
+          <div class="msg"><span class="av l">L</span><div class="b"><span class="w">Lily</span><span class="tm">13:02</span><br>發票的命名規則我放在附件裡了，照那個走。</div></div>
+          <div><span class="filechip"><i>📎</i> 發票命名規則.pdf</span></div>
+          <div class="composer"><div class="inp">寫下討論…</div><span class="btn">附檔</span><span class="btn pri">送出</span></div>
+        </div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span></div>
+        <p class="note" style="margin-top:14px">
+          盤子推開下面的行，不蓋住任何東西，也不換頁。上面那排欄位就是缺口 2 要補的三個日期概念：
+          <b>提出日</b>、<b>到期日</b>、<b>已帶過幾次</b>。
+        </p>
+      </div>
+
+      <div class="stage" data-g="a" data-s="2">
+        <div class="tstamp">0924. 12:38</div>
+        <div class="ln sel"><span class="ck on"></span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span></div>
+        <div class="ln"><span class="ck"></span><span class="tx">[行動] 整理提案與獎學金可申請資源</span></div>
+        <div class="ln sel"><span class="ck on"></span><span class="tx">要先問文齡姐這週哪天有空對一次稿</span></div>
+        <div class="floatbar">已選 <b>2 行</b><span class="kbd">⇧ 點擊</span> 連續選
+          <span class="sp"><span class="fb">引用</span><span class="fb">召喚成物件</span><span class="fb go">! 合併為一個今日議題</span></span></div>
+        <div class="tray" style="margin-left:0">
+          <div class="th"><span class="pill today">今日議題（預覽）</span><span class="t">標題取第一行，其餘成為條列</span></div>
+          <div style="font-size:12.6px;line-height:1.7">
+            <b>[行動] 文齡姐和Evvon的網站設計</b>
+            <div style="color:var(--text-2);padding-left:12px">· 要先問文齡姐這週哪天有空對一次稿</div>
+          </div>
+          <div class="composer"><span class="btn">取消</span><span class="btn pri">建立議題</span></div>
+        </div>
+        <p class="note" style="margin-top:14px">
+          非連續的行才需要勾選。浮動工具列同時提供「引用／召喚成物件／合併為議題」三條路，
+          手勢與 Linear 的 <b>Create issue from selection</b> 一致（依 R3）。
+        </p>
+      </div>
+    </div>
+
+    <div class="rail">
+      <div class="stats"><div class="stat"><b>1</b><span>今日物件</span></div>
+        <div class="stat"><b>—</b><span>承諾完成</span></div><div class="stat"><b>—</b><span>金流</span></div></div>
+      <div class="rsec"><b>今日議題</b><span class="n">1</span></div>
+      <div class="rcard today"><div class="rt">[行動] 繼續開發PersonalOS：這週目標是內部整理包含</div>
+        <div class="rm"><span class="pill date">到期 09-26</span><span class="pill n">💬 2 · 📎 1</span><span class="btn ok">✓ 完成</span></div></div>
+      <div class="mini" style="margin-top:10px">右欄只是索引，<span class="d">點卡片捲到那一行並展開盤子</span>——單一事實來源仍在日誌。</div>
+    </div>
+  </div>
+</div></div></div>
+
+<div class="pgrid">
+  <div class="pnl"><h5>資料模型改動</h5>
+<div class="diff" style="margin-top:0">
+t = {
+  id, author, at,
+  <span class="del">- blockId: b.id</span>
+  <span class="add">+ blockIds: [b.id, ...children]   // 節點＋子樹，或多選</span>
+  <span class="del">- text: b.text.trim()</span>
+  <span class="add">+ // 取消快照，一律讀 bOf(blockIds[0]).text（修正發現 A）</span>
+  <span class="del">- day: S.jday</span>
+  <span class="add">+ bornDay, due?, carried: [日期...]   （修正發現 B）</span>
+  <span class="add">+ msgs: [{w, x, at}]       // 沿用 Thread 的訊息形狀</span>
+  <span class="add">+ files: [], fileIds: []   // 沿用 uploadFile() / R2</span>
+  <span class="add">+ watcher?: 'lily'         // 要誰看（不等於發請求）</span>
+}
+</div></div>
+  <div class="pnl risk"><h5>成本與風險</h5>
+    <ul>
+      <li><b>沿用既有元件：</b>訊息串沿用 <code>DB.threads</code> 的 <code>msgs</code> 形狀、附件沿用 <code>uploadThreadFile()</code>，不必新寫上傳。</li>
+      <li><b>渲染改動集中：</b><code>rqLinePills()</code>、<code>rqFlagToday()</code>、右欄 <code>sec('今日議題')</code> 三處。</li>
+      <li><b>風險：</b>兩三個議題同時展開，日誌會被撐開到要捲動。緩解：<b>同時只允許一個盤子展開</b>（手風琴）。</li>
+      <li><b>風險：</b>議題沒有參考碼、不進物件索引，之後想回頭查「上個月那個議題」還是查不到。</li>
+    </ul></div>
+</div>
+
+<!-- ================= 提案 B ================= -->
+<div class="phead">
+  <div class="pbadge b">B</div>
+  <div><h2>議題物件（召喚升格）</h2>
+  <p class="one">把議題納入系統既有的物件體系：有參考碼、進物件索引、有自己的頁面，內文就是從日誌搬過去的那幾行。</p></div>
+</div>
+<div class="tagrow">
+  <span class="tag cost">改動範圍：大</span>
+  <span class="tag ok">與召喚／物件索引／參考碼一致</span>
+  <span class="tag ok">討論與附件直接沿用 Thread</span>
+  <span class="tag warn">升格後日誌那幾行會被卡片取代</span>
+  <span class="tag">依據 R4 / R2</span>
+</div>
+
+<div class="states">
+  <button class="st on" data-g="b" data-s="0">① 日誌裡的議題卡</button>
+  <button class="st" data-g="b" data-s="1">② 展開預覽</button>
+  <button class="st" data-g="b" data-s="2">③ 議題頁 / 抽屜</button>
+</div>
+
+<div class="frame"><div class="scroll"><div class="app">
+  <div class="topbar"><div class="logo"></div><div class="brand">圓展 Operating System</div>
+    <div class="ver">v5 · two-person</div><div class="omni">搜尋、新增或執行動作…</div></div>
+  <div class="daybar"><b>日誌</b><span style="color:var(--text-2)">2026-09-24 週四</span>
+    <div class="seg"><span class="on">今天</span><span>回顧</span><span>物件索引</span></div></div>
+  <div class="cols wide">
+    <div class="jrn">
+      <div class="who"><span class="av">宇</span><b>宇星</b><span class="m">· 你 · 編輯中</span>
+        <div class="tools"><span class="tbtn on"># 召喚</span><span class="tbtn">@ 引用</span></div></div>
+
+      <div class="stage on" data-g="b" data-s="0">
+        <div class="tstamp">0924. 12:38</div>
+        <div class="objcard">
+          <div class="oh"><span class="kind">issue_object</span><span class="ot">繼續開發 PersonalOS：這週內部整理</span>
+            <span class="om"><span class="pill date">到期 09-26</span><span class="pill n">💬 2 · 📎 1</span><span class="btn">展開 ⌄</span><span class="btn">↗</span></span></div>
+        </div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計
+          <span class="pills"><span class="pill today">· 今日議題</span></span></span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 整理提案與獎學金可申請資源</span></div>
+        <p class="note" style="margin-top:14px">
+          兩層並存（依 R4，GitHub 的 sub-issue 也是這樣）：<br>
+          <b>L1 輕量議題</b>＝現在的 pill，一行、一天、標記與完成，什麼都不用填。<br>
+          <b>L2 議題物件</b>＝升格後變成卡片，跟畫面上那張 Standup 卡同一個容器，有參考碼、進物件索引。
+        </p>
+      </div>
+
+      <div class="stage" data-g="b" data-s="1">
+        <div class="tstamp">0924. 12:38</div>
+        <div class="objcard">
+          <div class="oh"><span class="kind">issue_object</span><span class="ot">繼續開發 PersonalOS：這週內部整理</span>
+            <span class="om"><span class="pill date">到期 09-26</span><span class="btn">收合 ⌃</span><span class="btn">↗</span></span></div>
+          <div class="objbody">
+            <div style="color:var(--text-3);font-size:11.5px">內文（從日誌那四行搬進來）</div>
+            <ul><li>金流模組：可以上傳發票記錄，並搭配實體搜集公司發票的地方</li>
+              <li>專案模組：可以記錄目前實體專案有哪些資料</li>
+              <li>要把年度營運目標書和團隊節奏執行方式放進來</li></ul>
+            <div class="secline">段落 <span>內文</span><span>討論 2</span><span>附件 1</span><span>結論（未填）</span></div>
+          </div>
+        </div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span></div>
+        <p class="note" style="margin-top:14px">
+          展開是在日誌裡就地預覽，跟 Standup 卡的「展開」行為一致，不是另一種新互動。
+        </p>
+      </div>
+
+      <div class="stage" data-g="b" data-s="2">
+        <div class="tstamp">0924. 12:38</div>
+        <div class="objcard" style="opacity:.6">
+          <div class="oh"><span class="kind">issue_object</span><span class="ot">繼續開發 PersonalOS：這週內部整理</span>
+            <span class="om"><span class="btn">↗ 已開啟 →</span></span></div>
+        </div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 整理提案與獎學金可申請資源</span></div>
+        <p class="note" style="margin-top:14px">右邊那一欄就是議題頁（也可以是抽屜）。日誌保持乾淨，深度都在物件裡。</p>
+      </div>
+    </div>
+
+    <div class="stage on" data-g="b" data-s="0"><div class="rail">
+      <div class="stats"><div class="stat"><b>2</b><span>今日物件</span></div>
+        <div class="stat"><b>—</b><span>承諾完成</span></div><div class="stat"><b>—</b><span>金流</span></div></div>
+      <div class="rsec"><b>今日議題</b><span class="n">2</span></div>
+      <div class="rcard today"><div class="rt">繼續開發 PersonalOS：這週內部整理</div>
+        <div class="rm"><span class="ref">ISSU-JRNL-000031</span><span class="pill date">09-26</span></div></div>
+      <div class="rcard today"><div class="rt">[行動] 文齡姐和Evvon的網站設計</div>
+        <div class="rm"><span class="pill n">L1 輕量</span><span class="btn">升格 ↗</span><span class="btn ok">✓</span></div></div>
+      <div class="rsec" style="margin-top:14px"><b style="color:var(--text-2)">今天誕生的物件</b><span class="n">2</span></div>
+      <div class="mini"><span class="d">doc_object</span> Standup：昨天完成了地… <span style="font-family:var(--mono)">L4</span><br>
+        <span class="d">issue_object</span> 繼續開發 PersonalOS… <span style="font-family:var(--mono)">L2</span></div>
+    </div></div>
+
+    <div class="stage" data-g="b" data-s="1"><div class="rail">
+      <div class="stats"><div class="stat"><b>2</b><span>今日物件</span></div>
+        <div class="stat"><b>—</b><span>承諾完成</span></div><div class="stat"><b>—</b><span>金流</span></div></div>
+      <div class="rsec"><b>今日議題</b><span class="n">2</span></div>
+      <div class="rcard today"><div class="rt">繼續開發 PersonalOS：這週內部整理</div>
+        <div class="rm"><span class="ref">ISSU-JRNL-000031</span><span class="pill date">09-26</span></div></div>
+      <div class="mini" style="margin-top:10px">升格後的議題同時出現在<span class="d">物件索引</span>，日誌那一行被刪掉也查得到。</div>
+    </div></div>
+
+    <div class="stage" data-g="b" data-s="2"><div class="docpane">
+      <div class="dh"><span class="kind" style="font-size:10.5px;font-family:var(--mono);background:var(--teal-soft);border:1px solid #bfe0da;color:var(--teal);border-radius:5px;padding:1px 6px">issue_object</span>
+        <span class="ref">ISSU-JRNL-000031-20260924</span><span style="margin-left:auto"><span class="btn">✕</span></span></div>
+      <div class="dt">繼續開發 PersonalOS：這週內部整理</div>
+      <div class="kv">
+        <div class="k">提出</div><div class="v"><b>09-23 週三</b> · 宇星</div>
+        <div class="k">到期</div><div class="v"><b>09-26 週六</b></div>
+        <div class="k">帶過</div><div class="v">1 次（09-23 → 09-24）</div>
+        <div class="k">狀態</div><div class="v"><span class="pill today">處理中</span></div>
+        <div class="k">來源</div><div class="v"><span style="color:var(--pri);cursor:pointer">09-24 日誌第 3 行 ⤵</span></div>
+      </div>
+      <div class="dsec">內文</div>
+      <div style="font-size:12.4px;line-height:1.8;color:var(--text-2)">
+        · 金流模組：可以上傳發票記錄<br>· 專案模組：記錄實體專案資料<br>· 年度營運目標書與團隊節奏</div>
+      <div class="dsec">討論 · 2</div>
+      <div class="msg"><span class="av">宇</span><div class="b"><span class="w">宇星</span><span class="tm">12:41</span><br>金流先做上傳，實體收集這週不做。</div></div>
+      <div class="msg"><span class="av l">L</span><div class="b"><span class="w">Lily</span><span class="tm">13:02</span><br>發票命名規則在附件。</div></div>
+      <div class="composer"><div class="inp">寫下討論…</div><span class="btn">附檔</span><span class="btn pri">送出</span></div>
+      <div class="dsec">附件 · 1</div>
+      <div><span class="filechip"><i>📎</i> 發票命名規則.pdf</span></div>
+      <div class="dsec">結案</div>
+      <div style="font-size:12.2px;color:var(--text-2);line-height:1.7">
+        沿用 Thread 的 Close 卡五欄：結論、決策、下一步、證據、負責人。<br>
+        填完 → 決策進決策帳本、附件進 Evidence Repo。</div>
+      <div class="composer"><span class="btn">延到明天</span><span class="btn ok">✓ 完成並結案</span></div>
+    </div></div>
+  </div>
+</div></div></div>
+
+<div class="pgrid">
+  <div class="pnl"><h5>資料模型改動</h5>
+<div class="diff" style="margin-top:0">
+<span class="c">// L1 輕量議題：維持現狀，只補日期欄位</span>
+t = { id, author, bornDay, due?, carried[], blockIds[], doneAt? }
+
+<span class="add">+ // L2 升格：走既有的 replaceWithObj() 路徑</span>
+issue_object = {
+  <span class="add">ty: 'issue_object', ref: 'ISSU-JRNL-{SEQ}-{YYYYMMDD}',</span>
+  <span class="add">title, bornAt, due, owner, state,</span>
+  <span class="add">sec: [{ 內文 blocks }, { 討論 }, { 附件 }, { 結論 }],</span>
+  <span class="add">threadId  // 直接指向 DB.threads，msgs / files / closed 全部沿用</span>
+}
+<span class="c">// 需要動：DOC_METAS 加一型、物件索引 facet 加一個、</span>
+<span class="c">//         objJump / openDocPage 加分支（與 doc_object 同形）</span>
+</div></div>
+  <div class="pnl risk"><h5>成本與風險</h5>
+    <ul>
+      <li><b>最大的好處：</b>討論、附件、結案五欄、參考碼、物件索引、回到來源行——<b>全都已經寫好了</b>，只是接上去。</li>
+      <li><b>最大的代價：</b>升格會把日誌那幾行換成一張卡。原文被搬進物件內文，日誌的「當天流水」語感會被切斷。</li>
+      <li><b>風險：</b>兩層（L1／L2）要讓人搞得懂什麼時候該升格，否則會出現一半議題是 pill、一半是卡片的混亂。</li>
+      <li><b>風險：</b>每日議題若都升格，物件索引會被日常瑣事灌爆。建議<b>只有帶過 ≥1 次或有討論的才提示升格</b>。</li>
+    </ul></div>
+</div>
+
+<!-- ================= 提案 C ================= -->
+<div class="phead">
+  <div class="pbadge c">C</div>
+  <div><h2>議題桌（右欄詳情面板）</h2>
+  <p class="one">日誌行保持極簡，所有深度都收進右欄：點右欄的議題卡，整欄切換成詳情面板，含日期、引用的行、討論、附件。</p></div>
+</div>
+<div class="tagrow">
+  <span class="tag cost">改動範圍：中</span>
+  <span class="tag ok">日誌完全不變胖</span>
+  <span class="tag ok">「加入這個議題」可以慢慢撿行</span>
+  <span class="tag warn">右欄已經很擠（回覆追蹤／議題／物件／脈絡）</span>
+  <span class="tag">依據 R5 / R3</span>
+</div>
+
+<div class="states">
+  <button class="st on" data-g="c" data-s="0">① 右欄索引</button>
+  <button class="st" data-g="c" data-s="1">② 詳情面板</button>
+  <button class="st" data-g="c" data-s="2">③ 撿行模式</button>
+</div>
+
+<div class="frame"><div class="scroll"><div class="app">
+  <div class="topbar"><div class="logo"></div><div class="brand">圓展 Operating System</div>
+    <div class="ver">v5 · two-person</div><div class="omni">搜尋、新增或執行動作…</div></div>
+  <div class="daybar"><b>日誌</b><span style="color:var(--text-2)">2026-09-24 週四</span>
+    <div class="seg"><span class="on">今天</span><span>回顧</span><span>物件索引</span></div></div>
+  <div class="cols wide">
+    <div class="jrn">
+      <div class="who"><span class="av">宇</span><b>宇星</b><span class="m">· 你 · 編輯中</span>
+        <div class="tools"><span class="tbtn"># 召喚</span><span class="tbtn">@ 引用</span></div></div>
+      <div class="tstamp">0924. 12:38</div>
+
+      <div class="stage on" data-g="c" data-s="0">
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 繼續開發PersonalOS：這週目標是內部整理包含
+          <span class="pills"><span class="pill today">· 今日議題</span></span></span></div>
+        <div class="ln i1"><span class="bul">·</span><span class="tx">金流模組：可以上傳發票記錄，並搭配實體搜集公司發票的地方</span></div>
+        <div class="ln i1"><span class="bul">·</span><span class="tx">專案模組：可以記錄目前實體專案有哪些資料</span></div>
+        <div class="ln i1"><span class="bul">·</span><span class="tx">要把年度營運目標書和團隊節奏執行方式放進來</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 整理提案與獎學金可申請資源</span></div>
+        <p class="note" style="margin-top:14px">日誌維持現在的樣子，<b>一個字都沒變胖</b>。點右欄那張卡 →</p>
+      </div>
+
+      <div class="stage" data-g="c" data-s="1">
+        <div class="ln" style="background:var(--today-soft);box-shadow:inset 0 0 0 1px #f6d6c2"><span class="bul">·</span><span class="tx">[行動] 繼續開發PersonalOS：這週目標是內部整理包含
+          <span class="pills"><span class="pill today">· 今日議題</span></span></span></div>
+        <div class="ln i1" style="background:var(--today-soft)"><span class="bul">·</span><span class="tx">金流模組：可以上傳發票記錄，並搭配實體搜集公司發票的地方</span></div>
+        <div class="ln i1" style="background:var(--today-soft)"><span class="bul">·</span><span class="tx">專案模組：可以記錄目前實體專案有哪些資料</span></div>
+        <div class="ln i1" style="background:var(--today-soft)"><span class="bul">·</span><span class="tx">要把年度營運目標書和團隊節奏執行方式放進來</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span></div>
+        <p class="note" style="margin-top:14px">開啟詳情時，這個議題涵蓋的行在日誌裡<b>同步高亮</b>——人才知道右邊講的是左邊哪幾行。</p>
+      </div>
+
+      <div class="stage" data-g="c" data-s="2">
+        <div class="ln" style="background:var(--today-soft)"><span class="bul">·</span><span class="tx">[行動] 繼續開發PersonalOS：這週目標是內部整理包含</span></div>
+        <div class="ln i1" style="background:var(--today-soft)"><span class="bul">·</span><span class="tx">金流模組：可以上傳發票記錄</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 文齡姐和Evvon的網站設計</span><span class="plusbtn">＋ 加入</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">[行動] 整理提案與獎學金可申請資源</span><span class="plusbtn">＋ 加入</span></div>
+        <div class="ln"><span class="bul">·</span><span class="tx">發票命名規則要跟會計確認一次</span><span class="plusbtn">＋ 加入</span></div>
+        <p class="note" style="margin-top:14px">
+          撿行模式解決一件 A、B 都做不好的事：<b>議題成形之後才想到的行</b>。
+          不必重建議題，直接在任何一行按「＋ 加入」。
+        </p>
+      </div>
+    </div>
+
+    <div class="stage on" data-g="c" data-s="0"><div class="rail">
+      <div class="stats"><div class="stat"><b>1</b><span>今日物件</span></div>
+        <div class="stat"><b>—</b><span>承諾完成</span></div><div class="stat"><b>—</b><span>金流</span></div></div>
+      <div class="rsec"><b>今日議題</b><span class="n">2</span></div>
+      <div class="rcard today click"><div class="rt">[行動] 繼續開發PersonalOS：這週目標是內部整理包含</div>
+        <div class="rm"><span class="pill date">到期 09-26</span><span class="pill n">4 行 · 💬 2 · 📎 1</span></div></div>
+      <div class="rcard today click"><div class="rt">整理提案與獎學金可申請資源</div>
+        <div class="rm"><span class="pill clock">從昨天帶來</span><span class="pill n">1 行</span></div></div>
+      <div class="mini" style="margin-top:10px">卡片顯示<span class="d">涵蓋行數</span>與<span class="d">討論／附件計數</span>，點進去看內容（依 R5）。</div>
+    </div></div>
+
+    <div class="stage" data-g="c" data-s="1"><div class="rail detail">
+      <div class="dbk">‹ 回今日議題</div>
+      <div class="rcard today" style="margin-bottom:10px">
+        <div class="rt" style="font-weight:600">[行動] 繼續開發PersonalOS：這週目標是內部整理包含</div>
+        <div class="rm"><span class="pill date">到期 09-26</span><span class="pill clock">帶過 1 次</span></div>
+      </div>
+      <div class="dsec">涵蓋的日誌行 · 4</div>
+      <div class="quoted"><div class="q1">[行動] 繼續開發PersonalOS…</div>
+        · 金流模組：可以上傳發票記錄<br>· 專案模組：記錄實體專案資料<br>· 年度營運目標書與團隊節奏</div>
+      <div class="addline">＋ 從日誌再撿幾行加進來</div>
+      <div class="dsec" style="margin-top:12px">討論 · 2</div>
+      <div class="msg"><span class="av">宇</span><div class="b"><span class="w">宇星</span><span class="tm">12:41</span><br>金流先做上傳。</div></div>
+      <div class="msg"><span class="av l">L</span><div class="b"><span class="w">Lily</span><span class="tm">13:02</span><br>命名規則在附件。</div></div>
+      <div class="composer"><div class="inp">寫下討論…</div><span class="btn">附檔</span></div>
+      <div class="dsec" style="margin-top:12px">附件 · 1</div>
+      <div><span class="filechip"><i>📎</i> 發票命名規則.pdf</span></div>
+      <div class="composer" style="margin-top:12px"><span class="btn">延到明天</span><span class="btn ok">✓ 完成</span></div>
+    </div></div>
+
+    <div class="stage" data-g="c" data-s="2"><div class="rail detail">
+      <div class="dbk">‹ 回今日議題</div>
+      <div style="background:#1d2128;color:#e6eaf0;border-radius:9px;padding:8px 11px;font-size:11.8px;margin-bottom:10px">
+        撿行模式：在左邊任何一行按 <b style="color:#fff">＋ 加入</b><br>
+        <span style="color:#aeb7c4">按 <span class="kbd">Esc</span> 結束</span></div>
+      <div class="dsec">涵蓋的日誌行 · 4 → 5</div>
+      <div class="quoted"><div class="q1">[行動] 繼續開發PersonalOS…</div>
+        · 金流模組：可以上傳發票記錄<br>· 專案模組：記錄實體專案資料<br>· 年度營運目標書與團隊節奏</div>
+      <div class="quoted" style="border-left-color:var(--pri);background:var(--pri-soft);border-radius:0 7px 7px 0">
+        <div class="q1">發票命名規則要跟會計確認一次</div>
+        <span style="font-size:11px;color:var(--pri)">剛加入</span></div>
+      <div class="composer" style="margin-top:12px"><span class="btn">取消</span><span class="btn pri">完成撿行</span></div>
+    </div></div>
+  </div>
+</div></div></div>
+
+<div class="pgrid">
+  <div class="pnl"><h5>資料模型改動</h5>
+<div class="diff" style="margin-top:0">
+t = {
+  id, author, at,
+  <span class="add">+ blockIds: []        // 可隨時增減，不限連續</span>
+  <span class="add">+ bornDay, due?, carried[]</span>
+  <span class="add">+ msgs[], files[], fileIds[]</span>
+}
+<span class="c">// 新增 UI 狀態（不進 DB）：</span>
+<span class="add">S.issueOpen  = 'TDY-xxx'   // 右欄開在哪個議題</span>
+<span class="add">S.issuePick  = 'TDY-xxx'   // 撿行模式中</span>
+<span class="c">// 日誌渲染只多一件事：blockIds 命中的行加高亮 class</span>
+</div></div>
+  <div class="pnl risk"><h5>成本與風險</h5>
+    <ul>
+      <li><b>日誌零成本：</b>左欄只多一個高亮 class 與撿行模式的 ＋ 按鈕，其餘完全不動。</li>
+      <li><b>撿行是獨有能力：</b>A 只能在建立當下決定範圍，B 要編輯物件內文；C 隨時能加行，這最貼近日誌是「一整天長出來的」。</li>
+      <li><b>風險：</b>右欄目前已經有四段（回覆追蹤／今日議題／今天誕生的物件／今日脈絡）。整欄被詳情面板佔掉時，其他三段暫時看不到。</li>
+      <li><b>風險：</b>300px 寬放討論串偏窄，長句子會斷成很多行。可能要把右欄加寬到 340–380px。</li>
+    </ul></div>
+</div>
+
+<!-- ================= 比較 ================= -->
+<h2 class="sec">四、三案比較</h2>
+<table class="cmp">
+  <tr><th style="width:190px">面向</th><th>A 議題盤</th><th>B 議題物件</th><th>C 議題桌</th></tr>
+  <tr><td>多行／子樹</td><td class="y">✓ 子樹自動＋多選</td><td class="y">✓ 選取後召喚</td><td class="y">✓ 且事後可再撿行</td></tr>
+  <tr><td>日期（提出／到期／帶過）</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+  <tr><td>討論</td><td class="y">✓ 就地</td><td class="y">✓ 沿用 Thread</td><td class="y">✓ 右欄</td></tr>
+  <tr><td>附件</td><td class="y">✓</td><td class="y">✓ 可進 Evidence Repo</td><td class="y">✓</td></tr>
+  <tr><td>有參考碼、可被引用</td><td class="n">✗</td><td class="y">✓</td><td class="n">✗</td></tr>
+  <tr><td>進物件索引、之後查得到</td><td class="n">✗</td><td class="y">✓</td><td class="n">✗</td></tr>
+  <tr><td>日誌會不會變胖</td><td class="p">展開時會</td><td class="p">行被換成卡片</td><td class="y">不會</td></tr>
+  <tr><td>右欄擁擠度</td><td class="y">不變</td><td class="y">不變</td><td class="p">詳情會蓋掉其他段</td></tr>
+  <tr><td>結案有沒有結構（五欄）</td><td class="n">✗</td><td class="y">✓</td><td class="n">✗</td></tr>
+  <tr><td>需要新的心智模型</td><td class="y">幾乎沒有</td><td class="p">要懂 L1／L2 兩層</td><td class="p">要懂「右欄會換頁」</td></tr>
+  <tr><td class="dim">估計改動</td><td class="dim">3 個函式 + 1 支 CSS</td><td class="dim">新物件型別 + 索引 + 頁面 + 遷移</td><td class="dim">右欄改寫 + 兩個 UI 狀態</td></tr>
+</table>
+
+<div class="reco">
+  <h4>建議：C 的骨架 ＋ A 的入口，B 當作終局但先不做</h4>
+  <p>
+    三案不是互斥的，因為它們其實解的是<b>同一組資料模型缺口</b>（<code>blockIds[]</code>、三個日期、<code>msgs[]</code>、<code>files[]</code>），
+    差別只在這些東西<b>顯示在哪裡</b>。所以先把資料模型一次補齊，介面分階段。
+  </p>
+  <p>
+    不先做 B 的理由：升格成物件會把日誌那幾行換成卡片，等於改變「日誌是一天的流水」這個核心語感——
+    這是產品判斷，不該由介面提案順手決定。而且 GitHub 的 sub-issue 也印證升格該是<b>明確、少用</b>的動作：
+    每天的議題大多數三天內就結束了，不值得每件都發一組參考碼。
+  </p>
+  <div class="steps">
+    <div class="step"><div class="n">階段 1</div><h5>補資料模型</h5>
+      <p><code>blockIds[]</code>（吃子樹）、<code>bornDay/due/carried[]</code>、<code>msgs[]</code>、<code>files[]</code>。
+      同時修掉快照過期（發現 A）與延後抹掉歷史（發現 B）。介面先不動。</p></div>
+    <div class="step"><div class="n">階段 2</div><h5>右欄詳情面板（C）</h5>
+      <p>點議題卡 → 右欄換成詳情，日誌同步高亮。討論與附件都在這裡。右欄加寬到 340px。</p></div>
+    <div class="step"><div class="n">階段 3</div><h5>行內入口（A 的 pill）</h5>
+      <p>日誌行的 pill 加上計數與到期日；點 pill 直接打開右欄詳情（不是就地展開，避免日誌被撐開）。多選浮動工具列一併上。</p></div>
+    <div class="step"><div class="n">階段 4</div><h5>升格（B），視使用情況再決定</h5>
+      <p>只有<b>帶過 ≥1 次或已有討論</b>的議題，才在詳情面板出現「升格為議題物件 ↗」。累積一兩個月再看有多少人按。</p></div>
+  </div>
+  <h3 class="sub">需要你決定的三件事</h3>
+  <ul class="open">
+    <li><b>議題要不要能指給 Lily？</b>現在只有 <code>author</code>。如果要「請 Lily 處理」，那跟既有的<b>請求</b>機制就重疊了——
+      建議議題只加「要誰看（watcher）」，真的要對方回覆還是走請求。</li>
+    <li><b>到期日超過今天的議題，還算「今日」議題嗎？</b>建議：到期日 ≤ 今天才出現在今日議題區，之後的進「本週」——
+      但這會讓右欄多一段，需要你確認。</li>
+    <li><b>收工檢查怎麼算？</b>現在是「沒動的自動延到明天」。有了到期日之後，
+      建議改成：到期日在今天的必須處理，到期日在後面的不進收工檢查。</li>
+  </ul>
+</div>
+
+<div class="foot">
+  研究依據原始連結 —
+  <a href="https://help.fellow.ai/en/articles/4105406-action-items-v-talking-points-v-bullets">Fellow：Action items v. Talking points v. Bullets</a> ·
+  <a href="https://help.fellow.ai/en/articles/5301276-comments-reactions">Fellow：Comments &amp; Reactions</a> ·
+  <a href="https://signalvnoise.com/posts/1230-big-new-basecamp-feature-attach-files-and-post-comments-on-to-dos-and-milestones">37signals：Attach files and post comments on to-dos</a> ·
+  <a href="https://outliner.tana.inc/learn/features/supertags">Tana：Supertags</a> ·
+  <a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues">GitHub：Adding sub-issues</a> ·
+  <a href="https://www.notion.com/help/comments-mentions-and-reminders">Notion：Comments, mentions &amp; reminders</a> ·
+  <a href="https://linear.app/docs/creating-issues">Linear：Create issues</a>
+</div>
+
+</div>
+<script>
+document.querySelectorAll('.st').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var g = btn.dataset.g, s = btn.dataset.s;
+    document.querySelectorAll('.st[data-g="'+g+'"]').forEach(function(b){ b.classList.toggle('on', b===btn); });
+    document.querySelectorAll('.stage[data-g="'+g+'"]').forEach(function(st){ st.classList.toggle('on', st.dataset.s===s); });
+  });
+});
+document.querySelectorAll('.pill.today').forEach(function(p){
+  p.addEventListener('click', function(){
+    var tray = p.closest('.jrn') && p.closest('.jrn').querySelector('.tray');
+    if (tray) tray.classList.toggle('hide');
+  });
+});
+</script>
+</body>
+</html>

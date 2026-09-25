@@ -21,7 +21,7 @@ const require = createRequire(fs.realpathSync(path.join(root, "node_modules/next
 const { loadEnvConfig } = require("@next/env")
 loadEnvConfig(root, true, { info() {}, error() {} })
 const child = spawn(process.execPath, [path.join(root, "node_modules/next/dist/bin/next"), "dev", target, "--webpack", "--hostname", "127.0.0.1", "--port", String(port)], {
-  cwd: target, stdio: "inherit", env: { ...process.env, PERSONAL_OS_UI_DATA_MODE: mode, PERSONAL_OS_AUTH_MODE: "mock", PERSONAL_OS_DEV_USER_EMAIL: process.env.PERSONAL_OS_UI_PREVIEW_PROFILE_EMAIL || "test@yzedtech.com" },
+  cwd: target, stdio: "inherit", env: { ...process.env, PERSONAL_OS_UI_DATA_MODE: mode, PERSONAL_OS_AUTH_MODE: "mock", PERSONAL_OS_DEV_USER_EMAIL: process.env.PERSONAL_OS_UI_PREVIEW_PROFILE_EMAIL || "test@yzedtech.com", YUANZHAN_SEATS: process.env.YUANZHAN_SEATS || (process.env.PERSONAL_OS_UI_PREVIEW_PROFILE_EMAIL ? undefined : "test@yzedtech.com:yz:switch") },
 })
 console.log(`UI preview: http://127.0.0.1:${port}/company/operating (${mode}); existing mock-auth Profile read only; no business routes copied`)
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal))

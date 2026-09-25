@@ -53,6 +53,8 @@ export const PERSISTED_COLLECTIONS = [
   'reimb',
   'bank',
   'payroll',
+  'intake',
+  'periods',
 ] as const
 
 export type PersistedCollection = (typeof PERSISTED_COLLECTIONS)[number]
@@ -116,6 +118,9 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   'reimb',
   'bank',
   'payroll',
+  // RES-032：金流三面的收件匣與月結
+  'intake',
+  'periods',
 ]
 
 /**
@@ -134,6 +139,8 @@ export const HIGH_RISK_COLLECTIONS: readonly PersistedCollection[] = [
   'reimb',
   'bank',
   'payroll',
+  'intake',
+  'periods',
 ]
 
 export function isPersistedCollection(value: unknown): value is PersistedCollection {
@@ -291,7 +298,15 @@ export type CommandBatchRequest = {
 
 export type CommandRejection = {
   clientRef: string
-  code: 'write_not_enabled' | 'unknown_collection' | 'invalid_payload' | 'apply_failed'
+  code:
+    | 'write_not_enabled'
+    | 'unknown_collection'
+    | 'invalid_payload'
+    | 'apply_failed'
+    /** 該月已結帳：金額、日期、歸屬唯讀（RES-032 §5.4 B-3） */
+    | 'period_closed'
+    /** 席位沒有這個動作的權限（例如非負責人鎖帳） */
+    | 'forbidden'
   message: string
   collection?: string
 }

@@ -301,11 +301,35 @@ function renderDocSectionBody(doc, sec, idx, meta) {
     DOC_SEC_STACK.pop();
   }
 }
+/* 誰能寫這個物件的正文，和日誌正文是同一條規則：作者自己能編輯，其他人只能留言。
+ *
+ * 少了這道判斷，雙人駕駛艙裡同一頁會出現兩種規則 —— 對方日誌的每一行只能點開留言，
+ * 但對方 Standup 卡片裡的字可以直接改掉，而且改的是對方那一份、不是副本。
+ *
+ * 擋在 section 這一層而不是卡片那一層：卡片會被 agenda-object 覆寫，而三個進入點
+ * （日誌行內卡片、議題卡、獨立頁面）都必經 renderDocSectionBody。 */
+function docWritable(doc) {
+  if (space === 'personal') return true;
+  return !doc || !doc.author || doc.author === DB.me;
+}
+
+/* 對方的段落：沿用駕駛艙右欄那一套唯讀行（jcPeerBlock），點任一行就展開行內留言串，
+   跟讀對方日誌完全一樣的操作。 */
+function renderDocSectionReadonly(doc, sec, idx, blocks) {
+  const rows = blocks.map(b => jcPeerBlock(doc.author, b)).join('');
+  return `<div class="eb-doc-inline-sec ro">
+    <div class="eb-doc-inline-sec-title">${esc(sec.title)}</div>
+    <div class="doc jc-doc eb-doc-secbody ro" data-doc-ro="1" data-doc-id="${doc.id}" data-sec-idx="${idx}"
+      >${rows || `<div class="eb-doc-ro-empty">${esc(person(doc.author))} 還沒寫這一段</div>`}</div>
+  </div>`;
+}
+
 function renderDocSectionBodyInner(doc, sec, idx, meta) {
   const blocks = ensureSecBlocks(sec);
+  if (!docWritable(doc)) return renderDocSectionReadonly(doc, sec, idx, blocks);
   let html = blocks.map(ebHtml).join('');
   if (blocks.length === 1 && !blocks[0].text) {
-    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用既有物件或請對方回覆、?@ 直接發送請求';
+    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆';
     html = html.replace(/data-ph="[^"]*"/, `data-ph="${esc(ph)}"`);
   }
   return `<div class="eb-doc-inline-sec">
@@ -338,6 +362,7 @@ function renderDocObjectCard(b) {
         <span class="chip ${meta.chip}">${meta.nm}</span>
         <span class="eb-doc-bar-title">${esc(name)}</span>
         <span class="eb-doc-bar-meta">${isCollapsed ? esc(docObjectTimestamp(doc)) : `${doc.day} · ${person(doc.author)}${doc.secs.reduce((a,sec)=>a+secWordCount(sec),0) ? ' · '+doc.secs.reduce((a,sec)=>a+secWordCount(sec),0)+' 字' : ''}`}</span>
+        ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 可留言</span>'}
       </div>
       <div class="eb-doc-bar-right">
         <!-- 收合展開按鈕 -->
@@ -346,7 +371,7 @@ function renderDocObjectCard(b) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="eb-doc-arr ${isCollapsed ? 'down' : 'up'}"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <!-- 小 icon 點選進到獨立頁面寫 -->
-        <button type="button" class="eb-doc-icon-btn" title="進到獨立頁面撰寫" onclick="event.stopPropagation();openDocPage('${doc.id}')">
+        <button type="button" class="eb-doc-icon-btn" title="${docWritable(doc) ? '進到獨立頁面撰寫' : '開啟獨立頁面（唯讀）'}" onclick="event.stopPropagation();openDocPage('${doc.id}')">
           ${svg('goto', 13)}
         </button>
       </div>
@@ -388,13 +413,16 @@ DRAWERS.doc_object = id => {
 
   return {
     crumb: `日誌 › ${meta.nm} 獨立頁面`,
-    title: `<span class="doc-page-title ed" contenteditable="true" data-doc-id="${doc.id}" data-ph="輸入標題...">${esc(docObjectName(doc))}</span>`,
+    title: docWritable(doc)
+      ? `<span class="doc-page-title ed" contenteditable="true" data-doc-id="${doc.id}" data-ph="輸入標題...">${esc(docObjectName(doc))}</span>`
+      : `<span class="doc-page-title">${esc(docObjectName(doc))}</span>`,
     sub: `<span class="doc-page-meta">
         <span class="chip ${meta.chip}">${meta.nm}</span>
         <span>${doc.day}</span>
         <span>由 ${person(doc.author)} 撰寫</span>
         <span>${esc(docObjectTimestamp(doc))}</span>
         <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
+        ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 點任一行留言</span>'}
       </span>`,
     body: `
       <!-- 統一的大綱式文件編輯器，與日誌完全相同的書寫體驗（同一套 docClick/docKey/docInput 引擎） -->
@@ -403,13 +431,13 @@ DRAWERS.doc_object = id => {
       </div>
     `,
     foot: `
-      <button class="btn pri" onclick="closeDrawer()">${svg('commit', 12)} 完成並返回日誌</button>
+      <button class="btn pri" onclick="closeDrawer()">${svg('commit', 12)} ${docWritable(doc) ? '完成並返回日誌' : '返回日誌'}</button>
       <button class="btn" onclick="copyDocMarkdown('${doc.id}')">${svg('copy', 12)} 複製全文</button>
-      <button class="btn dgr" style="margin-left:auto" onclick="deleteDocObject('${doc.id}')">${svg('trash', 12)} 刪除物件</button>
+      ${docWritable(doc) ? `<button class="btn dgr" style="margin-left:auto" onclick="deleteDocObject('${doc.id}')">${svg('trash', 12)} 刪除物件</button>` : ''}
     `,
     after: () => {
       // Setup title sync — 手動改標題後關閉自動命名，尊重使用者的命名。
-      const titleEl = root.querySelector('.doc-page-title');
+      const titleEl = root.querySelector('.doc-page-title.ed');
       if (titleEl) {
         titleEl.oninput = () => {
           doc.title = titleEl.innerText.replace(/\n$/, '');
@@ -443,6 +471,8 @@ function copyDocMarkdown(id) {
 }
 
 function deleteDocObject(id) {
+  const target = (DB.docObjects || []).find(d => d.id === id);
+  if (!docWritable(target)) return deny();
   if (!confirm('確定要刪除此物件嗎？日誌中的卡片也將一併移除。')) return;
   const docIdx = (DB.docObjects || []).findIndex(d => d.id === id);
   if (docIdx >= 0) DB.docObjects.splice(docIdx, 1);
@@ -462,7 +492,8 @@ root.addEventListener('focusin', e => {
   if (secEl) {
     const doc = (DB.docObjects || []).find(d => d.id === secEl.dataset.docId);
     const sec = doc && doc.secs[Number(secEl.dataset.secIdx)];
-    if (sec) {
+    // 唯讀段落根本不帶 data-doc-sec，這裡是第二道：避免任何路徑把編輯指到別人的物件上。
+    if (sec && docWritable(doc)) {
       ensureSecBlocks(sec);
       BLKS_OVERRIDE = () => { doc.updatedAt = Date.now(); return sec.blocks; };
       return;

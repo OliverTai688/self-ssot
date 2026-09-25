@@ -1,5 +1,15 @@
 # Task Backlog
 
+## Owner-directed 今日議題物件化 — 2026-09-24
+
+Owner 回報今日議題「只能標注和完成、只能單行、應該要有日期、應該能展開對話討論上傳文件」，並在看過三案提案後直接指定採用提案 B（議題物件）。研究與介面提案：`journal-today-agenda-proposals.html`。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260924-journal-agenda-object.md)。
+
+| Task ID | 範圍 | Status | 依賴 | 驗收重點 |
+|---|---|---|---|---|
+| YZUI-020 | 今日議題升格為 `agenda` 型文件物件：到期日／提出日／帶過紀錄、討論、附件、結論結案、參考碼與物件索引；保留 L1 輕量標記 | DONE — implementation（待 Owner 瀏覽器驗收） | YZUI-012 物件索引；YZUI-016 右欄持久化；RES-018 參考碼 | `scripts/verify-agenda-object.mjs` 50/50 PASS；四主題與 390px 需本機確認 |
+| YZUI-021 | 非連續多行選取合併為一個議題 | PROPOSED | YZUI-020 | 目前只吃「節點＋縮排子樹」；跨段落的行要多選手勢，需動凍結原型的區塊引擎 |
+| YZUI-022 | 議題的討論納入物件索引全文搜尋 | PROPOSED | YZUI-020；YZUI-012 | 索引的 `oiDocText` 只讀 `secs`，`payload.agenda.msgs` 搜不到 |
+
 ## Owner-directed 日誌右欄持久化 — 2026-09-24
 
 Owner 回報「今日脈絡重新整理會消失」，並希望它同時記錄宇星與 Lily、持續累積；追加回報「今日議題已完成的標籤也會消失」。根因是三件獨立的事：今日脈絡與今日議題從來沒有被保存；有保存的集合（留言、文件庫、請求）在掛載時被 `DB.x=[]` 清空覆蓋；日誌讀回來時沒有分作者。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260924-journal-day-state-persistence.md)。

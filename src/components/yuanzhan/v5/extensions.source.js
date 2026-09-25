@@ -76,7 +76,7 @@ function enhanceView(){
  if(S.wb==='journal'&&!canWriteJournal()){root.querySelectorAll('[contenteditable]').forEach(e=>e.contentEditable='false');root.querySelectorAll('.eb-h,.doc-bar button,.eb-ck').forEach(e=>{e.setAttribute('aria-disabled','true');e.tabIndex=-1});}
  if(S.wb==='journal'){$('#wbName').textContent=space==='personal'?'私人日誌':'日誌';$('#wbRule').textContent=canWriteJournal()?(space==='team'?'主操作面：大綱編輯器 · 即時共享':'主操作面：大綱編輯器 · 僅自己'):'正文由作者編輯 · 可留言協作';}
  root.querySelectorAll('.rail-i').forEach(e=>{if(!e.getAttribute('aria-label'))e.setAttribute('aria-label',e.querySelector('em')?.textContent||e.title)});
- if(S.wb==='money'&&S.tab===0&&S.ledgerView==='表格')enhanceLedger();
+ if(S.wb==='money'&&cfKey()==='ledger'&&S.ledgerView==='表格')enhanceLedger();
  if(S.wb==='capacity'&&S.tab===3)enhanceTimesheet();
  if(S.wb==='project'&&S.tab===2)enhanceThread();
  root.querySelectorAll('.row,.rline,.sig,.blk-i,.cmdk-i,.tree .f,.rel .tt,.clause').forEach(e=>{if(e.querySelector('input,textarea,select'))return;if(e.tabIndex<0){e.tabIndex=0;e.setAttribute('role','button');e.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();e.click()}})}});
@@ -241,7 +241,7 @@ function viewRepoSnapshot(pid){const r=DB.repos[pid],snap=r.snapshots?.at(-1);if
 // Avoid moving the original body to accommodate additive tools.
 const baseEnhanceView=enhanceView;
 enhanceView=function(){baseEnhanceView();
- if(S.wb==='money'&&S.tab===0&&S.ledgerView==='表格')applyLedgerFilter();
+ if(S.wb==='money'&&cfKey()==='ledger'&&S.ledgerView==='表格')applyLedgerFilter();
  if(S.wb==='desk'&&S.tab===2||S.wb==='commit'){const a=$('#inner > .source-actions');if(a){a.classList.add('header-extra');$('#wbRule').replaceChildren(a)}}
  if(S.wb==='capacity'&&S.tab===3&&!DB.policy.normalHours){const first=$('.kpi');first.querySelector('.v').textContent=tsWeeks(isOwner()?S.tsWho:DB.me).length?first.querySelector('.v').textContent.split('/')[0]+' h':'—';first.querySelector('.s').textContent='尚未設定約定工時';}
  if(S.wb==='project'&&S.tab===3){const r=DB.repos[S.proj];if(r)root.querySelectorAll('.tree .f').forEach(el=>{const entry=r.tree.find(f=>f.f===el.textContent);if(entry?.fileId){el.onclick=()=>{S.fileVersion={id:entry.fileId,index:entry.version-1};openDrawer('file',entry.fileId)};}});}
@@ -294,7 +294,7 @@ function highlightCommand(){root.querySelectorAll('.cmdk-i').forEach((el,i)=>el.
 const scopeEnhance=enhanceView;
 enhanceView=function(){scopeEnhance();if(isOwner())return;
  if(S.wb==='project'&&S.tab===0&&!can('projectFinance',S.proj)){const panel=[...root.querySelectorAll('.panel')].find(p=>p.querySelector('h3')?.textContent==='錢');if(panel)panel.querySelector('.panel-b').innerHTML=MASK('專案財務限參與者查看');}
- if(S.wb==='money'&&S.tab===5)root.querySelectorAll('table.tbl tbody tr').forEach(row=>{const p=DB.projects.find(p=>p.t===row.firstElementChild?.textContent);if(p&&!can('budget',p.id))row.remove()});
+ if(S.wb==='money'&&cfKey()==='project')root.querySelectorAll('table.tbl tbody tr').forEach(row=>{const p=DB.projects.find(p=>p.t===row.firstElementChild?.textContent);if(p&&!can('budget',p.id))row.remove()});
 };
 const scopeDrawer=enhanceDrawer;
 enhanceDrawer=function(){scopeDrawer();const cur=S.stack.at(-1);if(cur?.type==='project'&&!can('projectFinance',cur.id))$('#drBody').querySelectorAll('.fld').forEach(field=>{if(['未稅收入','可分配毛利'].includes(field.querySelector('.k')?.textContent))field.querySelector('.v').innerHTML=MASK('專案財務限參與者查看')});};

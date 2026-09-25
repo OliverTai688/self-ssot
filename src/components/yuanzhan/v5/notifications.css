@@ -1,0 +1,14 @@
+/* ── 通知匣 ─────────────────────────────────────────────────────────────────
+   卡片沿用 .rq-card 的重音系統（replies.css），這裡只補「它是一顆可按的列」
+   與未讀標記。 */
+.nt-list{display:flex;flex-direction:column;gap:8px}
+button.rq-card.nt-card{
+  width:100%;text-align:left;font:inherit;cursor:pointer;
+}
+button.rq-card.nt-card:hover{border-color:var(--pri-br);background:var(--surface-2)}
+.nt-top{display:flex;align-items:baseline;gap:8px}
+.nt-title{flex:1;min-width:0;font-size:12.5px;font-weight:650;color:var(--text);overflow-wrap:anywhere}
+.nt-at{flex:none;font-size:11px;color:var(--text-3);font-family:var(--mono)}
+.nt-text{font-size:12.5px;color:var(--text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nt-dot{width:6px;height:6px;border-radius:50%;background:var(--pri);flex:none}
+.iconbtn.has-unread{color:var(--text)}

@@ -20,7 +20,7 @@ export function patchSource(source) {
  rep('function nav(wb,tab){saveJournalDraft();S.wb=wb;','function nav(wb,tab){saveJournalDraft();const _r=opRedirect(wb,tab);wb=_r[0];tab=_r[1];S.wb=wb;');
  rep("owner:'yz',size:'M',pri:'3'","owner:DB.me,size:'M',pri:'3'");
  rep("p:S.proj,pass:'否'","p:P(S.proj)?S.proj:'公司層級',pass:'否'");
- rep("const PH={p:'寫點什麼：# 召喚 component、@ 引用既有物件'","const PH={p:'寫點什麼：# 召喚 component、@ 引用既有物件或請對方回覆、?@ 直接發送請求'");
+ rep("const PH={p:'寫點什麼：# 召喚 component、@ 引用既有物件'","const PH={p:'寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆'");
  rep("{k:'amt',label:'金額（未稅）',type:'number',req:true,step:'1',hint:'支出請填負數，例如 −28000'}","{k:'amt',label:'金額（未稅）',type:'text',req:true,hint:'支出負數；支援 =SUM(D1:D3)、算術及固定列號公式'}");
  rep("values:e?{...e,pass:e.pass?'是':'否'}","values:e?{...e,amt:e.formula??e.amt,pass:e.pass?'是':'否'}");
  rep('const amt=Number(v.amt)||0;','const formula=String(v.amt), result=evaluateFormula(formula,ledgerCells()); if(result.error)throw Error(result.error); const amt=result.value??0;');
@@ -124,6 +124,11 @@ export function patchSource(source) {
  rep('const dues=DB.issues.filter(x=>(x.due||x.done)===ds);','const dues=spineTasksOn(ds);');
  // 3. 專案總覽「本專案的關鍵時間」
  rep('DB.events.filter(e=>e.link===p.id).map','spineForProject(p.id).map');
+
+ // 議題物件用到的三個字形，外加 grip：svg() 對未知 key 會靜默畫出一個空 <svg>，
+ // 而 flag/grip 早就被 runtime 引用（工作項目卡的優先級、區塊拖曳把手）卻一直不在表裡。
+ // 全部用 lucide 的同名字形（viewBox 0 0 24 24、stroke=currentColor）。
+ rep("sort:'<path d=\"m3 16 4 4 4-4\"/><path d=\"M7 20V4\"/><path d=\"M11 4h10\"/><path d=\"M11 8h7\"/><path d=\"M11 12h4\"/>'\n};", "sort:'<path d=\"m3 16 4 4 4-4\"/><path d=\"M7 20V4\"/><path d=\"M11 4h10\"/><path d=\"M11 8h7\"/><path d=\"M11 12h4\"/>',\n  flag:'<path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\"/><path d=\"M4 22v-7\"/>',\n  paperclip:'<path d=\"m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48\"/>',\n  send:'<path d=\"m22 2-7 20-4-9-9-4Z\"/><path d=\"M22 2 11 13\"/>',\n  grip:'<circle cx=\"9\" cy=\"6\" r=\"1\"/><circle cx=\"9\" cy=\"12\" r=\"1\"/><circle cx=\"9\" cy=\"18\" r=\"1\"/><circle cx=\"15\" cy=\"6\" r=\"1\"/><circle cx=\"15\" cy=\"12\" r=\"1\"/><circle cx=\"15\" cy=\"18\" r=\"1\"/>'\n};");
 
  return source;
 }

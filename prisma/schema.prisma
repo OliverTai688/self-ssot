@@ -1961,6 +1961,9 @@ model OperatingTransaction {
   passThrough Boolean  @default(false) @map("pass_through")
   /// 憑證種類清單（發票／合約／匯款單）
   vouchers    String[]
+  /// 憑證檔案（RES-032）：[{ objectKey, name, type, bytes, at, by }]。bytes 在 R2，這裡只留 key。
+  /// 另開一欄而不是把 vouchers 改型別：既有列不需要搬資料，種類標籤與檔案可以各自存在。
+  attachments Json     @default("[]")
   note        String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -2002,6 +2005,55 @@ model OperatingBankEntry {
 
   @@index([workspaceId, onDate], map: "operating_bank_entries_workspace_date_idx")
   @@map("operating_bank_entries")
+}
+
+/// 收件匣的一筆單據（RES-032 §5.2 生命週期 ①②）。
+///
+/// 收單面只能把東西推到「待歸帳」，不能直接產生交易：同事不需要懂類別。
+/// 記帳者歸帳時才建立 OperatingTransaction，並把 postedRef 指回去。
+/// 代墊的單據會同時有一筆報帳（reimbRef），核准後才出現在待歸帳。
+model OperatingIntakeItem {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  workbenchRef String?   @map("workbench_ref")
+  actorKey     String?   @map("actor_key")
+  title        String
+  /// 缺金額就是 null：收件匣要顯示「缺金額」，不能用 0 假裝有值
+  amount       Int?
+  onDate       DateTime? @map("on_date") @db.Date
+  projectRef   String?   @map("project_ref")
+  /// draft（缺資料）/ unfiled（待歸帳）/ posted（已入帳）/ discarded
+  status       String    @default("draft")
+  /// { objectKey, name, type, bytes }；bytes 走 R2
+  file         Json?
+  reimbRef     String?   @map("reimb_ref")
+  postedRef    String?   @map("posted_ref")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([workspaceId, status], map: "operating_intake_items_workspace_status_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_intake_items_ref_idx")
+  @@map("operating_intake_items")
+}
+
+/// 月結（RES-032 §5.4 B-3）。一個月份一列；status=closed 時該月交易的金額、日期、歸屬唯讀。
+/// 可加註、可補憑證（Owner 決策 2026-09-25：可加註不可改金額）。解鎖要填原因並留在 log。
+model OperatingPeriod {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  /// YYYY-MM
+  period      String
+  status      String    @default("open")
+  closedBy    String?   @map("closed_by")
+  closedAt    DateTime? @map("closed_at")
+  /// 鎖定當下的檢查結果快照
+  checklist   Json      @default("[]")
+  /// [{ at, by, action: 'close'|'reopen', reason }]
+  log         Json      @default("[]")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, period], map: "operating_periods_workspace_period_key")
+  @@map("operating_periods")
 }
 
 /// 薪資試算草稿。runtime 自己就說「只更新本頁示例試算，不付款」——

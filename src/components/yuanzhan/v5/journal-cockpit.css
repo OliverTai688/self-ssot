@@ -110,7 +110,10 @@
 }
 
 /* ── 日期列：按鈕不被壓縮（原本 flex 收縮讓「回到今天」的字溢出外框）──── */
-.jc-date{position:relative;z-index:55;flex:0 0 auto;flex-wrap:nowrap}
+/* z-index 只要蓋過同層的頁面內容即可（.topbar 是 30）。原本的 55 高過抽屜遮罩
+   （.scrim 是 40），於是打開資料流／稽核軌跡時，這一列的四顆按鈕不會跟著變暗，
+   看起來像四個還亮著、還能按的元件。 */
+.jc-date{position:relative;z-index:35;flex:0 0 auto;flex-wrap:nowrap}
 .jc-date>*{flex:none}
 .jc-date .btn{flex:none}
 .jc-date .jc-today{width:auto;height:24px;padding:0 10px;gap:5px}

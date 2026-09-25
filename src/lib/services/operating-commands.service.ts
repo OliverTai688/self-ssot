@@ -2,7 +2,7 @@ import "server-only"
 
 import { createHash } from "node:crypto"
 
-import type { Prisma } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 
 import { getYuanzhanSeats, type YuanzhanSeat } from "@/lib/auth/yuanzhan-actor"
 import { db } from "@/lib/db"
@@ -169,7 +169,54 @@ function toInstant(value: unknown): Date | null {
 /* 每個集合的處理器                                                     */
 /* ------------------------------------------------------------------ */
 
-type ApplyContext = { workspaceId: string; actors: Map<string, string>; profileId: string }
+type ApplyContext = {
+  workspaceId: string
+  actors: Map<string, string>
+  profileId: string
+  /** 送出這批變更的席位（'yz' 為負責人）。月結只有負責人能動。 */
+  actorKey: string
+  /** 已結帳的月份（YYYY-MM）。一批命令內懶載入一次，月結變更時同步更新。 */
+  closedPeriods?: Set<string>
+}
+
+/** 已結帳月份的交易只能加註、補憑證；金額、日期、歸屬唯讀（RES-032 §5.4 B-3）。 */
+export class PeriodClosedError extends Error {
+  constructor(public readonly period: string) {
+    super(`${period} 已結帳，金額、日期與歸屬不能修改；需要時請負責人先解鎖。`)
+    this.name = "PeriodClosedError"
+  }
+}
+
+export class ForbiddenChangeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "ForbiddenChangeError"
+  }
+}
+
+const OWNER_ACTOR = "yz"
+
+async function closedPeriodsOf(ctx: ApplyContext): Promise<Set<string>> {
+  if (!ctx.closedPeriods) {
+    const rows = await db.operatingPeriod.findMany({
+      where: { workspaceId: ctx.workspaceId, status: "closed" },
+      select: { period: true },
+    })
+    ctx.closedPeriods = new Set(rows.map((row) => row.period))
+  }
+  return ctx.closedPeriods
+}
+
+function monthOf(date: Date | null | undefined): string | null {
+  return date ? date.toISOString().slice(0, 7) : null
+}
+
+/** 任一個涉及的月份已結帳就擋下。回傳被擋的月份，或 null。 */
+async function lockedMonth(ctx: ApplyContext, ...dates: Array<Date | null | undefined>): Promise<string | null> {
+  const closed = await closedPeriodsOf(ctx)
+  for (const month of dates.map(monthOf)) if (month && closed.has(month)) return month
+  return null
+}
 
 async function applyOccasion(change: RowChange, ctx: ApplyContext): Promise<void> {
   const id = rowUuid("occasions", change.id)
@@ -691,6 +738,9 @@ function toAmount(value: unknown): number {
 async function applyTransaction(change: RowChange, ctx: ApplyContext): Promise<void> {
   const id = rowUuid("txns", change.id)
   if (change.op === "delete") {
+    const existing = await db.operatingTransaction.findFirst({ where: { id, workspaceId: ctx.workspaceId } })
+    const locked = await lockedMonth(ctx, existing?.onDate)
+    if (locked) throw new PeriodClosedError(locked)
     await db.operatingTransaction.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
     return
   }
@@ -708,8 +758,25 @@ async function applyTransaction(change: RowChange, ctx: ApplyContext): Promise<v
     formula: str(row.formula),
     passThrough: row.pass === true,
     vouchers: Array.isArray(row.v) ? row.v.filter((x): x is string => typeof x === "string") : [],
+    attachments: toAttachments(row.files),
     note: str(row.note),
   }
+
+  // 已結帳月份：只允許加註與補憑證。比對的是資料庫裡的現值，不是客戶端說的「之前」。
+  const existing = await db.operatingTransaction.findFirst({ where: { id, workspaceId: ctx.workspaceId } })
+  const locked = await lockedMonth(ctx, existing?.onDate, onDate)
+  if (locked) {
+    const frozenChanged =
+      !existing ||
+      existing.onDate.getTime() !== onDate.getTime() ||
+      existing.amount !== data.amount ||
+      (existing.projectRef ?? null) !== data.projectRef ||
+      (existing.category ?? null) !== data.category ||
+      existing.passThrough !== data.passThrough ||
+      existing.title !== data.title
+    if (frozenChanged) throw new PeriodClosedError(locked)
+  }
+
   await db.operatingTransaction.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
@@ -720,12 +787,20 @@ async function applyReimbursement(change: RowChange, ctx: ApplyContext): Promise
     return
   }
   const row = (change.after ?? {}) as Record<string, unknown>
+  // 核准與付款是負責人的動作（RES-032 §5.7）；成員只能送出自己的報帳。
+  const status = str(row.st) ?? "待送"
+  if (ctx.actorKey !== OWNER_ACTOR) {
+    const existing = await db.operatingReimbursement.findFirst({ where: { id, workspaceId: ctx.workspaceId } })
+    if ((status === "已核" || status === "已付") && existing?.status !== status) {
+      throw new ForbiddenChangeError("報帳核准與付款由負責人處理。")
+    }
+  }
   const data = {
     workspaceId: ctx.workspaceId,
     actorKey: str(row.who),
     title: str(row.t) ?? "（未命名報帳）",
     amount: toAmount(row.amt),
-    status: str(row.st) ?? "待送",
+    status,
     onDate: toDateOnly(row.d),
   }
   await db.operatingReimbursement.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
@@ -733,13 +808,19 @@ async function applyReimbursement(change: RowChange, ctx: ApplyContext): Promise
 
 async function applyBankEntry(change: RowChange, ctx: ApplyContext): Promise<void> {
   const id = rowUuid("bank", change.id)
+  const existing = await db.operatingBankEntry.findFirst({ where: { id, workspaceId: ctx.workspaceId } })
   if (change.op === "delete") {
+    const locked = await lockedMonth(ctx, existing?.onDate)
+    if (locked) throw new PeriodClosedError(locked)
     await db.operatingBankEntry.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
     return
   }
   const row = (change.after ?? {}) as Record<string, unknown>
   const onDate = toDateOnly(row.d)
   if (!onDate) throw new Error(`bank entry ${change.id} has no usable date`)
+  // 已結帳月份的銀行明細連勾稽都不動：勾稽狀態是月結檢查的一部分。
+  const locked = await lockedMonth(ctx, existing?.onDate, onDate)
+  if (locked) throw new PeriodClosedError(locked)
 
   const data = {
     workspaceId: ctx.workspaceId,
@@ -836,9 +917,24 @@ async function applyRequest(change: RowChange, ctx: ApplyContext): Promise<void>
     text: str(row.text) ?? "",
     kind: str(row.kind) ?? "ask",
     sentAt: Number.isFinite(sentAt) && sentAt > 0 ? new Date(sentAt) : null,
-    // options／replies／nudges／pinged 形狀仍在演進，整包存比拆表安全
+    // options／replies／nudges／pinged 形狀仍在演進，整包存比拆表安全。
+    // seenAt／firstReplyAt／resolvedAt 一起存：少了它們，重新整理之後每一筆請求都會
+    // 看起來像沒人讀過、沒人回過，24 小時的紅色提醒會重新開始跑；kind:'notice' 的
+    // 通知匣未讀數也是靠 seenAt 算的。
     payload: toJson(
-      { options: row.options ?? [], replies: row.replies ?? [], nudges: row.nudges ?? [], pinged: row.pinged ?? {} },
+      {
+        options: row.options ?? [],
+        replies: row.replies ?? [],
+        nudges: row.nudges ?? [],
+        pinged: row.pinged ?? {},
+        via: row.via ?? null,
+        seenAt: row.seenAt ?? null,
+        firstReplyAt: row.firstReplyAt ?? null,
+        resolvedAt: row.resolvedAt ?? null,
+        choice: row.choice ?? null,
+        deferReason: row.deferReason ?? null,
+        deferredAt: row.deferredAt ?? null,
+      },
       {},
     ),
   }
@@ -905,7 +1001,10 @@ async function applyDocObject(change: RowChange, ctx: ApplyContext): Promise<voi
     titleAuto: row.titleAuto !== false,
     onDate: toDateOnly(row.day),
     authorKey: str(row.author),
-    payload: toJson({ collapsed: row.collapsed === true, secs: row.secs ?? [] }, {}),
+    payload: toJson(
+      { collapsed: row.collapsed === true, secs: row.secs ?? [], ...(row.agenda ? { agenda: row.agenda } : {}) },
+      {},
+    ),
   }
   await db.operatingDocObject.upsert({ where: { id }, create: { id, ...data }, update: data })
 }
@@ -977,6 +1076,104 @@ async function applyTodayIssue(change: RowChange, ctx: ApplyContext): Promise<vo
   await db.operatingTodayIssue.upsert({ where: { id }, create: { id, ...data }, update: data })
 }
 
+/* ------------------------------------------------------------------ */
+/* RES-032：收件匣與月結                                               */
+/* ------------------------------------------------------------------ */
+
+type Attachment = { objectKey: string; name: string; type: string; bytes: number; at: string; by: string }
+
+/**
+ * 只收 R2 物件參照。data URL（prototype 模式的記憶體檔案）不會進資料庫：
+ * 那會讓一張圖變成好幾 MB 的 JSON，而 MAX_COMMAND_BYTES 本來就會擋。
+ */
+function toAttachment(value: unknown): Attachment | null {
+  if (!value || typeof value !== "object") return null
+  const v = value as Record<string, unknown>
+  const objectKey = str(v.objectKey)
+  if (!objectKey || !objectKey.startsWith("operating/") || objectKey.includes("..")) return null
+  return {
+    objectKey,
+    name: str(v.name) ?? "憑證",
+    type: str(v.type) ?? "",
+    bytes: typeof v.bytes === "number" && Number.isFinite(v.bytes) ? Math.max(0, Math.round(v.bytes)) : 0,
+    at: str(v.at) ?? "",
+    by: str(v.by) ?? "",
+  }
+}
+
+function toAttachments(value: unknown): Attachment[] {
+  return Array.isArray(value) ? value.map(toAttachment).filter((x): x is Attachment => x !== null) : []
+}
+
+const INTAKE_STATUSES = new Set(["draft", "unfiled", "posted", "discarded"])
+
+async function applyIntakeItem(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("intake", change.id)
+  const existing = await db.operatingIntakeItem.findFirst({ where: { id, workspaceId: ctx.workspaceId } })
+  // 收件是個人的：只有交件人自己與負責人能改或刪。
+  if (existing && existing.actorKey && existing.actorKey !== ctx.actorKey && ctx.actorKey !== OWNER_ACTOR) {
+    throw new ForbiddenChangeError("只有交件人與負責人可以修改這筆收件。")
+  }
+  if (change.op === "delete") {
+    await db.operatingIntakeItem.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const status = str(row.st) ?? "draft"
+  // 歸帳（posted）會產生交易，那是記帳者的動作。
+  if (status === "posted" && existing?.status !== "posted" && ctx.actorKey !== OWNER_ACTOR) {
+    throw new ForbiddenChangeError("歸帳由負責人處理。")
+  }
+  const amount = row.amt === null || row.amt === undefined || row.amt === "" ? null : toAmount(row.amt)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    // 成員只能以自己的名義交件；負責人核准代墊時會替成員建立待歸帳項目。
+    actorKey: existing?.actorKey ?? (ctx.actorKey === OWNER_ACTOR ? str(row.who) ?? ctx.actorKey : ctx.actorKey),
+    title: str(row.t) ?? "（未命名收件）",
+    amount,
+    onDate: toDateOnly(row.d),
+    projectRef: str(row.p),
+    status: INTAKE_STATUSES.has(status) ? status : "draft",
+    file: toAttachment(row.file) ?? Prisma.DbNull,
+    reimbRef: str(row.reimb),
+    postedRef: str(row.txn),
+  }
+  await db.operatingIntakeItem.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyPeriod(change: RowChange, ctx: ApplyContext): Promise<void> {
+  if (ctx.actorKey !== OWNER_ACTOR) throw new ForbiddenChangeError("月結與解鎖只有負責人可以操作。")
+  const period = change.id
+  if (!/^\d{4}-\d{2}$/.test(period)) throw new Error(`period ${period} is not YYYY-MM`)
+  const key = { workspaceId_period: { workspaceId: ctx.workspaceId, period } }
+  const closed = await closedPeriodsOf(ctx)
+  if (change.op === "delete") {
+    // 月結紀錄不刪：解鎖是 status=open 並留下 log，刪掉就沒有痕跡了。
+    throw new ForbiddenChangeError("月結紀錄不能刪除，請改用解鎖。")
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const status = row.st === "closed" ? "closed" : "open"
+  const log = Array.isArray(row.log) ? row.log : []
+  if (status === "open") {
+    const last = log[log.length - 1] as Record<string, unknown> | undefined
+    const wasClosed = closed.has(period)
+    if (wasClosed && (!last || last.action !== "reopen" || !str(last.reason))) {
+      throw new ForbiddenChangeError("解鎖需要填寫原因。")
+    }
+  }
+  const data = {
+    status,
+    closedBy: status === "closed" ? str(row.by) ?? ctx.actorKey : null,
+    closedAt: status === "closed" ? toInstant(row.at) ?? new Date() : null,
+    checklist: Array.isArray(row.checklist) ? (row.checklist as Prisma.InputJsonValue) : [],
+    log: log as Prisma.InputJsonValue,
+  }
+  await db.operatingPeriod.upsert({ where: key, create: { workspaceId: ctx.workspaceId, period, ...data }, update: data })
+  if (status === "closed") closed.add(period)
+  else closed.delete(period)
+}
+
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
   occasions: applyOccasion,
   rhythms: applyRhythm,
@@ -999,6 +1196,8 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   reimb: applyReimbursement,
   bank: applyBankEntry,
   payroll: applyPayrollDraft,
+  intake: applyIntakeItem,
+  periods: applyPeriod,
   dayLogs: applyDayLog,
   todayIssues: applyTodayIssue,
   lineComments: applyComment,
@@ -1037,7 +1236,7 @@ export async function applyOperatingCommands(
 
   const workspaceId = await ensureOperatingWorkspace(user)
   const actors = await buildActorMap()
-  const ctx: ApplyContext = { workspaceId, actors, profileId: user.id }
+  const ctx: ApplyContext = { workspaceId, actors, profileId: user.id, actorKey: seat.actor }
 
   const applied: string[] = []
   const rejected: CommandRejection[] = []
@@ -1093,6 +1292,15 @@ export async function applyOperatingCommands(
       })
     } catch (error) {
       console.warn("[operating] command failed", { clientRef: command.clientRef, error })
+      // 月結擋下的變更要讓使用者知道是哪個月、為什麼，而不是「請重試」：重試不會成功。
+      if (error instanceof PeriodClosedError || error instanceof ForbiddenChangeError) {
+        rejected.push({
+          clientRef: command.clientRef,
+          code: error instanceof PeriodClosedError ? "period_closed" : "forbidden",
+          message: error.message,
+        })
+        continue
+      }
       rejected.push({
         clientRef: command.clientRef,
         code: "apply_failed",
