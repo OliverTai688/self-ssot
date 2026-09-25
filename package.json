@@ -146,7 +146,8 @@
     "ops:roundtrip": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-operating-roundtrip.ts",
     "ops:spine:reconcile": "tsx scripts/reconcile-time-spine.ts",
     "ops:verify": "node scripts/verify-operating-canvas.cjs",
-    "ops:runtime:regress:pre-t3": "tsx scripts/check-operating-runtime.ts --baseline docs/2_agent-input/generated/operating-transfer/runtime.baseline.js"
+    "ops:runtime:regress:pre-t3": "tsx scripts/check-operating-runtime.ts --baseline docs/2_agent-input/generated/operating-transfer/runtime.baseline.js",
+    "ops:doc-cycles:check": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-doc-object-cycles.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",
