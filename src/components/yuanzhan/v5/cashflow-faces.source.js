@@ -287,7 +287,7 @@ function cfAttach(id) {
 }
 
 function cfDropzone() {
-  return `<div class="cf-drop" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="cfDrop(event,this)">
+  return `<div class="cf-drop" style="margin-bottom:0" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="cfDrop(event,this)">
     <p>把收據或發票拖到這裡，分類是之後的事</p>
     <div class="cf-drop-act"><button class="btn pri" onclick="cfPick(true,cfIngest)">拍照</button><button class="btn" onclick="cfPick(false,cfIngest)">${svg('paperclip', 13)} 選檔案</button></div>
     <span class="cf-muted">JPG、PNG、WEBP、PDF · 5 MB 以內${OP_LIVE ? '' : ' · 示範模式：檔案只存在本頁記憶體'}</span></div>`;
@@ -315,25 +315,27 @@ function cfInboxView() {
   const drafts = own.filter(x => x.st === 'draft');
   const sent = own.filter(x => x.st !== 'draft' && x.st !== 'discarded').slice(0, 12);
   const missing = DB.txns.filter(t => !t.v.length && (t.author === DB.me));
-  let h = cfDropzone();
-  if (isOwner()) {
-    const ap = cfApprovals();
-    h += panel('需要你核准', ap.length ? ap.length + ' 筆代墊' : '', ap.length ? `<div class="rows">${ap.map(r => {
+  // 沒有東西的區塊不畫：空的「待補」「需要你核准」只是噪音。
+  let h = '';
+  const ap = isOwner() ? cfApprovals() : [];
+  if (ap.length) {
+    h += panel('需要你核准', ap.length + ' 筆代墊', `<div class="rows">${ap.map(r => {
       const x = DB.intake.find(y => y.reimb === r.id);
       return `<div class="row cf-li"><span class="m">${(r.d || '').slice(5)}</span><span class="t">${esc(r.t)}<small>${person(r.who)} 代墊${x && x.p ? ' · ' + esc(cfProjLabel(x.p)) : ''}</small></span><span class="n">${nt(r.amt)}</span><button class="btn sm pri" onclick="event.stopPropagation();advReimb('${r.id}')">核准</button></div>`;
-    }).join('')}</div>` : '<div class="empty">沒有等你核准的代墊</div>', '', true);
+    }).join('')}</div>`, '', true);
   }
-  h += panel('待補', drafts.length ? drafts.length + ' 筆' : '', drafts.length ? `<div class="rows">${drafts.map(x => {
+  if (drafts.length) h += panel('待補', drafts.length + ' 筆', `<div class="rows">${drafts.map(x => {
     const miss = cfMissing(x);
     return `<div class="cf-item">${x.file ? cfFileTile(x.file, x.id) : `<span class="cf-thumb cf-doc">${svg('file', 18)}</span>`}
       <div class="cf-item-b"><div class="cf-item-t"><b>${esc(x.t)}</b>${x.amt != null ? `<span class="n">${nt(x.amt)}</span>` : ''}</div>
       <div class="cf-muted">${miss.length ? `<span class="cf-need">缺${miss.join('、')}</span> · ` : ''}${(x.d || '').slice(5)}</div>
       ${S.cfEditing === x.id ? cfDraftForm(x) : ''}</div>
       ${S.cfEditing === x.id ? '' : `<button class="btn sm pri" onclick="cfEdit('${x.id}')">補齊</button>`}</div>`;
-  }).join('')}</div>` : '<div class="empty">沒有要補的單據</div>', '', true);
+  }).join('')}</div>`, '', true);
   if (missing.length) h += panel('需要你補憑證', missing.length + ' 筆交易', `<div class="rows">${missing.map(t => `<div class="row cf-li"><span class="m">${t.d.slice(5)}</span><span class="t">${esc(t.t)}<small>缺原始憑證，沒有入帳依據</small></span><span class="n">${nt(t.amt)}</span><button class="btn sm" onclick="event.stopPropagation();cfAttach('${t.id}')">上傳</button></div>`).join('')}</div>`, '', true);
   if (sent.length) h += panel('最近送出', '', `<div class="rows">${sent.map(x => `<div class="row cf-li"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${esc(cfProjLabel(x.p))}</small></span><span class="n">${x.amt != null ? nt(x.amt) : '—'}</span>${cfSentStatus(x)}</div>`).join('')}</div>`, '', true);
-  return h;
+  if (!h) h = `<div class="cf-muted" style="text-align:center;padding:8px 0">收件匣是空的。有收據就交進來，缺什麼系統會提醒你補。</div>`;
+  return `<div class="cf-stack">${cfDropzone()}${h}</div>`;
 }
 
 /** 核准代墊不再自動以「公司層級／場地」寫進帳本：它進待歸帳，由記帳者補類別。 */

@@ -1,5 +1,15 @@
 # Current Sprint
 
+## Owner-directed 金流三面 — 2026-09-25
+
+`YZUI-023` 已完成實作。金流由六個等權分頁改為三面：**收單**（每天 · 全員：收件匣、我的報帳、憑證庫）、**帳務**（每週 · 記帳：帳本、對帳、月結）、**洞察**（每月 · 決策：公司、專案、人事）。負責人預設進帳務 · 帳本，成員進收單 · 收件匣；舊的分頁索引仍導到對的位置。
+
+形狀上的關鍵決定：生命週期 ③④⑤ 由既有資料推導，不另存狀態；`vouchers` 不改型別，檔案另存 `attachments`；月結守衛放在伺服器，比對資料庫現值。核准代墊不再自動寫成「公司層級／場地」，改進入待歸帳。
+
+**阻擋部署**：migration `20260925090000_operating_cashflow_intake_and_periods` 需 Owner 執行 `pnpm db:deploy`，否則 database 模式的 store 讀取會失敗。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260925-cashflow-three-faces.md)
+
+下一個候選：`YZUI-024`（對帳規則與批次歸帳）或 `YZUI-025`（現金帳戶與 Runway）。
+
 ## Owner-directed 今日議題物件化 — 2026-09-24
 
 `YZUI-020` 已完成實作。今日議題原本是一行上的旗標，只有 `blockId`／`text` 快照／`day` 與兩個動詞；現在多一層 `agenda` 型文件物件：`!議題`（或 `#議題`）把母行與底下縮排的子項一起收成一個物件，右欄的 L1 標記也能按「升格」變成物件。議題物件有提出日、選填到期日、帶過紀錄、討論串、附件、結論段與 RES-018 參考碼，並自動進物件索引。

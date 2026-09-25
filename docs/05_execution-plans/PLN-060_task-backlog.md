@@ -1,5 +1,18 @@
 # Task Backlog
 
+## Owner-directed 金流三面 — 2026-09-25
+
+Owner 看過 `cashflow-three-faces-prototype.html`（八個情境的原型與評分卡）後指示完全採用 RES-032，照片存 Cloudflare R2。三題決策採原型建議：完整三面、先做上傳、鎖帳後可加註不可改金額。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260925-cashflow-three-faces.md)
+
+| Task ID | 範圍 | Status | 依賴 | 驗收重點 |
+|---|---|---|---|---|
+| YZUI-023 | 金流三面 × 三分頁：收件匣（拍照／上傳到 R2）、我的報帳、憑證庫、帳本（期間、篩選、待歸帳、生命週期）、對帳（建議配對、CSV 匯入）、月結（檢查、鎖帳、解鎖留痕）、洞察（無寫死數字、下鑽）；`OperatingIntakeItem`、`OperatingPeriod`、`attachments` | DONE — implementation（待 Owner `pnpm db:deploy` 與瀏覽器驗收） | RES-032；ARC-042 寫入管線；既有 R2 上傳路由 | `check-cashflow-faces.ts` 43/43 PASS；migration 未套用前 database 模式不可部署 |
+| YZUI-024 | 對帳規則（摘要＋金額條件自動歸類）與待歸帳多選批次歸帳 | PROPOSED | YZUI-023 | 需新表 `OperatingBankRule`；待歸帳超過 10 筆時一筆兩次點擊太慢 |
+| YZUI-025 | 現金帳戶與期初餘額（`OperatingAccount`），計算現金水位與 Runway | PROPOSED | YZUI-023 | 沒有帳戶前洞察維持「尚未設定」，不推測 |
+| YZUI-026 | 交易的到期日與收付日（`dueDate`／`settledDate`），計算應收未收 | PROPOSED | YZUI-023 | 拆開「發生」與「收付」 |
+| YZUI-027 | 外部報帳 token 連結（外包、接案者免帳號上傳） | PROPOSED — HUMAN_APPROVAL_REQUIRED | YZUI-023 | 對外輸出與權限邊界；需 token 過期、撤銷、範圍限制 |
+| YZUI-028 | 會計師交付包（已結帳月份的交易＋憑證匯出） | PROPOSED | YZUI-023 | 只匯出已結帳月份 |
+
 ## Owner-directed 今日議題物件化 — 2026-09-24
 
 Owner 回報今日議題「只能標注和完成、只能單行、應該要有日期、應該能展開對話討論上傳文件」，並在看過三案提案後直接指定採用提案 B（議題物件）。研究與介面提案：`journal-today-agenda-proposals.html`。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260924-journal-agenda-object.md)。

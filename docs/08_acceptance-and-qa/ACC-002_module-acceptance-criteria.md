@@ -1,5 +1,21 @@
 # Acceptance Criteria
 
+## YZUI-023 — 金流三面（2026-09-25，IMPLEMENTED／OWNER_RUN_PENDING）
+
+依 [RES-032](../07_research-and-design/RES-032_cashflow-module-intake-ledger-insight-layering-research.md) 與 Owner 2026-09-25 決策。自動化驗收：`scripts/check-cashflow-faces.ts`（43 項）。
+
+- [x] 金流為三面 × 三分頁；面切換器顯示節奏（每天 · 全員／每週 · 記帳／每月 · 決策）；負責人預設帳務 · 帳本、成員預設收單 · 收件匣；舊分頁索引導到對應新位置。
+- [x] 成員從收件匣交件不需要選類別；缺資料時列上直接寫出缺什麼，送出時說還差什麼。
+- [x] 照片／PDF 存 R2（伺服器產生 key、5 MB、png/jpg/webp/pdf），資料庫只存參照；prototype 模式不發網路請求。
+- [x] 核准代墊不產生交易；進入帳本「待歸帳」，由負責人選類別後入帳。
+- [x] 帳本有期間切換、篩選與 ③已入帳／④已勾稽／⑤已結帳 狀態；沒有交易時不畫表頭。
+- [x] 對帳有建議配對（附理由）、CSV 匯入；沒有銀行明細時不畫全 0 調節表。
+- [x] 月結檢查未全過不能鎖；鎖定在頁內確認；鎖後編輯改為加註；解鎖必須填原因並留在紀錄。伺服器同樣拒絕已結帳月份的金額／日期／歸屬變更（`period_closed`）。
+- [x] 洞察不顯示沒有資料來源的數字（Runway、應收未收顯示「尚未設定」）；KPI 可下鑽到帳本。
+- [x] 成員進帳務面看到邊界說明與「回到收件匣」，不是空表格；成員只讀得到自己的收件（伺服器過濾）。
+- [ ] Owner-run：`pnpm db:deploy` 套用 `20260925090000_operating_cashflow_intake_and_periods`。
+- [ ] Owner-run：真 R2 bucket 上傳／重整後仍在；四主題與 390px 目視。
+
 ## YZLIVE — 帳號與正式使用（2026-09-15，PROPOSED／NOT_RUN）
 
 依 [PLN-071](../05_execution-plans/PLN-071_yuanzhan-account-and-private-launch-plan.md) 第 8 節及 [AUT-009](../02_architecture-and-rules/AUT-009_yuanzhan-email-otp-account-boundary.md)：三帳號實際收六碼登入、無 Magic Link／Google／固定碼正式替代入口；UID 與本人資料對應；公司管理採 active membership；私人日誌／附件／搜尋隔離；本人資料與公司協作跨重整持久化；停用／session 撤銷／最後 owner 負測試；SMTP／HTTPS／backup restore／部署回退及跨三帳號驗收。當前只有規劃與文件查核完成，上述 runtime 測試均 NOT_RUN，原型驗證不替代正式上線證據。

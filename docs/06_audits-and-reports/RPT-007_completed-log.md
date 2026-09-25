@@ -1,5 +1,14 @@
 # Completed Log
 
+## 2026-09-25
+
+### YZUI-023 — 金流三面（收單／帳務／洞察）
+
+- Owner 看過情境原型（`cashflow-three-faces-prototype.html`，八個情境、四個評估鏡頭）後指示完全採用 RES-032，照片存 R2。三題決策採原型建議：完整三面、先做上傳、鎖帳後可加註不可改金額。
+- 新 extension `cashflow-faces.source.js`／`.css`：三面 × 三分頁、角色落點、舊索引轉址；收件匣（拍照／選檔／拖放 → R2）、我的報帳、憑證庫（真實檔案）、帳本（期間、篩選、待歸帳、③④⑤ 狀態）、對帳（建議配對、CSV 匯入、解除）、月結（四項檢查、頁內確認、解鎖要原因）、洞察（移除寫死 Runway／應收未收、KPI 下鑽、專案切換）。核准代墊改進待歸帳，不再自動寫成「公司層級／場地」。
+- Prisma 僅新增：`OperatingIntakeItem`、`OperatingPeriod`、`OperatingTransaction.attachments`（migration `20260925090000_operating_cashflow_intake_and_periods`）。伺服器端月結守衛比對資料庫現值；月結／歸帳／報帳核准限負責人；新增 `period_closed`、`forbidden` 拒絕碼；成員只讀得到自己的收件。
+- Verification：`check-cashflow-faces.ts` 43/43 PASS（本輪新增）、`check-operating-commands` 34 PASS、`check-operating-command-fields` 302 PASS、migration coverage PASS、prisma structure PASS、runtime 雙模式 26 分頁 0 錯誤、canvas 18 PASS、day-state 27/27、reply-jump 22/22、`tsc` 0 errors、Playwright 截圖 console 0 錯誤。**Migration 未套用**；R2 未以真 bucket 驗證。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260925-cashflow-three-faces.md)
+
 ## 2026-09-24
 
 ### YZUI-020 — 今日議題升格為第一級物件（提案 B）
