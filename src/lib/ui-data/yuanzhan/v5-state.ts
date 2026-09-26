@@ -100,6 +100,9 @@ export function createV5State(
     data.repos = {} as typeof data.repos
     data.capacity = { yz: [], lily: [] }
     data.timesheet = { yz: [], lily: [] }
+    // cashConfig 是物件不是陣列，上面的迴圈掃不到它。漏掉的話 database 模式會留著
+    // showcase 的支出假設，而兩顆燈會拿它算出一個看起來很真的「還能活幾個月」。
+    data.cashConfig = {} as typeof data.cashConfig
   }
 
   // fixture 的 2026-09-12 只對 prototype／showcase 有意義；接了資料庫就得用真的今天。

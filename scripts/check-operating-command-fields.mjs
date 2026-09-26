@@ -54,6 +54,8 @@ const DEPENDENCIES = {
   OperatingProjectProfile: [
     'projectId', 'client', 'goalId', 'engagementType', 'operatingStatus',
     'bonusRatePct', 'bonusCapPct', 'budgetAmount', 'evidenceRepoTag', 'startedOn',
+    // 對外四狀態；operatingStatus 留作子階段（獎金閘門③讀它）
+    'dealStage', 'stageEnteredAt',
   ],
   ProjectTask: [
     'id', 'projectId', 'title', 'status', 'operatingStatus', 'priority', 'dueAt', 'completedAt',
@@ -63,7 +65,7 @@ const DEPENDENCIES = {
   OperatingDecision: ['id', 'workspaceId', 'authorId', 'title', 'body', 'decidedOn'],
   OperatingJournalEntry: ['workspaceId', 'authorId', 'onDate', 'title', 'blocks', 'visibility'],
   ProjectPhaseNode: ['id', 'projectId', 'phase', 'label', 'startDate', 'endDate'],
-  ProjectMilestone: ['id', 'phaseNodeId', 'title', 'date', 'acceptance', 'derivedFrom', 'remind'],
+  ProjectMilestone: ['id', 'phaseNodeId', 'title', 'date', 'acceptance', 'derivedFrom', 'remind', 'bonusAmount'],
   ProjectObjective: ['id', 'milestoneId', 'title'],
   OperatingDocument: ['id', 'workspaceId', 'direction', 'title', 'clauses'],
   OperatingCommitment: [
@@ -77,6 +79,8 @@ const DEPENDENCIES = {
   OperatingTransaction: [
     'id', 'workspaceId', 'onDate', 'title', 'projectRef', 'category',
     'amount', 'formula', 'passThrough', 'vouchers', 'attachments', 'note',
+    // RES-032 §2.3 的第五個維度：發生／該收付／真的收付／確定性分開
+    'dueDate', 'settledDate', 'certainty', 'contractTermRef',
   ],
   OperatingReimbursement: ['id', 'workspaceId', 'actorKey', 'title', 'amount', 'status', 'onDate'],
   OperatingBankEntry: ['id', 'workspaceId', 'onDate', 'title', 'amount', 'matchedRef'],
@@ -86,6 +90,24 @@ const DEPENDENCIES = {
     'projectRef', 'status', 'file', 'reimbRef', 'postedRef', 'createdAt',
   ],
   OperatingPeriod: ['workspaceId', 'period', 'status', 'closedBy', 'closedAt', 'checklist', 'log'],
+  OperatingContract: [
+    'id', 'workspaceId', 'workbenchRef', 'projectId', 'title', 'totalAmount',
+    'currency', 'paymentTermsDays', 'clauseRef', 'signedOn', 'status',
+  ],
+  OperatingContractTerm: [
+    'id', 'workspaceId', 'workbenchRef', 'contractId', 'seq', 'label', 'amount',
+    'pctOfTotal', 'triggerKind', 'milestoneRef', 'expectedOn', 'invoicedOn',
+    'settledOn', 'status', 'txnRef',
+  ],
+  OperatingCashAccount: [
+    'id', 'workspaceId', 'workbenchRef', 'name', 'kind', 'openingBalance',
+    'openingAsOf', 'currency',
+  ],
+  OperatingCashAssumption: [
+    'workspaceId', 'monthlyBurn', 'runwayGreenMonths', 'runwayAmberMonths',
+    'coverageGreenPct', 'coverageAmberPct', 'overdueAmberDays', 'overdueRedDays',
+    'probChallengeablePct', 'probProposedPct',
+  ],
   OperatingComment: [
     'id', 'workspaceId', 'authorId', 'authorKey', 'workbenchRef',
     'targetType', 'targetRef', 'body', 'meta', 'deletedAt',
@@ -119,7 +141,7 @@ const REVERSE_LOOKUP_MODELS = [
   'OperatingDocument', 'OperatingCommitment', 'OperatingThread', 'OperatingTransaction',
   'OperatingReimbursement', 'OperatingBankEntry', 'OperatingEvidenceRepo',
   'OperatingComment', 'OperatingRequest', 'OperatingLibraryFile', 'OperatingDocObject',
-  'OperatingIntakeItem',
+  'OperatingIntakeItem', 'OperatingContract', 'OperatingContractTerm', 'OperatingCashAccount',
 ]
 
 /** 服務層用到的複合唯一鍵；Prisma 的 where 鍵名由這些欄位組出來。 */

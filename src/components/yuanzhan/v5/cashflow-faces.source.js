@@ -18,12 +18,20 @@ if (!Array.isArray(DB.periods)) DB.periods = [];
 const CF_TABS = [
   ['inbox', '收件匣'], ['mine', '我的報帳'], ['vault', '憑證庫'],
   ['ledger', '帳本'], ['recon', '對帳'], ['close', '月結'],
-  ['company', '公司'], ['project', '專案'], ['people', '人事']
+  ['company', '公司'], ['project', '專案'], ['people', '人事'], ['contract', '合約金流']
 ];
+/**
+ * 每一面用顯式的 { from, len }，不要再用「每面剛好三格」的算術。
+ *
+ * 原本 cfFace() 是 CF_FACES[Math.floor(S.tab / 3)]，配上寫死的 from 0/3/6。
+ * 洞察面加第四個分頁之後 Math.floor(9 / 3) === 3 會落在陣列外，
+ * 回傳 undefined 再被 `|| CF_FACES[0]` 接住 —— 畫面會無聲跳回「收單」面，
+ * 不會報錯。分頁數一旦不是 3 的倍數，算術就是錯的來源。
+ */
 const CF_FACES = [
-  { id: 'intake', nm: '收單', sub: '每天 · 全員', from: 0 },
-  { id: 'books', nm: '帳務', sub: '每週 · 記帳', from: 3 },
-  { id: 'insight', nm: '洞察', sub: '每月 · 決策', from: 6 }
+  { id: 'intake', nm: '收單', sub: '每天 · 全員', from: 0, len: 3 },
+  { id: 'books', nm: '帳務', sub: '每週 · 記帳', from: 3, len: 3 },
+  { id: 'insight', nm: '洞察', sub: '每月 · 決策', from: 6, len: 4 }
 ];
 /** 舊的六分頁索引 → 新索引。訊號、指令面板、其他模組的連結都還在用舊索引。 */
 const CF_LEGACY = { 1: 6, 2: 4, 3: 1, 4: 8, 5: 7 };
@@ -41,7 +49,7 @@ S.cfDraft = S.cfDraft || {};
 
 function cfKey() { return (CF_TABS[S.tab] || CF_TABS[0])[0]; }
 function cfIdx(k) { return CF_TABS.findIndex(t => t[0] === k); }
-function cfFace() { return CF_FACES[Math.floor((S.tab || 0) / 3)] || CF_FACES[0]; }
+function cfFace() { const t = S.tab || 0; return CF_FACES.find(f => t >= f.from && t < f.from + f.len) || CF_FACES[0]; }
 function cfLanding() { return isOwner() ? cfIdx('ledger') : cfIdx('inbox'); }
 
 const cfBaseRedirect = opRedirect;
@@ -129,7 +137,7 @@ function cfPaintTabs() {
   tabs.innerHTML = `<div class="cf-faces" role="tablist" aria-label="金流的三個面">${CF_FACES.map(f => {
     const n = cfBadge(f.id);
     return `<button class="cf-face ${f.id === face.id ? 'on' : ''}" role="tab" aria-selected="${f.id === face.id}" onclick="cfFaceGo('${f.id}')"><b>${f.nm}</b><small>${f.sub}</small>${n ? `<i class="cf-bdg">${n}</i>` : ''}</button>`;
-  }).join('')}</div><div class="cf-subtabs" role="tablist" aria-label="${face.nm}">${[0, 1, 2].map(i => {
+  }).join('')}</div><div class="cf-subtabs" role="tablist" aria-label="${face.nm}">${Array.from({ length: face.len }, (_, i) => {
     const idx = face.from + i;
     return `<button class="tab ${S.tab === idx ? 'on' : ''}" role="tab" aria-selected="${S.tab === idx}" onclick="setTab(${idx})">${CF_TABS[idx][1]}</button>`;
   }).join('')}</div>`;

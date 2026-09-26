@@ -589,6 +589,7 @@ async function applyMilestone(change: RowChange, _ctx: ApplyContext): Promise<vo
     acceptance: str(row.accept),
     derivedFrom: str(row.derivedFrom),
     remind: str(row.remind),
+    bonusAmount: Math.max(0, toAmount(row.bonus)),
   }
   await db.projectMilestone.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
   await syncMilestone(db, id)
@@ -1182,6 +1183,130 @@ async function applyPeriod(change: RowChange, ctx: ApplyContext): Promise<void> 
   else closed.delete(period)
 }
 
+/* ── 合約金流 ──────────────────────────────────────────────────────────
+   合約與期款決定推演與兩顆燈：改一筆金額就改變「還能活幾個月」的答案，
+   所以這四支全部限負責人，並在 HIGH_RISK_COLLECTIONS 裡提高稽核層級。   */
+
+async function applyContract(change: RowChange, ctx: ApplyContext): Promise<void> {
+  if (ctx.actorKey !== OWNER_ACTOR) throw new ForbiddenChangeError("合約只有負責人可以建立或修改。")
+  const id = rowUuid("contracts", change.id)
+  if (change.op === "delete") {
+    await db.operatingContract.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectRef = str(row.p)
+  if (!projectRef) throw new Error("contract requires a project ref")
+  const projectId = rowUuid("projects", projectRef)
+  const project = await db.project.findFirst({ where: { id: projectId, workspaceId: ctx.workspaceId }, select: { id: true } })
+  if (!project) throw new Error(`contract ${change.id} references a project that is not saved yet`)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    projectId,
+    title: str(row.title),
+    totalAmount: toAmount(row.total),
+    paymentTermsDays: Math.max(0, toAmount(row.termsDays) || 30),
+    clauseRef: str(row.clause),
+    signedOn: toDateOnly(row.signedOn),
+    status: str(row.st) ?? "active",
+  }
+  await db.operatingContract.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyContractTerm(change: RowChange, ctx: ApplyContext): Promise<void> {
+  if (ctx.actorKey !== OWNER_ACTOR) throw new ForbiddenChangeError("期款只有負責人可以建立或修改。")
+  const id = rowUuid("terms", change.id)
+  if (change.op === "delete") {
+    await db.operatingContractTerm.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const contractRef = str(row.c)
+  if (!contractRef) throw new Error("term requires a contract ref")
+  const contract = await db.operatingContract.findFirst({
+    where: { id: rowUuid("contracts", contractRef), workspaceId: ctx.workspaceId },
+    select: { id: true },
+  })
+  if (!contract) throw new Error(`contract ${contractRef} is not persisted yet`)
+  const expectedOn = toDateOnly(row.expectedOn)
+  if (!expectedOn) throw new Error("term requires expectedOn")
+  const settledOn = toDateOnly(row.settledOn)
+  // status 由日期推導，不另外信任前端送來的字串：存了兩份就會出現
+  // 「已收但沒有實際收款日」這種對不起來的列。
+  const status = settledOn ? "settled" : row.writtenOff ? "written_off" : toDateOnly(row.invoicedOn) ? "invoiced" : "pending"
+  const pct = row.pct === null || row.pct === undefined || row.pct === "" ? null : toAmount(row.pct)
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    contractId: contract.id,
+    seq: Math.max(1, toAmount(row.seq) || 1),
+    label: str(row.label) ?? "（未命名期款）",
+    amount: toAmount(row.amount),
+    pctOfTotal: pct,
+    triggerKind: str(row.trigger) ?? "date",
+    milestoneRef: str(row.ms),
+    expectedOn,
+    invoicedOn: toDateOnly(row.invoicedOn),
+    settledOn,
+    status,
+    txnRef: str(row.txn),
+  }
+  await db.operatingContractTerm.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyCashAccount(change: RowChange, ctx: ApplyContext): Promise<void> {
+  if (ctx.actorKey !== OWNER_ACTOR) throw new ForbiddenChangeError("現金帳戶只有負責人看得到，也只有負責人改得動。")
+  const id = rowUuid("accounts", change.id)
+  if (change.op === "delete") {
+    await db.operatingCashAccount.deleteMany({ where: { id, workspaceId: ctx.workspaceId } })
+    return
+  }
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const openingAsOf = toDateOnly(row.asOf)
+  if (!openingAsOf) throw new Error("cash account requires an opening date")
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    name: str(row.name) ?? "（未命名帳戶）",
+    kind: str(row.kind) ?? "bank",
+    openingBalance: toAmount(row.opening),
+    openingAsOf,
+  }
+  await db.operatingCashAccount.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+async function applyCashAssumption(change: RowChange, ctx: ApplyContext): Promise<void> {
+  if (ctx.actorKey !== OWNER_ACTOR) throw new ForbiddenChangeError("支出假設與燈號門檻只有負責人可以改。")
+  // 一個工作區一列，不刪：刪掉會讓燈號無聲退回預設值而不是「尚未設定」。
+  if (change.op === "delete") return
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const pct = (v: unknown, fallback: number) => {
+    const n = v === null || v === undefined || v === "" ? NaN : Number(v)
+    return Number.isFinite(n) ? Math.round(n * 100) : fallback
+  }
+  const int = (v: unknown, fallback: number) => {
+    const n = v === null || v === undefined || v === "" ? NaN : Number(v)
+    return Number.isFinite(n) ? Math.round(n) : fallback
+  }
+  const data = {
+    monthlyBurn: Math.max(0, int(row.monthlyBurn, 0)),
+    runwayGreenMonths: int(row.runwayGreen, 6),
+    runwayAmberMonths: int(row.runwayAmber, 3),
+    coverageGreenPct: pct(row.coverageGreen, 120),
+    coverageAmberPct: pct(row.coverageAmber, 80),
+    overdueAmberDays: int(row.overdueAmber, 14),
+    overdueRedDays: int(row.overdueRed, 30),
+    probChallengeablePct: pct(row.probCHALLENGEABLE, 20),
+    probProposedPct: pct(row.probPROPOSED, 50),
+  }
+  await db.operatingCashAssumption.upsert({
+    where: { workspaceId: ctx.workspaceId },
+    create: { workspaceId: ctx.workspaceId, ...data },
+    update: data,
+  })
+}
+
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
   occasions: applyOccasion,
   rhythms: applyRhythm,
@@ -1206,6 +1331,10 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   payroll: applyPayrollDraft,
   intake: applyIntakeItem,
   periods: applyPeriod,
+  contracts: applyContract,
+  terms: applyContractTerm,
+  accounts: applyCashAccount,
+  cashConfig: applyCashAssumption,
   dayLogs: applyDayLog,
   todayIssues: applyTodayIssue,
   lineComments: applyComment,

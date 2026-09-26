@@ -1,0 +1,84 @@
+/* 洞察 · 合約金流。色彩一律走主題 token；確定性四層是同一色相的四階不透明度。 */
+
+.cc-lights{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:760px){.cc-lights{grid-template-columns:1fr}}
+.cc-light{border:1px solid var(--border);border-radius:10px;padding:11px 13px;display:grid;gap:6px;background:var(--bg);text-align:left;width:100%}
+.cc-light.t-g{border-color:color-mix(in oklab,var(--ok) 45%,var(--border))}
+.cc-light.t-a{border-color:color-mix(in oklab,var(--warn) 45%,var(--border))}
+.cc-light.t-r{border-color:color-mix(in oklab,var(--danger) 45%,var(--border))}
+.cc-clickable{cursor:pointer;font:inherit;color:inherit}
+.cc-clickable:hover{border-color:var(--border-3)}
+.cc-light-h{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.cc-light-nm{font-size:12px;color:var(--text-3);display:flex;gap:6px;align-items:center}
+.cc-light-v{font-size:22px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:baseline;gap:6px;font-family:var(--mono)}
+.cc-light-v small{font-size:12px;font-weight:400;color:var(--text-3);font-family:var(--sans)}
+.cc-light-unset{font-size:14px;color:var(--text-3)}
+.cc-why{font-size:12px;color:var(--text-2);display:grid;gap:2px}
+.cc-why i{font-style:normal;color:var(--text-3)}
+.cc-more{font-size:11.5px;color:var(--text-3);display:flex;gap:4px;align-items:center}
+.cc-say{border:1px solid var(--border-2);border-radius:10px;padding:10px 13px;background:var(--surface);font-size:12.5px;display:flex;gap:9px;align-items:flex-start;margin-bottom:12px}
+.cc-say b{font-weight:700;color:var(--text)}
+
+.cc-pipe{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border);margin:-12px -14px}
+@media(max-width:900px){.cc-pipe{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.cc-pipe{grid-template-columns:1fr}}
+.cc-col{background:var(--bg);padding:10px;display:grid;gap:8px;align-content:start}
+.cc-col-h{display:grid;gap:2px}
+.cc-col-h b{font-size:12.5px;display:flex;gap:6px;align-items:center;justify-content:space-between}
+.cc-sum{font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.cc-wt{font-size:11px;color:var(--text-3)}
+.cc-card{border:1px solid var(--border);border-radius:9px;padding:9px 10px;display:grid;gap:7px;background:var(--bg);text-align:left;width:100%;font:inherit;color:inherit}
+button.cc-card{cursor:pointer}
+button.cc-card:hover{border-color:var(--border-2)}
+.cc-card.on{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-bg)}
+.cc-card-t{font-size:13px;font-weight:700;line-height:1.35}
+.cc-card-m{font-size:11.5px;color:var(--text-3);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cc-bars{display:flex;gap:3px}
+.cc-b{height:6px;flex:1;border-radius:2px;background:var(--surface-3);font-style:normal}
+.cc-b.settled{background:var(--pri)}
+.cc-b.invoiced{background:color-mix(in oklab,var(--pri) 55%,var(--surface))}
+.cc-b.overdue{background:var(--danger)}
+.cc-next{font-size:11.5px;display:flex;justify-content:space-between;gap:8px;color:var(--text-2)}
+.cc-next b{font-family:var(--mono);font-weight:600}
+.cc-sub{color:var(--text-3)}
+.cc-none{font-size:12px;color:var(--text-3);padding:4px 2px}
+.cc-mine{display:grid;gap:8px;max-width:420px;margin:10px 0}
+.cc-note{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text-2);padding:10px 2px 0;border-top:1px solid var(--border);margin-top:10px}
+.cc-note:first-of-type{border-top:0}
+.cc-note-p{font-size:12.5px;color:var(--text-2)}
+.cc-lag{font-family:var(--mono);font-size:11.5px}
+.cc-lag.pos{color:var(--warn)}
+.cc-lag.ok{color:var(--ok)}
+
+.cc-h4{font-size:12.5px;font-weight:700;color:var(--text-2);margin:12px 0 2px}
+.cc-chart svg{display:block;width:100%;height:auto;overflow:visible}
+.cc-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--text-2);padding:0 2px 8px}
+.cc-legend span{display:inline-flex;gap:5px;align-items:center}
+.cc-sw{width:11px;height:11px;border-radius:3px;flex:none;background:var(--pri)}
+/* 確定性＝序數，單一色相由深到淺；最淺那層再加斜線紋，因為它不是真錢 */
+.cc-l0{fill:var(--pri);fill-opacity:1;background:var(--pri)}
+.cc-l1{fill:var(--pri);fill-opacity:.62;background:var(--pri);opacity:.62}
+.cc-l2{fill:var(--pri);fill-opacity:.34;background:var(--pri);opacity:.34}
+.cc-l3{fill:url(#ccHatch);background:var(--pri);opacity:.22;background-image:repeating-linear-gradient(45deg,transparent 0 2px,var(--bg) 2px 3px)}
+.cc-hatch-bg{fill:var(--pri);fill-opacity:.2}
+.cc-hatch-l{stroke:var(--bg);stroke-width:2}
+.cc-out{fill:var(--surface-3);background:var(--surface-3)}
+.cc-swline{background:var(--pri);border-radius:99px;width:9px;height:9px}
+.cc-grid{stroke:var(--border);stroke-width:1}
+.cc-grid.dash{stroke-dasharray:3 3}
+.cc-zero{stroke:var(--border-3);stroke-width:1}
+.cc-ax{font-size:10.5px;fill:var(--text-3)}
+.cc-ax.b{fill:var(--text-2)}
+.cc-ax.neg{fill:var(--danger)}
+.cc-band-a{fill:var(--warn-bg)}
+.cc-band-r{fill:var(--danger-bg)}
+.cc-line{fill:none;stroke:var(--pri);stroke-width:2;stroke-linejoin:round}
+.cc-dot{fill:var(--pri);stroke:var(--bg);stroke-width:2}
+.cc-dot.low{fill:var(--danger)}
+
+.cc-accts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.cc-acct{border:1px solid var(--border);border-radius:9px;background:var(--bg);padding:7px 11px;display:grid;gap:1px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.cc-acct:hover{border-color:var(--border-2)}
+.cc-acct b{font-family:var(--mono);font-size:13px}
+.cc-acct span:first-child{font-size:11.5px;color:var(--text-3)}
+.cc-acct.add{display:flex;align-items:center;gap:5px;color:var(--text-2);border-style:dashed}

@@ -11,7 +11,7 @@ DB.journalBooks=journals;
    seed 裡沒有這幾個鍵，所以 prototype／showcase 模式的行為與原本一模一樣。 */
 DB.journalComments=DB.journalComments||[];
 DB.files=DB.files||[];
-DB.payroll=initialState.mode==='showcase'?[{who:'yz',base:0,overtime:0,milestone:0,separate:true},{who:'lily',base:30000,overtime:1846,milestone:5000}]:[];
+DB.payroll=initialState.mode==='showcase'?[{who:'yz',base:0,overtime:0,milestone:0,separate:true},{who:'lily',base:30000,overtime:1846,milestone:5000}]:(DB.payroll||[]);
 DB.policy=initialState.mode==='showcase'?{normalHours:130,warningHours:143}:{};
 if(initialState.mode==='showcase') journals.team.lily[TODAY]={title:'20260912　週六 · Lily',blocks:[{id:'lily-1',t:'h2',ind:0,text:'Standup'},{id:'lily-2',t:'h3',ind:0,text:'Today'},{id:'lily-3',t:'p',ind:1,text:'整理柏翰成效報告與驗收資料，準備下週交付。'}]};
 Object.defineProperty(DB,'journal',{enumerable:false,configurable:true,get:()=>journals[space][space==='personal'?DB.me:journalAuthor],set:v=>{journals[space][space==='personal'?DB.me:journalAuthor]=v}});

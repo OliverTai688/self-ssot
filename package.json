@@ -134,7 +134,7 @@
     "ops:runtime:check": "tsx scripts/check-operating-runtime.ts",
     "ops:runtime:regress": "tsx scripts/check-operating-runtime.ts --baseline docs/2_agent-input/generated/operating-transfer/runtime.converged.js",
     "ops:canvas:check": "tsx scripts/check-operating-canvas.ts",
-    "ops:check": "node scripts/check-prisma-structure.mjs prisma/schema.prisma && tsx scripts/check-operating-spine.ts && tsx scripts/check-operating-commands.ts && node scripts/check-operating-command-fields.mjs && node scripts/check-migration-coverage.mjs && tsx scripts/check-operating-runtime.ts && tsx scripts/check-journal-day-state.ts && tsx scripts/check-operating-canvas.ts && tsx scripts/check-reply-jump.ts && tsx scripts/check-cashflow-faces.ts",
+    "ops:check": "node scripts/check-prisma-structure.mjs prisma/schema.prisma && tsx scripts/check-operating-spine.ts && tsx scripts/check-operating-commands.ts && node scripts/check-operating-command-fields.mjs && node scripts/check-migration-coverage.mjs && tsx scripts/check-operating-runtime.ts && tsx scripts/check-journal-day-state.ts && tsx scripts/check-operating-canvas.ts && tsx scripts/check-reply-jump.ts && tsx scripts/check-cashflow-faces.ts && tsx scripts/check-contract-cashflow.ts",
     "ops:prisma:check": "node scripts/check-prisma-structure.mjs prisma/schema.prisma",
     "ops:commands:check": "tsx scripts/check-operating-commands.ts",
     "ops:day-state:check": "tsx scripts/check-journal-day-state.ts",
@@ -149,7 +149,8 @@
     "ops:runtime:regress:pre-t3": "tsx scripts/check-operating-runtime.ts --baseline docs/2_agent-input/generated/operating-transfer/runtime.baseline.js",
     "ops:doc-cycles:check": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-doc-object-cycles.ts",
     "ops:reply-jump:check": "tsx scripts/check-reply-jump.ts",
-    "ops:cashflow:check": "tsx scripts/check-cashflow-faces.ts"
+    "ops:cashflow:check": "tsx scripts/check-cashflow-faces.ts",
+    "ops:contract:check": "tsx scripts/check-contract-cashflow.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",

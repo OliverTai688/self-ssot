@@ -123,6 +123,10 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     todayIssueRows,
     intakeRows,
     periodRows,
+    contractRows,
+    termRows,
+    accountRows,
+    assumptionRow,
   ] = await Promise.all([
     db.operatingGoal.findMany({ where: { workspaceId } }),
     db.operatingProjectProfile.findMany({ include: { project: true } }),
@@ -173,10 +177,16 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       orderBy: { createdAt: "desc" },
     }),
     db.operatingPeriod.findMany({ where: { workspaceId }, orderBy: { period: "desc" } }),
+    db.operatingContract.findMany({ where: { workspaceId } }),
+    db.operatingContractTerm.findMany({ where: { workspaceId }, orderBy: { seq: "asc" } }),
+    db.operatingCashAccount.findMany({ where: { workspaceId } }),
+    db.operatingCashAssumption.findUnique({ where: { workspaceId } }),
   ])
 
   /** 主鍵 → 工作台 id，讓子列的關聯接得回父列。 */
   const projectRefById = new Map(withRef(profileRows).map((row) => [row.projectId, row.workbenchRef]))
+  // 期款掛在合約上，合約掛在專案上；工作台兩邊都用業務 id 串，所以要兩張對照表。
+  const contractRefById = new Map(withRef(contractRows).map((row) => [row.id, row.workbenchRef]))
   const phaseRefById = new Map(withRef(phaseRows).map((row) => [row.id, row.workbenchRef]))
   const phaseProjectById = new Map(phaseRows.map((row) => [row.id, row.projectId]))
   const milestoneRefById = new Map(withRef(milestoneRows).map((row) => [row.id, row.workbenchRef]))
@@ -316,6 +326,7 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       accept: row.acceptance ?? "",
       derivedFrom: row.derivedFrom ?? "",
       remind: row.remind ?? "",
+      bonus: row.bonusAmount,
     })),
 
     objectives: withRef(objectiveRows).map((row) => ({
@@ -432,6 +443,56 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       txn: row.postedRef ?? "",
       at: row.createdAt.getTime(),
     })),
+
+    contracts: withRef(contractRows).map((row) => ({
+      id: row.workbenchRef,
+      p: projectRefById.get(row.projectId) ?? "",
+      total: row.totalAmount,
+      termsDays: row.paymentTermsDays,
+      clause: row.clauseRef ?? "",
+      signedOn: iso(row.signedOn),
+      st: row.status,
+    })),
+
+    terms: withRef(termRows).map((row) => ({
+      id: row.workbenchRef,
+      c: contractRefById.get(row.contractId) ?? "",
+      seq: row.seq,
+      label: row.label,
+      amount: row.amount,
+      pct: row.pctOfTotal,
+      trigger: row.triggerKind,
+      ms: row.milestoneRef ?? "",
+      // 兩個日期分開存，差值就是這個客戶的付款落差；推演靠它平移。
+      expectedOn: iso(row.expectedOn),
+      invoicedOn: iso(row.invoicedOn),
+      settledOn: iso(row.settledOn),
+      st: row.status,
+      txn: row.txnRef ?? "",
+    })),
+
+    accounts: withRef(accountRows).map((row) => ({
+      id: row.workbenchRef,
+      name: row.name,
+      kind: row.kind,
+      opening: row.openingBalance,
+      asOf: iso(row.openingAsOf),
+    })),
+
+    // 一個工作區一份。門檻與機率在資料庫存百分比整數，讀回工作台才換成倍數。
+    cashConfig: assumptionRow
+      ? {
+          monthlyBurn: assumptionRow.monthlyBurn,
+          runwayGreen: assumptionRow.runwayGreenMonths,
+          runwayAmber: assumptionRow.runwayAmberMonths,
+          coverageGreen: assumptionRow.coverageGreenPct / 100,
+          coverageAmber: assumptionRow.coverageAmberPct / 100,
+          overdueAmber: assumptionRow.overdueAmberDays,
+          overdueRed: assumptionRow.overdueRedDays,
+          probCHALLENGEABLE: assumptionRow.probChallengeablePct / 100,
+          probPROPOSED: assumptionRow.probProposedPct / 100,
+        }
+      : {},
 
     // 月份本身就是身分（YYYY-MM），不需要 workbenchRef。
     periods: periodRows.map((row) => ({

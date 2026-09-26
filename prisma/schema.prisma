@@ -559,6 +559,7 @@ model Project {
   notes        ProjectNote[]
   deliverables ProjectDeliverable[]
   phaseNodes   ProjectPhaseNode[]
+  contracts    OperatingContract[]  @relation("ProjectContracts")
   operatingProfile OperatingProjectProfile?
   occasions    Occasion[]           @relation("ProjectOccasions")
   collaborationInvitations CollaborationInvitation[] @relation("CollaborationInvitationProject")
@@ -890,6 +891,9 @@ model ProjectMilestone {
   acceptance  String?
   derivedFrom String?                 @map("derived_from")
   remind      String?
+  /// 里程碑獎金（P3）。0＝這個里程碑不帶獎金。
+  /// 有了它，人事頁那一格才是算出來的；在這之前它是 payroll 草稿裡手打的數字。
+  bonusAmount Int                     @default(0) @map("bonus_amount")
 
   objectives  ProjectObjective[]
   createdAt   DateTime                @default(now()) @map("created_at")
@@ -1716,6 +1720,11 @@ model OperatingProjectProfile {
   engagementType  String?        @map("engagement_type")
   /// 工作台的原始狀態（商機 / 進行中 / 驗收中）；ProjectStatus 是給 Work 模組的粗分類
   operatingStatus String         @default("商機") @map("operating_status")
+  /// 對外四狀態。operatingStatus 留作子階段，獎金閘門③仍讀它。
+  dealStage       ProjectDealStage @default(CHALLENGEABLE) @map("deal_stage")
+  /// 進入目前這一格的日期。沒有它就答不出「何時走到這一期」——
+  /// 舊的做法是直接覆寫狀態字串，歷史不留。
+  stageEnteredAt  DateTime?      @map("stage_entered_at") @db.Date
   /// 獎金率與上限是專案設定，不是帳務憑證；M4 之前不據以產生任何應付金額
   bonusRatePct    Int            @default(0) @map("bonus_rate_pct")
   bonusCapPct     Int            @default(0) @map("bonus_cap_pct")
@@ -1959,6 +1968,14 @@ model OperatingTransaction {
   formula     String?
   /// 代收代付：不計入可分配毛利
   passThrough Boolean  @default(false) @map("pass_through")
+  /// 應收／應付的到期日。onDate 是經濟事件何時成立，dueDate 是錢何時該進出。
+  dueDate     DateTime? @map("due_date") @db.Date
+  /// 真的收付那一天。與 dueDate 的差就是這個對象的付款落差。
+  settledDate DateTime? @map("settled_date") @db.Date
+  /// estimated / committed / actual —— RES-032 §2.3 缺的第五個維度「確定性」。
+  certainty   String   @default("actual")
+  /// 勾稽到哪一期合約期款（工作台業務 id）
+  contractTermRef String? @map("contract_term_ref")
   /// 憑證種類清單（發票／合約／匯款單）
   vouchers    String[]
   /// 憑證檔案（RES-032）：[{ objectKey, name, type, bytes, at, by }]。bytes 在 R2，這裡只留 key。
@@ -2054,6 +2071,127 @@ model OperatingPeriod {
 
   @@unique([workspaceId, period], map: "operating_periods_workspace_period_key")
   @@map("operating_periods")
+}
+
+/// 專案的對外四狀態（需求一）。
+///
+/// 對內的 `OperatingProjectProfile.operatingStatus`（商機／進行中／驗收中）維持不動：
+/// 獎金結算閘門③「內部驗收（14 日）」讀的是它。把兩者收斂成一個欄位會讓那一項失效，
+/// 所以這裡是「對外四格 + 對內子階段」而不是取代。
+enum ProjectDealStage {
+  CHALLENGEABLE
+  PROPOSED
+  WON
+  CLOSED
+
+  @@map("project_deal_stage")
+}
+
+/// 合約。期款的家。
+///
+/// 金流原本六張帳務表全部只記錄「已發生」的錢；合約與期款是另一半 ——
+/// 承諾了、但還沒發生。沒有這兩張表，Runway 與應收未收就只能是寫死的字面值。
+model OperatingContract {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  workbenchRef String?  @map("workbench_ref")
+  projectId    String   @map("project_id") @db.Uuid
+  project      Project  @relation("ProjectContracts", fields: [projectId], references: [id], onDelete: Cascade)
+  title        String?
+  /// 未稅總額。期款金額的總和不強制等於它：部分收款、折讓與追加都會讓兩者分家。
+  totalAmount  Int      @default(0) @map("total_amount")
+  currency     String   @default("TWD")
+  /// 月結天數（30／60）。建立期款時用來推預計收款日。
+  paymentTermsDays Int  @default(30) @map("payment_terms_days")
+  clauseRef    String?  @map("clause_ref")
+  signedOn     DateTime? @map("signed_on") @db.Date
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  terms        OperatingContractTerm[]
+
+  @@index([workspaceId, projectId], map: "operating_contracts_workspace_project_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_contracts_ref_idx")
+  @@map("operating_contracts")
+}
+
+/// 合約期款。需求一的核心。
+///
+/// `amount` 是權威，`pctOfTotal` 只是建立當下的輔助值、不回算 ——
+/// 改合約總額若回頭改已存在的期款金額，部分收款、折讓與匯差就全部對不上。
+///
+/// 兩個日期是刻意分開的：`expectedOn` 是合約寫的到期日，`settledOn` 是真的到帳那天。
+/// 兩者的差是「這個客戶的付款落差」，推演用它平移未來期款 —— 到期日不足以預測現金。
+model OperatingContractTerm {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  workbenchRef String?  @map("workbench_ref")
+  contractId   String   @map("contract_id") @db.Uuid
+  contract     OperatingContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  seq          Int
+  label        String
+  amount       Int      @default(0)
+  /// 可為空＝建立時沒用比例算。存了也不參與任何計算。
+  pctOfTotal   Int?     @map("pct_of_total")
+  /// milestone / date / manual
+  triggerKind  String   @default("date") @map("trigger_kind")
+  milestoneRef String?  @map("milestone_ref")
+  expectedOn   DateTime @map("expected_on") @db.Date
+  invoicedOn   DateTime? @map("invoiced_on") @db.Date
+  settledOn    DateTime? @map("settled_on") @db.Date
+  /// pending / invoiced / settled / written_off
+  status       String   @default("pending")
+  /// 勾稽到帳本哪一筆收入（工作台的業務 id，不做外鍵：對不上的那幾筆正是要看的東西）
+  txnRef       String?  @map("txn_ref")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, expectedOn], map: "operating_contract_terms_workspace_expected_idx")
+  @@index([contractId, seq], map: "operating_contract_terms_contract_seq_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_contract_terms_ref_idx")
+  @@map("operating_contract_terms")
+}
+
+/// 現金帳戶。帳戶燈的分子來源。
+///
+/// 只記期初餘額與基準日；之後的水位由「已勾稽」的交易推導，不另存一個會漂移的餘額欄。
+model OperatingCashAccount {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  workbenchRef String?  @map("workbench_ref")
+  name         String
+  kind         String   @default("bank")
+  openingBalance Int    @default(0) @map("opening_balance")
+  openingAsOf  DateTime @map("opening_as_of") @db.Date
+  currency     String   @default("TWD")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId], map: "operating_cash_accounts_workspace_idx")
+  @@map("operating_cash_accounts")
+}
+
+/// 支出假設與燈號門檻。一個工作區一列。
+///
+/// 每月支出是使用者自己填的數字，不從歷史平均推：兩人公司的月份差異比趨勢大，
+/// 用平均會在剛好需要準確的那個月失準。機率與門檻也放這裡，不寫死在程式碼。
+model OperatingCashAssumption {
+  workspaceId     String   @id @map("workspace_id") @db.Uuid
+  monthlyBurn     Int      @default(0) @map("monthly_burn")
+  runwayGreenMonths Int    @default(6) @map("runway_green_months")
+  runwayAmberMonths Int    @default(3) @map("runway_amber_months")
+  /// 覆蓋率門檻存成百分比整數，避免浮點數進資料庫（120 = 1.2 倍）
+  coverageGreenPct Int     @default(120) @map("coverage_green_pct")
+  coverageAmberPct Int     @default(80) @map("coverage_amber_pct")
+  overdueAmberDays Int     @default(14) @map("overdue_amber_days")
+  overdueRedDays   Int     @default(30) @map("overdue_red_days")
+  /// 四狀態的加權機率（百分比整數）。已接案與已結案不打折，所以不存。
+  probChallengeablePct Int @default(20) @map("prob_challengeable_pct")
+  probProposedPct  Int     @default(50) @map("prob_proposed_pct")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("operating_cash_assumptions")
 }
 
 /// 薪資試算草稿。runtime 自己就說「只更新本頁示例試算，不付款」——

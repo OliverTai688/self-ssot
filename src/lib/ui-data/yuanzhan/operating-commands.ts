@@ -55,6 +55,10 @@ export const PERSISTED_COLLECTIONS = [
   'payroll',
   'intake',
   'periods',
+  'contracts',
+  'terms',
+  'accounts',
+  'cashConfig',
 ] as const
 
 export type PersistedCollection = (typeof PERSISTED_COLLECTIONS)[number]
@@ -68,6 +72,8 @@ export const KEYED_COLLECTIONS: readonly PersistedCollection[] = [
   'repos',
   'capacity',
   'timesheet',
+  // 支出假設與門檻是「一個工作區一份」，用固定的 key 當列的身分
+  'cashConfig',
 ]
 
 /**
@@ -121,6 +127,11 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   // RES-032：金流三面的收件匣與月結
   'intake',
   'periods',
+  // 合約金流：合約、期款、現金帳戶與支出假設
+  'contracts',
+  'terms',
+  'accounts',
+  'cashConfig',
 ]
 
 /**
@@ -141,6 +152,11 @@ export const HIGH_RISK_COLLECTIONS: readonly PersistedCollection[] = [
   'payroll',
   'intake',
   'periods',
+  // 合約與期款決定推演與兩顆燈：改一筆金額就改變「還能活幾個月」的答案。
+  'contracts',
+  'terms',
+  'accounts',
+  'cashConfig',
 ]
 
 export function isPersistedCollection(value: unknown): value is PersistedCollection {
@@ -157,6 +173,9 @@ export function isPersistedCollection(value: unknown): value is PersistedCollect
  */
 export function identifyRow(collection: PersistedCollection, row: Record<string, unknown>): string | null {
   // 薪資試算一人一列，沒有 id；席位字串就是它的身分。
+  // 支出假設一個工作區一份，沒有 id：固定用 'default' 當身分。
+  if (collection === 'cashConfig') return 'default'
+
   if (collection === 'payroll') {
     return typeof row.who === 'string' && row.who.length > 0 ? row.who : null
   }
