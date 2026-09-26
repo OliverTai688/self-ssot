@@ -5,6 +5,12 @@ import type {
 } from "@/lib/contracts/agent-operation-api.contract"
 import type { ModuleAgentCommandModule } from "@/lib/contracts/module-agent-command-catalog.contract"
 
+export type AgentCommandStage = {
+  id: string
+  label: string
+  params?: Record<string, string | number | boolean | null>
+}
+
 export type AgentCommandCenterMode = "single_agent" | "group_agent"
 
 export type AgentCommandCenterDryRunProof = {
@@ -101,7 +107,7 @@ export type AgentCommandCenterGroup = {
 export type AgentCommandCenterCommandRow = {
   operationId: string
   commandType: "SINGLE_AGENT" | "TEAM_GROUP"
-  stages: any[]
+  stages: AgentCommandStage[]
   label: string
   moduleKey: ModuleAgentCommandModule
   ownerAgent: string
@@ -121,7 +127,7 @@ export type AgentCommandCenterCommandRow = {
     mode: "dry_run"
     operationId: string
   commandType: "SINGLE_AGENT" | "TEAM_GROUP"
-  stages: any[]
+  stages: AgentCommandStage[]
     targetModule: string
   }
   writeBlocked: boolean
@@ -133,7 +139,7 @@ export type AgentCommandCenterModuleReadinessRow = {
   moduleLabel: string
   operationId: string
   commandType: "SINGLE_AGENT" | "TEAM_GROUP"
-  stages: any[]
+  stages: AgentCommandStage[]
   ownerAgent: string
   targetModule: string
   riskLevel: AgentOperationApiRisk
@@ -146,7 +152,7 @@ export type AgentCommandCenterModuleReadinessRow = {
     mode: "dry_run"
     operationId: string
   commandType: "SINGLE_AGENT" | "TEAM_GROUP"
-  stages: any[]
+  stages: AgentCommandStage[]
     targetModule: string
   }
   internalBus: {

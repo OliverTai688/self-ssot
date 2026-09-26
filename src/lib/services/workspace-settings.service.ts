@@ -47,7 +47,7 @@ export async function buildWorkspaceSettingsBffContract(workspaceId: string): Pr
       type: workspace.type,
       myRole: myMembership.role,
     },
-    members: workspace.memberships.map((m: any) => ({
+    members: workspace.memberships.map((m) => ({
       profileId: m.profileId,
       email: m.profile.email,
       role: m.role,
