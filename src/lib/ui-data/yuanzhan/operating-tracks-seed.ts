@@ -32,8 +32,27 @@ export interface OperatingTracks {
   occasions: Occasion[]
 }
 
+/**
+ * 支出假設與各燈號門檻，一個工作區一份（PLN-074 契約金流）。
+ *
+ * 它跟三軌一樣不在 `v5-seed.js` 裡 —— 那個檔是由原型 HTML 產生的，沒有這個概念。
+ * 資料來自 `operating-store.service.ts` 的 assumption 列；沒有那一列時是空物件，
+ * 所以每個欄位都是選填，讀的一方必須自己處理「還沒設定」。
+ */
+export interface CashConfig {
+  monthlyBurn?: number
+  runwayGreen?: number
+  runwayAmber?: number
+  coverageGreen?: number
+  coverageAmber?: number
+  overdueAmber?: number
+  overdueRed?: number
+  probCHALLENGEABLE?: number
+  probPROPOSED?: number
+}
+
 export type ReferenceSeed = ReturnType<typeof referenceSeed>
-export type V5Data = ReferenceSeed & OperatingTracks
+export type V5Data = ReferenceSeed & OperatingTracks & { cashConfig: CashConfig }
 
 interface SeedProject {
   id: string
@@ -78,5 +97,8 @@ export function attachOperatingTracks(data: ReferenceSeed): V5Data {
   target.rhythms = tracks.rhythms
   target.sessions = tracks.sessions
   target.occasions = tracks.occasions
+  // 預設空物件：prototype／showcase 沒有支出假設，接了資料庫才會被 store 覆蓋。
+  // 給 {} 而不是省略，讀的一方才不必分辨 undefined 與「還沒設定」兩種空。
+  if (target.cashConfig === undefined) target.cashConfig = {}
   return data as V5Data
 }

@@ -44,3 +44,7 @@ next-env.d.ts
 
 # Large raw research datasets (kept locally, never committed)
 /docs/2_agent-input/raw/R-RAW-001_enron-mail-analysis/
+
+# 某些工具在 repo 根目錄留下的 0-byte 暫存檔（_tmp_21_*, _tmp_36_* …）。
+# 它們曾被誤加進 commit，見 RPT-007 2026-09-26。
+_tmp_*

@@ -163,3 +163,24 @@ todo    ← 其餘
 - 工作樹在本輪開始前已有 Owner 自己的未提交改動（`prisma/schema.prisma`、
   `operating-store.service.ts` 的 `occurredAt`、`journal-cockpit.source.js` 等），本輪未觸碰。
   期間出現過一次 `occurredAt` 的 tsc 錯誤，稍後自行消失（Prisma client 過期後重新產生），非本輪造成。
+
+## 追記 2026-09-26：Owner 裁決三項待決並已落地
+
+| 待決 | Owner 裁決 | 落地 |
+|---|---|---|
+| `!議題` 與 `!任務` 是否都保留 | **都保留**。議題各式各樣，可能是要研究或討論，通常只有一個小結；任務比較像是要某某人做某某事在某某時間以前，需要分開 | 兩個觸發詞維持，選單文案改寫成講得出語意差異（「要研究或討論的事」vs「要某人在某時之前完成的事」）。物件仍是同一個型別，差別只在 `owner` |
+| 逾期任務是否繼續被收工自動延期 | **採用建議：不自動延** | `agCarryAllOpen()` 跳過 `agTaskState === 'over'` 的項目，回傳 `{carried, stuck}`；收工確認明說「N 件逾期任務沒有延期」；收工清單把逾期標出來且「明天」不再是主要按鈕。手動改期仍可用 —— 不自動延不等於不能延 |
+| 指派是否通知對方 | **要，先做站內通知** | `payload.agenda` 加 `assignedAt`／`assignSeenAt`（仍零 schema 變更）。`agAssignNotices()` 提供資料形狀，`notifications.source.js` 併入通知匣、跳轉到議題頁、標記已讀、加 `NT_LABEL.task`。指給自己不通知；結案或收回指派後通知消失 |
+
+驗收擴充到 **99/99 PASS**（D1、D2/D2b/D2c、D3/D3b–D3f、S9 共 11 條新測）。
+`generate` 474 handler templates、`node --check` PASS、`verify-object-index` 19/19 無回歸。
+
+設計理由（逾期不自動延）：舊行為把所有未結案項目往後推一天。對還沒到期的議題是對的
+（今日議題的語意就是「今天沒動就明天再說」），對已經逾期的任務卻是把證據抹掉 ——
+一件週一該交的事被自動延五次之後，看起來永遠只是「明天到期」。
+
+### 本輪未處理
+
+`npx tsc` 出現 2 個 `cashConfig` 錯誤，來自另一份進行中的 `cashflow-contract` 工作
+（`v5-state.ts` 已引用但 `V5Data` 型別尚未補上），非本輪造成，未觸碰。
+本輪的 regenerate 已正確納入其 `cashflow-contract.source.js`，沒有覆蓋。

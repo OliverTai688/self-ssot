@@ -111,9 +111,11 @@ function rqAskHits(q,mode){
  return out;
 }
 const RQ_FLAG_HITS=[{flag:'today',g:'標記',ic:'!',nm:'今天要處理',ds:'加入今日議題，收工前檢查',k:'↵'},
- {flag:'agenda',g:'標記',ic:'!',nm:'建立議題物件',ds:'這一行與底下的子項收成一個議題 · 可排期、討論、附檔、結案',k:'↵'},
- // 任務＝議題加上負責人。同一個物件、同一套手勢，只是行內多了 @指派 與 ~到期。
- {flag:'task',g:'標記',ic:'!',nm:'建立任務',ds:'指派給一個人並設到期日 · 行內可直接寫 @某人 ~週五',k:'↵'}];
+ {flag:'agenda',g:'標記',ic:'!',nm:'建立議題',ds:'要研究或討論的事 · 可排期、討論、附檔，結案時寫下小結',k:'↵'},
+ // 議題與任務是同一個物件（差別只在有沒有 owner），但刻意保留兩個入口：
+ // 議題是「要想清楚的事」，任務是「某人在某時之前做某事」—— 寫下去的當下意圖不同，
+ // 合成一個詞會逼使用者先建議題再指派，多一步而且講不出自己真正想做的事。
+ {flag:'task',g:'標記',ic:'!',nm:'建立任務',ds:'要某人在某時之前完成的事 · 行內可直接寫 @某人 ~週五',k:'↵'}];
 function rqOpenMenu(tx,b,start,q,mode){
  const hits=mode==='ask'||mode==='mention'?rqAskHits(q,mode):RQ_FLAG_HITS;
  if(!SM.open||SM.blockId!==b.id||SM.mode!==mode)openSummon(b.id,start,q,caretRect(tx),mode);
@@ -471,8 +473,12 @@ function rqConfirmClose(){
  closeModal();
  commit('update','收工',person(DB.me)+' '+TODAY,()=>{moved.forEach(t=>{t.day=dadd(TODAY,1);t.deferred=(t.deferred||0)+1});
   // 議題物件也一起帶到明天，但改到期日之前先把今天記進 carried，原本是哪天提出的才留得下來。
-  const movedAg=agCarryAllOpen();(DB.dayClose[DB.me]??={})[TODAY]=nowts().slice(0,5);
-  return[moved.length?`${moved.length} 件今日議題延到明天`:'今日議題已清空',movedAg?`${movedAg} 件議題物件延到明天，並記下帶過次數`:'議題物件都已處理',`待我回覆 ${rqToMe().length} 件`]});
+  const ag=agCarryAllOpen();(DB.dayClose[DB.me]??={})[TODAY]=nowts().slice(0,5);
+  return[moved.length?`${moved.length} 件今日議題延到明天`:'今日議題已清空',
+   ag.carried?`${ag.carried} 件議題物件延到明天，並記下帶過次數`:'議題物件都已處理',
+   // 逾期的不自動延，留在原地繼續刺眼 —— 自動延會把「該交而沒交」這件事抹掉。
+   ...(ag.stuck?[`<b>${ag.stuck} 件逾期任務沒有延期</b>，維持逾期狀態等你處理`]:[]),
+   `待我回覆 ${rqToMe().length} 件`]});
 }
 // 隔天日誌開頭顯示從昨天帶來的今日議題。
 const rqCarryJournal=VIEWS.journal;

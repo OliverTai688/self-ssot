@@ -41,6 +41,10 @@ function agState(d) {
   // 缺欄位一律在這裡補預設，不要散在各個讀取點。
   if (st.owner === undefined) st.owner = '';
   if (st.assigner === undefined) st.assigner = '';
+  // 指派通知：assignedAt 是被指派的時刻，assignSeenAt 是對方看過的時刻。
+  // 通知匣本來就是從既有資料推導的（沒有自己的表），這兩個時間戳讓任務也能這樣推導。
+  if (st.assignedAt === undefined) st.assignedAt = 0;
+  if (st.assignSeenAt === undefined) st.assignSeenAt = 0;
   return st;
 }
 function agIs(d) { return !!d && d.type === 'agenda'; }
@@ -179,6 +183,7 @@ function agCreate(b, opts = {}) {
     st.issueId = opts.issueId || '';
     st.owner = opts.owner || '';
     st.assigner = opts.owner ? DB.me : '';
+    st.assignedAt = st.owner && st.owner !== DB.me ? Date.now() : 0;
     // 內文＝母行＋子樹，縮排改成以母行為基準，物件內看起來才是完整的一段。
     const body = ensureSecBlocks(d.secs[0]);
     body.length = 0;
@@ -235,9 +240,14 @@ function agSetOwner(id, who) {
   commit('update', '議題物件', docObjectName(d), () => {
     st.owner = next;
     st.assigner = next ? DB.me : '';
+    // 指給別人才發通知；指給自己不用通知自己。
+    st.assignedAt = next && next !== DB.me ? Date.now() : 0;
+    st.assignSeenAt = 0;
     d.updatedAt = Date.now();
     return next
-      ? [`指派給 ${person(next)}`, st.due ? `到期日 ${st.due}` : '還沒有到期日，記得補上']
+      ? [`指派給 ${person(next)}`,
+         st.due ? `到期日 ${st.due}` : '還沒有到期日，記得補上',
+         ...(st.assignedAt ? ['對方右上角的通知匣會出現這一筆'] : [])]
       : ['收回指派，退回議題', '不再計算逾期'];
   });
 }
@@ -514,6 +524,34 @@ function agTodayBody(l1, l2) {
   return body || '<div class="rq-empty">行尾打 !今天 加入；!議題 建立議題；!任務 @某人 ~週五 直接指派</div>';
 }
 
+/* ---------- 指派通知（資料形狀；呈現在 notifications.source.js）---------- */
+
+/** 別人指派給我、還沒結案的任務。通知匣用這個推導，不另外存一張表。 */
+function agAssignedToMe(who = DB.me) {
+  return agTasks().filter(d => {
+    const st = agState(d);
+    return st.owner === who && st.assignedAt && st.assigner && st.assigner !== who && !st.doneAt;
+  });
+}
+/** 給通知匣的 item：欄位與 ntItems() 其他來源同形。 */
+function agAssignNotices(who = DB.me) {
+  return agAssignedToMe(who).map(d => {
+    const st = agState(d);
+    return {
+      kind: 'task', ref: d.id, at: st.assignedAt, seen: !!st.assignSeenAt,
+      tone: agTaskState(d) === 'over' ? 'late' : 'ask',
+      title: `${person(st.assigner)} 指派給你`,
+      text: docObjectName(d) + (st.due ? ` · ${agDueLabel(st.due)}` : ' · 未排期')
+    };
+  });
+}
+/** 打開通知匣＝讀過。回傳這次標掉幾筆，讓呼叫端算總數。 */
+function agMarkAssignSeen(who = DB.me) {
+  let n = 0;
+  agAssignedToMe(who).forEach(d => { const st = agState(d); if (!st.assignSeenAt) { st.assignSeenAt = Date.now(); n++; } });
+  return n;
+}
+
 /* ---------- 畫面：回顧分頁的任務區塊 ---------- */
 
 /**
@@ -590,18 +628,31 @@ VIEWS.journal = function (tab) {
 
 /** 收工列：沒排期或到期在今天以前的議題物件，收工時要逐件決定。 */
 function agCloseRows() {
-  return agOpenToday().map(d => `<div class="rq-row"><span class="rq-pill today">${svg('flag', 11)} 議題</span>
+  return agOpenToday().map(d => {
+    const over = agOverdue(d);
+    return `<div class="rq-row ${over ? 'ag-over' : ''}">
+    <span class="rq-pill ${over ? 'warn' : 'today'}">${svg('flag', 11)} ${agIsTask(d) ? '任務' : '議題'}</span>
     <span class="rq-row-t">${esc(docObjectName(d))}</span>
+    ${over ? `<span class="ag-pill over">${svg('refresh', 9)} 逾期</span>` : ''}
     <button class="btn sm" onclick="openDocPage('${d.id}')">${svg('goto', 11)} 開啟</button>
     <button class="btn sm" onclick="agComplete('${d.id}');rqOpenClose()">${svg('check', 12)} 完成</button>
-    <button class="btn sm pri" onclick="agCarryTo('${d.id}','${dadd(TODAY, 1)}');rqOpenClose()">${svg('goto', 11)} 明天</button></div>`).join('');
+    <button class="btn sm ${over ? '' : 'pri'}" onclick="agCarryTo('${d.id}','${dadd(TODAY, 1)}');rqOpenClose()">${svg('goto', 11)} 明天</button></div>`;
+  }).join('');
 }
 
-/** 確認收工時，沒動的議題物件跟 L1 一樣自動延到明天，但會留下 carried 紀錄。 */
+/**
+ * 收工時自動延期 —— 但**逾期的任務不延**。
+ *
+ * 舊行為是全部往後推一天。對還沒到期的議題那是對的（今日議題的語意就是「今天沒動就明天再說」），
+ * 對已經逾期的任務卻是把證據抹掉：一件週一就該交的事，被自動延五次之後看起來永遠只是「明天到期」。
+ * 逾期要留在原地，讓它一直刺眼，直到有人真的處理它或明確改期。
+ * 手動的「明天」按鈕仍在，改期是可以的，但必須是人按的。
+ */
 function agCarryAllOpen() {
   const open = agOpenToday();
-  open.forEach(d => { const st = agState(d); (st.carried ??= []).push(TODAY); st.due = dadd(TODAY, 1); d.updatedAt = Date.now(); });
-  return open.length;
+  const carried = open.filter(d => !agOverdue(d));
+  carried.forEach(d => { const st = agState(d); (st.carried ??= []).push(TODAY); st.due = dadd(TODAY, 1); d.updatedAt = Date.now(); });
+  return { carried: carried.length, stuck: open.length - carried.length };
 }
 
 /* ---------- 命令面板 ---------- */

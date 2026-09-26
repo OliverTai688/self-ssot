@@ -55,6 +55,9 @@ function ntItems(){
    out.push({kind:'reply',ref:r.id,at:r.firstReplyAt,seen:true,tone:'replied',
     title:`${person(r.to)} 回覆了你`,text:rqText(r)});
  }
+ // 任務指派：資料形狀由 agenda-object.source.js 提供，這裡只負責併進通知匣。
+ // 與其他來源一樣是從既有資料推導，沒有自己的表。
+ out.push(...agAssignNotices());
  for(const c of DB.lineComments){
   if(c.author!==DB.me||c.w===DB.me)continue;
   out.push({kind:'line',ref:c.id,at:Date.parse(c.day+'T'+(c.ts||'00:00')+':00')||0,seen:true,tone:'',
@@ -78,6 +81,7 @@ function openNotices(){openDrawer('notice','x',true)}
 function ntOpen(kind,ref){
  if(kind==='notice'||kind==='reply')return rqJump(ref);
  if(kind==='ask')return rqJump(ref,true);
+ if(kind==='task'){closeDrawer();return openDocPage(ref)}
  const c=kind==='line'?DB.lineComments.find(x=>x.id===ref)
   :DB.journalComments.find(x=>x.id===ref);
  if(!c)return toast('這則留言已不存在');
@@ -93,6 +97,7 @@ function ntOpen(kind,ref){
 function ntMarkAllSeen(){
  let n=0;
  for(const r of DB.requests)if(r.to===DB.me&&!r.seenAt&&(r.kind==='notice'||rqPending(r))){r.seenAt=Date.now();n++}
+ n+=agMarkAssignSeen();
  if(n)opTouch();
  return n;
 }
@@ -120,7 +125,7 @@ DRAWERS.notice=()=>{
  };
 };
 
-const NT_LABEL={notice:'只通知 · 不用回覆',ask:'需要你回覆',reply:'你的請求有回覆',line:'行內留言',page:'整頁留言'};
+const NT_LABEL={notice:'只通知 · 不用回覆',ask:'需要你回覆',task:'指派給你的任務',reply:'你的請求有回覆',line:'行內留言',page:'整頁留言'};
 
 function paintNoticeBadge(){
  const el=root.querySelector('#noticeN');if(!el)return;

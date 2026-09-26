@@ -117,7 +117,7 @@ const stubs = {
 };
 
 const names = Object.keys(stubs);
-const exported = 'return {agCreate,agPromote,agFind,agAll,agState,agOpenToday,agDueLabel,agSetDue,agCarryTo,agComplete,agReopen,agSay,agAttach,agDrafts,agTodayBody,agCloseRows,agCarryAllOpen,agPills,agThreadHtml,agConclusion,renderDocObjectCard,DRAWERS,buildCmdk,DOC_METAS,TPL,SUMMON,agIsTask,agResponsible,agTaskState,agSetOwner,agParseDue,agParseTask,agTasks,agOverdue,agStatePill,agOwnerPill,agOwned,agReviewGroups,agReviewHtml,agReviewStats,VIEWS};';
+const exported = 'return {agCreate,agPromote,agFind,agAll,agState,agOpenToday,agDueLabel,agSetDue,agCarryTo,agComplete,agReopen,agSay,agAttach,agDrafts,agTodayBody,agCloseRows,agCarryAllOpen,agPills,agThreadHtml,agConclusion,renderDocObjectCard,DRAWERS,buildCmdk,DOC_METAS,TPL,SUMMON,agIsTask,agResponsible,agTaskState,agSetOwner,agParseDue,agParseTask,agTasks,agOverdue,agStatePill,agOwnerPill,agOwned,agReviewGroups,agReviewHtml,agReviewStats,VIEWS,agCarryAllOpen,agAssignedToMe,agAssignNotices,agMarkAssignSeen,agCloseRows};';
 const api = new Function(...names, code + '\n' + exported)(...names.map(n => stubs[n]));
 
 /* ---- 驗收 1：型別註冊 → 物件索引 facet 與 # 召喚選單都拿得到 ---- */
@@ -235,7 +235,8 @@ ok('11 收工清單列出未結案的議題物件', rows.includes('議題') && r
 const openBefore = api.agOpenToday().length;
 const carriedBefore = api.agOpenToday().map(d => api.agState(d).carried.length);
 const movedN = api.agCarryAllOpen();
-ok('11b 沒動的議題自動延到明天', movedN === openBefore && api.agOpenToday().length === 0);
+ok('11b 沒動且未逾期的議題自動延到明天（逾期的不延，見 D2）',
+  movedN.carried === openBefore && api.agOpenToday().length === 0);
 ok('11c 延的時候一樣記下帶過次數', api.agAll().filter(d => !api.agState(d).doneAt)
   .every((d, i) => api.agState(d).carried.length === (carriedBefore[i] ?? 0) + 1));
 
@@ -427,6 +428,85 @@ ok('R5 完全沒有任務時給可行動的空狀態，不是空白表格', (() 
   DB.docObjects.push(...keep);
   return html.includes('!任務') && !html.includes('ag-rv-row');
 })());
+
+// 注意：D 組會清空 DB.docObjects 重建情境，必須跑在所有其他組之後。
+/* ---- 驗收 D：Owner 2026-09-26 的三項決定 ---- */
+
+// D1：!議題 與 !任務 都保留。議題＝要研究／討論的事，任務＝某人在某時之前做某事。
+ok('D1 兩個觸發詞都在，且文案講得出語意差異', (() => {
+  const rep2 = fs.readFileSync(path.join(V5, 'replies.source.js'), 'utf8');
+  return rep2.includes("flag:'agenda'") && rep2.includes("flag:'task'")
+    && rep2.includes('要研究或討論的事') && rep2.includes('要某人在某時之前完成的事');
+})());
+
+// D2：逾期任務不再被收工檢查自動延到明天。
+ok('D2 收工自動延期跳過逾期任務，未逾期的照舊延', (() => {
+  DB.docObjects.length = 0;
+  const overd = api.agCreate(mkLine('逾期不該被自動延'), { owner: 'yz', due: dadd(TODAY, -4) });
+  const plain = api.agCreate(mkLine('未逾期的照舊延'), { owner: 'yz' });
+  const overDueBefore = api.agState(overd).due;
+  const r = api.agCarryAllOpen();
+  return r.carried === 1 && r.stuck === 1
+    && api.agState(overd).due === overDueBefore          // 逾期的沒被動
+    && api.agState(overd).carried.length === 0
+    && api.agState(plain).due === dadd(TODAY, 1);        // 未逾期的照舊
+})());
+ok('D2b 逾期在收工清單上標示出來，而且不是主要按鈕', (() => {
+  const html = api.agCloseRows();
+  return html.includes('ag-pill over') && html.includes('rq-row ag-over');
+})());
+ok('D2c 手動改期仍然可以 —— 不自動延不等於不能延', (() => {
+  const d = api.agAll().find(x => api.agOverdue(x));
+  api.agCarryTo(d.id, dadd(TODAY, 1));
+  return api.agState(d).due === dadd(TODAY, 1) && api.agState(d).carried.length === 1;
+})());
+
+// D3：指派給對方要發站內通知。
+ok('D3 指派給別人會產生一筆未讀通知', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('請你看一下首頁文案'), { owner: 'lily' });
+  const me = DB.me; DB.me = 'lily';
+  const items = api.agAssignNotices();
+  DB.me = me;
+  return items.length === 1 && items[0].kind === 'task' && items[0].ref === d.id
+    && items[0].seen === false && items[0].title.includes('指派給你');
+})());
+ok('D3b 指派給自己不發通知（不用通知自己）', (() => {
+  DB.docObjects.length = 0;
+  api.agCreate(mkLine('我自己要做的事'), { owner: 'yz' });
+  return api.agAssignNotices('yz').length === 0;
+})());
+ok('D3c 打開通知匣就算讀過，第二次不再未讀', (() => {
+  DB.docObjects.length = 0;
+  api.agCreate(mkLine('指派並讀過'), { owner: 'lily' });
+  const me = DB.me; DB.me = 'lily';
+  const n = api.agMarkAssignSeen();
+  const after = api.agAssignNotices();
+  DB.me = me;
+  return n === 1 && after.length === 1 && after[0].seen === true;
+})());
+ok('D3d 結案的任務不再出現在通知匣', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('指派後結案'), { owner: 'lily' });
+  api.agState(d).doneAt = Date.now();
+  return api.agAssignNotices('lily').length === 0;
+})());
+ok('D3e 逾期的指派通知標成 late', (() => {
+  DB.docObjects.length = 0;
+  api.agCreate(mkLine('逾期的指派'), { owner: 'lily', due: dadd(TODAY, -2) });
+  return api.agAssignNotices('lily')[0].tone === 'late';
+})());
+ok('D3f 收回指派後通知消失', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('指派又收回'), { owner: 'lily' });
+  api.agSetOwner(d.id, '');
+  return api.agAssignNotices('lily').length === 0;
+})());
+
+const nt = fs.readFileSync(path.join(V5, 'notifications.source.js'), 'utf8');
+ok('S9 通知匣接上任務指派（併入、跳轉、已讀、標籤四處）',
+  nt.includes('agAssignNotices()') && nt.includes("kind==='task'")
+  && nt.includes('agMarkAssignSeen()') && nt.includes("task:'指派給你的任務'"));
 
 /* ---------------- 報告 ---------------- */
 const pad = s => s + ' '.repeat(Math.max(0, 62 - [...s].reduce((a, c) => a + (c.charCodeAt(0) > 255 ? 2 : 1), 0)));
