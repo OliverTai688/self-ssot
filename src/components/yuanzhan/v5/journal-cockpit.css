@@ -78,6 +78,15 @@
 /* 誰做的：與左邊圓點同一個顏色，讓兩個人的動作在同一條時間軸上分得開。 */
 .jc-tl-w{font-weight:600;color:var(--av-yz-tl, #7c8cff)}
 .jc-tl div.lily .jc-tl-w{color:var(--av-lily-tl, #e58bc0)}
+/* 事後補記：不是那一天當下發生的，所以與上面那條時間軸隔開、線改成虛的、圓點改成空心。
+   時間欄印的是真實的日期時間，不是那一列的 t —— t 是補記當下的時鐘。 */
+.jc-tl-late{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border-2)}
+.jc-tl-late-t{font-size:11px;color:var(--text-3)}
+.jc-tl-late .jc-tl{opacity:.75}
+.jc-tl-late .jc-tl::before{background:none;width:0;border-left:1px dashed var(--border-2)}
+.jc-tl-late .jc-tl div::before{background:none;border:1px solid var(--av-yz-tl, #7c8cff)}
+.jc-tl-late .jc-tl div.lily::before{background:none;border-color:var(--av-lily-tl, #e58bc0)}
+.jc-tl-late .jc-tl-t{white-space:nowrap}
 .jc-side-f{border-top:1px solid var(--border);padding:12px 14px}
 .jc-pcs{display:flex;flex-direction:column;gap:8px;max-height:180px;overflow:auto}
 .jc-pc{display:flex;gap:8px;align-items:flex-start;font-size:12.5px}

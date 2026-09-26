@@ -111,7 +111,9 @@ function rqAskHits(q,mode){
  return out;
 }
 const RQ_FLAG_HITS=[{flag:'today',g:'標記',ic:'!',nm:'今天要處理',ds:'加入今日議題，收工前檢查',k:'↵'},
- {flag:'agenda',g:'標記',ic:'!',nm:'建立議題物件',ds:'這一行與底下的子項收成一個議題 · 可排期、討論、附檔、結案',k:'↵'}];
+ {flag:'agenda',g:'標記',ic:'!',nm:'建立議題物件',ds:'這一行與底下的子項收成一個議題 · 可排期、討論、附檔、結案',k:'↵'},
+ // 任務＝議題加上負責人。同一個物件、同一套手勢，只是行內多了 @指派 與 ~到期。
+ {flag:'task',g:'標記',ic:'!',nm:'建立任務',ds:'指派給一個人並設到期日 · 行內可直接寫 @某人 ~週五',k:'↵'}];
 function rqOpenMenu(tx,b,start,q,mode){
  const hits=mode==='ask'||mode==='mention'?rqAskHits(q,mode):RQ_FLAG_HITS;
  if(!SM.open||SM.blockId!==b.id||SM.mode!==mode)openSummon(b.id,start,q,caretRect(tx),mode);
@@ -131,7 +133,7 @@ checkTrigger=function(tx,b){
   let m=upto.match(RQ_ASK);
   if(m)return rqOpenMenu(tx,b,upto.length-m[1].length-2,m[1],'ask');
   m=upto.match(RQ_FLAG);
-  if(m&&['今天','今日','today','議題','agenda'].some(w=>w.startsWith(m[1].toLowerCase())))return rqOpenMenu(tx,b,upto.length-m[1].length-1,m[1],'flag');
+  if(m&&['今天','今日','today','議題','agenda','任務','task'].some(w=>w.startsWith(m[1].toLowerCase())))return rqOpenMenu(tx,b,upto.length-m[1].length-1,m[1],'flag');
   m=upto.match(RQ_MENTION);
   if(m){const askHits=rqAskHits(m[1],'mention');if(askHits.length&&!mentionHits(m[1]).length)return rqOpenMenu(tx,b,upto.length-m[1].length-1,m[1],'mention')}
  }
@@ -154,8 +156,8 @@ applySummon=function(n){
  const len=(SM.mode==='ask'?2:1)+SM.q.length,via=SM.mode;
  const text=(b.text.slice(0,SM.start)+b.text.slice(SM.start+len)).replace(/\s+$/,'');
  closeSummon();snap();b.text=text;focusB(b.id,text.length);
- if(!text.trim()){render();return toast('先寫下要問或要處理的內容，再加上 '+(h.flag?'!今天':(via==='mention'?'@':'?@')+esc(person(h.to))))}
- if(h.flag)return h.flag==='agenda'?agCreate(b):rqFlagToday(b);
+ if(!text.trim()){render();return toast('先寫下要問或要處理的內容，再加上 '+(h.flag?'!'+({today:'今天',agenda:'議題',task:'任務'}[h.flag]||'今天'):(via==='mention'?'@':'?@')+esc(person(h.to))))}
+ if(h.flag)return h.flag==='task'?agCreate(b,{parse:true}):h.flag==='agenda'?agCreate(b):rqFlagToday(b);
  // 只通知不佔用這一行的 b.req：同一行可以通知多個人，也可以之後再改成請求。
  if(h.ask==='notice')return rqNotify(b,h.to,via);
  const current=b.req&&rqFind(b.req);

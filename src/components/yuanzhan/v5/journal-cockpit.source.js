@@ -11,7 +11,14 @@ DB.lineComments=DB.lineComments||[];
 /* 今日脈絡：一筆事件一列（kind：start 開始一天／close 收工／act 其他動作），
    宇星與 Lily 的動作合流成同一條時間軸。原本是只活在記憶體裡的 {日期:[...]}，
    重新整理就回到空白；改成可逐列比對的陣列之後，它跟日誌走同一條寫入管線，
-   會被保存、也會在另一個席位寫入時合併進來。 */
+   會被保存、也會在另一個席位寫入時合併進來。
+
+   一列上有兩個時間概念，不能混：
+     day + t  掛在哪一天、在那一天的什麼時刻 —— t 是寫下那一刻的時鐘
+     at       真正寫下的時刻（epoch ms）
+   明天回到今天的日誌補一筆，day 是今天、t 卻是明天的時鐘：那個時刻在今天的
+   時間軸上沒發生過。at 與 day 不同天就是補記，畫面分區顯示，不混進當天的序列。
+   沒有 at 的是這個欄位上線前的列（伺服器會用 createdAt 頂上）。 */
 DB.dayLogs=DB.dayLogs||[];
 /* 收工時刻是脈絡上的一個事件；replies 的 DB.dayClose 只是它的查詢索引，開頁時重建。 */
 for(const r of DB.dayLogs)if(r.kind==='close')(DB.dayClose[r.w]??={})[r.day]=r.t;
@@ -27,18 +34,28 @@ function jcLog(text,w=DB.me,day=S.jday,kind='act'){
  const t=jcNow();
  // 同一分鐘的同一句話只留一筆：連續存檔會重複觸發，脈絡不該被同一件事洗版。
  if(DB.dayLogs.some(r=>r.day===day&&r.w===w&&r.t===t&&r.text===text))return false;
- DB.dayLogs.push({id:nid('DL'),day,w,t,kind,text});
+ // at 只在建立時寫一次，之後不再動：它記的是這件事發生的那一刻，不是這一列最後被碰的時候。
+ DB.dayLogs.push({id:nid('DL'),day,w,t,kind,text,at:Date.now()});
  return true;
 }
+/* 一列是不是回頭補的。沒有 at 的舊列當作當天：分不出來的時候不要憑空標成補記。 */
+function jcDayOf(ms){const d=new Date(ms);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function jcLate(r){return r.at?jcDayOf(r.at)!==r.day:false}
+/* 補記那一列印真實的日期時間；印 t 等於把別天的時鐘說成是這一天的。 */
+function jcStamp(ms){const d=new Date(ms);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function jcStartAt(who,day=S.jday){return DB.dayLogs.find(r=>r.day===day&&r.w===who&&r.kind==='start')?.t||''}
-function jcStart(who=DB.me,day=S.jday){return jcStartAt(who,day)?false:jcLog('開始一天',who,day,'start')}
+/* 「開始一天」只記在今天。回頭看舊日子時打字，會在那一天補出一筆開工、時間還是
+   補記當下的時鐘 —— 那是純噪音，而且 jcStartAt 與 DB.dayClose 這兩個索引都吃它。 */
+function jcStart(who=DB.me,day=S.jday){return day===TODAY&&!jcStartAt(who,day)?jcLog('開始一天',who,day,'start'):false}
 /* 對方最後一次有動靜的時刻。重整之後沒有 live 值，但脈絡上還留著那一筆。 */
 function jcTouched(who,day=S.jday){
  const live=DB.journalEdits[who]?.[day];
  if(live)return live;
  const rows=jcDayRows(day).filter(r=>r.w===who);
  if(!rows.length)return 0;
- return Date.parse(day+'T'+rows[rows.length-1].t+':00')||0;
+ // 有 at 就用它：補記那一列的 t 是別天的時鐘，拼上 day 會算出一個沒發生過的時刻，
+ // 「幾分鐘前更新」就跟著錯。取最大值而不是最後一列，因為補記不一定排在最後。
+ return rows.reduce((max,r)=>Math.max(max,r.at||Date.parse(day+'T'+r.t+':00')||0),0);
 }
 if(initialState.mode==='showcase'){
  DB.dayLogs=[
@@ -136,10 +153,19 @@ function jcStats(objs){
  objs.forEach(({o})=>{if(o.ty==='issue'){const i=ISS(o.rid);if(i){total++;if(i.st==='Done')done++}}if(o.ty==='txn'){const t=TX(o.rid);if(t&&canSeeTxn(t))money+=Math.abs(t.amt)}});
  return `<div class="jc-stats"><div><b>${objs.length}</b><span>今日物件</span></div><div><b class="ok">${total?done+'/'+total:'—'}</b><span>承諾完成</span></div><div><b class="gold">${jcKFmt(money)}</b><span>金流</span></div></div>`;
 }
+// 名字從 e.w 印出來，不寫進 text：這樣同一條時間軸上看得出哪一筆是誰的。
+function jcTlRow(e,stamp){return `<div class="${e.w}"><span class="jc-tl-t">${esc(stamp)}</span> <span class="jc-tl-w">${esc(jcShort(e.w))}</span> ${esc(e.text)}</div>`}
+/* 當天寫的照時刻排在上面；回頭補的收到下面一區，印真實的日期時間。
+   補記的 t 是補記當下的時鐘，照它插進當天的序列裡，等於造出一個沒發生過的順序 ——
+   系統只知道你何時寫的，不知道那件事屬於當天的哪個時點，所以不猜，分開放。 */
 function jcTimeline(){
- const list=jcDayRows(S.jday).slice().sort((a,b)=>(a.t||'').localeCompare(b.t||'')).slice(-14);
- // 名字從 e.w 印出來，不寫進 text：這樣同一條時間軸上看得出哪一筆是誰的。
- return list.length?`<div class="jc-tl">${list.map(e=>`<div class="${e.w}"><span class="jc-tl-t">${esc(e.t)}</span> <span class="jc-tl-w">${esc(jcShort(e.w))}</span> ${esc(e.text)}</div>`).join('')}</div>`:'<div class="rq-empty">今天還沒有動靜</div>';
+ const rows=jcDayRows(S.jday);
+ const live=rows.filter(r=>!jcLate(r)).sort((a,b)=>(a.t||'').localeCompare(b.t||'')).slice(-14);
+ const late=rows.filter(r=>jcLate(r)).sort((a,b)=>a.at-b.at).slice(-8);
+ if(!live.length&&!late.length)return '<div class="rq-empty">今天還沒有動靜</div>';
+ const body=live.length?`<div class="jc-tl">${live.map(e=>jcTlRow(e,e.t)).join('')}</div>`:'<div class="rq-empty">這一天當下沒有動靜</div>';
+ if(!late.length)return body;
+ return body+`<div class="jc-tl-late"><div class="jc-tl-late-t">事後補記 · ${late.length} 筆</div><div class="jc-tl">${late.map(e=>jcTlRow(e,jcStamp(e.at))).join('')}</div></div>`;
 }
 function jcPageKey(){return 'team:page:'+S.jday}
 function jcPageComments(){

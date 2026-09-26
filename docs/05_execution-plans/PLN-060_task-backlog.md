@@ -19,8 +19,9 @@ Owner 回報今日議題「只能標注和完成、只能單行、應該要有�
 
 | Task ID | 範圍 | Status | 依賴 | 驗收重點 |
 |---|---|---|---|---|
-| YZUI-020 | 今日議題升格為 `agenda` 型文件物件：到期日／提出日／帶過紀錄、討論、附件、結論結案、參考碼與物件索引；保留 L1 輕量標記 | DONE — implementation（待 Owner 瀏覽器驗收） | YZUI-012 物件索引；YZUI-016 右欄持久化；RES-018 參考碼 | `scripts/verify-agenda-object.mjs` 50/50 PASS；四主題與 390px 需本機確認 |
+| YZUI-020 | 今日議題升格為 `agenda` 型文件物件：到期日／提出日／帶過紀錄、討論、附件、結論結案、參考碼與物件索引；保留 L1 輕量標記 | DONE — implementation（待 Owner 瀏覽器驗收） | YZUI-012 物件索引；YZUI-016 右欄持久化；RES-018 參考碼 | `scripts/verify-agenda-object.mjs` 88/88 PASS（YZUI-029 擴充後）；四主題與 390px 需本機確認 |
 | YZUI-021 | 非連續多行選取合併為一個議題 | PROPOSED | YZUI-020 | 目前只吃「節點＋縮排子樹」；跨段落的行要多選手勢，需動凍結原型的區塊引擎 |
+| YZUI-029 | 議題任務化與卡片色彩系統：`payload.agenda` 加 `owner`／`assigner`，狀態由 owner／due／doneAt 推導（不存 status）；`!任務` 觸發詞與行內 `@指派` `~到期`；回顧分頁新增任務區塊（逾期／本週／無到期日／已完成）；移除 3px 飽和色柱，四狀態改走 `--ag-<state>-{bg,br,ink}` 三階 token | DONE — implementation（待 Owner 瀏覽器驗收） | YZUI-020 議題物件；company-theme V5_PALETTES | `scripts/verify-agenda-object.mjs` 88/88 PASS；零 schema 變更；四主題對比已用隔離渲染驗證，真實 app 需本機確認 |
 | YZUI-022 | 議題的討論納入物件索引全文搜尋 | PROPOSED | YZUI-020；YZUI-012 | 索引的 `oiDocText` 只讀 `secs`，`payload.agenda.msgs` 搜不到 |
 
 ## Owner-directed 日誌右欄持久化 — 2026-09-24

@@ -1,0 +1,23 @@
+/* 表單彈跳視窗。z-index 56：在抽屜（50）之上、破壞性確認 #modalWrap（62）之下，
+   所以「刪除？」確認仍然疊在表單上面，而不是被表單蓋住。
+   顏色一律走 company-theme 語意 token，不寫死色碼。 */
+.fm-wrap{position:fixed;inset:0;z-index:56;display:none;align-items:center;justify-content:center;background:rgba(4,6,9,.62);padding:24px}
+.fm-wrap.on{display:flex}
+.fm{width:min(620px,100%);max-height:min(86vh,860px);display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border-2);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;animation:fmIn .18s cubic-bezier(.2,.8,.2,1)}
+@keyframes fmIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.fm-h{display:flex;align-items:flex-start;gap:10px;padding:15px 14px 12px 18px;border-bottom:1px solid var(--border)}
+.fm-ht{flex:1;min-width:0}
+.fm-crumb{font-family:var(--mono);font-size:11.5px;color:var(--text-3);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fm-h h3{margin:0;font-size:16px;font-weight:620;color:var(--text);line-height:1.35}
+.fm-h p{margin:4px 0 0;font-size:12.5px;color:var(--text-2);line-height:1.65}
+.fm-b{padding:16px 18px;overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0}
+.fm-f{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2)}
+.fm-sp{flex:1}
+@media(max-width:760px){
+  /* 手機版視窗貼底，footer 就落在 toast 原本的位置上。表單開著時把 toast 移到頂端，
+     否則「儲存／取消」會被剛剛那則 undo toast 蓋住，變成按不到的主要動作。 */
+  .v5-root:has(.fm-wrap.on) .toasts{top:12px;bottom:auto}
+  .fm-wrap{padding:0;align-items:flex-end}
+  .fm{width:100%;max-width:100%;max-height:92dvh;border-radius:12px 12px 0 0;border-left:none;border-right:none;border-bottom:none}
+  .fm-b{padding:14px}
+}

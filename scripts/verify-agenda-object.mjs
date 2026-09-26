@@ -30,6 +30,8 @@ const DOC_METAS = { standup: { k: 'standup', nm: 'Standup', chip: 'c-p', color: 
 const TPL = { standup: { h: 'Standup', secs: ['Today'] } };
 const SUMMON = [{ g: '物件模板', items: [{ k: 'standup', nm: 'Standup', ds: '', ic: '#' }] }];
 const DRAWERS = { doc_object: id => ({ crumb: 'base', title: 'base:' + id, sub: '', body: '', foot: '' }) };
+const VIEWS = { journal: tab => '<BASEVIEW tab="' + tab + '">' };
+const panel = (title, sub, body) => '<div class="panel"><h3>' + title + '</h3><span>' + (sub || '') + '</span>' + body + '</div>';
 
 const DB = {
   me: 'yz', seq: {}, files: [],
@@ -82,7 +84,7 @@ function docObjectName(d) {
 }
 
 const stubs = {
-  DB, S, TODAY, TPL, SUMMON, DOC_METAS, DRAWERS,
+  DB, S, TODAY, TPL, SUMMON, DOC_METAS, DRAWERS, VIEWS, panel,
   esc, TEXTY, dadd, rqShortDay, newBid, blks, bIdx, bOf,
   ensureSecBlocks, createDocObject, docObjectName,
   metaOf: d => DOC_METAS[d.type],
@@ -115,7 +117,7 @@ const stubs = {
 };
 
 const names = Object.keys(stubs);
-const exported = 'return {agCreate,agPromote,agFind,agAll,agState,agOpenToday,agDueLabel,agSetDue,agCarryTo,agComplete,agReopen,agSay,agAttach,agDrafts,agTodayBody,agCloseRows,agCarryAllOpen,agPills,agThreadHtml,agConclusion,renderDocObjectCard,DRAWERS,buildCmdk,DOC_METAS,TPL,SUMMON};';
+const exported = 'return {agCreate,agPromote,agFind,agAll,agState,agOpenToday,agDueLabel,agSetDue,agCarryTo,agComplete,agReopen,agSay,agAttach,agDrafts,agTodayBody,agCloseRows,agCarryAllOpen,agPills,agThreadHtml,agConclusion,renderDocObjectCard,DRAWERS,buildCmdk,DOC_METAS,TPL,SUMMON,agIsTask,agResponsible,agTaskState,agSetOwner,agParseDue,agParseTask,agTasks,agOverdue,agStatePill,agOwnerPill,agOwned,agReviewGroups,agReviewHtml,agReviewStats,VIEWS};';
 const api = new Function(...names, code + '\n' + exported)(...names.map(n => stubs[n]));
 
 /* ---- 驗收 1：型別註冊 → 物件索引 facet 與 # 召喚選單都拿得到 ---- */
@@ -153,9 +155,13 @@ const st = api.agState(doc);
 ok('4 建立時記下提出日，到期日預設未排期', st.bornDay === TODAY && st.due === '' && st.carried.length === 0);
 api.agSetDue(doc.id, dadd(TODAY, 2));
 ok('4b 可以設定到期日', api.agState(doc).due === dadd(TODAY, 2));
-ok('4c 到期日標籤分得出今天／明天／逾期／未排期',
+// 任務化之後，到期日只講日期、不講狀態：「逾期」改由狀態 pill 單一來源負責。
+// 原本兩邊都講，同一張卡會出現兩次「逾期」；而且議題沒有逾期概念，講了是錯的。
+ok('4c 到期日標籤分得出今天／明天／未排期，且不再自己宣告逾期',
   api.agDueLabel('') === '未排期' && api.agDueLabel(TODAY) === '今天到期' &&
-  api.agDueLabel(dadd(TODAY, 1)) === '明天到期' && api.agDueLabel(dadd(TODAY, -1)).startsWith('逾期'));
+  api.agDueLabel(dadd(TODAY, 1)) === '明天到期' &&
+  !api.agDueLabel(dadd(TODAY, -1)).includes('逾期') &&
+  api.agDueLabel(dadd(TODAY, -1)).includes('到期'));
 
 /* ---- 驗收 5：延期保留歷史（修正舊 rqDeferToday 直接覆寫 t.day 的缺陷）---- */
 api.agCarryTo(doc.id, dadd(TODAY, 1));
@@ -259,6 +265,168 @@ ok('S4 CSS 沒有 var() fallback 以外的硬編碼色', strayHex.length === 0, 
 const src = fs.readFileSync(path.join(V5, 'agenda-object.source.js'), 'utf8');
 ok('S5 原始碼沒有用 emoji 或手寫 <svg> 當圖示',
   !/<svg/.test(src) && !/[\u{1F300}-\u{1FAFF}]/u.test(src));
+
+/* ---- 驗收 T：任務化（owner / 到期 / 狀態推導 / 行內語法）---- */
+// 這一組對應 journal-task-and-card-language-decision.md：議題與任務是同一個物件的兩種狀態。
+
+const mkLine = text => { const b = { id: newBid(), t: 'p', ind: 0, text }; DB.journal[S.jday].blocks.push(b); return b; };
+
+ok('T1 agState 為舊資料補上 owner／assigner 預設（payload 無 schema 驗證，預設集中在這裡）',
+  (() => { const d = { day: TODAY, agenda: { due: '', bornDay: TODAY, carried: [], doneAt: 0, msgs: [], files: [] } };
+    const st = api.agState(d); return st.owner === '' && st.assigner === ''; })());
+
+const tIssue = api.agCreate(mkLine('要不要把核銷改成每週收一次'));
+ok('T2 沒有 owner＝議題，不是任務', !!tIssue && !api.agIsTask(tIssue) && api.agTaskState(tIssue) === 'issue');
+
+const tTask = api.agCreate(mkLine('整理獎學金資源'), { owner: 'lily', due: dadd(TODAY, 2) });
+ok('T2b 有 owner＝任務，負責人與指派人都記下來',
+  !!tTask && api.agIsTask(tTask) && api.agState(tTask).owner === 'lily' && api.agState(tTask).assigner === 'yz');
+
+ok('T3 狀態推導：有 owner 未逾期無討論＝待辦', api.agTaskState(tTask) === 'todo');
+api.agState(tTask).due = dadd(TODAY, -1);
+ok('T3b 到期日過了＝逾期', api.agTaskState(tTask) === 'over' && api.agOverdue(tTask));
+api.agState(tTask).msgs.push({ w: 'yz', x: '在做了' });
+api.agState(tTask).due = dadd(TODAY, 3);
+ok('T3c 有討論且未逾期＝進行中', api.agTaskState(tTask) === 'doing');
+api.agState(tTask).doneAt = Date.now();
+ok('T3d 結案優先於一切：doneAt 有值就是已完成，即使到期日還在未來（不存 status 才不會自相矛盾）',
+  api.agTaskState(tTask) === 'done');
+api.agState(tTask).doneAt = 0;
+
+ok('T4 沒有負責人的議題永遠不會被算成逾期', (() => {
+  api.agState(tIssue).due = dadd(TODAY, -5);
+  const r = api.agTaskState(tIssue) === 'issue' && !api.agOverdue(tIssue);
+  api.agState(tIssue).due = ''; return r; })());
+
+api.agSetOwner(tIssue.id, 'lily');
+ok('T5 agSetOwner 指派後議題變任務', api.agIsTask(tIssue) && api.agState(tIssue).owner === 'lily');
+api.agSetOwner(tIssue.id, '');
+ok('T5b 收回指派後退回議題', !api.agIsTask(tIssue) && api.agTaskState(tIssue) === 'issue');
+
+ok('T6 被指派的人也動得了（deny 文案本來就是「作者或指定負責人」）', (() => {
+  const d = api.agCreate(mkLine('回覆宇星的測試請求'), { owner: 'lily' });
+  const me = DB.me; DB.me = 'lily';
+  const allowed = api.agOwned(d);
+  DB.me = me; return allowed; })());
+
+ok('T7 agOpenToday 改看負責人：別人指派給我的會進我的清單', (() => {
+  const d = api.agCreate(mkLine('幫忙看一下首頁文案'), { owner: 'lily' });
+  return api.agOpenToday('lily').includes(d) && !api.agOpenToday('yz').includes(d); })());
+
+/* ---- 行內語法 ---- */
+const WD = new Date(TODAY + 'T00:00:00Z').getUTCDay();
+ok('T8 ~今天／~明天／~後天', api.agParseDue('今天') === TODAY && api.agParseDue('明天') === dadd(TODAY, 1) && api.agParseDue('後天') === dadd(TODAY, 2));
+ok('T8b ~週X 取最近一個（含今天），~下週X 再加七天', (() => {
+  const wd = '日一二三四五六'[WD];
+  return api.agParseDue('週' + wd) === TODAY && api.agParseDue('下週' + wd) === dadd(TODAY, 7); })());
+ok('T8c ~YYYY-MM-DD 與 ~MMDD', api.agParseDue('2026-10-01') === '2026-10-01' && api.agParseDue('0930') === '2026-09-30');
+ok('T8d 只寫月日而且已經過去的視為明年', api.agParseDue('0101') === '2027-01-01');
+ok('T8e 認不得的寫法回空字串，不亂猜', api.agParseDue('下下個月某天') === '' && api.agParseDue('') === '');
+
+ok('T9 agParseTask 抽出 @指派 與 ~到期，標題不殘留語法符號', (() => {
+  const r = api.agParseTask('跟文齡姐確認首頁語氣 @Lily ~明天');
+  return r.owner === 'lily' && r.due === dadd(TODAY, 1) && r.text === '跟文齡姐確認首頁語氣'; })());
+ok('T9b 認得簡稱（頭像字）也認得 key', api.agParseTask('x @L').owner === 'lily' && api.agParseTask('x @yz').owner === 'yz');
+ok('T9c 認不得的 @ 與 ~ 原樣留在標題裡，不默默吃掉使用者寫的字', (() => {
+  const r = api.agParseTask('寄給 @某個不存在的人 ~某天');
+  return r.owner === '' && r.due === '' && r.text.includes('@某個不存在的人') && r.text.includes('~某天'); })());
+ok('T9d 只取第一個 @ 與第一個 ~', (() => {
+  const r = api.agParseTask('x @Lily @宇星 ~明天 ~後天');
+  return r.owner === 'lily' && r.due === dadd(TODAY, 1) && r.text.includes('@宇星') && r.text.includes('~後天'); })());
+
+ok('T10 agCreate({parse:true}) 走行內語法建立任務', (() => {
+  const b = mkLine('把年度目標書放進營運流程 @Lily ~明天');
+  const d = api.agCreate(b, { parse: true });
+  if (!d) return false;
+  const st = api.agState(d);
+  return st.owner === 'lily' && st.due === dadd(TODAY, 1) && api.agIsTask(d)
+    && !/[@~]/.test(docObjectName(d)); })());
+
+ok('T10b 行內語法只寫 @ 沒寫 ~ 也成立（到期日選填）', (() => {
+  const d = api.agCreate(mkLine('校稿 @Lily'), { parse: true });
+  return !!d && api.agState(d).owner === 'lily' && api.agState(d).due === ''; })());
+
+/* ---- 顏色：狀態只由 pill 表達 ---- */
+ok('T11 狀態 pill 走 --ag-<state> 三階 class，議題不宣告狀態', (() => {
+  const d = api.agCreate(mkLine('待辦一件事'), { owner: 'lily' });
+  const pill = api.agStatePill(d);
+  return pill.includes('ag-pill todo') && api.agStatePill(tIssue) === ''; })());
+ok('T11b 負責人 pill 用既有頭像，沒有自己另開一組色',
+  api.agOwnerPill(api.agCreate(mkLine('指派一件事'), { owner: 'lily' })).includes('ag-pill own'));
+
+ok('T12 一張卡上「逾期」只出現一次（狀態 pill），到期 pill 保持中性色', (() => {
+  const d = api.agCreate(mkLine('逾期只講一次'), { owner: 'lily', due: dadd(TODAY, -2) });
+  const html = api.agPills(d);
+  return (html.match(/逾期/g) || []).length === 1 && html.includes('ag-pill soft');
+})());
+
+/* ---- 樣式層 ---- */
+ok('S6 卡片不再有 3px 飽和色柱，逾期改用淡底',
+  !css.includes('ag-card::before') && css.includes('.eb-doc-card.ag-card.ag-over'));
+ok('S6b 逾期 pill 不再整塊填滿警示色',
+  !/\.ag-pill\.over\{[^}]*background:var\(--rq-alarm/.test(css));
+
+const theme = fs.readFileSync(path.join(ROOT, 'src/lib/theme/company-theme.ts'), 'utf8');
+const lumOf = h => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+  .map(x => x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4));
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+const ratio = (a, b) => { const l1 = lumOf(a), l2 = lumOf(b); return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); };
+const paletteOf = name => {
+  const m = theme.match(new RegExp('const ' + name + ': V5Palette = \\{([\\s\\S]*?)\\n\\}'));
+  const out = {}; for (const [, k, v] of m[1].matchAll(/"(--[\w-]+)":\s*"([^"]+)"/g)) out[k] = v; return out;
+};
+const STATES = ['over', 'doing', 'todo', 'done'];
+let tokenMiss = [], contrastBad = [];
+for (const name of ['WHITE', 'BLACK']) {
+  const pal = paletteOf(name);
+  for (const st3 of STATES) {
+    const bg = pal['--ag-' + st3 + '-bg'], br = pal['--ag-' + st3 + '-br'], ink = pal['--ag-' + st3 + '-ink'];
+    if (!bg || !br || !ink) { tokenMiss.push(name + '/' + st3); continue; }
+    const r = ratio(ink, bg);
+    if (r < 4.5) contrastBad.push(`${name}/${st3} ${r.toFixed(2)}`);
+  }
+}
+ok('S7 四個狀態在 WHITE／BLACK 都有 bg／br／ink 三階（ORANGE／BRAND 以 spread 繼承）',
+  tokenMiss.length === 0, tokenMiss.join(' '));
+ok('S7b 每組狀態字色對自己的底色都 ≥ 4.5:1', contrastBad.length === 0, contrastBad.join(' '));
+ok('S7c ORANGE 繼承 WHITE、BRAND 繼承 BLACK，不必各自重寫',
+  /const ORANGE: V5Palette = \{\s*\.\.\.WHITE/.test(theme) && /const BRAND: V5Palette = \{\s*\.\.\.BLACK/.test(theme));
+
+const rep = fs.readFileSync(path.join(V5, 'replies.source.js'), 'utf8');
+ok('S8 !任務 進了觸發詞與旗標選單',
+  rep.includes("'任務','task'") && rep.includes("flag:'task'") && rep.includes("agCreate(b,{parse:true})"));
+
+/* ---- 驗收 R：回顧分頁的任務區塊 ---- */
+ok('R1 回顧分頁在連續敘事之前接上任務區塊（tab 1、圓展空間）', (() => {
+  const html = api.VIEWS.journal(1);
+  return html.includes('ag-rv-kpi') && html.indexOf('ag-rv-kpi') < html.indexOf('<BASEVIEW');
+})());
+ok('R1b 今天分頁（tab 0）與個人空間不受影響', (() => {
+  const t0 = api.VIEWS.journal(0);
+  return !t0.includes('ag-rv-kpi');
+})());
+ok('R2 分組順序把卡住的排在做完的前面', (() => {
+  const ks = api.agReviewGroups().map(g => g.k);
+  const iOver = ks.indexOf('over'), iDone = ks.indexOf('done');
+  return iOver === -1 || iDone === -1 || iOver < iDone;
+})());
+ok('R3 指標只算有負責人的，議題不進統計', (() => {
+  const before = api.agReviewStats();
+  api.agCreate(mkLine('一個沒有負責人的議題'));           // 議題
+  return before === api.agReviewStats();
+})());
+ok('R4 逾期在指標與列上都標出來', (() => {
+  const d = api.agCreate(mkLine('逾期的任務'), { owner: 'lily', due: dadd(TODAY, -3) });
+  const html = api.agReviewHtml();
+  return api.agReviewStats().includes('ag-k-over') && html.includes('ag-rv-row ag-over');
+})());
+ok('R5 完全沒有任務時給可行動的空狀態，不是空白表格', (() => {
+  const keep = DB.docObjects.slice();
+  DB.docObjects.length = 0;
+  const html = api.agReviewHtml();
+  DB.docObjects.push(...keep);
+  return html.includes('!任務') && !html.includes('ag-rv-row');
+})());
 
 /* ---------------- 報告 ---------------- */
 const pad = s => s + ' '.repeat(Math.max(0, 62 - [...s].reduce((a, c) => a + (c.charCodeAt(0) > 255 ? 2 : 1), 0)));

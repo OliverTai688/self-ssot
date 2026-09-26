@@ -2,6 +2,16 @@
 
 ## 2026-09-25
 
+### YZUI-029 — 議題任務化與卡片色彩系統
+
+- Owner 指示兩件事：回顧的「未閉合承諾」只能看不能動，應該要能新增 Task、指派 Owner、設定 deadline；卡片「圓角左邊一層橘色」太廉價（後續澄清：不改直角，整體風格維持，只優化顏色細節）。
+- **不新增第四種物件**。系統已有承諾模組、專案的 Phase→Milestone→Objective→Task、日誌議題物件三處在講「該做的事」。議題物件本來就有提出日／到期日／帶過／討論／附件／結論／參考碼，只差 `owner` —— 加欄位比加型別便宜一個數量級。無 owner＝議題（不進逾期計算），有 owner＝任務。此決定推翻 `today-agenda-proposals.md`「議題只加 watcher」的建議。
+- 狀態一律推導（`done→issue→over→doing→todo`），**不存 `status`**，避免「已完成但到期日在未來」的矛盾資料。`agOwned()` 放寬為作者或負責人（`deny()` 文案本來就這樣寫）；`agOpenToday()` 改看 `owner || author`，別人指派給我的會進我的右欄與收工檢查。
+- `!任務` 進觸發詞，行內 `@指派`／`~到期`（今天／明天／後天／週X／YYYY-MM-DD／MMDD）；認不得的 `@` `~` 原樣留在標題裡，不默默吃掉使用者寫的字。回顧分頁新增任務區塊，依逾期／本週／無到期日／已完成分組，卡住的排在做完的前面。
+- **顏色**：移除 `.ag-card::before` 的 3px 飽和色柱（色柱不分狀態，逾期與待辦長得一樣）。四狀態改走 `--ag-<state>-{bg,br,ink}` 三階 token；另立 `--ag-over-tint` 給大面積洗色（整列直接用 pill 底色時，暗色主題對 surface 比 1.064 變成紅帶，白色只有 1.003；改後降到 1.024）。到期 pill 改中性、`agDueLabel()` 不再自己宣告逾期 —— 原本同一張卡會講兩次。只改 WHITE／BLACK，ORANGE／BRAND 以 spread 繼承。
+- **零 schema 變更**：`payload.agenda` 讀寫兩處都是整包 spread，新欄位自動持久化。
+- Verification：`verify-agenda-object.mjs` **88/88 PASS**（前 50/50）、`verify-object-index` 19/19 無回歸、generate PASS（454 handler templates）、`node --check runtime.js` PASS、`tsc` **0 errors**、eslint 0 errors、prisma structure PASS、command fields 302 PASS、migration coverage PASS、CSS 硬編碼色掃描無。視覺採 Manual Blocker Fallback（linux/arm64 缺 SWC 二進位，`next dev` 跑不起來）：以真實 CSS 與 token 組隔離頁面用 Chromium 渲染 WHITE／BLACK，量測四狀態對比 4.65–8.67、色柱 `::before` 為 `none`、一般列無底色。**五項瀏覽器互動待 Owner 本機驗收**。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260925-journal-task-and-card-color.md)
+
 ### YZUI-023 — 金流三面（收單／帳務／洞察）
 
 - Owner 看過情境原型（`cashflow-three-faces-prototype.html`，八個情境、四個評估鏡頭）後指示完全採用 RES-032，照片存 R2。三題決策採原型建議：完整三面、先做上傳、鎖帳後可加註不可改金額。

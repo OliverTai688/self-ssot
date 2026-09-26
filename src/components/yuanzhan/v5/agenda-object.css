@@ -6,18 +6,27 @@
 .ag-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:20px;
   border:1px solid var(--border-2);color:var(--text-2);background:var(--surface-2);white-space:nowrap;line-height:1.6;font-family:var(--sans)}
 .ag-pill.soft{color:var(--text-3)}
-.ag-pill.set{border-color:var(--pri-br,#2c3a5c);color:var(--rq-ok,#4ea1ff);background:var(--rq-ok-bg,#0f1726)}
-.ag-pill.due{border-color:var(--rq-warn-br,#6a4520);color:var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c)}
-.ag-pill.warn{border-color:var(--rq-warn-br,#6a4520);color:var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c)}
-.ag-pill.over{border-color:var(--rq-alarm,#ff4d4f);color:var(--on-danger,#fff);background:var(--rq-alarm,#ff4d4f);font-weight:700}
+/* 狀態四色一律「淡底＋染邊＋狀態字色」的三階，顏色不再整塊填滿。
+   逾期在明暗兩套主題都經過 4.5:1 對比驗證，見 verify-agenda-object.mjs。 */
+.ag-pill.todo{border-color:var(--ag-todo-br,#333b45);color:var(--ag-todo-ink,#959fad);background:var(--ag-todo-bg,#161a20)}
+.ag-pill.set,
+.ag-pill.doing{border-color:var(--ag-doing-br,#2c3a5c);color:var(--ag-doing-ink,#4ea1ff);background:var(--ag-doing-bg,#0f1726)}
+.ag-pill.due{border-color:var(--ag-doing-br,#2c3a5c);color:var(--ag-doing-ink,#4ea1ff);background:var(--ag-doing-bg,#0f1726)}
+.ag-pill.warn{border-color:var(--ag-todo-br,#333b45);color:var(--ag-todo-ink,#959fad);background:var(--ag-todo-bg,#161a20)}
+.ag-pill.over{border-color:var(--ag-over-br,#5e2a2c);color:var(--ag-over-ink,#ff8a8c);background:var(--ag-over-bg,#2a1416);font-weight:600}
+.ag-pill.done{border-color:var(--ag-done-br,#2a4a3a);color:var(--ag-done-ink,#5fd09a);background:var(--ag-done-bg,#10221a)}
+/* 負責人：任務才有。頭像（.rq-av）已帶顏色，外框保持中性，不再多開一組色。 */
+.ag-pill.own{border-color:var(--border-2);color:var(--text-2);background:var(--surface-2);gap:5px}
+.ag-pill.own .rq-av{flex:none}
+.ag-by{color:var(--text-3)}
 
 /* ---- 日誌裡的議題卡 ---- */
-/* 與 .rq-card 同一套重音：3px 膠囊色柱，不用 border-left（在圓角卡上會被切成斜角）。 */
-.eb-doc-card.ag-card{position:relative;padding-left:7px}
-.eb-doc-card.ag-card::before{content:"";position:absolute;left:5px;top:9px;bottom:9px;width:3px;
-  border-radius:999px;background:var(--rq-warn,#f0924f);z-index:1;pointer-events:none}
+/* 原本每張卡都掛一條 3px 飽和色柱。清單一長，警示色用在常態上就不再是警示，
+   而且色柱不分狀態 —— 逾期與待辦長得一樣。改為：狀態只由 pill 表達，
+   卡片本體不塗色，唯一例外是逾期鋪一層 --ag-over-bg（約 3% 飽和）。 */
+.eb-doc-card.ag-card{position:relative}
+.eb-doc-card.ag-card.ag-over{background:var(--ag-over-tint,#1d1417);border-color:var(--ag-over-br,#5e2a2c)}
 .eb-doc-card.ag-card.ag-done{opacity:.82}
-.eb-doc-card.ag-card.ag-done::before{background:var(--ok,#4fc38a)}
 .ag-card .ag-pills{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;margin-left:8px}
 .ag-card .eb-doc-bar-left{flex-wrap:wrap;row-gap:4px}
 
@@ -52,3 +61,43 @@ button.ag-file:hover{background:var(--hover-overlay,var(--surface-3));color:var(
 
 /* ---- 右欄卡片 ---- */
 .rq-card.ag-rail .rq-card-m{gap:5px;flex-wrap:wrap}
+.rq-card.ag-rail.ag-over{background:var(--ag-over-tint,#1d1417);border-color:var(--ag-over-br,#5e2a2c)}
+
+/* ---- 回顧分頁的任務區塊 ---- */
+/* 列與列共用一條分隔線、外層一個圓角容器 —— 清單就是清單，不是一列一個卡片框。 */
+.ag-rv-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+  border-bottom:1px solid var(--border);background:var(--surface-2)}
+.ag-rv-kpi>div{padding:11px 14px;border-right:1px solid var(--border)}
+.ag-rv-kpi>div:last-child{border-right:0}
+.ag-rv-kpi b{display:block;font-size:20px;font-weight:650;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;color:var(--text)}
+.ag-rv-kpi b.ag-k-over{color:var(--ag-over-ink,#ff8a8c)}
+.ag-rv-kpi span{font-size:11px;color:var(--text-3)}
+
+.ag-rv-g{display:flex;align-items:center;gap:8px;padding:8px 14px;
+  background:var(--surface-2);border-bottom:1px solid var(--border)}
+.ag-rv-n{font-size:11px;color:var(--text-3);font-family:var(--mono)}
+
+.ag-rv-row{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start;
+  padding:10px 14px;border-bottom:1px solid var(--border)}
+.ag-rv-row:last-child{border-bottom:0}
+.ag-rv-row:hover{background:var(--surface-2)}
+/* 逾期只鋪一層淡底，不加色柱。 */
+.ag-rv-row.ag-over{background:var(--ag-over-tint,#1d1417)}
+.ag-rv-ck{width:17px;height:17px;margin-top:2px;flex:none;cursor:pointer;padding:0;
+  display:grid;place-items:center;border-radius:6px;
+  border:1px solid var(--border-2);background:var(--surface);color:transparent}
+.ag-rv-ck:hover{border-color:var(--pri,#4ea1ff);color:var(--text-3)}
+.ag-rv-ck.on{background:var(--ag-done-bg,#10221a);border-color:var(--ag-done-br,#2a4a3a);color:var(--ag-done-ink,#5fd09a)}
+.ag-rv-b{min-width:0}
+.ag-rv-t{font-size:13.5px;line-height:1.5;color:var(--text)}
+.ag-rv-t.done{color:var(--text-3);text-decoration:line-through;text-decoration-thickness:1px}
+.ag-rv-m{display:flex;flex-wrap:wrap;gap:0;margin-top:3px}
+.ag-rv-m span{font-size:11px;color:var(--text-3);font-family:var(--mono);
+  padding-right:9px;margin-right:9px;border-right:1px solid var(--border-2);line-height:1.5}
+.ag-rv-m span:last-child{border-right:0;margin-right:0;padding-right:0}
+.ag-rv-r{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:720px){
+  .ag-rv-row{grid-template-columns:auto 1fr}
+  .ag-rv-r{grid-column:2;justify-content:flex-start;margin-top:6px}
+}

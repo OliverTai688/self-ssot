@@ -1,0 +1,275 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<title>agenda black</title><style>
+:root{
+  --bg: #0a0c0f;
+  --surface: #111418;
+  --surface-2: #161a20;
+  --surface-3: #1d232b;
+  --surface-4: #242b34;
+  --border: #232931;
+  --border-2: #333b45;
+  --border-3: #465060;
+  --text: #e9ecf1;
+  --text-2: #99a2af;
+  --text-3: #626b77;
+  --pri: #6cb6ff;
+  --pri-bg: #11212e;
+  --pri-br: #2d5a7d;
+  --ok: #5fd09a;
+  --ok-bg: #0f2620;
+  --warn: #f2b95e;
+  --warn-bg: #2a2111;
+  --danger: #ef8a82;
+  --danger-bg: #2b1614;
+  --info: #a78bf5;
+  --info-bg: #1c1830;
+  --teal: #4fcfc0;
+  --teal-bg: #0d2724;
+  --v1: #3987e5;
+  --v2: #d95926;
+  --v3: #199e70;
+  --v4: #c98500;
+  --st-good: #0ca30c;
+  --st-warn: #fab219;
+  --st-serious: #ec835a;
+  --st-crit: #d03b3b;
+  --seq-1: #184f95;
+  --seq-2: #256abf;
+  --seq-3: #3987e5;
+  --seq-4: #6da7ec;
+  --seq-5: #9ec5f4;
+  --grid: #252c35;
+  --axis: #39414c;
+  --avatar-bg: #2b3440;
+  --av-yz-bg: #2b4a63;
+  --av-yz-fg: #9ecbf5;
+  --av-yz-br: #365d7c;
+  --av-yz-lc-bg: #0f1a26;
+  --av-yz-tl: #6cb6ff;
+  --av-lily-bg: #3d3357;
+  --av-lily-fg: #c4a2f5;
+  --av-lily-br: #4e416d;
+  --av-lily-lc-bg: #1a1220;
+  --av-lily-tl: #e58bc0;
+  --hover-overlay: rgba(255, 255, 255, 0.035);
+  --item-on-ic: #1d3446;
+  --pri-hover: #163044;
+  --danger-hover: #3a1c19;
+  --scroll-thumb: #2a313a;
+  --scroll-thumb-hover: #3a424d;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --on-pri: #07121b;
+  --on-danger: #1a0e0d;
+  --danger-br: #5d2b26;
+  --gold: #e0b25a;
+  --rq-alarm: #ff4d4f;
+  --rq-alarm-hover: #ff6668;
+  --rq-alarm-pulse: #d9363a;
+  --rq-alarm-btn-fg: #b3181b;
+  --rq-dec-bg: #6a2d5c;
+  --rq-ask: #e58bc0;
+  --rq-ask-bg: #1e1019;
+  --rq-ask-br: #4f2d45;
+  --rq-ok: #4ea1ff;
+  --rq-ok-bg: #0f1726;
+  --rq-ok-br: #2c3a5c;
+  --rq-warn: #f0924f;
+  --rq-warn-bg: #2a1a0c;
+  --rq-warn-br: #6a4520;
+  --rq-done-br: #2d4d3d;
+  --rq-flash: #7c8cff;
+  --ag-over-bg: #2a1416;
+  --ag-over-br: #5e2a2c;
+  --ag-over-ink: #ff8a8c;
+  --ag-over-tint: #1d1417;
+  --ag-doing-bg: #0f1726;
+  --ag-doing-br: #2c3a5c;
+  --ag-doing-ink: #4ea1ff;
+  --ag-todo-bg: #161a20;
+  --ag-todo-br: #333b45;
+  --ag-todo-ink: #959fad;
+  --ag-done-bg: #10221a;
+  --ag-done-br: #2a4a3a;
+  --ag-done-ink: #5fd09a;
+}
+
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.7 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;
+  background:var(--bg);color:var(--text);padding:22px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.panel-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.panel-h h3{margin:0;font-size:14px}.panel-h .sub{font-size:11.5px;color:var(--text-3)}
+.panel-b{padding:14px}.panel-b.flush{padding:0}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:20px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-2)}
+.btn.sm{font-size:11.5px;padding:2px 9px;border-radius:7px;border:1px solid var(--border-2);
+  background:var(--surface-2);color:var(--text-2);cursor:pointer}
+.av.rq-av{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;
+  font-size:8.5px;font-weight:700;background:var(--surface-3);color:var(--text)}
+.a-yz{background:#5b5fc7;color:#fff}.a-lily{background:#0f766e;color:#fff}
+.eb-doc-card{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:10px 12px}
+.eb-doc-bar-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.eb-doc-bar-title{font-size:13.5px}
+h2.t{font-size:13px;margin:0 0 10px;color:var(--text-3);font-weight:600;letter-spacing:.04em}
+
+/* 議題物件（提案 B）：日誌裡的議題卡、議題頁的欄位列、討論串與附件。
+   顏色一律走 company-theme.ts 的 V5_PALETTES token，var(--token, fallback) 形式，
+   四個主題（white/orange/black/brand）都跟著換。 */
+
+/* ---- 小標籤 ---- */
+.ag-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:1px 8px;border-radius:20px;
+  border:1px solid var(--border-2);color:var(--text-2);background:var(--surface-2);white-space:nowrap;line-height:1.6;font-family:var(--sans)}
+.ag-pill.soft{color:var(--text-3)}
+/* 狀態四色一律「淡底＋染邊＋狀態字色」的三階，顏色不再整塊填滿。
+   逾期在明暗兩套主題都經過 4.5:1 對比驗證，見 verify-agenda-object.mjs。 */
+.ag-pill.todo{border-color:var(--ag-todo-br,#333b45);color:var(--ag-todo-ink,#959fad);background:var(--ag-todo-bg,#161a20)}
+.ag-pill.set,
+.ag-pill.doing{border-color:var(--ag-doing-br,#2c3a5c);color:var(--ag-doing-ink,#4ea1ff);background:var(--ag-doing-bg,#0f1726)}
+.ag-pill.due{border-color:var(--ag-doing-br,#2c3a5c);color:var(--ag-doing-ink,#4ea1ff);background:var(--ag-doing-bg,#0f1726)}
+.ag-pill.warn{border-color:var(--ag-todo-br,#333b45);color:var(--ag-todo-ink,#959fad);background:var(--ag-todo-bg,#161a20)}
+.ag-pill.over{border-color:var(--ag-over-br,#5e2a2c);color:var(--ag-over-ink,#ff8a8c);background:var(--ag-over-bg,#2a1416);font-weight:600}
+.ag-pill.done{border-color:var(--ag-done-br,#2a4a3a);color:var(--ag-done-ink,#5fd09a);background:var(--ag-done-bg,#10221a)}
+/* 負責人：任務才有。頭像（.rq-av）已帶顏色，外框保持中性，不再多開一組色。 */
+.ag-pill.own{border-color:var(--border-2);color:var(--text-2);background:var(--surface-2);gap:5px}
+.ag-pill.own .rq-av{flex:none}
+.ag-by{color:var(--text-3)}
+
+/* ---- 日誌裡的議題卡 ---- */
+/* 原本每張卡都掛一條 3px 飽和色柱。清單一長，警示色用在常態上就不再是警示，
+   而且色柱不分狀態 —— 逾期與待辦長得一樣。改為：狀態只由 pill 表達，
+   卡片本體不塗色，唯一例外是逾期鋪一層 --ag-over-bg（約 3% 飽和）。 */
+.eb-doc-card.ag-card{position:relative}
+.eb-doc-card.ag-card.ag-over{background:var(--ag-over-tint,#1d1417);border-color:var(--ag-over-br,#5e2a2c)}
+.eb-doc-card.ag-card.ag-done{opacity:.82}
+.ag-card .ag-pills{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;margin-left:8px}
+.ag-card .eb-doc-bar-left{flex-wrap:wrap;row-gap:4px}
+
+/* ---- 討論串（卡片與議題頁共用） ---- */
+.ag-thread{border-top:1px dashed var(--border-2);margin-top:10px;padding-top:10px}
+.ag-thread.page{border-top:1px solid var(--border);margin-top:18px;padding-top:14px}
+.ag-sec-t{font-size:11.5px;color:var(--text-3);margin-bottom:8px;letter-spacing:.02em}
+.ag-thread .rq-msg{margin-bottom:8px}
+.ag-thread .rq-empty{font-size:12px;color:var(--text-3);padding:2px 0 6px}
+.rq-compose.ag-compose{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.rq-compose.ag-compose input{flex:1;min-width:180px}
+
+/* ---- 附件 ---- */
+.ag-files{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.ag-file{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:2px 9px;border-radius:7px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-2);font-family:var(--sans)}
+button.ag-file{cursor:pointer}
+button.ag-file:hover{background:var(--hover-overlay,var(--surface-3));color:var(--text)}
+
+/* ---- 議題頁的欄位列 ---- */
+.ag-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px 18px;
+  padding:12px 0 14px;margin-bottom:6px;border-bottom:1px solid var(--border)}
+.ag-f{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;min-height:24px}
+.ag-f .k{flex:none;width:36px;color:var(--text-3)}
+.ag-f .v{color:var(--text-2);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ag-f .v b{color:var(--text);font-weight:600}
+.ag-due{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ag-date{font:inherit;font-size:12px;padding:2px 7px;border-radius:7px;color:var(--text);
+  border:1px solid var(--border-2);background:var(--surface-2);color-scheme:light dark}
+.ag-ref{font-family:var(--mono);font-size:10.5px;color:var(--text-3);
+  border:1px solid var(--border);background:var(--surface-2);border-radius:5px;padding:1px 6px}
+
+/* ---- 右欄卡片 ---- */
+.rq-card.ag-rail .rq-card-m{gap:5px;flex-wrap:wrap}
+.rq-card.ag-rail.ag-over{background:var(--ag-over-tint,#1d1417);border-color:var(--ag-over-br,#5e2a2c)}
+
+/* ---- 回顧分頁的任務區塊 ---- */
+/* 列與列共用一條分隔線、外層一個圓角容器 —— 清單就是清單，不是一列一個卡片框。 */
+.ag-rv-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+  border-bottom:1px solid var(--border);background:var(--surface-2)}
+.ag-rv-kpi>div{padding:11px 14px;border-right:1px solid var(--border)}
+.ag-rv-kpi>div:last-child{border-right:0}
+.ag-rv-kpi b{display:block;font-size:20px;font-weight:650;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;color:var(--text)}
+.ag-rv-kpi b.ag-k-over{color:var(--ag-over-ink,#ff8a8c)}
+.ag-rv-kpi span{font-size:11px;color:var(--text-3)}
+
+.ag-rv-g{display:flex;align-items:center;gap:8px;padding:8px 14px;
+  background:var(--surface-2);border-bottom:1px solid var(--border)}
+.ag-rv-n{font-size:11px;color:var(--text-3);font-family:var(--mono)}
+
+.ag-rv-row{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start;
+  padding:10px 14px;border-bottom:1px solid var(--border)}
+.ag-rv-row:last-child{border-bottom:0}
+.ag-rv-row:hover{background:var(--surface-2)}
+/* 逾期只鋪一層淡底，不加色柱。 */
+.ag-rv-row.ag-over{background:var(--ag-over-tint,#1d1417)}
+.ag-rv-ck{width:17px;height:17px;margin-top:2px;flex:none;cursor:pointer;padding:0;
+  display:grid;place-items:center;border-radius:6px;
+  border:1px solid var(--border-2);background:var(--surface);color:transparent}
+.ag-rv-ck:hover{border-color:var(--pri,#4ea1ff);color:var(--text-3)}
+.ag-rv-ck.on{background:var(--ag-done-bg,#10221a);border-color:var(--ag-done-br,#2a4a3a);color:var(--ag-done-ink,#5fd09a)}
+.ag-rv-b{min-width:0}
+.ag-rv-t{font-size:13.5px;line-height:1.5;color:var(--text)}
+.ag-rv-t.done{color:var(--text-3);text-decoration:line-through;text-decoration-thickness:1px}
+.ag-rv-m{display:flex;flex-wrap:wrap;gap:0;margin-top:3px}
+.ag-rv-m span{font-size:11px;color:var(--text-3);font-family:var(--mono);
+  padding-right:9px;margin-right:9px;border-right:1px solid var(--border-2);line-height:1.5}
+.ag-rv-m span:last-child{border-right:0;margin-right:0;padding-right:0}
+.ag-rv-r{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:720px){
+  .ag-rv-row{grid-template-columns:auto 1fr}
+  .ag-rv-r{grid-column:2;justify-content:flex-start;margin-top:6px}
+}
+
+</style></head><body><h2 class="t">主題 BLACK · 回顧任務區塊與日誌任務卡</h2>
+<div class="panel"><div class="panel-h"><h3>任務</h3><span class="sub">4 項未完成 · 依到期日</span></div>
+<div class="panel-b flush">
+  <div class="ag-rv-kpi">
+    <div><b>4</b><span>未完成</span></div><div><b class="ag-k-over">2</b><span>逾期</span></div>
+    <div><b>1</b><span>無到期日</span></div><div><b>3</b><span>指給我的</span></div><div><b>1</b><span>本期完成</span></div>
+  </div>
+  <div class="ag-rv-g"><span class="ag-pill over"><svg width="9" height="9"></svg> 逾期</span><span class="ag-rv-n">2 項</span></div>
+  <div class="ag-rv-row ag-over">
+    <button class="ag-rv-ck "><svg width="11" height="11"></svg></button>
+    <div class="ag-rv-b"><div class="ag-rv-t ">年度營運目標書與團隊節奏納入營運流程</div>
+      <div class="ag-rv-m"><span>09/18 提出</span><span>9/18 到期</span><span>帶過 2 次</span></div></div>
+    <div class="ag-rv-r"><span class="ag-pill own"><span class="av rq-av xs a-yz">宇</span> 戴宇星</span><span class="ag-pill over"><svg width="9" height="9"></svg> 逾期</span><button class="btn sm">開啟</button></div></div><div class="ag-rv-row ag-over">
+    <button class="ag-rv-ck "><svg width="11" height="11"></svg></button>
+    <div class="ag-rv-b"><div class="ag-rv-t ">回覆宇星：測試日誌新增功能</div>
+      <div class="ag-rv-m"><span>09/23 提出</span><span>9/24 到期</span></div></div>
+    <div class="ag-rv-r"><span class="ag-pill own"><span class="ag-by">戴宇星 →</span> <span class="av rq-av xs a-lily">L</span> Lily</span><span class="ag-pill over"><svg width="9" height="9"></svg> 逾期</span><button class="btn sm">開啟</button></div></div>
+  <div class="ag-rv-g"><span class="ag-pill doing"><svg width="9" height="9"></svg> 本週到期</span><span class="ag-rv-n">1 項</span></div>
+  <div class="ag-rv-row ">
+    <button class="ag-rv-ck "><svg width="11" height="11"></svg></button>
+    <div class="ag-rv-b"><div class="ag-rv-t ">Evvon 首頁三版位文案語氣確認</div>
+      <div class="ag-rv-m"><span>09/25 提出</span><span>明天到期</span></div></div>
+    <div class="ag-rv-r"><span class="ag-pill own"><span class="ag-by">Lily →</span> <span class="av rq-av xs a-yz">宇</span> 戴宇星</span><span class="ag-pill doing"><svg width="9" height="9"></svg> 進行中</span><button class="btn sm">開啟</button></div></div>
+  <div class="ag-rv-g"><span class="ag-pill todo"><svg width="9" height="9"></svg> 無到期日</span><span class="ag-rv-n">1 項</span></div>
+  <div class="ag-rv-row ">
+    <button class="ag-rv-ck "><svg width="11" height="11"></svg></button>
+    <div class="ag-rv-b"><div class="ag-rv-t ">PersonalOS 金流模組：發票上傳與核銷規則</div>
+      <div class="ag-rv-m"><span>09/24 提出</span><span>未排期</span></div></div>
+    <div class="ag-rv-r"><span class="ag-pill own"><span class="av rq-av xs a-yz">宇</span> 戴宇星</span><span class="ag-pill todo"><svg width="9" height="9"></svg> 待辦</span><button class="btn sm">開啟</button></div></div>
+  <div class="ag-rv-g"><span class="ag-pill done"><svg width="9" height="9"></svg> 已完成</span><span class="ag-rv-n">1 項</span></div>
+  <div class="ag-rv-row ">
+    <button class="ag-rv-ck on"><svg width="11" height="11"></svg></button>
+    <div class="ag-rv-b"><div class="ag-rv-t done">地政士 Demo 客戶回饋整理</div>
+      <div class="ag-rv-m"><span>09/22 提出</span><span>已結案</span></div></div>
+    <div class="ag-rv-r"><span class="ag-pill own"><span class="av rq-av xs a-lily">L</span> Lily</span><span class="ag-pill done"><svg width="9" height="9"></svg> 已完成</span><button class="btn sm">開啟</button></div></div>
+</div></div>
+
+<div class="panel" style="margin-top:14px"><div class="panel-h"><h3>日誌裡的任務卡</h3></div><div class="panel-b">
+  <div class="eb-obj eb-doc-card ag-card ag-over expanded">
+    <div class="eb-doc-bar"><div class="eb-doc-bar-left">
+      <span class="chip c-w"><svg width="11" height="11"></svg> 任務</span>
+      <span class="eb-doc-bar-title">年度營運目標書與團隊節奏納入營運流程</span>
+      <span class="ag-pills"><span class="ag-pill over"><svg width="9" height="9"></svg> 逾期</span><span class="ag-pill own"><span class="av rq-av xs a-yz">宇</span> 戴宇星</span><span class="ag-pill soft"><svg width="9" height="9"></svg> 9/18 到期</span><span class="ag-pill warn"><svg width="9" height="9"></svg> 帶過 2 次</span></span>
+    </div></div></div>
+  <div class="eb-obj eb-doc-card ag-card expanded" style="margin-top:8px">
+    <div class="eb-doc-bar"><div class="eb-doc-bar-left">
+      <span class="chip c-w"><svg width="11" height="11"></svg> 任務</span>
+      <span class="eb-doc-bar-title">Evvon 首頁三版位文案語氣確認</span>
+      <span class="ag-pills"><span class="ag-pill doing"><svg width="9" height="9"></svg> 進行中</span><span class="ag-pill own"><span class="ag-by">Lily →</span> <span class="av rq-av xs a-yz">宇</span> 戴宇星</span><span class="ag-pill due"><svg width="9" height="9"></svg> 明天到期</span></span>
+    </div></div></div>
+  <div class="eb-obj eb-doc-card ag-card expanded" style="margin-top:8px">
+    <div class="eb-doc-bar"><div class="eb-doc-bar-left">
+      <span class="chip c-w"><svg width="11" height="11"></svg> 議題</span>
+      <span class="eb-doc-bar-title">要不要把核銷改成每週收一次</span>
+      <span class="ag-pills"><span class="ag-pill soft"><svg width="9" height="9"></svg> 未排期</span></span>
+    </div></div></div>
+</div></div></body></html>

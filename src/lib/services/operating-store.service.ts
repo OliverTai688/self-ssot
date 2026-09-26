@@ -212,16 +212,40 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
   const timesheet: Record<string, unknown> = {}
   for (const row of timesheetRows) timesheet[row.actorKey] = row.weeks
 
+  /**
+   * 行內留言的 `author` 是那一行的日誌作者，工作台靠 (author, blockId, day) 把留言掛回那一行。
+   * 新列在 meta.lineAuthor 存了它；之前寫的列沒有，只能從「哪一份日誌或文件物件含這個
+   * blockId」反查 —— 拿留言者 authorKey 頂替的話，留在對方日誌上的留言重整後就找不到行了。
+   */
+  const lineOwnerByBlock = new Map<string, string>()
+  const indexBlocks = (blocks: unknown, owner: string | undefined | null) => {
+    if (!owner || !Array.isArray(blocks)) return
+    for (const block of blocks) {
+      const id = (block as { id?: unknown } | null)?.id
+      if (typeof id === "string" && !lineOwnerByBlock.has(id)) lineOwnerByBlock.set(id, owner)
+    }
+  }
+  for (const row of journalRows) indexBlocks(row.blocks, seatByProfile.get(row.authorId))
+  for (const row of docObjectRows) {
+    const secs = ((row.payload ?? {}) as Record<string, unknown>).secs
+    if (Array.isArray(secs)) for (const sec of secs) indexBlocks((sec as { blocks?: unknown } | null)?.blocks, row.authorKey)
+  }
+
   const commentsByKind: Record<string, unknown[]> = { line: [], journal: [], object: [] }
   for (const row of commentRows) {
     const bucket = commentsByKind[row.targetType]
     if (!bucket) continue
     const meta = (row.meta ?? {}) as Record<string, unknown>
+    const lineAuthor =
+      (typeof meta.lineAuthor === "string" && meta.lineAuthor) ||
+      (typeof meta.blockId === "string" && lineOwnerByBlock.get(meta.blockId)) ||
+      row.authorKey ||
+      ""
     bucket.push({
       id: row.workbenchRef ?? row.id,
       parent: row.targetRef,
       w: row.authorKey ?? "",
-      author: row.authorKey ?? "",
+      author: row.targetType === "line" ? lineAuthor : (row.authorKey ?? ""),
       x: row.body,
       ts: meta.ts ?? "",
       day: meta.day ?? "",
@@ -495,7 +519,8 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
         createdAt: row.createdAt.getTime(),
         updatedAt: row.updatedAt.getTime(),
         secs: payload.secs ?? [],
-        // 議題物件把到期日、帶過紀錄、討論與附件放在 payload.agenda，原樣帶回工作台。
+        // 議題物件把到期日、負責人、帶過紀錄、討論與附件放在 payload.agenda，原樣帶回工作台。
+        // owner／assigner（任務化）也在這一包裡，所以加欄位不動 schema、不用遷移。
         // 不攤平成欄位是刻意的：docObject 的 payload 是 JSON，議題多一個欄位不必動 schema。
         ...(payload.agenda ? { agenda: payload.agenda } : {}),
       }
@@ -517,6 +542,9 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       t: row.atTime,
       kind: row.kind,
       text: row.text,
+      // 真實時刻。occurredAt 是這個欄位上線後寫的列才有，之前的列由 createdAt 頂上 ——
+      // createdAt 一直都是真實寫入時刻，只是從來沒被讀回工作台，所以舊脈絡也分得出補記。
+      at: (row.occurredAt ?? row.createdAt).getTime(),
     })),
 
     todayIssues: withRef(todayIssueRows).map((row) => ({

@@ -7423,7 +7423,7 @@ closeCmdk = function () {
 };
 listen('keydown', event => {
   if (event.key !== 'Tab') return;
-  const active = $('#modalWrap.on') || $('#cmdkWrap.on') || $('#drawer.on');
+  const active = $('#modalWrap.on') || $('#cmdkWrap.on') || $('#formModalWrap.on') || $('#drawer.on');
   if (!active) return;
   const els = [...active.querySelectorAll('button:not([disabled]),input:not([disabled]),textarea,select,[tabindex="0"]')].filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden');
   if (!els.length) return;
@@ -7788,7 +7788,7 @@ stampAuthors();
 const formulaForm = formTxn;
 formTxn = id => {
   formulaForm(id);
-  if (!FORM || !$('#drawer.on')) return;
+  if (!FORM || !formModalOpen()) return;
   FORM.fields.splice(4, 0, {
     k: 'quantity',
     label: '數量（B）',
@@ -8683,6 +8683,15 @@ const RQ_FLAG_HITS = [{
   nm: '建立議題物件',
   ds: '這一行與底下的子項收成一個議題 · 可排期、討論、附檔、結案',
   k: '↵'
+},
+// 任務＝議題加上負責人。同一個物件、同一套手勢，只是行內多了 @指派 與 ~到期。
+{
+  flag: 'task',
+  g: '標記',
+  ic: '!',
+  nm: '建立任務',
+  ds: '指派給一個人並設到期日 · 行內可直接寫 @某人 ~週五',
+  k: '↵'
 }];
 function rqOpenMenu(tx, b, start, q, mode) {
   const hits = mode === 'ask' || mode === 'mention' ? rqAskHits(q, mode) : RQ_FLAG_HITS;
@@ -8709,7 +8718,7 @@ checkTrigger = function (tx, b) {
     let m = upto.match(RQ_ASK);
     if (m) return rqOpenMenu(tx, b, upto.length - m[1].length - 2, m[1], 'ask');
     m = upto.match(RQ_FLAG);
-    if (m && ['今天', '今日', 'today', '議題', 'agenda'].some(w => w.startsWith(m[1].toLowerCase()))) return rqOpenMenu(tx, b, upto.length - m[1].length - 1, m[1], 'flag');
+    if (m && ['今天', '今日', 'today', '議題', 'agenda', '任務', 'task'].some(w => w.startsWith(m[1].toLowerCase()))) return rqOpenMenu(tx, b, upto.length - m[1].length - 1, m[1], 'flag');
     m = upto.match(RQ_MENTION);
     if (m) {
       const askHits = rqAskHits(m[1], 'mention');
@@ -8748,9 +8757,15 @@ applySummon = function (n) {
   focusB(b.id, text.length);
   if (!text.trim()) {
     render();
-    return toast('先寫下要問或要處理的內容，再加上 ' + (h.flag ? '!今天' : (via === 'mention' ? '@' : '?@') + esc(person(h.to))));
+    return toast('先寫下要問或要處理的內容，再加上 ' + (h.flag ? '!' + ({
+      today: '今天',
+      agenda: '議題',
+      task: '任務'
+    }[h.flag] || '今天') : (via === 'mention' ? '@' : '?@') + esc(person(h.to))));
   }
-  if (h.flag) return h.flag === 'agenda' ? agCreate(b) : rqFlagToday(b);
+  if (h.flag) return h.flag === 'task' ? agCreate(b, {
+    parse: true
+  }) : h.flag === 'agenda' ? agCreate(b) : rqFlagToday(b);
   // 只通知不佔用這一行的 b.req：同一行可以通知多個人，也可以之後再改成請求。
   if (h.ask === 'notice') return rqNotify(b, h.to, via);
   const current = b.req && rqFind(b.req);
@@ -9460,7 +9475,14 @@ DB.lineComments = DB.lineComments || [];
 /* 今日脈絡：一筆事件一列（kind：start 開始一天／close 收工／act 其他動作），
    宇星與 Lily 的動作合流成同一條時間軸。原本是只活在記憶體裡的 {日期:[...]}，
    重新整理就回到空白；改成可逐列比對的陣列之後，它跟日誌走同一條寫入管線，
-   會被保存、也會在另一個席位寫入時合併進來。 */
+   會被保存、也會在另一個席位寫入時合併進來。
+
+   一列上有兩個時間概念，不能混：
+     day + t  掛在哪一天、在那一天的什麼時刻 —— t 是寫下那一刻的時鐘
+     at       真正寫下的時刻（epoch ms）
+   明天回到今天的日誌補一筆，day 是今天、t 卻是明天的時鐘：那個時刻在今天的
+   時間軸上沒發生過。at 與 day 不同天就是補記，畫面分區顯示，不混進當天的序列。
+   沒有 at 的是這個欄位上線前的列（伺服器會用 createdAt 頂上）。 */
 DB.dayLogs = DB.dayLogs || [];
 /* 收工時刻是脈絡上的一個事件；replies 的 DB.dayClose 只是它的查詢索引，開頁時重建。 */
 for (const r of DB.dayLogs) if (r.kind === 'close') (DB.dayClose[r.w] ??= {})[r.day] = r.t;
@@ -9488,21 +9510,38 @@ function jcLog(text, w = DB.me, day = S.jday, kind = 'act') {
   const t = jcNow();
   // 同一分鐘的同一句話只留一筆：連續存檔會重複觸發，脈絡不該被同一件事洗版。
   if (DB.dayLogs.some(r => r.day === day && r.w === w && r.t === t && r.text === text)) return false;
+  // at 只在建立時寫一次，之後不再動：它記的是這件事發生的那一刻，不是這一列最後被碰的時候。
   DB.dayLogs.push({
     id: nid('DL'),
     day,
     w,
     t,
     kind,
-    text
+    text,
+    at: Date.now()
   });
   return true;
+}
+/* 一列是不是回頭補的。沒有 at 的舊列當作當天：分不出來的時候不要憑空標成補記。 */
+function jcDayOf(ms) {
+  const d = new Date(ms);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function jcLate(r) {
+  return r.at ? jcDayOf(r.at) !== r.day : false;
+}
+/* 補記那一列印真實的日期時間；印 t 等於把別天的時鐘說成是這一天的。 */
+function jcStamp(ms) {
+  const d = new Date(ms);
+  return d.getMonth() + 1 + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 function jcStartAt(who, day = S.jday) {
   return DB.dayLogs.find(r => r.day === day && r.w === who && r.kind === 'start')?.t || '';
 }
+/* 「開始一天」只記在今天。回頭看舊日子時打字，會在那一天補出一筆開工、時間還是
+   補記當下的時鐘 —— 那是純噪音，而且 jcStartAt 與 DB.dayClose 這兩個索引都吃它。 */
 function jcStart(who = DB.me, day = S.jday) {
-  return jcStartAt(who, day) ? false : jcLog('開始一天', who, day, 'start');
+  return day === TODAY && !jcStartAt(who, day) ? jcLog('開始一天', who, day, 'start') : false;
 }
 /* 對方最後一次有動靜的時刻。重整之後沒有 live 值，但脈絡上還留著那一筆。 */
 function jcTouched(who, day = S.jday) {
@@ -9510,7 +9549,9 @@ function jcTouched(who, day = S.jday) {
   if (live) return live;
   const rows = jcDayRows(day).filter(r => r.w === who);
   if (!rows.length) return 0;
-  return Date.parse(day + 'T' + rows[rows.length - 1].t + ':00') || 0;
+  // 有 at 就用它：補記那一列的 t 是別天的時鐘，拼上 day 會算出一個沒發生過的時刻，
+  // 「幾分鐘前更新」就跟著錯。取最大值而不是最後一列，因為補記不一定排在最後。
+  return rows.reduce((max, r) => Math.max(max, r.at || Date.parse(day + 'T' + r.t + ':00') || 0), 0);
 }
 if (initialState.mode === 'showcase') {
   DB.dayLogs = [{
@@ -9792,10 +9833,21 @@ function jcStats(objs) {
   });
   return `<div class="jc-stats"><div><b>${objs.length}</b><span>今日物件</span></div><div><b class="ok">${total ? done + '/' + total : '—'}</b><span>承諾完成</span></div><div><b class="gold">${jcKFmt(money)}</b><span>金流</span></div></div>`;
 }
+// 名字從 e.w 印出來，不寫進 text：這樣同一條時間軸上看得出哪一筆是誰的。
+function jcTlRow(e, stamp) {
+  return `<div class="${e.w}"><span class="jc-tl-t">${esc(stamp)}</span> <span class="jc-tl-w">${esc(jcShort(e.w))}</span> ${esc(e.text)}</div>`;
+}
+/* 當天寫的照時刻排在上面；回頭補的收到下面一區，印真實的日期時間。
+   補記的 t 是補記當下的時鐘，照它插進當天的序列裡，等於造出一個沒發生過的順序 ——
+   系統只知道你何時寫的，不知道那件事屬於當天的哪個時點，所以不猜，分開放。 */
 function jcTimeline() {
-  const list = jcDayRows(S.jday).slice().sort((a, b) => (a.t || '').localeCompare(b.t || '')).slice(-14);
-  // 名字從 e.w 印出來，不寫進 text：這樣同一條時間軸上看得出哪一筆是誰的。
-  return list.length ? `<div class="jc-tl">${list.map(e => `<div class="${e.w}"><span class="jc-tl-t">${esc(e.t)}</span> <span class="jc-tl-w">${esc(jcShort(e.w))}</span> ${esc(e.text)}</div>`).join('')}</div>` : '<div class="rq-empty">今天還沒有動靜</div>';
+  const rows = jcDayRows(S.jday);
+  const live = rows.filter(r => !jcLate(r)).sort((a, b) => (a.t || '').localeCompare(b.t || '')).slice(-14);
+  const late = rows.filter(r => jcLate(r)).sort((a, b) => a.at - b.at).slice(-8);
+  if (!live.length && !late.length) return '<div class="rq-empty">今天還沒有動靜</div>';
+  const body = live.length ? `<div class="jc-tl">${live.map(e => jcTlRow(e, e.t)).join('')}</div>` : '<div class="rq-empty">這一天當下沒有動靜</div>';
+  if (!late.length) return body;
+  return body + `<div class="jc-tl-late"><div class="jc-tl-late-t">事後補記 · ${late.length} 筆</div><div class="jc-tl">${late.map(e => jcTlRow(e, jcStamp(e.at))).join('')}</div></div>`;
 }
 function jcPageKey() {
   return 'team:page:' + S.jday;
@@ -10841,7 +10893,7 @@ const agDrafts = new Map();
 
 /** 議題專屬狀態全部收在 doc.agenda 一個物件裡，保存時原樣進 payload.agenda。 */
 function agState(d) {
-  return d.agenda ??= {
+  const st = d.agenda ??= {
     due: '',
     bornDay: d.day || TODAY,
     carried: [],
@@ -10852,10 +10904,42 @@ function agState(d) {
     fileIds: [],
     issueId: ''
   };
+  // 讀回舊資料時 payload 裡沒有這三個欄位。payload.agenda 沒有 schema 層驗證，
+  // 缺欄位一律在這裡補預設，不要散在各個讀取點。
+  if (st.owner === undefined) st.owner = '';
+  if (st.assigner === undefined) st.assigner = '';
+  return st;
 }
 function agIs(d) {
   return !!d && d.type === 'agenda';
 }
+/** 有負責人就是任務，沒有就是議題 —— 同一個物件的兩種狀態，不是兩個型別。 */
+function agIsTask(d) {
+  return !!agState(d).owner;
+}
+/** 實際扛著這件事的人：指派了就是負責人，沒指派就回到作者。 */
+function agResponsible(d) {
+  return agState(d).owner || d.author;
+}
+/**
+ * 狀態一律推導，不存 status 欄位 —— 存了就會出現「已完成但到期日還在未來」這種
+ * 自己跟自己打架的資料。順序有意義：結案 > 沒負責人 > 逾期 > 有討論 > 待辦。
+ */
+function agTaskState(d) {
+  const st = agState(d);
+  if (st.doneAt) return 'done';
+  if (!st.owner) return 'issue'; // 議題不進逾期計算
+  if (st.due && st.due < TODAY) return 'over';
+  if (st.msgs.length) return 'doing';
+  return 'todo';
+}
+const AG_STATE_LABEL = {
+  done: '已完成',
+  issue: '議題',
+  over: '逾期',
+  doing: '進行中',
+  todo: '待辦'
+};
 function agFind(id) {
   const d = (DB.docObjects || []).find(x => x.id === id);
   return agIs(d) ? d : null;
@@ -10868,13 +10952,23 @@ function agDone(d) {
 }
 /** 右欄與收工檢查要看的：自己的、還沒結案、而且到期日沒有排到今天之後。 */
 function agOpenToday(who = DB.me) {
-  return agAll().filter(d => d.author === who && !agDone(d) && (!agState(d).due || agState(d).due <= TODAY));
+  return agAll().filter(d => agResponsible(d) === who && !agDone(d) && (!agState(d).due || agState(d).due <= TODAY));
 }
+/** 回顧的任務區塊要看的：所有有負責人的，含別人的與已完成的，分組交給呼叫端。 */
+function agTasks() {
+  return agAll().filter(agIsTask);
+}
+function agOverdue(d) {
+  return agTaskState(d) === 'over';
+}
+/**
+ * 到期日的文字只講日期，不講狀態 —— 「逾期」由狀態 pill 負責，
+ * 兩邊都講會讓同一件事在一張卡上出現兩次（而且議題沒有逾期概念，講了是錯的）。
+ */
 function agDueLabel(due) {
   if (!due) return '未排期';
   if (due === TODAY) return '今天到期';
   if (due === dadd(TODAY, 1)) return '明天到期';
-  if (due < TODAY) return '逾期 · ' + rqShortDay(due);
   return rqShortDay(due) + ' 到期';
 }
 /** 結論段有沒有內容。結案要求寫結論，沿用 Thread Close 的紀律。 */
@@ -10882,6 +10976,62 @@ function agConclusion(d) {
   const sec = d.secs && d.secs[1];
   if (!sec) return '';
   return ensureSecBlocks(sec).filter(b => TEXTY(b.t) && b.text).map(b => b.text.trim()).join('\n').trim();
+}
+
+/* ---------- 行內語法：@指派 與 ~到期 ---------- */
+
+const AG_WD = '日一二三四五六';
+/** 最近一個（含今天）落在該星期幾的日子。「~週五」在週五當天就是今天，不是下週。 */
+function agNextWeekday(idx) {
+  const cur = new Date(TODAY + 'T00:00:00Z').getUTCDay();
+  return dadd(TODAY, (idx - cur + 7) % 7);
+}
+/** 把 ~後面那一段解析成 YYYY-MM-DD；認不得就回空字串，讓那段文字留在標題裡。 */
+function agParseDue(tok) {
+  const t = (tok || '').trim();
+  if (!t) return '';
+  if (t === '今天' || t === '今日') return TODAY;
+  if (t === '明天' || t === '明日') return dadd(TODAY, 1);
+  if (t === '後天') return dadd(TODAY, 2);
+  const wd = t.match(/^(?:本|下)?(?:週|周|星期)([日一二三四五六天])$/);
+  if (wd) {
+    const idx = AG_WD.indexOf(wd[1] === '天' ? '日' : wd[1]);
+    if (idx >= 0) return t.startsWith('下') ? dadd(agNextWeekday(idx), 7) : agNextWeekday(idx);
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const md = t.match(/^(\d{1,2})[-\/]?(\d{2})$/);
+  if (md) {
+    const y = TODAY.slice(0, 4),
+      cand = `${y}-${String(+md[1]).padStart(2, '0')}-${md[2]}`;
+    // 只寫月日而且已經過去的，視為明年（12/28 寫「~0103」指的是下個月，不是十一個月前）。
+    return cand < TODAY ? `${+y + 1}-${cand.slice(5)}` : cand;
+  }
+  return '';
+}
+/** 認得出來的 @人 與 ~日期 從標題裡拿掉；認不得的原樣留著，不要默默吃掉使用者寫的字。 */
+function agParseTask(text) {
+  let out = text || '',
+    owner = '',
+    due = '';
+  out = out.replace(/(?:^|\s)[@＠]([^\s@＠~～]{1,12})/g, (hit, name) => {
+    if (owner) return hit;
+    const w = Object.keys(DB.people).find(k => k === name || person(k) === name || DB.people[k].s === name);
+    if (!w) return hit;
+    owner = w;
+    return ' ';
+  });
+  out = out.replace(/(?:^|\s)[~～]([^\s@＠~～]{1,12})/g, (hit, tok) => {
+    if (due) return hit;
+    const d = agParseDue(tok);
+    if (!d) return hit;
+    due = d;
+    return ' ';
+  });
+  return {
+    text: out.replace(/\s+/g, ' ').trim(),
+    owner,
+    due
+  };
 }
 
 /* ---------- 建立與升格 ---------- */
@@ -10914,9 +11064,16 @@ function agSubtree(b) {
  */
 function agCreate(b, opts = {}) {
   if (!canWriteJournal()) return null;
+  // 任務模式：先把 @指派 與 ~到期 從行文字裡解析掉，標題才不會殘留語法符號。
+  if (opts.parse) {
+    const got = agParseTask(b.text || '');
+    b.text = got.text;
+    if (got.owner) opts.owner = got.owner;
+    if (got.due) opts.due = got.due;
+  }
   const title = (b.text || '').trim();
   if (!title) {
-    toast('先寫下要處理的事，再標成議題');
+    toast('先寫下要處理的事，再標成' + (opts.owner || opts.parse ? '任務' : '議題'));
     return null;
   }
   const {
@@ -10937,6 +11094,8 @@ function agCreate(b, opts = {}) {
     st.due = opts.due || '';
     st.carried = opts.carried || [];
     st.issueId = opts.issueId || '';
+    st.owner = opts.owner || '';
+    st.assigner = opts.owner ? DB.me : '';
     // 內文＝母行＋子樹，縮排改成以母行為基準，物件內看起來才是完整的一段。
     const body = ensureSecBlocks(d.secs[0]);
     body.length = 0;
@@ -10976,7 +11135,7 @@ function agCreate(b, opts = {}) {
     focusB(after.id, 0);
     if (opts.apply) opts.apply(d);
     made = d;
-    return [`把這一行${kids.length ? `與底下 ${kids.length} 個子項` : ''}收成議題物件`, '可以排到期日、討論、附檔；結案時要寫下結論', '同時進入物件索引，之後查得到'];
+    return [`把這一行${kids.length ? `與底下 ${kids.length} 個子項` : ''}收成${st.owner ? '任務' : '議題物件'}`, st.owner ? `負責人 ${person(st.owner)}${st.due ? ` · 到期 ${st.due}` : ' · 還沒有到期日'}` : '可以排到期日、討論、附檔；結案時要寫下結論', '同時進入物件索引，之後查得到'];
   });
   return made;
 }
@@ -11003,8 +11162,28 @@ function agPromote(issueId) {
 
 /* ---------- 到期日、延期、結案 ---------- */
 
+/** 作者或被指派的負責人都動得了 —— deny() 的文案本來就是這樣寫的。 */
 function agOwned(d) {
-  return d && d.author === DB.me;
+  return !!d && (d.author === DB.me || agState(d).owner === DB.me);
+}
+
+/**
+ * 指派。空字串＝收回指派，物件退回議題（不再進逾期計算，這是刻意的：
+ * 沒有人扛的事不該一直對著你閃紅字）。
+ */
+function agSetOwner(id, who) {
+  const d = agFind(id);
+  if (!d) return;
+  if (!agOwned(d)) return deny();
+  const st = agState(d);
+  const next = who || '';
+  if (next === st.owner) return;
+  commit('update', '議題物件', docObjectName(d), () => {
+    st.owner = next;
+    st.assigner = next ? DB.me : '';
+    d.updatedAt = Date.now();
+    return next ? [`指派給 ${person(next)}`, st.due ? `到期日 ${st.due}` : '還沒有到期日，記得補上'] : ['收回指派，退回議題', '不再計算逾期'];
+  });
 }
 function agSetDue(id, due) {
   const d = agFind(id);
@@ -11103,14 +11282,33 @@ function agAttach(id) {
 
 /* ---------- 畫面：日誌裡的卡片 ---------- */
 
+/** 狀態 pill：顏色只在這裡出現。四個狀態各自走 --ag-<state>-{bg,br,ink} 三階。 */
+function agStatePill(d) {
+  const k = agTaskState(d);
+  if (k === 'issue') return ''; // 議題不宣告狀態，避免與「待辦」混淆
+  const ic = k === 'done' ? 'check' : k === 'over' ? 'refresh' : 'dot';
+  return `<span class="ag-pill ${k}">${svg(ic, k === 'done' ? 11 : 9)} ${AG_STATE_LABEL[k]}</span>`;
+}
+/** 負責人 pill：頭像已經帶顏色，外框保持中性，不再多開一組色。 */
+function agOwnerPill(d) {
+  const st = agState(d);
+  if (!st.owner) return '';
+  const by = st.assigner && st.assigner !== st.owner ? ` <span class="ag-by">${esc(person(st.assigner))} →</span>` : '';
+  return `<span class="ag-pill own">${by} ${rqAv(st.owner)} ${esc(person(st.owner))}</span>`;
+}
 function agPills(d) {
   const st = agState(d),
     out = [];
-  if (st.doneAt) out.push(`<span class="rq-pill done">${svg('check', 11)} 已結案</span>`);else if (st.due) out.push(`<span class="ag-pill ${st.due < TODAY ? 'over' : st.due === TODAY ? 'due' : 'set'}">${svg('calendar', 11)} ${esc(agDueLabel(st.due))}</span>`);else out.push(`<span class="ag-pill soft">${svg('calendar', 11)} 未排期</span>`);
+  out.push(agStatePill(d));
+  out.push(agOwnerPill(d));
+  if (!st.doneAt) {
+    // 到期 pill 一律中性色：顏色只出現在狀態 pill，一張卡不要有兩個紅的東西。
+    out.push(`<span class="ag-pill soft">${svg('calendar', 11)} ${esc(agDueLabel(st.due))}</span>`);
+  }
   if (st.carried.length) out.push(`<span class="ag-pill warn">${svg('refresh', 11)} 帶過 ${st.carried.length} 次</span>`);
   if (st.msgs.length) out.push(`<span class="ag-pill soft">${svg('message', 11)} ${st.msgs.length}</span>`);
   if (st.files.length) out.push(`<span class="ag-pill soft">${svg('paperclip', 11)} ${st.files.length}</span>`);
-  return out.join('');
+  return out.filter(Boolean).join('');
 }
 function agFilesHtml(d) {
   const st = agState(d);
@@ -11156,12 +11354,12 @@ renderDocObjectCard = function (b) {
     collapsed = !!d.collapsed,
     st = agState(d);
   return `
-  <div class="eb-obj eb-doc-card ag-card ${st.doneAt ? 'ag-done' : ''} ${collapsed ? 'collapsed' : 'expanded'}" data-doc-id="${d.id}">
+  <div class="eb-obj eb-doc-card ag-card ${st.doneAt ? 'ag-done' : ''} ${agOverdue(d) ? 'ag-over' : ''} ${collapsed ? 'collapsed' : 'expanded'}" data-doc-id="${d.id}">
     <div class="eb-doc-bar">
       <div class="eb-doc-bar-left" ${bind("click", (event, element) => {
     toggleDocCollapse(d.id);
   })}>
-        <span class="chip ${meta.chip}">${svg('flag', 11)} ${meta.nm}</span>
+        <span class="chip ${meta.chip}">${svg('flag', 11)} ${agIsTask(d) ? '任務' : meta.nm}</span>
         <span class="eb-doc-bar-title">${esc(docObjectName(d))}</span>
         <span class="ag-pills">${agPills(d)}</span>
       </div>
@@ -11187,6 +11385,20 @@ renderDocObjectCard = function (b) {
 
 /* ---------- 畫面：議題頁（抽屜） ---------- */
 
+/** 指派控制：兩人制就是兩顆按鈕加一顆「不指派」，不值得做成下拉。 */
+function agOwnerControls(d) {
+  const st = agState(d);
+  if (st.doneAt) return st.owner ? `<b>${esc(person(st.owner))}</b>` : '<span class="ag-pill soft">未指派</span>';
+  const who = Object.keys(DB.people);
+  return `<span class="ag-due">${who.map(w => `
+    <button class="btn sm ${st.owner === w ? 'pri' : ''}" ${bind("click", (event, element) => {
+    agSetOwner(d.id, w);
+  })}>${rqAv(w)} ${esc(person(w))}</button>`).join('')}
+    ${st.owner ? `<button class="btn sm" ${bind("click", (event, element) => {
+    agSetOwner(d.id, '');
+  })}>收回指派</button>` : '<span class="ag-pill soft">未指派 · 目前是議題</span>'}
+  </span>`;
+}
 function agDueControls(d) {
   const st = agState(d);
   if (st.doneAt) return `<b>${esc(st.due ? agDueLabel(st.due) : '未排期')}</b>`;
@@ -11215,10 +11427,10 @@ DRAWERS.doc_object = id => {
   const meta = metaOf(d),
     st = agState(d);
   return {
-    crumb: '日誌 › 議題',
+    crumb: agIsTask(d) ? '日誌 › 任務' : '日誌 › 議題',
     title: `<span class="doc-page-title ed" contenteditable="true" data-doc-id="${d.id}" data-ph="輸入議題標題...">${esc(docObjectName(d))}</span>`,
     sub: `<span class="doc-page-meta">
-        <span class="chip ${meta.chip}">${svg('flag', 11)} ${meta.nm}</span>
+        <span class="chip ${meta.chip}">${svg('flag', 11)} ${agIsTask(d) ? '任務' : meta.nm}</span>
         <span class="ag-ref">${esc(d.id)}</span>
         <span>${esc(docObjectTimestamp(d))}</span>
         <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
@@ -11226,9 +11438,10 @@ DRAWERS.doc_object = id => {
     body: `
       <div class="ag-fields">
         <div class="ag-f"><span class="k">提出</span><span class="v"><b>${esc(st.bornDay || d.day)}</b> · ${esc(person(d.author))}</span></div>
+        <div class="ag-f"><span class="k">負責</span><span class="v">${agOwnerControls(d)}</span></div>
         <div class="ag-f"><span class="k">到期</span><span class="v">${agDueControls(d)}</span></div>
         <div class="ag-f"><span class="k">帶過</span><span class="v">${st.carried.length ? `<b>${st.carried.length} 次</b> · ${esc(st.carried.join('、'))}` : '沒有延期過'}</span></div>
-        <div class="ag-f"><span class="k">狀態</span><span class="v">${st.doneAt ? `<span class="rq-pill done">${svg('check', 11)} 已結案</span>` : `<span class="ag-pill due">${svg('dot', 9)} 處理中</span>`}</span></div>
+        <div class="ag-f"><span class="k">狀態</span><span class="v">${agStatePill(d) || '<span class="ag-pill soft">議題 · 尚未指派負責人</span>'}</span></div>
       </div>
       <div class="doc-page-workspace">
         ${d.secs.map((sec, idx) => renderDocSectionBody(d, sec, idx, meta)).join('')}
@@ -11278,7 +11491,7 @@ function agL1Card(t) {
 }
 function agL2Card(d) {
   const st = agState(d);
-  return `<div class="rq-card today ag-rail"><div class="rq-card-t">${esc(docObjectName(d))}</div>
+  return `<div class="rq-card today ag-rail ${agOverdue(d) ? 'ag-over' : ''}"><div class="rq-card-t">${esc(docObjectName(d))}</div>
     <div class="rq-card-m">${agPills(d)}
     <button class="btn sm" ${bind("click", (event, element) => {
     openDocPage(d.id);
@@ -11292,8 +11505,97 @@ function agL2Card(d) {
 function agTodayBody(l1, l2) {
   const objs = l2.slice().sort((a, b) => (agState(a).due || '9999').localeCompare(agState(b).due || '9999'));
   const body = objs.map(agL2Card).join('') + l1.map(agL1Card).join('');
-  return body || '<div class="rq-empty">行尾打 !今天 加入；打 !議題 直接建立議題物件</div>';
+  return body || '<div class="rq-empty">行尾打 !今天 加入；!議題 建立議題；!任務 @某人 ~週五 直接指派</div>';
 }
+
+/* ---------- 畫面：回顧分頁的任務區塊 ---------- */
+
+/**
+ * 回顧本來只有「連續敘事」—— 一條可以往下讀的線，但讀不出結論。
+ * 任務區塊補的就是這件事：這段期間誰欠誰什麼、哪些逾期了、哪些根本沒排期。
+ * 分組順序刻意把「逾期」與「無到期日」放在「已完成」前面 —— 卡住的比做完的值得看。
+ */
+function agReviewGroups() {
+  const all = agTasks().slice().sort((a, b) => (agState(a).due || '9999').localeCompare(agState(b).due || '9999'));
+  const wk = dadd(TODAY, 7);
+  return [{
+    k: 'over',
+    nm: '逾期',
+    ds: all.filter(d => agTaskState(d) === 'over')
+  }, {
+    k: 'doing',
+    nm: '本週到期',
+    ds: all.filter(d => {
+      const st = agState(d);
+      return !st.doneAt && agTaskState(d) !== 'over' && st.due && st.due <= wk;
+    })
+  }, {
+    k: 'todo',
+    nm: '無到期日',
+    ds: all.filter(d => !agState(d).doneAt && !agState(d).due)
+  }, {
+    k: 'done',
+    nm: '已完成',
+    ds: all.filter(d => !!agState(d).doneAt)
+  }].filter(g => g.ds.length);
+}
+function agReviewRow(d) {
+  const st = agState(d),
+    k = agTaskState(d);
+  const meta = [`${esc(st.bornDay || d.day)} 提出`, st.doneAt ? '已結案' : st.due ? esc(agDueLabel(st.due)) : '未排期', st.carried.length ? `帶過 ${st.carried.length} 次` : ''].filter(Boolean);
+  return `<div class="ag-rv-row ${k === 'over' ? 'ag-over' : ''}">
+    <button class="ag-rv-ck ${st.doneAt ? 'on' : ''}" title="${st.doneAt ? '重新開啟' : '完成並結案'}"
+      ${bind("click", (event, element) => {
+    (st.doneAt ? (event, element) => {
+      agReopen(d.id);
+    } : (event, element) => {
+      agComplete(d.id);
+    })(event, element);
+  })}>${svg('check', 11)}</button>
+    <div class="ag-rv-b">
+      <div class="ag-rv-t ${st.doneAt ? 'done' : ''}">${esc(docObjectName(d))}</div>
+      <div class="ag-rv-m">${meta.map(x => `<span>${x}</span>`).join('')}</div>
+    </div>
+    <div class="ag-rv-r">${agOwnerPill(d)}${agStatePill(d)}
+      <button class="btn sm" ${bind("click", (event, element) => {
+    openDocPage(d.id);
+  })}>${svg('goto', 11)} 開啟</button></div>
+  </div>`;
+}
+
+/** 指標只算「有負責人」的，議題不進統計 —— 沒有人扛的事不該被算成欠款。 */
+function agReviewStats() {
+  const t = agTasks(),
+    open = t.filter(d => !agState(d).doneAt);
+  const over = t.filter(d => agTaskState(d) === 'over');
+  const nodue = open.filter(d => !agState(d).due);
+  const mine = open.filter(d => agResponsible(d) === DB.me);
+  return `<div class="ag-rv-kpi">
+    <div><b>${open.length}</b><span>未完成</span></div>
+    <div><b class="${over.length ? 'ag-k-over' : ''}">${over.length}</b><span>逾期</span></div>
+    <div><b>${nodue.length}</b><span>無到期日</span></div>
+    <div><b>${mine.length}</b><span>指給我的</span></div>
+    <div><b>${t.length - open.length}</b><span>本期完成</span></div>
+  </div>`;
+}
+function agReviewHtml() {
+  const groups = agReviewGroups();
+  if (!agTasks().length) {
+    return panel('任務', '0 項', `<div class="rq-empty">回顧讀不出結論，通常是因為沒有人被指名。<br>
+      在日誌行尾打 <b>!任務 @某人 ~週五</b>，這裡就會長出可以追的清單。</div>`);
+  }
+  const body = agReviewStats() + groups.map(g => `<div class="ag-rv-g"><span class="ag-pill ${g.k}">${g.nm}</span><span class="ag-rv-n">${g.ds.length} 項</span></div>
+     ${g.ds.map(agReviewRow).join('')}`).join('');
+  return panel('任務', `${agTasks().filter(d => !agState(d).doneAt).length} 項未完成 · 依到期日`, body, '', true);
+}
+
+// 回顧分頁＝連續敘事（讀）＋任務（追）。敘事留在原位，任務接在前面。
+const agBaseJournalView = VIEWS.journal;
+VIEWS.journal = function (tab) {
+  const base = agBaseJournalView(tab);
+  if (tab !== 1 || space !== 'team') return base;
+  return agReviewHtml() + base;
+};
 
 /* ---------- 收工檢查 ---------- */
 
@@ -13965,7 +14267,7 @@ function cfAttach(id) {
   });
 }
 function cfDropzone() {
-  return `<div class="cf-drop" ${bind("dragover", (event, element) => {
+  return `<div class="cf-drop" style="margin-bottom:0" ${bind("dragover", (event, element) => {
     event.preventDefault();
     element.classList.add('over');
   })} ${bind("dragleave", (event, element) => {
@@ -14012,18 +14314,19 @@ function cfInboxView() {
   const drafts = own.filter(x => x.st === 'draft');
   const sent = own.filter(x => x.st !== 'draft' && x.st !== 'discarded').slice(0, 12);
   const missing = DB.txns.filter(t => !t.v.length && t.author === DB.me);
-  let h = cfDropzone();
-  if (isOwner()) {
-    const ap = cfApprovals();
-    h += panel('需要你核准', ap.length ? ap.length + ' 筆代墊' : '', ap.length ? `<div class="rows">${ap.map(r => {
+  // 沒有東西的區塊不畫：空的「待補」「需要你核准」只是噪音。
+  let h = '';
+  const ap = isOwner() ? cfApprovals() : [];
+  if (ap.length) {
+    h += panel('需要你核准', ap.length + ' 筆代墊', `<div class="rows">${ap.map(r => {
       const x = DB.intake.find(y => y.reimb === r.id);
       return `<div class="row cf-li"><span class="m">${(r.d || '').slice(5)}</span><span class="t">${esc(r.t)}<small>${person(r.who)} 代墊${x && x.p ? ' · ' + esc(cfProjLabel(x.p)) : ''}</small></span><span class="n">${nt(r.amt)}</span><button class="btn sm pri" ${bind("click", (event, element) => {
         event.stopPropagation();
         advReimb(r.id);
       })}>核准</button></div>`;
-    }).join('')}</div>` : '<div class="empty">沒有等你核准的代墊</div>', '', true);
+    }).join('')}</div>`, '', true);
   }
-  h += panel('待補', drafts.length ? drafts.length + ' 筆' : '', drafts.length ? `<div class="rows">${drafts.map(x => {
+  if (drafts.length) h += panel('待補', drafts.length + ' 筆', `<div class="rows">${drafts.map(x => {
     const miss = cfMissing(x);
     return `<div class="cf-item">${x.file ? cfFileTile(x.file, x.id) : `<span class="cf-thumb cf-doc">${svg('file', 18)}</span>`}
       <div class="cf-item-b"><div class="cf-item-t"><b>${esc(x.t)}</b>${x.amt != null ? `<span class="n">${nt(x.amt)}</span>` : ''}</div>
@@ -14032,13 +14335,14 @@ function cfInboxView() {
       ${S.cfEditing === x.id ? '' : `<button class="btn sm pri" ${bind("click", (event, element) => {
       cfEdit(x.id);
     })}>補齊</button>`}</div>`;
-  }).join('')}</div>` : '<div class="empty">沒有要補的單據</div>', '', true);
+  }).join('')}</div>`, '', true);
   if (missing.length) h += panel('需要你補憑證', missing.length + ' 筆交易', `<div class="rows">${missing.map(t => `<div class="row cf-li"><span class="m">${t.d.slice(5)}</span><span class="t">${esc(t.t)}<small>缺原始憑證，沒有入帳依據</small></span><span class="n">${nt(t.amt)}</span><button class="btn sm" ${bind("click", (event, element) => {
     event.stopPropagation();
     cfAttach(t.id);
   })}>上傳</button></div>`).join('')}</div>`, '', true);
   if (sent.length) h += panel('最近送出', '', `<div class="rows">${sent.map(x => `<div class="row cf-li"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${esc(cfProjLabel(x.p))}</small></span><span class="n">${x.amt != null ? nt(x.amt) : '—'}</span>${cfSentStatus(x)}</div>`).join('')}</div>`, '', true);
-  return h;
+  if (!h) h = `<div class="cf-muted" style="text-align:center;padding:8px 0">收件匣是空的。有收據就交進來，缺什麼系統會提醒你補。</div>`;
+  return `<div class="cf-stack">${cfDropzone()}${h}</div>`;
 }
 
 /** 核准代墊不再自動以「公司層級／場地」寫進帳本：它進待歸帳，由記帳者補類別。 */
@@ -14771,6 +15075,173 @@ VIEWS.money = tab => {
     DB.txns = all;
   }
 };
+
+/* ==================================================================
+   表單 = 彈跳視窗（modal）；抽屜 = 檢視詳情
+
+   v5 原型把表單引擎掛在右側抽屜上（openForm -> openDrawer('form')），
+   於是「看一筆交易」跟「填一張表」共用同一個面，兩者互相覆蓋：
+   從詳情按編輯，詳情就不見了；存檔後抽屜整個關掉，回不到原本的脈絡。
+
+   這一層把表單搬到置中彈跳視窗，抽屜留給詳情：
+     - 填表時背後的詳情還在，存檔後直接重繪，不必重新打開；
+     - 破壞性確認（confirmDelete / typeToConfirm）仍走 #modalWrap，
+       z-index 疊在表單視窗之上，兩者不搶同一個容器。
+
+   只改「表單開在哪裡」。驗證、connective effects、commit/undo、
+   權限守衛（opGuard / editable）全部沿用既有引擎，沒有第二套表單邏輯。
+   ================================================================== */
+
+let fmReturn = null;
+root.insertAdjacentHTML('beforeend', `<div class="fm-wrap" id="formModalWrap" ${bind("click", (event, element) => {
+  if (event.target === element) cancelFormModal();
+})}>
+ <div class="fm" role="dialog" aria-modal="true" aria-labelledby="fmTitle">
+  <div class="fm-h">
+   <div class="fm-ht">
+    <div class="fm-crumb" id="fmCrumb"></div>
+    <h3 id="fmTitle"></h3>
+    <p id="fmSub"></p>
+   </div>
+   <button class="iconbtn" type="button" id="fmClose" title="關閉（Esc）" aria-label="關閉表單" ${bind("click", (event, element) => {
+  cancelFormModal();
+})}>${svg('x', 15)}</button>
+  </div>
+  <div class="fm-b" id="fmBody"></div>
+  <div class="fm-f" id="fmFoot"></div>
+ </div>
+</div>`);
+$('#formModalWrap').inert = true;
+function formModalOpen() {
+  const w = $('#formModalWrap');
+  return !!w && w.classList.contains('on');
+}
+function paintFormModal() {
+  if (!FORM) return;
+  const crumb = $('#fmCrumb'),
+    sub = $('#fmSub');
+  crumb.textContent = FORM.crumb || '表單';
+  $('#fmTitle').innerHTML = esc(FORM.title || '');
+  sub.innerHTML = FORM.sub || '';
+  sub.style.display = FORM.sub ? '' : 'none';
+  $('#fmBody').innerHTML = formBody();
+  const del = FORM.onDelete ? `<button class="btn dgr" type="button" ${bind("click", (event, element) => {
+    FORM.onDelete();
+  })}>${svg('trash')} 刪除</button>` : '';
+  $('#fmFoot').innerHTML = `${del}<span class="fm-sp"></span>
+    <button class="btn" type="button" ${bind("click", (event, element) => {
+    cancelFormModal();
+  })}>取消</button>
+    <button class="btn pri" type="button" ${bind("click", (event, element) => {
+    saveForm();
+  })}>${esc(FORM.saveLabel || '儲存')}</button>`;
+}
+function openFormModal() {
+  const w = $('#formModalWrap');
+  if (!formModalOpen()) fmReturn = shadow.activeElement || fmReturn;
+  paintFormModal();
+  w.inert = false;
+  w.classList.add('on');
+  setTimeout(() => $('#fmBody').querySelector('input,textarea,select,[tabindex="0"],button')?.focus(), 0);
+}
+function closeFormModal() {
+  const w = $('#formModalWrap');
+  if (!w.classList.contains('on')) return;
+  w.classList.remove('on');
+  w.inert = true;
+  FORM = null;
+  if (fmReturn?.isConnected) fmReturn.focus();
+  fmReturn = null;
+}
+
+/** 取消＝放棄這張表；背後的詳情抽屜保持原狀。 */
+function cancelFormModal() {
+  const c = FORM;
+  closeFormModal();
+  if (c && c.onCancel) c.onCancel();
+}
+
+/* 表單一律開在彈跳視窗。cfg.replace 原本是抽屜堆疊語意，現在無意義：
+   詳情本來就留在背後，不需要被表單取代。 */
+openForm = function (cfg) {
+  FORM = cfg;
+  openFormModal();
+};
+
+/* 與原引擎同一套驗證與存檔順序，只有「存完關哪一層」不同：
+   關表單視窗，然後重繪背後的詳情，而不是把詳情一起關掉。 */
+saveForm = function () {
+  const c = FORM;
+  if (!c) return;
+  const vals = {};
+  let bad = null;
+  c.fields.forEach(f => {
+    const v = fVal(f.k);
+    vals[f.k] = v;
+    const el = getById('f_' + f.k);
+    const empty = v == null || String(v).trim() === '';
+    if (el) el.classList.toggle('err', !!(f.req && empty));
+    if (f.req && empty && !bad) bad = f.label;
+  });
+  const err = getById('fErr');
+  if (bad) {
+    err.textContent = '「' + bad + '」為必填';
+    err.classList.add('on');
+    err.setAttribute('role', 'alert');
+    return;
+  }
+  err.classList.remove('on');
+  validateForm(c, vals);
+  c.onSave(vals);
+  if (FORM !== c) return;
+  if (!c.keepOpen) {
+    closeFormModal();
+    if (S.stack.length) paintDrawer();
+  }
+};
+
+/* 表單欄位在存檔前被改寫（formTxn 加數量／單價、formRepoFile 綁文件版本）
+   時會呼叫 paintDrawer() 重畫。表單已不在抽屜裡，改為重畫視窗；
+   抽屜空堆疊時不得呼叫原函式，否則 S.stack[-1] 為 undefined 會丟例外。 */
+const fmBasePaintDrawer = paintDrawer;
+paintDrawer = function () {
+  if (formModalOpen()) paintFormModal();
+  if (S.stack.length) fmBasePaintDrawer();
+};
+
+/* onDelete 一律走 confirmDelete -> closeDrawer()：在原型時代，那一行關掉的就是
+   「裝著表單的抽屜」。表單搬進視窗後，同一行只會關掉背後的詳情，表單會停在
+   一筆已經刪掉的紀錄上。所以 closeDrawer 一併收掉表單視窗——刪除本來就該把
+   兩層都收掉。存檔則相反：saveForm 不碰抽屜，讓使用者回到更新後的詳情。 */
+const fmBaseCloseDrawer = closeDrawer;
+closeDrawer = function (...args) {
+  if (formModalOpen()) closeFormModal();
+  return fmBaseCloseDrawer(...args);
+};
+
+/* 原型把 'form' 當成一種抽屜型別。保留回退路徑，但導向視窗，
+   避免任何殘留的 openDrawer('form') 又把表單畫回抽屜。 */
+const fmBaseOpenDrawer = openDrawer;
+openDrawer = function (type, id, replace) {
+  if (type === 'form') {
+    if (FORM) openFormModal();
+    return;
+  }
+  return fmBaseOpenDrawer(type, id, replace);
+};
+
+/* Esc 先關表單視窗。用 document 的捕獲階段攔截，因為原型與 extensions
+   都在冒泡階段掛了 Escape -> closeDrawer()，那會把背後的詳情一起關掉。 */
+doc.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !formModalOpen()) return;
+  if ($('#modalWrap.on') || $('#cmdkWrap.on') || $('#summon.on')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  cancelFormModal();
+}, {
+  capture: true,
+  signal: controller.signal
+});
 paintUser();
 renderRail();
 render();

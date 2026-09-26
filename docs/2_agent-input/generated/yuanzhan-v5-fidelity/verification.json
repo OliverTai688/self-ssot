@@ -1,5 +1,49 @@
 {
-  "results": [],
+  "results": [
+    {
+      "mode": "showcase",
+      "test": "v5 shell metrics / no inline handlers",
+      "shell": {
+        "topbar": {
+          "x": 0,
+          "y": 33,
+          "w": 1440,
+          "h": 48,
+          "bg": "rgb(17, 20, 24)",
+          "font": "-apple-system, \"system-ui\", \"Segoe UI\", \"Noto Sans TC\", \"PingFang TC\", \"Microsoft JhengHei\", sans-serif",
+          "size": "14px"
+        },
+        "rail": {
+          "x": 0,
+          "y": 81,
+          "w": 78,
+          "h": 952,
+          "bg": "rgb(17, 20, 24)",
+          "font": "-apple-system, \"system-ui\", \"Segoe UI\", \"Noto Sans TC\", \"PingFang TC\", \"Microsoft JhengHei\", sans-serif",
+          "size": "14px"
+        },
+        "head": {
+          "x": 78,
+          "y": 133,
+          "w": 1362,
+          "h": 53,
+          "bg": "rgb(17, 20, 24)",
+          "font": "-apple-system, \"system-ui\", \"Segoe UI\", \"Noto Sans TC\", \"PingFang TC\", \"Microsoft JhengHei\", sans-serif",
+          "size": "14px"
+        },
+        "surface": {
+          "x": 78,
+          "y": 186,
+          "w": 1362,
+          "h": 847,
+          "bg": "rgb(17, 20, 24)",
+          "font": "-apple-system, \"system-ui\", \"Segoe UI\", \"Noto Sans TC\", \"PingFang TC\", \"Microsoft JhengHei\", sans-serif",
+          "size": "14px"
+        },
+        "handlers": 0
+      }
+    }
+  ],
   "errors": [],
   "mutations": []
 }

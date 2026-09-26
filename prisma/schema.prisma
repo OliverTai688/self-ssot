@@ -2136,8 +2136,12 @@ model OperatingDayLog {
   actorId      String?  @map("actor_id") @db.Uuid
   /// 席位字串（yz / lily）。工作台顯示與著色看的是這個
   actorKey     String?  @map("actor_key")
-  /// 工作台顯示用的時間字串（'10:20'）
+  /// 工作台顯示用的時間字串（'10:20'）。這是**掛在 onDate 那天**的時間，
+  /// 回頭補記時它是補記當下的時鐘，在 onDate 的時間軸上並不成立 —— 看 occurredAt 才知道真的是何時寫的
   atTime       String   @map("at_time")
+  /// 真正發生（寫下）的時刻。與 onDate 不同天，就是補記。
+  /// 可空：這張表先上線、這個欄位後補，舊列由 createdAt 頂上
+  occurredAt   DateTime? @map("occurred_at")
   /// start | close | act
   kind         String   @default("act")
   text         String

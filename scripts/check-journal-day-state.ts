@@ -102,6 +102,12 @@ function storeFixture(): Record<string, unknown> {
       { id: 'DL-a-003', day: DAY, w: 'yz', t: '10:05', kind: 'act', text: '召喚「工作」' },
       { id: 'DL-a-004', day: DAY, w: 'lily', t: '10:20', kind: 'act', text: '留言' },
       { id: 'DL-a-005', day: DAY, w: 'yz', t: '18:30', kind: 'close', text: '收工' },
+      // 回頭補的一列：掛在今天，卻是隔天 11:05 才寫下的。
+      // t 故意取 09:05 —— 照 t 排序的話它會插到當天最前面，排在 09:12 的開工之前。
+      {
+        id: 'DL-a-006', day: DAY, w: 'lily', t: '09:05', kind: 'act', text: '補上昨天的請款',
+        at: Date.parse(`${DAY}T09:05:00`) + 26 * 3600e3,
+      },
     ],
     todayIssues: [
       { id: 'TDY-a-001', author: 'yz', day: DAY, blockId: 'b-1', text: '燈具廠商還沒回，要追', at: Date.parse(`${DAY}T10:30:00Z`) },
@@ -183,12 +189,32 @@ async function main() {
 
   // ── 今日脈絡 ────────────────────────────────────────────────────────────
   const dayLogs = (db.dayLogs ?? []) as Array<Record<string, unknown>>
-  check('今日脈絡沒有被掛載時清空', dayLogs.length === 5, `${dayLogs.length} 列`)
+  check('今日脈絡沒有被掛載時清空', dayLogs.length === 6, `${dayLogs.length} 列`)
   check('今日脈絡在畫面上，不是「今天還沒有動靜」', !text.includes('今天還沒有動靜'))
   check('今日脈絡看得到宇星那幾筆', text.includes('召喚「工作」'))
   check('今日脈絡看得到 Lily 那幾筆', text.includes('10:20'))
   const bothNames = text.includes('宇星') && text.includes('Lily')
   check('同一條時間軸上兩個人都標了名字', bothNames)
+
+  // ── 補記：掛在這一天、但不是這一天寫的 ─────────────────────────────────
+  //
+  // 守的是一條看畫面才看得出來的線：回頭補的那一列，時間是補記當下的時鐘，
+  // 照它排序會插進當天的序列裡，變成一個沒發生過的順序。它必須另外分區。
+  const tracks = root.querySelectorAll('.jc-tl')
+  const liveText = (tracks[0]?.textContent || '').replace(/\s+/g, ' ').trim()
+  const lateText = (tracks[1]?.textContent || '').replace(/\s+/g, ' ').trim()
+  check('補記另外分一區', tracks.length === 2, `${tracks.length} 條時間軸`)
+  check('畫面上說得出那是補記', text.includes('事後補記'))
+  check('補記沒有混進當天的序列', !liveText.includes('補上昨天的請款'), liveText.slice(0, 40))
+  check('補記排在當天序列之後', lateText.includes('補上昨天的請款'), lateText)
+  // 09:05 排在 09:12 之前 —— 沒有分區的話，補記就是從這裡插進來的。
+  check('當天序列的第一列還是開工那一筆', liveText.startsWith('09:12'), liveText.slice(0, 20))
+  const lateDay = new Date(Date.parse(`${DAY}T09:05:00`) + 26 * 3600e3)
+  check(
+    '補記印的是真實的日期時間，不是那一列的 t',
+    lateText.includes(`${lateDay.getMonth() + 1}/${lateDay.getDate()}`) && !lateText.includes('09:05'),
+    lateText,
+  )
 
   // 「開始一天」從脈絡推回來，而不是另外存一份狀態。
   check('標題列顯示開始一天的時刻', text.includes('09:12') || (root.textContent || '').includes('09:12'))
@@ -241,6 +267,8 @@ async function main() {
   const issueDone = changes.find((c) => c.collection === 'todayIssues' && c.id === 'TDY-a-001')
   check('標記完成之後，脈絡多出來的那一列有被送出去', Boolean(loggedDay), JSON.stringify(loggedDay?.after ?? null))
   check('脈絡列帶著是誰做的', loggedDay?.after?.w === 'yz')
+  // 沒有 at，這一列之後就分不出是當天寫的還是補的 —— 補記標注整個失效。
+  check('脈絡列帶著真實時刻', typeof loggedDay?.after?.at === 'number', String(loggedDay?.after?.at))
   check('今日議題的完成時刻有被送出去', Boolean(issueDone?.after?.doneAt), JSON.stringify(issueDone?.after ?? null))
 
   workbench.destroy()

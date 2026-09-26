@@ -165,6 +165,22 @@ const BLACK: V5Palette = {
   "--rq-warn-br": "#6a4520",
   "--rq-done-br": "#2d4d3d",
   "--rq-flash": "#7c8cff",
+
+  /* 任務狀態三階（底/線/字）— 見 journal-task-and-card-language-decision */
+  "--ag-over-bg": "#2a1416",
+  "--ag-over-br": "#5e2a2c",
+  "--ag-over-ink": "#ff8a8c",
+  /* 大面積的洗色比 pill 的底更淡：整列鋪色才不會變成一條色帶。 */
+  "--ag-over-tint": "#1d1417",
+  "--ag-doing-bg": "#0f1726",
+  "--ag-doing-br": "#2c3a5c",
+  "--ag-doing-ink": "#4ea1ff",
+  "--ag-todo-bg": "#161a20",
+  "--ag-todo-br": "#333b45",
+  "--ag-todo-ink": "#959fad",
+  "--ag-done-bg": "#10221a",
+  "--ag-done-br": "#2a4a3a",
+  "--ag-done-ink": "#5fd09a",
 }
 
 const WHITE: V5Palette = {
@@ -245,6 +261,22 @@ const WHITE: V5Palette = {
   "--rq-warn-br": "#fed7aa",
   "--rq-done-br": "#bbf7d0",
   "--rq-flash": "#4f46e5",
+
+  /* 任務狀態三階（底/線/字）— 見 journal-task-and-card-language-decision */
+  "--ag-over-bg": "#fdf6f4",
+  "--ag-over-br": "#eed8d1",
+  "--ag-over-ink": "#b0472d",
+  /* 大面積的洗色比 pill 的底更淡：整列鋪色才不會變成一條色帶。 */
+  "--ag-over-tint": "#fdf8f6",
+  "--ag-doing-bg": "#eff6ff",
+  "--ag-doing-br": "#bfdbfe",
+  "--ag-doing-ink": "#1d4ed8",
+  "--ag-todo-bg": "#f4f4f6",
+  "--ag-todo-br": "#e0e2e6",
+  "--ag-todo-ink": "#5f6572",
+  "--ag-done-bg": "#f1f8f4",
+  "--ag-done-br": "#cfe4d8",
+  "--ag-done-ink": "#15803d",
 }
 
 const ORANGE: V5Palette = {

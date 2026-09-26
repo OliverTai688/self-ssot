@@ -890,7 +890,12 @@ async function applyComment(change: RowChange, ctx: ApplyContext): Promise<void>
     targetType,
     targetRef: str(row.parent) ?? str(row.blockId) ?? "",
     body: str(row.x) ?? "",
-    meta: toJson({ ts: row.ts ?? null, day: row.day ?? null, blockId: row.blockId ?? null }, {}),
+    // 行內留言的 author 是「那一行屬於誰的日誌」，不是留言的人（那是 w）。
+    // 少存它，讀回來只剩 authorKey 可用，別人日誌上的留言就對不回那一行，重整即消失。
+    meta: toJson(
+      { ts: row.ts ?? null, day: row.day ?? null, blockId: row.blockId ?? null, lineAuthor: str(row.author) ?? null },
+      {},
+    ),
     deletedAt: null,
   }
 
@@ -1039,6 +1044,9 @@ async function applyDayLog(change: RowChange, ctx: ApplyContext): Promise<void> 
     actorId: (actorKey ? ctx.actors.get(actorKey) : undefined) ?? null,
     actorKey,
     atTime: str(row.t) ?? "",
+    // onDate 是「掛在哪一天」，occurredAt 是「真的何時寫的」。回頭補記時兩者不同天，
+    // 而 atTime 記的是補記當下的時鐘 —— 在 onDate 的時間軸上是假的。工作台靠這個差別分區顯示。
+    occurredAt: toInstant(row.at),
     kind: str(row.kind) ?? "act",
     text: str(row.text) ?? "",
   }
