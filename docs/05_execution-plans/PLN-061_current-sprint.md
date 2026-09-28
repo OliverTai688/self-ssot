@@ -1,5 +1,21 @@
 # Current Sprint
 
+## Owner-directed 日誌檔案物件 P0 — 2026-09-28
+
+`ASSET-001`..`ASSET-004` 已完成實作，**無 UI 變化**。Owner 要的是「日誌能從電腦或手機上傳圖片／文件／音訊／影片到 R2，而且可以 `@` 他們」。盤點後發現這件事已經做完一半：R2 預簽上傳與瀏覽器直傳在 `R2STORE-002`／`003` 就通了，缺的是**檔案沒有自己的 id 與參考碼**，所以進不了 `mentionHits()`、`@` 不到、物件索引也掃不到。
+
+本輪立契約：新表 `operating_assets`（純新增、無回填）；分級白名單與上限（圖片 25／文件 50／音訊 200／影片 500 MB，D1 保守版）；POST **先建列再發網址**（反過來會在 bucket 裡留下查不清的孤兒 bytes）；新增 PATCH finalize 以 `HeadObject` 核對大小才轉 `ready`；孤兒清理腳本與既有兩條上傳路徑的 finalize 接線。
+
+參考碼改由**伺服器**指派——這正是 `YZUI-020`（撞號 → 寫入佇列卡死 → 渲染無限遞迴）殘留缺口一節自己寫下的根治方式，檔案物件從第一天就這樣做。
+
+**順手補掉一個既有的授權漏洞**：下載路由原本只檢查 key 開頭是 `operating/`，任何有席位的人拿到 key 就能下載別人 `space:'personal'` 的私人文件。改為必須找得到引用它的那一列、且該列對此席位可見。
+
+**阻擋部署兩件（皆需 Owner 在本機執行）**：`pnpm db:generate`（解掉 12 個 `operatingAsset` 型別錯誤——`binaries.prisma.sh` 在沙箱回 403，跑不了 generate）與 `pnpm db:deploy`（套用 `20260928120000_operating_assets`；本輪刻意未套用，因為 `migrate dev` 會 diff 整份 schema，見 `MIG-003` 2026-07-22 addendum）。
+
+驗收 42/42 PASS（`pnpm ops:assets:check`），既有 harness 全數無回歸。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260928-journal-asset-object-p0.md)、提案 `journal-asset-upload-proposals.html`。
+
+下一個是 `ASSET-005`（P1 日誌入口與物件化：四道門、卡片、`@` 引用、索引 facet）——屬 `UI-088` Revision Mode 的行為變更，**需 Owner 點頭**。D2（文件庫／金流是否收斂到同一張表）仍待決。
+
 ## Owner-directed 議題任務化與卡片色彩 — 2026-09-25
 
 `YZUI-029` 已完成實作。日誌的議題物件補上 `owner`／`assigner`，**有負責人就是任務、沒有就是議題** —— 同一個物件的兩種狀態，不是新型別。狀態由 `owner`／`due`／`doneAt` 推導，不存 `status`。行內 `!任務 @某人 ~週五` 一句話建立並指派；回顧分頁多一段任務區塊（逾期／本週／無到期日／已完成）。

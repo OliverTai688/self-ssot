@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日誌檔案物件：上傳 → R2 → 可 @ 引用的介面提案</title>
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f7f8fa; --surface-3:#eef0f4;
+  --border:#e4e7ec; --border-2:#d3d8e0;
+  --text:#191c20; --text-2:#5b6370; --text-3:#98a0ad;
+  --pri:#3b5bdb; --pri-soft:#eef2fe;
+  --teal:#0f9b8e; --teal-soft:#e6f6f4;
+  --info:#2f80d8; --info-soft:#e9f2fd;
+  --warn:#c07a00; --warn-soft:#fdf3e0;
+  --ok:#17845a; --ok-soft:#e6f5ee;
+  --neutral:#6b7280; --neutral-soft:#f0f1f4;
+  --danger:#c0392b; --danger-soft:#fdeceb;
+  --pri-line:#d4defb; --warn-line:#f0dcae; --danger-line:#e6b9b3;
+  --thumb-a:#dfe4ee; --thumb-b:#eef0f4;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1300px;margin:0 auto;padding:30px 20px 90px}
+h1{font-size:23px;margin:0 0 6px;letter-spacing:-.01em}
+.lede{color:var(--text-2);margin:0 0 10px;max-width:78ch}
+.lede b{color:var(--text)}
+.stamp{display:inline-flex;align-items:center;gap:7px;background:var(--pri-soft);color:var(--pri);
+  border:1px solid var(--pri-line);border-radius:20px;padding:3px 12px;font-size:12px;margin:0 6px 18px 0}
+.stamp.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
+code{font-family:var(--mono);font-size:12.5px;background:var(--surface-3);
+  border:1px solid var(--border);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+h2.sec{font-size:16px;margin:38px 0 10px;padding-top:4px;border-top:1px solid var(--border-2)}
+h2.sec:first-of-type{border-top:0}
+h2.sec span{color:var(--text-3);font-weight:400;font-size:13px;margin-left:8px}
+h3.sub{font-size:13.5px;margin:20px 0 8px;color:var(--text)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.card+.card{margin-top:10px}
+p{margin:0 0 10px}
+ul{margin:0 0 10px;padding-left:20px}
+li{margin-bottom:4px}
+.muted{color:var(--text-2)}
+.small{font-size:12.5px}
+
+/* 分數 */
+.score{display:grid;grid-template-columns:1fr 300px;gap:14px}
+@media(max-width:860px){.score{grid-template-columns:1fr}}
+table.sc{width:100%;border-collapse:collapse;font-size:13px}
+table.sc th,table.sc td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--border)}
+table.sc th{color:var(--text-3);font-weight:500;font-size:12px}
+table.sc td.n{font-family:var(--mono);text-align:right;width:56px;color:var(--text-2)}
+table.sc td.n.up{color:var(--ok);font-weight:600}
+.gauge{display:flex;flex-direction:column;justify-content:center;gap:10px}
+.gauge .big{font-size:13px;color:var(--text-2)}
+.gauge .big b{font-size:30px;color:var(--text);font-family:var(--mono);letter-spacing:-.02em}
+.bar{height:8px;border-radius:5px;background:var(--surface-3);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pri)}
+.bar.was i{background:var(--text-3)}
+.gauge small{color:var(--text-3);font-size:12px}
+
+/* 通用表 */
+table.ev{width:100%;border-collapse:collapse;font-size:13px}
+table.ev th,table.ev td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+table.ev th{color:var(--text-3);font-weight:500;font-size:12px;white-space:nowrap;background:var(--surface-2)}
+table.ev tr:last-child td{border-bottom:0}
+table.ev td.k{white-space:nowrap;font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+
+/* 狀態標 */
+.tag{display:inline-block;border-radius:5px;padding:1px 7px;font-size:11.5px;font-weight:500;white-space:nowrap}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.no{background:var(--danger-soft);color:var(--danger)}
+.tag.part{background:var(--warn-soft);color:var(--warn)}
+.tag.p1{background:var(--pri-soft);color:var(--pri)}
+.tag.p2{background:var(--info-soft);color:var(--info)}
+.tag.p3{background:var(--teal-soft);color:var(--teal)}
+.tag.p4{background:var(--neutral-soft);color:var(--neutral)}
+
+/* 缺口卡 */
+.gaps{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px}
+.gap{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--danger);
+  border-radius:11px;padding:13px 15px}
+.gap .no{font-family:var(--mono);font-size:11px;color:var(--danger);background:var(--danger-soft);
+  border-radius:5px;padding:1px 7px;display:inline-block;margin-bottom:7px}
+.gap h4{margin:0 0 6px;font-size:13.5px}
+.gap p{margin:0 0 7px;color:var(--text-2);font-size:12.8px;line-height:1.65}
+.gap .fix{font-size:12.5px;border-top:1px solid var(--border);padding-top:7px;margin-top:2px}
+.gap .fix b{color:var(--ok)}
+
+/* 圖 */
+figure{margin:0 0 8px;background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px 14px 10px;overflow-x:auto}
+figcaption{font-size:12px;color:var(--text-3);margin-top:8px;padding:0 4px}
+svg{display:block;max-width:100%;height:auto}
+
+/* 模擬卡片 */
+.mock{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.mock-lbl{font-size:11.5px;color:var(--text-3);font-family:var(--mono);margin-bottom:7px}
+.eb{display:flex;gap:8px;align-items:flex-start;margin-bottom:4px}
+.eb .bullet{width:6px;height:6px;border-radius:50%;background:var(--pri);margin-top:9px;flex:none}
+.eb .tx{font-size:13.5px;padding-top:1px}
+.eb .tx .men{background:var(--pri-soft);color:var(--pri);border-radius:4px;padding:1px 5px;
+  font-size:12.5px;font-family:var(--mono)}
+.obj{border:1px solid var(--border-2);border-radius:10px;background:var(--surface-2);
+  padding:10px 12px;margin:5px 0 5px 14px;max-width:620px}
+.obj-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.obj-h .ti{font-size:13.2px;font-weight:600;overflow-wrap:anywhere}
+.obj-h .rc{font-family:var(--mono);font-size:10.5px;color:var(--text-3);margin-left:auto}
+.chip{border-radius:5px;padding:1px 7px;font-size:11px;font-weight:500;white-space:nowrap}
+.c-img{background:var(--teal-soft);color:var(--teal)}
+.c-doc{background:var(--pri-soft);color:var(--pri)}
+.c-aud{background:var(--warn-soft);color:var(--warn)}
+.c-vid{background:var(--info-soft);color:var(--info)}
+.obj-p{display:flex;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:11.8px;color:var(--text-2)}
+.obj-p b{color:var(--text);font-weight:600}
+.thumb{width:100%;max-width:230px;height:104px;border-radius:7px;margin-top:8px;
+  background:linear-gradient(135deg,var(--thumb-a),var(--thumb-b));border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;color:var(--text-3);font-size:11.5px}
+.prog{height:5px;border-radius:4px;background:var(--surface-3);overflow:hidden;margin-top:9px;max-width:300px}
+.prog i{display:block;height:100%;background:var(--pri);width:62%}
+.wave{display:flex;align-items:flex-end;gap:2px;height:30px;margin-top:9px;max-width:300px}
+.wave i{flex:1;background:var(--border-2);border-radius:1px}
+.player{display:flex;align-items:center;gap:9px;margin-top:9px;max-width:330px}
+.player .pl{width:26px;height:26px;border-radius:50%;background:var(--pri);flex:none;
+  display:flex;align-items:center;justify-content:center}
+.player .track{flex:1;height:4px;border-radius:3px;background:var(--surface-3);position:relative}
+.player .track i{display:block;height:100%;width:34%;background:var(--pri);border-radius:3px}
+.player .t{font-family:var(--mono);font-size:11px;color:var(--text-3)}
+
+/* 決策 */
+.dec{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--warn);
+  border-radius:11px;padding:13px 15px;margin-bottom:9px}
+.dec h4{margin:0 0 5px;font-size:13.5px}
+.dec h4 .no{font-family:var(--mono);font-size:11px;color:var(--warn);background:var(--warn-soft);
+  border-radius:5px;padding:1px 7px;margin-right:7px}
+.dec .opt{font-size:12.8px;color:var(--text-2);margin:5px 0 0;padding-left:18px}
+.dec .rec{font-size:12.5px;margin-top:8px;border-top:1px solid var(--border);padding-top:7px}
+.dec .rec b{color:var(--ok)}
+
+/* 分期 */
+.phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}
+.ph{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 14px}
+.ph .h{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.ph .h b{font-size:13.5px}
+.ph ul{padding-left:17px;margin:0;font-size:12.6px;color:var(--text-2)}
+.ph ul li{margin-bottom:3px}
+.ph .acc{font-size:12px;border-top:1px solid var(--border);margin-top:9px;padding-top:7px;color:var(--text-2)}
+.ph .acc b{color:var(--text)}
+
+/* 清單 */
+ol.acc{counter-reset:a;list-style:none;padding:0;margin:0;
+  columns:2;column-gap:22px}
+@media(max-width:860px){ol.acc{columns:1}}
+ol.acc li{counter-increment:a;font-size:13px;padding:6px 0 6px 28px;position:relative;
+  border-bottom:1px solid var(--border);break-inside:avoid}
+ol.acc li::before{content:counter(a);position:absolute;left:0;top:7px;width:19px;height:19px;
+  border-radius:5px;background:var(--surface-3);color:var(--text-2);font-family:var(--mono);
+  font-size:11px;display:flex;align-items:center;justify-content:center}
+
+.killed{font-size:13px}
+.killed b{color:var(--danger);font-weight:600}
+.killed div{padding:7px 0;border-bottom:1px solid var(--border)}
+.killed div:last-child{border-bottom:0}
+.killed em{font-style:normal;color:var(--text-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>日誌檔案物件：上傳 → Cloudflare R2 → 可 <code>@</code> 引用</h1>
+<p class="lede">
+把圖片、文件（docx / xlsx / pptx / pdf）、音訊、影片從電腦或手機丟進日誌，bytes 直接進 Cloudflare R2，
+而檔案本身<b>變成一個物件</b> —— 有參考碼、進得了物件索引、在任何一行打 <code>@</code> 就引用得到。
+</p>
+<span class="stamp">Proposal · 2026-09-28 · 尚未實作</span>
+<span class="stamp warn">含 5 項須 Owner 決定</span>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">一、這件事有一半已經做完了<span>先盤點，才知道真正缺什麼</span></h2>
+
+<p class="muted">這不是從零開始的功能。R2 的管線在 <code>PLN-064</code> 已經走到 Stage 4A，
+日誌的物件機制在 <code>YZUI-012</code> 已經有物件索引。缺的是<b>把兩者接起來</b>。</p>
+
+<div class="tw" style="margin-bottom:10px">
+<table class="ev">
+<thead><tr><th style="width:190px">能力</th><th style="width:96px">現況</th><th>證據 / 落差</th></tr></thead>
+<tbody>
+<tr><td>R2 帳號、bucket、憑證</td><td><span class="tag ok">已有</span></td>
+  <td><code>R2STORE-000</code> DONE。<code>R2_ACCOUNT_ID</code> / <code>R2_BUCKET_NAME</code> 等環境變數已設。</td></tr>
+<tr><td>預簽網址（上傳／下載）</td><td><span class="tag ok">已有</span></td>
+  <td><code>src/lib/storage/presigned-url.ts</code>：PUT 15 分鐘、GET 5 分鐘，伺服器簽、不落地。</td></tr>
+<tr><td>營運工作台上傳路由</td><td><span class="tag ok">已有</span></td>
+  <td><code>src/app/api/company/operating/uploads/route.ts</code>：POST 換上傳網址、GET 換下載網址，含席位檢查。</td></tr>
+<tr><td>瀏覽器直傳 R2</td><td><span class="tag ok">已有</span></td>
+  <td><code>extensions.source.js</code> 的 <code>presignUpload()</code> + <code>putToR2()</code>，bytes 不經 Next.js。</td></tr>
+<tr><td>檔案持久化</td><td><span class="tag part">半套</span></td>
+  <td><code>OperatingLibraryFile.versions[]</code> 存 <code>objectKey</code>。但那是文件庫抽屜的東西，
+      日誌看不到、物件索引掃不到。</td></tr>
+<tr><td>日誌物件機制（<code>#</code> 召喚 / <code>@</code> 引用）</td><td><span class="tag ok">已有</span></td>
+  <td><code>summonHits()</code> 生新物件、<code>mentionHits()</code> 引既有物件、
+      <code>replaceWithObj()</code> 嵌成 <code>{t:'obj'}</code> 區塊。</td></tr>
+<tr><td>物件索引（搜尋／facet／回到來源行）</td><td><span class="tag ok">已有</span></td>
+  <td><code>object-index.source.js</code>，19/19 harness PASS。</td></tr>
+<tr><td>日誌裡上傳檔案</td><td><span class="tag no">沒有</span></td>
+  <td>日誌編輯器沒有任何檔案入口。沒有 drop、沒有 paste 檔案、<code>#</code> 選單裡沒有「附件」。</td></tr>
+<tr><td>docx / xlsx / pptx / 音訊 / 影片</td><td><span class="tag no">被擋</span></td>
+  <td>路由白名單 <code>/\.(md|txt|csv|json|png|jpe?g|webp|pdf)$/i</code>，
+      上限 <code>5 * 1024 * 1024</code>。Office 檔與所有影音都被拒。</td></tr>
+<tr><td>檔案可以被 <code>@</code></td><td><span class="tag no">沒有</span></td>
+  <td><code>mentionHits()</code> 只列 issue／project／txn／decision／event／doc_object。檔案不是物件。</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">二、真正的三個缺口<span>不是「還沒做上傳」那麼簡單</span></h2>
+
+<div class="gaps">
+  <div class="gap">
+    <span class="no">缺口 1</span>
+    <h4>檔案不是物件，所以 <code>@</code> 不到</h4>
+    <p>系統裡「可以被 <code>@</code>」的定義很明確：出現在 <code>mentionHits()</code> 裡、有 <code>ty</code> 與 <code>rid</code>、
+      能被 <code>replaceWithObj()</code> 嵌成區塊、<code>objHtml()</code> 畫得出卡片、<code>objJump()</code> 打得開。
+      檔案五樣都沒有。</p>
+    <p class="fix"><b>解法</b>　新增物件型別 <code>asset</code>，把這五個接點各補一條分支。</p>
+  </div>
+  <div class="gap">
+    <span class="no">缺口 2</span>
+    <h4>白名單與 5 MB 上限是為「文字檔＋憑證照片」設計的</h4>
+    <p>現在的限制不是隨便訂的 —— 它配合的是文件庫那批 md／csv／發票照。
+      一份 pptx 動輒 20 MB，一段會議錄音 80 MB，一支手機影片 300 MB。
+      這不是把數字調大就好：<b>大檔需要續傳，5 MB 檔不需要</b>。</p>
+    <p class="fix"><b>解法</b>　白名單依 kind 分級，各自一個上限；超過門檻改走 multipart。</p>
+  </div>
+  <div class="gap">
+    <span class="no">缺口 3</span>
+    <h4>日誌沒有入口，而手機根本沒有入口</h4>
+    <p>上傳目前只存在於「文件」抽屜的按鈕。日誌是每天寫東西的地方，卻連貼上截圖都不行。
+      手機上更麻煩：<code>#</code> 選單要打字才叫得出來，而拖放不存在。</p>
+    <p class="fix"><b>解法</b>　四道門收斂成一個 <code>assetIntake()</code>；手機那道門是系統原生的拍照／相簿／檔案。</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">三、需求理解分數<span>AGENTS.md §7 閘門</span></h2>
+
+<div class="card score">
+  <table class="sc">
+    <thead><tr><th>面向</th><th class="n">滿分</th><th class="n">研究前</th><th class="n">研究後</th></tr></thead>
+    <tbody>
+      <tr><td>Actor／任務清晰度</td><td class="n">20</td><td class="n">16</td><td class="n up">19</td></tr>
+      <tr><td>PRD／本地證據契合</td><td class="n">20</td><td class="n">11</td><td class="n up">19</td></tr>
+      <tr><td>資料／BFF／API 清晰度</td><td class="n">20</td><td class="n">12</td><td class="n up">18</td></tr>
+      <tr><td>UI 互動／參考模式信心</td><td class="n">15</td><td class="n">8</td><td class="n up">13</td></tr>
+      <tr><td>風險／權限／公開輸出邊界</td><td class="n">15</td><td class="n">7</td><td class="n up">12</td></tr>
+      <tr><td>驗收與驗證清晰度</td><td class="n">10</td><td class="n">4</td><td class="n up">8</td></tr>
+    </tbody>
+  </table>
+  <div class="gauge">
+    <div class="big">研究前 <b>58</b> / 100 · Low</div>
+    <div class="bar was"><i style="width:58%"></i></div>
+    <small>Low 需跑 5 輪研究優化</small>
+    <div class="big" style="margin-top:6px">研究後 <b>89</b> / 100 · High</div>
+    <div class="bar"><i style="width:89%"></i></div>
+    <small>可轉為可執行任務形狀。扣分集中在「權限」與「驗收」—— 影音 TTL 與文件庫合併兩件事還沒定案。</small>
+  </div>
+</div>
+
+<h3 class="sub">五輪研究各自改了什麼</h3>
+<div class="tw">
+<table class="ev">
+<thead><tr><th style="width:150px">輪次 · 鏡頭</th><th style="width:300px">發現</th><th>改了設計的哪一處</th></tr></thead>
+<tbody>
+<tr><td><b>R1</b><br><span class="small muted">本地程式碼契合</span></td>
+  <td>上傳管線已存在且可用，但埋在文件庫抽屜；<code>OperatingLibraryFile.versions[]</code> 已有 <code>objectKey</code> 前例。</td>
+  <td><b>採用</b> 重用 <code>/api/company/operating/uploads</code> 的形狀而非另建一套。<b>否決</b> 為日誌寫平行的上傳實作
+      （<code>PLN-064</code> Stage 4 明文：「reusing Stage 2's route rather than a parallel implementation」）。</td></tr>
+<tr><td><b>R2</b><br><span class="small muted">R2 官方行為</span></td>
+  <td>單次 PUT 上限 5 GiB、物件上限 5 TiB、multipart 最多 10,000 段；預簽網址 1 秒至 7 天；
+      R2 只支援 GET／HEAD／PUT／DELETE 的預簽，<b>HTML form POST 不支援</b>。</td>
+  <td><b>採用</b> multipart 由伺服器 create／complete、只把 UploadPart（PUT）預簽給瀏覽器。
+      <b>否決</b> 以「5 GiB 上限」當作要不要 multipart 的判準 —— 真正的理由是<b>續傳</b>，不是大小。</td></tr>
+<tr><td><b>R3</b><br><span class="small muted">資料／BFF 邊界</span></td>
+  <td><code>SCH-005</code> 定了 <code>FileAsset</code>／<code>MediaAsset</code>；<code>RES-018</code> 定參考碼
+      <code>{TYPE}-{ORIGIN}-{SEQ:6}-{YYYYMMDD}</code>，建立時指派一次、永不重生成。</td>
+  <td><b>採用</b> 沿用同一組儲存欄位與參考碼格式 <code>AST-JRNL-000123-20260928</code>。
+      <b>否決</b> 用檔名當物件身分 —— 檔名會改、會重複，正是 <code>RES-018</code> 要防的引用失效。</td></tr>
+<tr><td><b>R4</b><br><span class="small muted">風險／權限邊界</span></td>
+  <td>現行 GET 路由只檢查 <code>key</code> 開頭是 <code>operating/</code>。<b>任何有席位的人，
+      只要拿到 key 就能換到任何一個檔的下載網址</b> —— 包含別人的 <code>space:'personal'</code> 私人文件。</td>
+  <td><b>採用</b> 下載前先查 DB 這個 asset 的 workspace 與 space／作者再簽；key 前綴加上 workspaceId。
+      <b>否決</b> 「內部兩人用，先不管」—— 這個洞在加入音訊影片後只會更值錢。</td></tr>
+<tr><td><b>R5</b><br><span class="small muted">驗收／驗證切分</span></td>
+  <td>雲端沙箱跑不了 <code>next dev</code>（缺 linux/arm64 <code>@next/swc</code>），
+      <code>verify-yuanzhan-v5.cjs</code> 需要真瀏覽器。上傳是 I/O 行為，純資料 harness 驗不到。</td>
+  <td><b>採用</b> 驗收切兩半：管線純函式（key 產生、白名單、分級、狀態機）進可重跑的 node harness；
+      實際 round trip 與四主題／390px 由 Owner 在本機做。<b>否決</b> 宣稱「已驗證」而只跑了 typecheck。</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">四、流程設計：四道門，一條管線<span>入口分歧，之後完全收斂</span></h2>
+
+<figure>
+<svg viewBox="0 0 1180 300" role="img" aria-label="四種上傳入口收斂到單一 assetIntake 函式，再進入四段式上傳管線">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--text-3)"/>
+    </marker>
+  </defs>
+  <text x="0" y="14" font-size="11.5" fill="var(--text-3)" font-family="ui-monospace,monospace">四道門</text>
+
+  <g font-size="12.5" fill="var(--text)">
+    <rect x="0" y="28" width="196" height="40" rx="9" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="14" y="45">拖放檔案到日誌行</text>
+    <text x="14" y="60" font-size="10.5" fill="var(--text-3)">桌機 · drop 事件</text>
+
+    <rect x="0" y="76" width="196" height="40" rx="9" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="14" y="93">貼上 ⌘V</text>
+    <text x="14" y="108" font-size="10.5" fill="var(--text-3)">截圖最常走這條</text>
+
+    <rect x="0" y="124" width="196" height="40" rx="9" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="14" y="141"># 召喚 → 附件</text>
+    <text x="14" y="156" font-size="10.5" fill="var(--text-3)">與現有召喚語法同一套</text>
+
+    <rect x="0" y="172" width="196" height="46" rx="9" fill="var(--surface)" stroke="var(--pri)" stroke-dasharray="3 3"/>
+    <text x="14" y="189">行首 ＋ → 拍照／相簿／檔案</text>
+    <text x="14" y="204" font-size="10.5" fill="var(--pri)">手機唯一可靠的那道門</text>
+  </g>
+
+  <path d="M200 48 C 236 48, 236 120, 268 120" fill="none" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+  <path d="M200 96 C 236 96, 236 118, 268 118" fill="none" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+  <path d="M200 144 C 236 144, 236 122, 268 122" fill="none" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+  <path d="M200 194 C 236 194, 236 124, 268 124" fill="none" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+
+  <rect x="272" y="94" width="168" height="54" rx="10" fill="var(--pri-soft)" stroke="var(--pri)"/>
+  <text x="288" y="117" font-size="12.5" fill="var(--pri)" font-family="ui-monospace,monospace">assetIntake()</text>
+  <text x="288" y="134" font-size="10.5" fill="var(--text-2)">files[] · blockId · origin</text>
+
+  <path d="M444 121 L 486 121" fill="none" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+
+  <text x="492" y="14" font-size="11.5" fill="var(--text-3)" font-family="ui-monospace,monospace">一條管線</text>
+  <g font-size="12" fill="var(--text)">
+    <rect x="492" y="28" width="158" height="186" rx="10" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="506" y="50" font-size="11" fill="var(--pri)" font-family="ui-monospace,monospace">S1</text>
+    <text x="506" y="68" font-size="12.5">前端閘門</text>
+    <text x="506" y="84" font-size="10.5" fill="var(--text-2)">副檔名 · MIME · 分級上限</text>
+    <text x="506" y="100" font-size="10.5" fill="var(--text-2)">不合格當場退，不打伺服器</text>
+    <line x1="506" y1="112" x2="636" y2="112" stroke="var(--surface-3)"/>
+    <text x="506" y="132" font-size="11" fill="var(--pri)" font-family="ui-monospace,monospace">S2</text>
+    <text x="506" y="150" font-size="12.5">POST 換預簽網址</text>
+    <text x="506" y="166" font-size="10.5" fill="var(--text-2)">同時建 DB 列 uploading</text>
+    <text x="506" y="182" font-size="10.5" fill="var(--text-2)">指派參考碼 · key 由伺服器決定</text>
+    <text x="506" y="200" font-size="10.5" fill="var(--ok)">→ 樂觀卡片此刻就出現</text>
+
+    <rect x="666" y="28" width="158" height="186" rx="10" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="680" y="50" font-size="11" fill="var(--pri)" font-family="ui-monospace,monospace">S3</text>
+    <text x="680" y="68" font-size="12.5">瀏覽器直傳 R2</text>
+    <text x="680" y="84" font-size="10.5" fill="var(--text-2)">bytes 不經過 Next.js</text>
+    <text x="680" y="104" font-size="10.5" fill="var(--text-2)">小檔：單次 PUT</text>
+    <text x="680" y="120" font-size="10.5" fill="var(--text-2)">大檔：multipart 分段</text>
+    <line x1="680" y1="132" x2="810" y2="132" stroke="var(--surface-3)"/>
+    <text x="680" y="152" font-size="10.5" fill="var(--text-2)">進度回寫卡片</text>
+    <text x="680" y="168" font-size="10.5" fill="var(--text-2)">斷線 → 續傳未完成的段</text>
+    <text x="680" y="188" font-size="10.5" fill="var(--danger)">失敗 → 卡片停在 failed</text>
+
+    <rect x="840" y="28" width="158" height="186" rx="10" fill="var(--surface)" stroke="var(--border)"/>
+    <text x="854" y="50" font-size="11" fill="var(--pri)" font-family="ui-monospace,monospace">S4</text>
+    <text x="854" y="68" font-size="12.5">finalize</text>
+    <text x="854" y="84" font-size="10.5" fill="var(--text-2)">伺服器 HeadObject 核對</text>
+    <text x="854" y="100" font-size="10.5" fill="var(--text-2)">大小／ETag 對得上才算數</text>
+    <text x="854" y="120" font-size="10.5" fill="var(--danger)">不信任前端說「傳好了」</text>
+    <line x1="854" y1="132" x2="984" y2="132" stroke="var(--surface-3)"/>
+    <text x="854" y="152" font-size="10.5" fill="var(--text-2)">status → ready</text>
+    <text x="854" y="168" font-size="10.5" fill="var(--text-2)">寫入 sizeBytes／contentHash</text>
+
+    <rect x="1014" y="28" width="166" height="186" rx="10" fill="var(--ok-soft)" stroke="var(--ok)"/>
+    <text x="1028" y="50" font-size="11" fill="var(--ok)" font-family="ui-monospace,monospace">S5</text>
+    <text x="1028" y="68" font-size="12.5">成為物件</text>
+    <text x="1028" y="86" font-size="10.5" fill="var(--text-2)">日誌區塊 t:'obj' ty:'asset'</text>
+    <text x="1028" y="104" font-size="10.5" fill="var(--text-2)">進物件索引</text>
+    <text x="1028" y="122" font-size="10.5" fill="var(--text-2)">進 mentionHits</text>
+    <line x1="1028" y1="134" x2="1166" y2="134" stroke="var(--border)"/>
+    <text x="1028" y="156" font-size="11.5" fill="var(--ok)">從此任何一行打</text>
+    <text x="1028" y="174" font-size="12" fill="var(--ok)" font-family="ui-monospace,monospace">@ 合約 v3</text>
+    <text x="1028" y="192" font-size="10.5" fill="var(--text-2)">都引用得到同一份</text>
+  </g>
+
+  <path d="M654 121 L 662 121" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+  <path d="M828 121 L 836 121" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+  <path d="M1002 121 L 1010 121" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar)"/>
+
+  <text x="492" y="248" font-size="11" fill="var(--text-3)">關鍵：S2 一回來就畫卡片（uploading），使用者不必盯著空白等。S4 才把它變成可引用的 ready。</text>
+  <text x="492" y="268" font-size="11" fill="var(--text-3)">失敗的檔案<tspan font-weight="600" fill="var(--text-2)">留在日誌上</tspan>並帶「重試」，而不是默默消失 —— 那一行的上下文就是它為什麼被上傳。</text>
+</svg>
+<figcaption>四道門 → <code>assetIntake()</code> → 五段管線。每一段的失敗都有落點，沒有一段會讓檔案無聲蒸發。</figcaption>
+</figure>
+
+<h3 class="sub">為什麼是這四道門</h3>
+<div class="card">
+<table class="ev">
+<thead><tr><th style="width:150px">門</th><th style="width:96px">裝置</th><th>理由與代價</th></tr></thead>
+<tbody>
+<tr><td><b>拖放到某一行</b></td><td>桌機</td>
+  <td>放在哪一行，檔案就誕生在哪一行 —— 與 <code>#</code> 召喚的「物件誕生在這一行」同一個心智模型。
+      需要在 <code>.eb</code> 上加 <code>drop</code>，但那裡<b>已經有 <code>dragover</code>／<code>drop</code> 處理區塊拖曳</b>，
+      必須先判斷 <code>dataTransfer.files.length</code> 才不會打架。</td></tr>
+<tr><td><b>貼上 ⌘V</b></td><td>桌機</td>
+  <td>截圖是最高頻的一種「檔案」。<code>runtime.js:7900</code> 已有 <code>paste</code> 監聽（只取純文字），
+      加一條 <code>clipboardData.files</code> 分支即可。截圖沒有檔名，需自動命名
+      <code>截圖 09-28 14:32.png</code>。</td></tr>
+<tr><td><b><code>#</code> 召喚 → 附件</b></td><td>兩者皆可</td>
+  <td>不發明新語法。使用者已經知道「<code>#</code> 生出東西」，附件也是生出一個物件。
+      在 <code>SUMMON</code> 的「物件」組加一項，<code>applySummon</code> 走檔案選擇器而非 <code>openForm</code>。</td></tr>
+<tr><td><b>行首 ＋ → 三選一</b></td><td>手機為主</td>
+  <td>手機沒有拖放、⌘V 不好按、<code>#</code> 要切輸入法。原生解法是三個 <code>&lt;input type="file"&gt;</code>：
+      <code>accept="image/*" capture="environment"</code>（拍照）、<code>accept="image/*,video/*"</code>（相簿）、
+      不限（檔案）。iOS／Android 會自己叫出正確的系統選單。</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">五、大檔：multipart 的真正理由<span>不是 5 GiB 上限，是續傳</span></h2>
+
+<div class="card">
+<p>R2 單次 PUT 可以吃到 5 GiB，所以就算一支 500 MB 的影片，技術上也能一次 PUT 完。
+問題在於：<b>單次 PUT 沒有中繼點</b>。手機在電梯裡掉訊號，480 MB 全部重來。</p>
+
+<p>因此門檻不該訂在 R2 的能力上限，而訂在「重傳一次會不會讓人想砸手機」。建議 <b>64 MB</b>：</p>
+
+<div class="tw" style="margin:12px 0">
+<table class="ev">
+<thead><tr><th style="width:120px">檔案大小</th><th style="width:150px">路徑</th><th>行為</th></tr></thead>
+<tbody>
+<tr><td>≤ 64 MB</td><td>單次預簽 PUT</td><td>現有 <code>putToR2()</code> 不用改。失敗就整份重來，代價可接受。</td></tr>
+<tr><td>&gt; 64 MB</td><td>multipart（8 MB／段）</td>
+  <td>伺服器 <code>CreateMultipartUpload</code> → 逐段預簽 <code>UploadPart</code>（PUT）給瀏覽器 →
+      瀏覽器並行 3 段 → 伺服器 <code>CompleteMultipartUpload</code>。斷線只重傳未完成的段。</td></tr>
+</tbody>
+</table>
+</div>
+
+<p class="small muted">
+R2 的預簽只支援 GET／HEAD／PUT／DELETE，<b>不支援 HTML form 的 POST</b>。
+而 <code>CreateMultipartUpload</code> 與 <code>CompleteMultipartUpload</code> 在 S3 API 裡正是 POST ——
+所以這兩步<b>必須留在伺服器用憑證直接呼叫</b>，只有中間的 UploadPart 能預簽下放。
+這剛好也是比較安全的切法：瀏覽器永遠拿不到能開新 upload 的權限。
+</p>
+<p class="small muted">
+上限：每個 multipart 最多 10,000 段；8 MB × 10,000 = 80 GB，遠超任何實際需求。
+段大小除最後一段外必須一致。
+</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">六、卡片長什麼樣<span>五種 kind，同一個骨架</span></h2>
+
+<p class="muted">沿用 <code>objHtml()</code> 既有的 <code>.eb-obj</code> 骨架（chip + 標題 + 參考碼 + 一列 <code>.pf</code> 欄位），
+只在骨架下方依 kind 換掉「主體」那一塊。這樣卡片在日誌、在文件物件段落、在物件索引時間軸都長一樣。</p>
+
+<div class="mock">
+<div class="mock-lbl">日誌 · 上傳中（S2 之後、S4 之前）</div>
+<div class="eb"><span class="bullet"></span><span class="tx">客戶那邊回的比價表，我先存起來</span></div>
+<div class="obj">
+  <div class="obj-h"><span class="chip c-doc">試算表</span><span class="ti">供應商比價_v3.xlsx</span>
+    <span class="rc">AST-JRNL-000124-20260928</span></div>
+  <div class="obj-p"><span>上傳中 <b>62%</b></span><span>大小 <b>4.2 MB</b></span><span>剩約 <b>3 秒</b></span></div>
+  <div class="prog"><i></i></div>
+</div>
+
+<div class="mock-lbl" style="margin-top:22px">日誌 · 圖片（ready）</div>
+<div class="eb"><span class="bullet"></span><span class="tx">白板上的流程，先拍下來</span></div>
+<div class="obj">
+  <div class="obj-h"><span class="chip c-img">圖片</span><span class="ti">截圖 09-28 14:32.png</span>
+    <span class="rc">AST-JRNL-000125-20260928</span></div>
+  <div class="thumb">縮圖 · 點擊開燈箱</div>
+  <div class="obj-p"><span>1920 × 1080</span><span>大小 <b>842 KB</b></span><span>被引用 <b>2</b> 次</span></div>
+</div>
+
+<div class="mock-lbl" style="margin-top:22px">日誌 · 音訊（ready）</div>
+<div class="eb"><span class="bullet"></span><span class="tx">跟 Lily 討論定價的錄音</span></div>
+<div class="obj">
+  <div class="obj-h"><span class="chip c-aud">音訊</span><span class="ti">定價討論_0928.m4a</span>
+    <span class="rc">AST-JRNL-000126-20260928</span></div>
+  <div class="player">
+    <span class="pl"><svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0 L9 5 L0 10 z" fill="var(--surface)"/></svg></span>
+    <span class="track"><i></i></span>
+    <span class="t">08:12 / 23:40</span>
+  </div>
+  <div class="obj-p"><span>大小 <b>21 MB</b></span><span>轉錄 <b>尚未</b></span></div>
+</div>
+
+<div class="mock-lbl" style="margin-top:22px">日誌 · 文件（ready，P1 只給下載）</div>
+<div class="obj">
+  <div class="obj-h"><span class="chip c-doc">簡報</span><span class="ti">Q4 提案_客戶版.pptx</span>
+    <span class="rc">AST-JRNL-000127-20260928</span></div>
+  <div class="obj-p"><span>18 頁</span><span>大小 <b>14 MB</b></span><span>下載 ↓</span><span>內容已索引 <b>是</b></span></div>
+</div>
+
+<div class="mock-lbl" style="margin-top:22px">另一天的日誌 · 用 <code>@</code> 引用同一份（沒有產生第二個檔）</div>
+<div class="eb"><span class="bullet"></span><span class="tx">依 <span class="men">@供應商比價_v3.xlsx</span> 的 B 方案往下談</span></div>
+<div class="obj">
+  <div class="obj-h"><span class="chip c-doc">試算表</span><span class="ti">供應商比價_v3.xlsx</span>
+    <span class="rc">AST-JRNL-000124-20260928</span></div>
+  <div class="obj-p"><span>誕生於 <b>09-28 日誌</b></span><span>大小 <b>4.2 MB</b></span><span>被引用 <b>3</b> 次</span></div>
+</div>
+
+<div class="mock-lbl" style="margin-top:22px">失敗狀態 · 留在原地，不消失</div>
+<div class="obj" style="border-color:var(--danger-line);background:var(--danger-soft)">
+  <div class="obj-h"><span class="chip" style="background:#fff;color:var(--danger)">上傳失敗</span>
+    <span class="ti">會議錄影_0927.mp4</span></div>
+  <div class="obj-p"><span style="color:var(--danger)">傳到 41% 時斷線</span><span>重試 ↻</span><span>移除 ×</span></div>
+</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">七、預覽做到哪裡<span>分級，不要什麼都做</span></h2>
+
+<div class="card" style="margin-bottom:10px">
+<p><b>docx / xlsx / pptx 瀏覽器不能原生開</b>，這是整個提案裡技術選擇最關鍵的一格。三條路：</p>
+<ul>
+<li><b>(a) 只給圖示與下載</b> —— 零成本，但使用者得離開頁面才看得到內容。</li>
+<li><b>(b) 伺服器轉 PDF</b>（LibreOffice headless）—— 預覽最完整，但 <b>Vercel serverless 跑不動</b>，
+    要另起 container 或 worker。基礎設施成本最高，且會成為新的維運面。</li>
+<li><b>(c) 前端函式庫解析</b>（mammoth.js / SheetJS / JSZip）—— 不需要任何新基礎設施，
+    而且<b>順便拿到文字</b>，可以餵進物件索引的搜尋。</li>
+</ul>
+<p class="small"><b>建議</b>：P1 走 (a) 先上線，P3 走 (c)。(b) 除非 Owner 要求像素級還原，否則不做。</p>
+</div>
+
+<div class="tw">
+<table class="ev">
+<thead><tr><th style="width:150px">格式</th><th style="width:210px">P1（先上線）</th><th style="width:230px">P2／P3</th><th>備註</th></tr></thead>
+<tbody>
+<tr><td><code>png jpg webp gif</code></td><td>卡片縮圖（原圖 CSS 縮放）＋ 點擊燈箱</td>
+  <td>Cloudflare Images 真縮圖<br>（省頻寬，但是另一個付費產品）</td>
+  <td>原圖縮放在 5 MB 內無感，20 MB 相機原圖會卡</td></tr>
+<tr><td><code>pdf</code></td><td><code>&lt;iframe&gt;</code> 內嵌，瀏覽器原生渲染</td>
+  <td>pdf.js 抽文字進搜尋；首頁縮圖</td>
+  <td>手機 Safari 的 iframe PDF 體驗差，需 fallback 成「用新分頁開啟」</td></tr>
+<tr><td><code>docx</code></td><td>圖示 ＋ 下載</td><td>mammoth.js → HTML 預覽 ＋ 抽文字</td>
+  <td>複雜排版會走樣，定位是「讀得到內容」不是「看得到版面」</td></tr>
+<tr><td><code>xlsx</code></td><td>圖示 ＋ 下載</td><td>SheetJS → 前 50 列表格 ＋ 抽儲存格文字</td>
+  <td>公式顯示計算結果不顯示公式</td></tr>
+<tr><td><code>pptx</code></td><td>圖示 ＋ 下載</td><td>JSZip 解 XML 抽每頁標題與文字</td>
+  <td>頁面縮圖需要伺服器渲染，歸在 (b)，不做</td></tr>
+<tr><td><code>mp3 m4a wav</code></td><td>圖示 ＋ 下載</td><td><code>&lt;audio&gt;</code> 播放 ＋ 時長</td>
+  <td>時長需 finalize 時由前端 <code>HTMLMediaElement</code> 讀出後回寫</td></tr>
+<tr><td><code>mp4 mov webm</code></td><td>圖示 ＋ 下載</td><td><code>&lt;video&gt;</code> 播放</td>
+  <td><b>有 TTL 問題，見下一節</b>；<code>mov</code> 在非 Safari 瀏覽器不一定播得動</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3 class="sub">影音的 TTL 坑</h3>
+<div class="card">
+<p>現行下載預簽 TTL 是 <b>5 分鐘</b>。對圖片與 PDF 沒問題 —— 載入就結束了。
+對影音<b>會壞</b>：<code>&lt;video&gt;</code> 是靠 HTTP Range 一段段續讀的，使用者看到第 8 分鐘時再拉一次資料，
+那張網址早就過期，直接 403，播放器只會顯示「無法播放」而不告訴你原因。</p>
+<p class="small muted">三個選項與它們的代價列在第十節「須 Owner 決定」的 D3。</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">八、資料模型<span>沿用 SCH-005 的欄位、RES-018 的參考碼</span></h2>
+
+<div class="card">
+<p class="small muted">新增一張表。欄位刻意與 <code>SCH-005</code> 的 <code>FileAsset</code>／<code>MediaAsset</code> 對齊，
+未來若要合併不必改欄位名。</p>
+<pre style="margin:10px 0 0;padding:14px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:9px;overflow-x:auto;font-family:var(--mono);font-size:12px;line-height:1.7">/// 日誌／文件庫／金流共用的一份檔案資產。origin 記住它是從哪道門進來的。
+model OperatingAsset {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  <b>refCode       String   @unique @map("ref_code")</b>   // AST-JRNL-000124-20260928 · 指派一次，永不重生成
+  kind          String                                  // image | doc | sheet | slide | pdf | audio | video | other
+  displayName   String   @map("display_name")           // 可改；改了不影響 refCode
+  <b>objectKey     String   @map("object_key")</b>            // operating/{workspaceId}/asset/{yyyy-mm}/{uuid}{ext}
+  bucket        String
+  mimeType      String?  @map("mime_type")
+  sizeBytes     Int?     @map("size_bytes")
+  contentHash   String?  @map("content_hash")           // finalize 時由 HeadObject 的 ETag 寫入
+  <b>status        String   @default("uploading")</b>          // uploading | ready | failed
+  uploadId      String?  @map("upload_id")              // multipart 進行中才有；complete 後清空
+  /// team = 全員可見；personal = 只有作者讀得到（下載授權依這欄）
+  space         String   @default("team")
+  authorKey     String?  @map("author_key")
+  origin        String   @default("journal")            // journal | library | cashflow
+  /// 誕生在哪一天的日誌 —— 物件索引的「來源」欄靠它，日誌那行刪了也還在
+  bornDay       DateTime? @map("born_day") @db.Date
+  bornAt        DateTime? @map("born_at")
+  /// 抽出來的純文字，讓物件索引搜得到內容（P3）
+  extractedText String?  @map("extracted_text")
+  /// 音訊／影片的時長與轉錄（P2／P4）
+  durationSec   Int?     @map("duration_sec")
+  transcript    String?
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, status], map: "operating_assets_workspace_status_idx")
+  @@index([workspaceId, bornDay], map: "operating_assets_workspace_day_idx")
+  @@unique([bucket, objectKey], map: "operating_assets_object_key_unique")
+  @@map("operating_assets")
+}</pre>
+</div>
+
+<h3 class="sub">狀態機</h3>
+<figure>
+<svg viewBox="0 0 900 120" role="img" aria-label="asset 狀態機：uploading 到 ready 或 failed，failed 可重試回到 uploading">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--text-3)"/>
+    </marker>
+  </defs>
+  <rect x="0" y="34" width="150" height="40" rx="9" fill="var(--pri-soft)" stroke="var(--pri)"/>
+  <text x="26" y="58" font-size="12.5" fill="var(--pri)">uploading</text>
+  <text x="0" y="92" font-size="10.5" fill="var(--text-3)">S2 建列時即存在</text>
+
+  <path d="M154 54 L 246 54" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar2)"/>
+  <text x="160" y="46" font-size="10.5" fill="var(--text-2)">HeadObject 核對通過</text>
+
+  <rect x="250" y="34" width="150" height="40" rx="9" fill="var(--ok-soft)" stroke="var(--ok)"/>
+  <text x="290" y="58" font-size="12.5" fill="var(--ok)">ready</text>
+  <text x="250" y="92" font-size="10.5" fill="var(--text-3)">只有 ready 進 mentionHits</text>
+
+  <path d="M76 78 C 76 110, 480 112, 480 80" fill="none" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar2)"/>
+  <text x="196" y="110" font-size="10.5" fill="var(--danger)">PUT 失敗／大小對不上／使用者取消</text>
+
+  <rect x="406" y="34" width="150" height="40" rx="9" fill="var(--danger-soft)" stroke="var(--danger)"/>
+  <text x="452" y="58" font-size="12.5" fill="var(--danger)">failed</text>
+
+  <path d="M482 30 C 482 4, 76 4, 76 30" fill="none" stroke="var(--text-3)" stroke-width="1.2" marker-end="url(#ar2)"/>
+  <text x="228" y="16" font-size="10.5" fill="var(--text-2)">重試（同一列、同一個 refCode，換新 objectKey）</text>
+
+  <rect x="606" y="34" width="290" height="40" rx="9" fill="var(--surface)" stroke="var(--border)" stroke-dasharray="3 3"/>
+  <text x="620" y="52" font-size="11" fill="var(--text-2)">排程清理：uploading 超過 24 小時</text>
+  <text x="620" y="68" font-size="11" fill="var(--text-2)">→ 刪 R2 孤兒物件 ＋ 標記 failed</text>
+</svg>
+<figcaption>重試沿用同一列與同一個參考碼 —— 參考碼指派一次就不重生成（<code>RES-018</code>），換掉的只有 R2 的 key。</figcaption>
+</figure>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">九、要改哪些檔<span>接點精確到函式</span></h2>
+
+<div class="tw">
+<table class="ev">
+<thead><tr><th style="width:290px">檔案</th><th style="width:74px">動作</th><th>改什麼</th></tr></thead>
+<tbody>
+<tr><td class="k">prisma/schema.prisma</td><td><span class="tag p1">改</span></td><td>新增 <code>OperatingAsset</code>；migration 為純新增，無回填。</td></tr>
+<tr><td class="k">api/company/operating/uploads/route.ts</td><td><span class="tag p1">改</span></td>
+  <td>白名單依 kind 分級、上限分級；POST 同時建 DB 列並回 <code>refCode</code>；
+      <b>新增 PATCH finalize</b>（HeadObject 核對）；<b>GET 改為查 DB 授權後才簽</b>（補 R4 的洞）；
+      key 前綴加 <code>workspaceId</code>。</td></tr>
+<tr><td class="k">api/company/operating/uploads/multipart/route.ts</td><td><span class="tag p2">新</span></td>
+  <td>create / sign-part / complete / abort 四個動作。</td></tr>
+<tr><td class="k">v5/asset-object.source.js</td><td><span class="tag p1">新</span></td>
+  <td><code>assetIntake()</code>、四道門的接線、上傳狀態機、<code>renderAssetCard()</code>、
+      <code>DRAWERS.asset</code>、燈箱與播放器。</td></tr>
+<tr><td class="k">v5/asset-object.css</td><td><span class="tag p1">新</span></td>
+  <td>卡片、縮圖、進度條、播放器、拖放落點高亮。全走主題 token，不硬編碼色。</td></tr>
+<tr><td class="k">v5/source-patches.mjs</td><td><span class="tag p1">改</span></td>
+  <td>五筆窄 <code>rep()</code>：① <code>mentionHits()</code> 加 <code>DB.assets</code>；
+      ② <code>objHtml()</code> 加 <code>asset</code> 分支；③ <code>objJump()</code> 加 <code>asset</code> 分支；
+      ④ <code>SUMMON</code> 物件組加「附件」；⑤ icon 表補
+      <code>paperclip</code>／<code>image</code>／<code>audio</code>／<code>video</code>／<code>download</code>
+      —— <b>icon 表缺 key 會靜默畫空 svg</b>，這個坑已經踩過兩次。</td></tr>
+<tr><td class="k">v5/object-index.source.js</td><td><span class="tag p1">改</span></td>
+  <td>帳本加入 <code>DB.assets</code>；facet 加「圖片／文件／音訊／影片」；搜尋掃 <code>extractedText</code>。</td></tr>
+<tr><td class="k">v5/extensions.source.js</td><td><span class="tag p4">改</span></td>
+  <td>文件庫 <code>uploadFile()</code> 改走同一條管線；<code>fileList()</code> 改讀 <code>DB.assets</code>
+      （D2 決定後才做）。</td></tr>
+<tr><td class="k">lib/ui-data/yuanzhan/operating-commands</td><td><span class="tag p1">改</span></td>
+  <td><code>snapshotCollections</code> 納入 assets，讓 <code>ARC-042</code> 的 diff 佇列同步這張表。
+      <b>只送 metadata 列，bytes 永遠不進佇列。</b></td></tr>
+<tr><td class="k">scripts/verify-asset-pipeline.mjs</td><td><span class="tag p1">新</span></td>
+  <td>無瀏覽器 harness：key 產生、白名單分級、狀態機轉換、refCode 格式、授權判斷純函式。</td></tr>
+<tr><td class="k" style="color:var(--danger)">runtime.js / styles.ts / v5-seed.js</td><td><span class="tag no">禁改</span></td>
+  <td>生成檔。一律由 <code>scripts/generate-yuanzhan-v5.mjs</code> 重新產生。</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">十、須 Owner 決定的五件事<span>沒定案之前不寫對應的程式碼</span></h2>
+
+<div class="dec">
+  <h4><span class="no">D1</span>各 kind 的單檔上限</h4>
+  <p class="small muted">現況全部 5 MB。影片一定要放寬，但放多寬牽涉 R2 帳單與手機上傳體感。</p>
+  <ul class="opt">
+    <li><b>保守</b>　圖片 25 MB · 文件 50 MB · 音訊 200 MB · 影片 500 MB</li>
+    <li><b>寬鬆</b>　圖片 50 MB · 文件 100 MB · 音訊 500 MB · 影片 2 GB</li>
+  </ul>
+  <p class="rec"><b>建議保守</b>　兩人內部使用，500 MB 已能裝 20 分鐘 1080p。放寬隨時可以，收緊會讓既有檔案變成違規資料。</p>
+</div>
+
+<div class="dec">
+  <h4><span class="no">D2</span>檔案只有一個家，還是兩個</h4>
+  <p class="small muted">現在文件庫用 <code>OperatingLibraryFile</code>，金流憑證在 <code>cashflow-faces.source.js</code> 自己上傳。
+    日誌附件如果再開一張表，同一份檔在系統裡就有三個家 —— 搜尋要搜三次，引用要認三種 id。</p>
+  <ul class="opt">
+    <li><b>合併</b>　<code>OperatingAsset</code> 一張表，<code>origin</code> 分流；文件庫與金流憑證都改成它的檢視。
+      日誌上傳的檔案自動出現在文件庫。</li>
+    <li><b>並存</b>　日誌附件自成一張表，文件庫維持現狀，之後再說。</li>
+  </ul>
+  <p class="rec"><b>建議合併，但分兩步</b>　P0 先只建 <code>OperatingAsset</code> 給日誌用，
+    P4 再把文件庫與金流的讀寫切過來。並存會讓「@ 得到日誌的檔、@ 不到文件庫的檔」變成長期的怪異行為。
+    <b>這是本提案最大的架構變更，需要明確點頭。</b></p>
+</div>
+
+<div class="dec">
+  <h4><span class="no">D3</span>影音播放的網址策略</h4>
+  <p class="small muted">5 分鐘 TTL 會讓影片播到一半 403。</p>
+  <ul class="opt">
+    <li><b>A 延長 TTL</b>　影音專用 1–6 小時（R2 上限 7 天）。最簡單。代價：網址若外流，該時段內任何人可看。</li>
+    <li><b>B 播放器自動換網址</b>　偵測 403／<code>error</code> 事件重簽，記住 <code>currentTime</code> 後接回去。
+      TTL 可維持 5 分鐘，但跨瀏覽器行為不一，seek 時容易卡頓。</li>
+    <li><b>C 自家 Range proxy</b>　<code>/api/.../stream?assetId=</code> 由伺服器代讀。授權最乾淨，
+      但 bytes 改走 Vercel —— R2「出口免費」的好處被吃掉一半，且長影片會壓到 serverless 執行時間上限。</li>
+  </ul>
+  <p class="rec"><b>建議 A，TTL 設 1 小時</b>　bucket 是 private、網址只發給登入過且有席位的人、內容是內部素材。
+    真的有外部分享需求時再上 C。</p>
+</div>
+
+<div class="dec">
+  <h4><span class="no">D4</span>Office 預覽做到哪一級</h4>
+  <ul class="opt">
+    <li><b>只下載</b>　零成本。</li>
+    <li><b>前端解析</b>（建議）　mammoth／SheetJS／JSZip，順便拿到文字餵搜尋。約 +300 KB 前端體積，可延遲載入。</li>
+    <li><b>伺服器轉 PDF</b>　還原度最高，但要新的 container 基礎設施與維運面。</li>
+  </ul>
+  <p class="rec"><b>建議前端解析，排在 P3</b>　P1 先只給下載，不擋上線。</p>
+</div>
+
+<div class="dec">
+  <h4><span class="no">D5</span>刪除語意</h4>
+  <p class="small muted">現行規則是「日誌刪掉那一行，物件不受影響」（<code>runtime.js:4253</code> 的提示文字就這麼寫）。
+    但檔案多了一個問題：物件本身被刪的時候，R2 的 bytes 要不要一起刪？</p>
+  <ul class="opt">
+    <li><b>軟刪</b>　只寫 <code>deletedAt</code>，bytes 永久留在 R2。誤刪救得回來，但儲存費用只增不減。</li>
+    <li><b>軟刪 ＋ 30 天後硬刪</b>　有反悔期，費用可控。需要一支排程。</li>
+  </ul>
+  <p class="rec"><b>建議軟刪 ＋ 30 天</b>　排程可以延到 P4 再寫，欄位現在先留好。</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">十一、權限與安全<span>其中一條是既有的洞</span></h2>
+
+<div class="tw">
+<table class="ev">
+<thead><tr><th style="width:170px">議題</th><th style="width:88px">現況</th><th>提案</th></tr></thead>
+<tbody>
+<tr><td>bucket 公開性</td><td><span class="tag ok">已正確</span></td>
+  <td>維持 private ＋ 伺服器簽網址。<code>RES-022 §3</code>：R2 public bucket 是全有全無，
+      無法表達「私人檔 vs 客戶可見」。</td></tr>
+<tr><td>下載授權</td><td><span class="tag no">有洞</span></td>
+  <td><b>現行 GET 只檢查 key 開頭是 <code>operating/</code>。</b>
+      任何有席位的人拿到 key 就能換下載網址，包含別人 <code>space:'personal'</code> 的私人文件。
+      提案：先查 DB 這個 asset 的 <code>workspaceId</code> 與 <code>space</code>／<code>authorKey</code>，
+      通過才簽。</td></tr>
+<tr><td>object key 形狀</td><td><span class="tag part">半套</span></td>
+  <td>現在是 <code>operating/{yyyy-mm}/{uuid}{ext}</code>，沒有租戶維度。
+      改為 <code>operating/{workspaceId}/asset/{yyyy-mm}/{uuid}{ext}</code>，
+      讓「這個 key 屬於哪個工作區」從 key 本身就看得出來（<code>ARC-033</code> 租戶隔離不變量）。</td></tr>
+<tr><td>可執行內容</td><td><span class="tag part">部分</span></td>
+  <td>副檔名白名單已擋掉 exe／sh。新增時必須明確<b>拒絕巨集格式</b>
+      <code>.docm</code>／<code>.xlsm</code>／<code>.pptm</code>，以及 <code>.svg</code>（可內嵌 script）。</td></tr>
+<tr><td>副檔名偽造</td><td><span class="tag no">沒做</span></td>
+  <td>前端送什麼名字伺服器就信什麼。finalize 時用 HeadObject 拿真實 <code>ContentType</code> 對照；
+      嚴格版需讀 magic bytes，排 P3。</td></tr>
+<tr><td>掃毒</td><td><span class="tag part">欄位存在</span></td>
+  <td><code>scanStatus</code> 在 <code>SCH-005</code> 已有，但永遠 <code>NOT_REQUIRED</code>。
+      兩人內部使用暫不接掃毒服務 —— <b>但要在文件寫明這是已知且接受的風險</b>，
+      而不是假裝這件事不存在。開放給客戶（<code>R2STORE-007</code>）之前必須補。</td></tr>
+<tr><td>bytes 不進寫入佇列</td><td><span class="tag ok">必須守住</span></td>
+  <td><code>ARC-042</code> 的 diff 佇列送的是 1–3 列差異。
+      <b>prototype 模式現在把檔案存成 base64 data URL</b>（<code>extensions.source.js:167</code>）——
+      一旦那條路徑接上持久化，一張 5 MB 的圖會變成約 7 MB 的 JSON 進佇列。
+      asset 只送 metadata，data URL 僅限 prototype 模式且不得持久化。</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">十二、分期<span>每一期都能單獨上線</span></h2>
+
+<div class="phases">
+  <div class="ph">
+    <div class="h"><span class="tag p1">P0</span><b>契約層</b></div>
+    <ul>
+      <li><code>OperatingAsset</code> migration</li>
+      <li>白名單／上限分級</li>
+      <li>POST 建列＋回 refCode</li>
+      <li>PATCH finalize（HeadObject）</li>
+      <li>GET 授權補洞</li>
+      <li>key 加 workspaceId</li>
+    </ul>
+    <p class="acc"><b>驗收</b>　harness 跑純函式；無 UI 變化；既有文件庫上傳不能壞。</p>
+  </div>
+  <div class="ph">
+    <div class="h"><span class="tag p1">P1</span><b>日誌入口 ＋ 物件化</b></div>
+    <ul>
+      <li>四道門 → <code>assetIntake()</code></li>
+      <li>樂觀卡片、進度、重試</li>
+      <li><code>@</code> 引用得到檔案</li>
+      <li>物件索引 facet</li>
+      <li>圖片燈箱 · PDF iframe</li>
+      <li>其他格式：圖示＋下載</li>
+    </ul>
+    <p class="acc"><b>驗收</b>　拖放／貼上／<code>#</code>／手機四條路都到得了 ready；
+      隔天 <code>@</code> 得到同一份且不產生第二個檔。</p>
+  </div>
+  <div class="ph">
+    <div class="h"><span class="tag p2">P2</span><b>大檔與影音</b></div>
+    <ul>
+      <li>multipart（&gt; 64 MB）</li>
+      <li>斷線續傳</li>
+      <li><code>&lt;audio&gt;</code>／<code>&lt;video&gt;</code></li>
+      <li>D3 的 TTL 策略落地</li>
+      <li>時長寫回</li>
+    </ul>
+    <p class="acc"><b>驗收</b>　300 MB 影片中途關 Wi-Fi 再開，能從斷點續完；影片播到 30 分鐘不中斷。</p>
+  </div>
+  <div class="ph">
+    <div class="h"><span class="tag p3">P3</span><b>內容可搜</b></div>
+    <ul>
+      <li>docx／xlsx／pptx 前端抽文字</li>
+      <li>pdf.js 抽文字</li>
+      <li><code>extractedText</code> 進索引搜尋</li>
+      <li>圖片縮圖</li>
+      <li>magic bytes 驗型</li>
+    </ul>
+    <p class="acc"><b>驗收</b>　搜尋 pptx 內頁的一個詞，該檔出現在物件索引並標亮片段。</p>
+  </div>
+  <div class="ph">
+    <div class="h"><span class="tag p4">P4</span><b>收斂</b></div>
+    <ul>
+      <li>文件庫改讀同一張表</li>
+      <li>金流憑證併入</li>
+      <li>反向引用清單</li>
+      <li>軟刪 ＋ 30 天硬刪排程</li>
+      <li>音訊轉錄</li>
+    </ul>
+    <p class="acc"><b>驗收</b>　日誌上傳的檔案出現在文件庫；同一份檔在系統裡只有一個 id。</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">十三、驗收條件<span>P0 + P1 合計 14 條</span></h2>
+
+<div class="card">
+<ol class="acc">
+  <li>拖放一張圖到某一行 → 該行下方出現 uploading 卡片，不是整頁刷新。</li>
+  <li>⌘V 貼上截圖 → 自動命名 <code>截圖 MM-DD HH:mm.png</code> 並上傳。</li>
+  <li><code>#</code> 選單打「附件」找得到，選了會開系統檔案選擇器。</li>
+  <li>手機 390px 寬：行首 ＋ 叫得出拍照／相簿／檔案三選一，版面不爆。</li>
+  <li>拖放檔案時不會誤觸既有的「拖曳區塊排序」。</li>
+  <li>上傳中關掉分頁再回來 → 該列仍是 uploading，卡片顯示「已中斷 · 重試」。</li>
+  <li>finalize 時伺服器 HeadObject 大小對不上 → 狀態 failed，不會變 ready。</li>
+  <li>只有 ready 的 asset 會出現在 <code>@</code> 選單。</li>
+  <li>隔一天在另一行 <code>@</code> 同一個檔 → 引用同一個 id，R2 不產生第二份 bytes。</li>
+  <li>刪掉日誌那一行 → 檔案仍在物件索引，來源欄標「來源日誌那一行已刪除」。</li>
+  <li>物件索引的型別 facet 出現「圖片／文件／音訊／影片」，數量正確、0 筆淡化不隱藏。</li>
+  <li>用另一個席位的帳號拿別人 <code>personal</code> 檔的 key 打 GET → 403，而不是拿到下載網址。</li>
+  <li>上傳 <code>.docm</code> → 被拒，錯誤訊息說得出原因。</li>
+  <li>white／orange／black／brand 四主題下卡片、進度條、播放器皆可讀，無硬編碼 hex。</li>
+</ol>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">十四、被否決的替代方案<span>寫下來，免得三個月後又被提一次</span></h2>
+
+<div class="card killed">
+  <div><b>bytes 經自家伺服器中轉上傳</b>　<em>—— Vercel 的 request body 上限約 4.5 MB，一支影片直接爆；
+    而且會把 R2 出口免費的優勢丟掉。既有的預簽直傳已經是對的做法。</em></div>
+  <div><b>檔案存成 base64 data URL 放進日誌區塊</b>　<em>—— prototype 模式現在就是這樣。
+    一旦接上持久化，5 MB 的圖變成約 7 MB 的 JSON 進 <code>ARC-042</code> 的 diff 佇列。
+    這正是 uploads 路由註解裡寫的那個理由。</em></div>
+  <div><b>用 public bucket 省掉簽網址</b>　<em>—— <code>RES-022 §3</code>：R2 public bucket 全有全無，
+    沒有 per-object 隱私。私人文件與客戶交付物混在同一桶。</em></div>
+  <div><b>伺服器端 LibreOffice 轉 PDF 做 Office 預覽</b>　<em>—— Vercel serverless 跑不動，
+    要新起 container。為了預覽而開一條新的維運面，代價不成比例。</em></div>
+  <div><b>讓檔案只當「附件」，不做成物件</b>　<em>—— 那就 <code>@</code> 不到，等於沒有解到題。
+    附件是黏在某一行的裝飾，物件才有唯一的家、參考碼與反向引用。</em></div>
+  <div><b>用 <code>#</code> 引用既有檔案</b>　<em>—— 違反既有語意：<code>#</code> 生新物件、<code>@</code> 引既有物件。
+    檔案兩邊都要用：<code>#</code> 附件＝上傳新檔（生新物件），<code>@</code> 檔名＝引用既有檔。</em></div>
+  <div><b>為日誌附件另寫一套上傳路由</b>　<em>—— <code>PLN-064</code> Stage 4 已明文要求重用 Stage 2 的路由，
+    而非平行實作。</em></div>
+  <div><b>一次做完 P0–P4</b>　<em>—— 影音、multipart、Office 解析三件事各自有獨立的失敗模式。
+    綁在一起發，任何一個壞掉整包都上不了。</em></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<h2 class="sec">十五、風險與停止條件</h2>
+
+<div class="card">
+<ul>
+<li><b>R2 帳單</b>　R2 出口（egress）免費，這是當初選它的主要理由；但<b>儲存與 Class A 操作要錢</b>。
+  影片一進來，用量級距會跳一階。建議 P2 上線後看一個月實際帳單再決定要不要收緊 D1。</li>
+<li><b>孤兒物件</b>　presign 發出去但使用者關掉分頁，R2 可能已有 bytes 而 DB 是 uploading。
+  排程清理（uploading &gt; 24h）必須和 P0 一起做，不能延後 —— 延後就會累積成一筆查不清的儲存費。</li>
+<li><b>同一 key 併發寫入</b>　R2 對同一 key 的寫入限制是每秒 1 次；因為 key 帶 uuid，正常不會踩到，
+  但「重試」若沿用同一個 key 就可能。所以重試<b>換新 key</b>。</li>
+<li><b>UI-088 Revision Mode</b>　日誌屬 <code>UI-088</code>，狀態 COMPLETED。
+  新增上傳入口是行為變更，依 <code>REF-003:202</code> 需 Product Owner 點頭，且不得新增假 UI ID。</li>
+<li><b>停止條件</b>　若實作中發現需要改 <code>ARC-042</code> 寫入佇列的形狀（例如 assets 不能走同一條 diff），
+  或需要新增任何批次寫入／刪除動作（<code>ARC-030 §8</code> 在稽核機制到位前一律拒絕），<b>停下回報</b>。</li>
+</ul>
+</div>
+
+<h3 class="sub">驗證能做到哪裡</h3>
+<div class="card">
+<p class="small">雲端可驗：<code>node --check</code>、<code>tsc --noEmit</code>、<code>eslint</code>、
+重新產生 runtime、以及新的 <code>scripts/verify-asset-pipeline.mjs</code>（key 產生、白名單分級、
+狀態機轉換、refCode 格式、授權判斷都是純函式，可放進最小樁環境實際執行並重跑）。</p>
+<p class="small">雲端<b>驗不到</b>：實際 R2 round trip、拖放／貼上／手機三選一的真實互動、
+影片續傳、四主題對比、390px 版面。這些必須由 Owner 在本機 <code>npm run dev</code> 操作確認 ——
+<b>在那之前不宣稱驗證完成。</b></p>
+</div>
+
+</div>
+</body>
+</html>

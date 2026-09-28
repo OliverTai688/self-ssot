@@ -360,3 +360,20 @@
   color: var(--text-3);
   padding: 2px 6px;
 }
+
+/* ── 通用就地編輯的格子（table-cells.source.js）────────────────────────
+   有值時平常看不出來，hover 才浮出一個可點的框：表格先是拿來讀的，
+   要能改是第二件事，不該讓每一格都長得像輸入框。 */
+.tc-v{border:0;background:none;color:inherit;font:inherit;text-align:inherit;padding:2px 6px;
+  margin:-2px -6px;border-radius:5px;cursor:text;max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;vertical-align:baseline}
+.tc-v:hover{background:var(--surface-3);box-shadow:inset 0 0 0 1px var(--border-2)}
+.tc-v:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
+.tc-v.n{font-family:var(--mono)}
+.tc-v.tc-pick,.tc-v.tc-sw{cursor:pointer}
+.tc-in{height:26px;border:1px solid var(--pri);border-radius:6px;padding:0 6px;background:var(--surface-2);
+  color:var(--text);font:12.5px var(--mono);box-shadow:0 0 0 3px var(--pri-bg);outline:0;
+  width:100%;min-width:76px;max-width:100%}
+select.tc-in{font-family:inherit;cursor:pointer}
+td.num .tc-in,td.num .tc-v{text-align:right}
+td.k .tc-v{white-space:normal}

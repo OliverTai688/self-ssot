@@ -351,10 +351,12 @@ function ccProjectPane(pid) {
     const pill = state === 'overdue' ? `<span class="chip c-d">${svg('warn', 10)} 逾期 ${ccOverdue(t)} 天</span>`
       : state === 'settled' ? `<span class="chip c-o">${svg('check', 10)} 已收</span>`
         : state === 'invoiced' ? '<span class="chip c-w">已開票未收</span>' : '<span class="chip c-n">未開票</span>';
+    // 條件、金額、預計收款日是人寫的，就地改；狀態與落差是算出來的，不給改。
+    const c2 = (k, o) => tcCell(Object.assign({ kind: 'ccterm', id: t.id, k }, o));
     return `<tr><td class="num">${t.seq}/${ts.length}</td>
-      <td class="k">${esc(t.label)}${t.ms ? `<span class="sub">里程碑：${esc(t.ms)}</span>` : ''}</td>
-      <td class="num">${nt(t.amount)}</td><td class="num">${t.pct ? t.pct + '%' : '—'}</td>
-      <td class="num">${t.expectedOn}</td><td class="num">${t.settledOn || '—'}</td>
+      <td class="k">${c2('label', { type: 'text', lb: '收款條件', val: t.label })}${t.ms ? `<span class="sub">里程碑：${esc(t.ms)}</span>` : ''}</td>
+      <td class="num">${c2('amount', { type: 'num', lb: '金額', val: t.amount, text: nt(t.amount) })}</td><td class="num">${t.pct ? t.pct + '%' : '—'}</td>
+      <td class="num">${c2('expectedOn', { type: 'date', lb: '預計收款日', val: t.expectedOn })}</td><td class="num">${t.settledOn || '—'}</td>
       <td class="num">${d == null ? '—' : `<span class="cc-lag ${d > 0 ? 'pos' : 'ok'}">${d > 0 ? '+' : ''}${d} 天</span>`}</td>
       <td>${pill}</td>
       <td class="num">${isOwner() && !t.settledOn ? `<button class="link" onclick="ccSettleForm('${t.id}')">標記收款</button>` : ''}</td></tr>`;

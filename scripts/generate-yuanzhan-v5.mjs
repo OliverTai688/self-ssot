@@ -39,7 +39,7 @@ if(fs.existsSync(patchPath)){const{patchSource}=await import('../'+patchPath+'?v
 const initAt=source.lastIndexOf('paintUser(); renderRail(); render(); paintFlowBadge();');
 // Extension sources are appended before init, inside mountV5's scope. Order is cosmetic:
 // function declarations hoist, so operating-spine's helpers are visible to every view.
-const EXTENSIONS=['operating-spine','extensions','replies','journal-cockpit','timeline-participants','template-objects','agenda-object','object-index','operating-canvas','operating-forms','operating-converge','operating-persistence','notifications','cashflow-faces','cashflow-contract','form-modal'];
+const EXTENSIONS=['operating-spine','extensions','replies','journal-cockpit','timeline-participants','template-objects','agenda-object','object-index','operating-canvas','operating-forms','operating-converge','operating-persistence','notifications','cashflow-faces','cashflow-contract','form-modal','table-cells'];
 source=source.slice(0,initAt)+EXTENSIONS.map(n=>fs.readFileSync('src/components/yuanzhan/v5/'+n+'.source.js','utf8')).join('\n')+'\n'+source.slice(initAt);
 source=source.replace("setTimeout(()=>toast('v5：右上可切換 <b>戴宇星 / Lily</b> 視角看權限邊界　·　側欄「訊號」是 AI 的唯一出口'),900);",'');
 // Closure attributes are first compiled while all template expressions still have lexical scope.

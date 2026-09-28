@@ -113,7 +113,7 @@ const originalCFD=vCFD;vCFD=()=>DB.history.length||DB.issues.length?originalCFD(
 const originalAlloc=formAlloc;
 formAlloc=who=>{if(who!==DB.me)return deny();if(DB.capacity[who].length)return originalAlloc(who);openForm({crumb:'週配置',title:'設定週容量 · '+person(who),fields:[{k:'category',label:'投入類別',req:true},{k:'pct',label:'比例 %',type:'number',req:true}],values:{category:'',pct:''},onSave:v=>{if(+v.pct<0||+v.pct>100)throw Error('比例須介於 0–100');commit('create','容量',v.category,()=>{DB.capacity[who].push([v.category,+v.pct,null]);return['週容量配置已新增']})}})};
 function formPayroll(who){if(!isOwner())return deny();const e=DB.payroll.find(p=>p.who===who);openForm({crumb:'薪资試算',title:e?'調整薪資試算':'新增薪資試算',fields:[{k:'who',label:'人員',type:'select',opts:PEOPLE_OPTS(),req:true},{k:'base',label:'固定薪資',type:'number',req:true},{k:'overtime',label:'加班試算',type:'number'},{k:'milestone',label:'里程碑獎金',type:'number'}],values:e||{who:DB.me,base:'',overtime:0,milestone:0},onSave:v=>commit('update','薪資試算',person(v.who),()=>{const item={who:v.who,base:+v.base,overtime:+v.overtime||0,milestone:+v.milestone||0,separate:false};const old=DB.payroll.find(p=>p.who===v.who);if(old)Object.assign(old,item);else DB.payroll.push(item);return['只更新本頁示例試算，不付款']})})}
-function payrollView(){const g=GATE();return `<div class="g g21">${panel('2026-10 薪資','發放日 10/01',`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>人員</th><th class="num">固定</th><th class="num">加班</th><th class="num">專案獎金</th><th class="num">里程碑</th><th class="num">應付</th></tr></thead><tbody>${DB.payroll.filter(p=>isOwner()||p.who===DB.me).map(p=>{if(p.separate)return `<tr onclick="formPayroll('${p.who}')"><td class="k">${person(p.who)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num" style="color:var(--text-3)">另計</td></tr>`;const b=DB.projects.filter(x=>x.owner===p.who).reduce((a,x)=>a+bonus(x.id),0);return `<tr onclick="${isOwner()?`formPayroll('${p.who}')`:`toast('本人薪資唯讀；由管理者調整試算')`}"><td class="k">${person(p.who)}</td><td class="num">${nt(p.base)}</td><td class="num">${nt(p.overtime)}</td><td class="num" style="color:var(--pri)">${nt(b)}</td><td class="num">${nt(p.milestone)}</td><td class="num" style="color:var(--ok)">${nt(p.base+p.overtime+b+p.milestone)}</td></tr>`}).join('')}</tbody><tfoot><tr><td colspan="6">示例試算 · 固定＋加班＋專案獎金＋里程碑；尚未連接正式薪酬</td></tr></tfoot></table></div>`,isOwner()?`<button class="btn sm" onclick="formPayroll()">新增／調整</button>`:'',true)}${panel('獎金結算閘門','§13.1 五項全數成立',DB.projects.some(p=>p.id==='PRJ-2026-004')?g.map(([t,ok,m])=>`<div class="gate"><span class="ix ${ok?'y':'n'}">${ok?svg('check',12):'…'}</span><span class="tt">${esc(t)}</span><span class="mm">${esc(m)}</span></div>`).join(''):'<div class="empty">尚無專案結算資料</div>')}</div>`}
+function payrollView(){const g=GATE();return `<div class="g g21">${panel('2026-10 薪資','發放日 10/01',`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>人員</th><th class="num">固定</th><th class="num">加班</th><th class="num">專案獎金</th><th class="num">里程碑</th><th class="num">應付</th></tr></thead><tbody>${DB.payroll.filter(p=>isOwner()||p.who===DB.me).map(p=>{if(p.separate)return `<tr onclick="formPayroll('${p.who}')"><td class="k">${person(p.who)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num" style="color:var(--text-3)">另計</td></tr>`;const b=DB.projects.filter(x=>x.owner===p.who).reduce((a,x)=>a+bonus(x.id),0);const c3=(k,lb,v)=>tcCell({kind:'payroll',id:p.who,k,type:'num',lb,val:v,text:nt(v)});return `<tr onclick="${isOwner()?`formPayroll('${p.who}')`:`toast('本人薪資唯讀；由管理者調整試算')`}"><td class="k">${person(p.who)}</td><td class="num">${c3('base','固定薪資',p.base)}</td><td class="num">${c3('overtime','加班試算',p.overtime)}</td><td class="num" style="color:var(--pri)">${nt(b)}</td><td class="num">${c3('milestone','里程碑獎金',p.milestone)}</td><td class="num" style="color:var(--ok)">${nt(p.base+p.overtime+b+p.milestone)}</td></tr>`}).join('')}</tbody><tfoot><tr><td colspan="6">示例試算 · 固定＋加班＋專案獎金＋里程碑；尚未連接正式薪酬</td></tr></tfoot></table></div>`,isOwner()?`<button class="btn sm" onclick="formPayroll()">新增／調整</button>`:'',true)}${panel('獎金結算閘門','§13.1 五項全數成立',DB.projects.some(p=>p.id==='PRJ-2026-004')?g.map(([t,ok,m])=>`<div class="gate"><span class="ix ${ok?'y':'n'}">${ok?svg('check',12):'…'}</span><span class="tt">${esc(t)}</span><span class="mm">${esc(m)}</span></div>`).join(''):'<div class="empty">尚無專案結算資料</div>')}</div>`}
 function validateForm(c,v){
  for(const f of c.fields){if(f.type==='number'&&v[f.k]!==''&&!Number.isFinite(Number(v[f.k])))throw Error(f.label+'須為有效數字');if(f.type==='date'&&v[f.k]&&!/^\d{4}-\d{2}-\d{2}$/.test(v[f.k]))throw Error('日期格式錯誤');}
  if(v.started&&v.done&&v.done<v.started)throw Error('完成日期不能早於開始日期');
@@ -122,12 +122,20 @@ function validateForm(c,v){
 // The exact ledger stays the primary surface; editing controls appear on interaction.
 function ledgerCells(){const cells={};DB.txns.forEach(t=>{cells['B'+t.ledgerRow]=t.quantity??1;cells['C'+t.ledgerRow]=t.unitPrice??t.amt;cells['D'+t.ledgerRow]=t.formula??t.amt});return cells}
 function recalcLedger(){const cells=ledgerCells();DB.txns.forEach(t=>{if(t.formula){const r=evaluateFormula(t.formula,cells);t.formulaError=r.error;t.amt=r.value??0}})}
-function editLedgerCell(id,field,value){const t=TX(id);if(!editable(t))return deny();if(field==='amt'&&DB.bank.some(b=>b.m===id))return toast('已配對的金額請先解除對帳');const old={...t};if(field==='amt'){const r=evaluateFormula(value,ledgerCells());if(r.error)return toast(r.error);t.formula=value;t.amt=r.value??0;}else if(field==='quantity'||field==='unitPrice'){if(!Number.isFinite(+value))return toast('請填數字');t[field]=+value;}else t[field]=value.trim();commit('update','交易',t.t,()=>['表格、憑證、專案毛利與獎金同步更新'],()=>Object.assign(t,old));}
+function editLedgerCell(id,field,value){const t=TX(id);if(!editable(t))return deny();if(field==='amt'&&DB.bank.some(b=>b.m===id))return toast('已配對的金額請先解除對帳');const old={...t};
+ if(field==='amt'){const r=evaluateFormula(value,ledgerCells());if(r.error)return toast(r.error);t.formula=value;t.amt=r.value??0;}
+ else if(field==='quantity'||field==='unitPrice'){if(!Number.isFinite(+value))return toast('請填數字');t[field]=+value;}
+ // 代收付是開關，不是文字：value 進來就是布林，不能走 trim()。
+ else if(field==='pass'){t.pass=value===true||value==='true'||value==='是';}
+ // 改日期等於改它屬於哪個月：跨進已結帳的月份要先擋下來，並把期間跟著搬過去。
+ else if(field==='d'){const v=String(value).trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return toast('日期格式錯誤');if(cfLocked(v.slice(0,7)))return toast(cfMonthLabel(v.slice(0,7))+' 已結帳，不能把交易移進去');t.d=v;S.cfMonth=v.slice(0,7);}
+ else t[field]=String(value).trim();
+ commit('update','交易',t.t,()=>['表格、憑證、專案毛利與獎金同步更新'],()=>Object.assign(t,old));}
 function enhanceLedger(){
  const table=$('table.tbl');if(!table)return;
- for(const row of table.querySelectorAll('tbody tr[data-tx]')){const record=TX(row.dataset.tx);if(!record)continue;row.dataset.row=record.ledgerRow;row.title='固定列號 '+record.ledgerRow+' · 雙擊摘要、類別或金額編輯';
-  for(const [index,field] of [[1,'t'],[3,'cat'],[4,'amt']]){const cell=row.children[index];if(!editable(record))continue;cell.tabIndex=0;cell.setAttribute('aria-label','編輯 '+record.t+' '+(field==='amt'?'金額':field==='cat'?'類別':'摘要'));const edit=e=>{e.stopPropagation();closeDrawer(true);const input=doc.createElement('input');input.className='cell-editor';input.value=String(field==='amt'?(record.formula??record.amt):record[field]);input.setAttribute('aria-label',cell.getAttribute('aria-label'));cell.replaceChildren(input);input.focus();input.select();let cancelled=false;input.onclick=ev=>ev.stopPropagation();input.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Escape'){cancelled=true;render()}if(ev.key==='Enter')input.blur()};input.onblur=()=>{if(!cancelled)editLedgerCell(record.id,field,input.value)}};cell.ondblclick=edit;cell.onkeydown=e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();edit(e)}};}
- }
+ // 就地編輯不再由這裡黏 dblclick：哪一格可以改，由 tcCell() 在標記裡宣告（table-cells.source.js）。
+ // 這裡只補兩件 DOM 才知道的事：固定列號，以及表頭上的「表格操作」。
+ for(const row of table.querySelectorAll('tbody tr[data-tx]')){const record=TX(row.dataset.tx);if(!record)continue;row.dataset.row=record.ledgerRow;row.title='固定列號 '+record.ledgerRow+(editable(record)?' · 標色的欄位點一下就能改':'');}
  const h=table.closest('.panel').querySelector('.panel-h');h.insertAdjacentHTML('beforeend',`<button class="btn sm" onclick="openLedgerTools()" title="貼上、篩選、排序與批次">表格操作</button>`);
 }
 function openLedgerTools(){openModal('表格操作','日期／摘要／金額／專案／類別，以 Tab 分隔；金額支援公式。固定列號 D 不受排序影響。',`<div class="frow"><label class="flab" for="ledgerFilter">篩選摘要／類別</label><input id="ledgerFilter" value="${esc(S.ledgerFilter||'')}" oninput="S.ledgerFilter=this.value"></div><div class="frow"><label class="flab" for="ledgerPaste">貼上多列</label><textarea id="ledgerPaste" rows="5" placeholder="2026-09-12&#9;摘要&#9;-1200&#9;公司層級&#9;工具"></textarea></div><div class="note">B＝數量、C＝單價、D＝金額。支援算術、SUM／AVERAGE／MIN／MAX，最多 200 列。</div>`,`<button class="btn pri" onclick="pasteLedger()">貼上新增</button><button class="btn" onclick="closeModal();render();applyLedgerFilter()">套用篩選</button><button class="btn" onclick="S.ledgerSort=!S.ledgerSort;closeModal();render();applyLedgerFilter()">金額排序 ↑↓</button><button class="btn" onclick="closeModal();batchLedger()">批次類別</button>`)}
@@ -150,9 +158,21 @@ function fileList(){return DB.files.filter(f=>f.space===space&&(space==='team'||
 DRAWERS.files=()=>({crumb:'文件',title:space==='team'?'公司文件庫':'私人文件',sub:'分類、標籤、版本與引用',body:`<div class="frow"><input id="fileSearch" aria-label="搜尋文件" placeholder="搜尋名稱或標籤…" oninput="filterFiles(this.value)"></div><div class="rows" id="fileList">${fileRows()}</div>`,foot:`<button class="btn pri" onclick="uploadFile()">${svg('plus')} 上傳文件</button><span class="note">${OP_LIVE?'已連線保存':'本頁記憶體 · 重整重置'}</span>`});
 function fileRows(q=''){return fileList().filter(f=>(f.name+' '+f.tags).toLowerCase().includes(q.toLowerCase())).map(f=>`<div class="row" onclick="openDrawer('file','${f.id}')"><span class="chip c-i">${esc(f.category)}</span><span class="t">${esc(f.name)}</span><span class="m">v${f.versions.length}</span></div>`).join('')||'<div class="empty">尚無符合的文件</div>'}
 function filterFiles(q){$('#fileList').innerHTML=fileRows(q)}
-async function presignUpload(file){
- const res=await fetch('/api/company/operating/uploads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:file.name,contentType:file.type,bytes:file.size})});
+async function presignUpload(file,extra){
+ const res=await fetch('/api/company/operating/uploads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:file.name,contentType:file.type,bytes:file.size,...(extra||{})})});
  if(!res.ok){const p=await res.json().catch(()=>({}));throw Error(p.error||'取得上傳網址失敗')}
+ return res.json()
+}
+/**
+ * 告訴伺服器「傳完了」，由它回頭問 R2 到底存進去沒、大小對不對。
+ *
+ * 少了這一步，那一列會永遠停在 uploading，24 小時後被孤兒清理當成沒傳完的垃圾刪掉 ——
+ * 檔案還在畫面上，bytes 卻已經不在 bucket 裡。所以每一條上傳路徑都必須呼叫它。
+ */
+async function finalizeUpload(assetId,outcome){
+ if(!assetId)return null;
+ const res=await fetch('/api/company/operating/uploads',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assetId,outcome:outcome||'uploaded'})});
+ if(!res.ok){const p=await res.json().catch(()=>({}));throw Error(p.error||'上傳未完成')}
  return res.json()
 }
 /** bytes 直接送 R2，不經過應用伺服器，也不進 diff。 */
@@ -161,12 +181,15 @@ async function putToR2(uploadUrl,file){
  if(!res.ok)throw Error('上傳失敗（HTTP '+res.status+'）')
 }
 function uploadFile(existingId,after){const input=doc.createElement('input');input.type='file';input.accept='.md,.txt,.csv,.json,.png,.jpg,.jpeg,.webp,.pdf';input.setAttribute('aria-label','選擇本機文件');input.style.display='none';root.append(input);input.onchange=async()=>{const file=input.files?.[0];if(!file){input.remove();return}try{if(file.size>5*1024*1024)throw Error('檔案上限 5 MB');if(!/\.(md|txt|csv|json|png|jpe?g|webp|pdf)$/i.test(file.name))throw Error('不支援此格式');const isText=/\.(md|txt|csv|json)$/i.test(file.name);
- let text='',data='',objectKey='';
+ let text='',data='',objectKey='',assetId='',refCode='';
  if(isText){text=await file.text()}
- else if(OP_LIVE){toast('上傳中…');const signed=await presignUpload(file);await putToR2(signed.uploadUrl,file);objectKey=signed.objectKey}
+ else if(OP_LIVE){toast('上傳中…');const signed=await presignUpload(file,{origin:'library',space});
+  try{await putToR2(signed.uploadUrl,file);await finalizeUpload(signed.assetId)}
+  catch(e){await finalizeUpload(signed.assetId,'failed').catch(()=>{});throw e}
+  objectKey=signed.objectKey;assetId=signed.assetId;refCode=signed.refCode}
  else{data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
  if(!active)return;let record=DB.files.find(f=>f.id===existingId);if(record&&record.author!==DB.me)throw Error('僅作者可新增版本');if(!record){record={id:nid('FILE'),name:file.name,category:'material',tags:'',space,author:DB.me,versions:[]};DB.files.push(record)}
- record.versions.push({id:nid('FV'),name:file.name,type:file.type,text,data,objectKey,bytes:file.size,at:nowts()});
+ record.versions.push({id:nid('FV'),name:file.name,type:file.type,text,data,objectKey,assetId,refCode,bytes:file.size,at:nowts()});
  audit('文件',record.name,'版本','',record.versions.length);if(after)after(record);else openDrawer('file',record.id,true);toast(OP_LIVE?'文件已上傳':'文件已加入本頁記憶體')}catch(e){toast(esc(e.message))}finally{input.remove()}};input.click()}
 /** 下載網址只有 5 分鐘，所以是要看的時候才換一張，不存進紀錄。 */
 async function paintFilePreview(elementId,objectKey){
@@ -267,8 +290,8 @@ const transactionDrawer=DRAWERS.txn;DRAWERS.txn=id=>{const t=TX(id);return t&&!c
 // Keyboard shortcuts also work before focus has entered the shadow workbench.
 doc.addEventListener('keydown',e=>{if(!e.defaultPrevented&&(e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openCmdk()}},{signal:controller.signal});
 doc.addEventListener('keydown',e=>{if(e.key!=='Escape'||e.composedPath().includes(root))return;if($('#cmdkWrap.on'))closeCmdk();else if($('#modalWrap.on'))closeModal();else if(S.stack.length)closeDrawer()},{signal:controller.signal});
-const originalLedgerEnhance=enhanceLedger;
-enhanceLedger=function(){originalLedgerEnhance();for(const cell of root.querySelectorAll('td[aria-label^="編輯 "]')){const edit=cell.ondblclick;let timer;cell.onclick=e=>{if(e.target.tagName==='INPUT')return;e.stopPropagation();clearTimeout(timer);const id=cell.closest('tr').dataset.tx;timer=setTimeout(()=>selectTxn(id),240)};cell.ondblclick=e=>{clearTimeout(timer);edit(e)}}};
+// 舊的「單擊延遲 240ms 再開抽屜」包裝已移除：可編輯的格子自己吃掉點擊（stopPropagation），
+// 列上其他地方點下去仍然直接開抽屜，不必再等。
 const currentReconcile=reconView;reconView=()=>{const out=currentReconcile();return !DB.bank.length&&!DB.txns.length?out.replace('三本帳已對平','尚無內帳與銀行明細'):out};
 const openedDrawer=openDrawer,closedDrawer=closeDrawer;
 openDrawer=(...args)=>{$('#drawer').inert=false;openedDrawer(...args)};closeDrawer=(...args)=>{closedDrawer(...args);$('#drawer').inert=true};

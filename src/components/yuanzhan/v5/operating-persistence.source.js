@@ -28,6 +28,16 @@ let OP_STATUS_NOTE = '';
 let OP_BASELINE = null;
 let OP_TOUCH_TIMER = null;
 
+/**
+ * 啟動時的版本對齊。OP_VERSION 從 0 起算而伺服器上的值不會是 0，所以這一步
+ * 沒完成就送出，第一批必定撞 409 —— 而那個 409 看起來會像「另一個裝置先改了」，
+ * 實際上只是本地還不知道版本號。opFlush() 因此先等這個 promise。
+ */
+let OP_READY = null;
+/** 這一輪撞版本後已經重試過幾次；重試一次就夠，再撞才是真的有人同時在寫。 */
+let OP_CONFLICT_RETRY = 0;
+let OP_RESYNC_PENDING = false;
+
 function opSnapshot() {
   return OP_LIVE ? snapshotCollections(DB, OP_WRITE_ENABLED) : null;
 }
@@ -89,10 +99,31 @@ function opEnqueue(op, ent, label, before) {
   opFlush();
 }
 
+/**
+ * 取一次伺服器目前的版本號。回傳有沒有取到 —— 取不到就不能當作「對齊過了」，
+ * 否則第一批送出時帶著 0 過去，使用者看到的是衝突而不是「還沒連上」。
+ */
+function opSyncVersion() {
+  OP_READY = fetch(OPERATING_COMMANDS_ENDPOINT)
+    .then(res => (res.ok ? res.json() : null))
+    .then(payload => {
+      if (payload && typeof payload.version === 'number') {
+        OP_VERSION = payload.version;
+        return true;
+      }
+      return false;
+    })
+    .catch(() => false);
+  return OP_READY;
+}
+
 async function opFlush() {
   if (!OP_LIVE || OP_SENDING || !OP_QUEUE.length) return;
   OP_SENDING = true;
   opSetStatus('sending');
+
+  // 版本沒對齊就送出必定撞 409。等啟動那次，失敗就在這裡再取一次。
+  if (OP_READY && (await OP_READY) === false) await opSyncVersion();
 
   const batch = OP_QUEUE.slice(0, OP_MAX_COMMANDS);
 
@@ -104,10 +135,21 @@ async function opFlush() {
     });
 
     if (res.status === 409) {
-      // 另一個席位先寫了。保留佇列裡尚未送出的內容，讓人決定，不靜默覆寫。
       const payload = await res.json().catch(() => ({}));
       OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
       // 佇列刻意不清空：裡面是還沒被接受的編輯，丟掉等於替使用者放棄他剛打的字。
+      //
+      // 版本不合不等於有人在改同一批紀錄：本地的版本號也可能只是落後（啟動時那次
+      // GET 失敗、或這一頁重掛過）。所以先把伺服器現況併回來 —— 佇列裡的列保留
+      // 本地版本 —— 再用修正後的版本重送一次。只有第二次還撞才是真的並發寫入，
+      // 那時才值得停下來問人；先前這裡一撞就停，等於把一筆編輯永久卡在佇列裡，
+      // 而畫面只叫人重新整理（重整就是丟掉它）。
+      if (OP_CONFLICT_RETRY < 1) {
+        OP_CONFLICT_RETRY += 1;
+        OP_RESYNC_PENDING = true;
+        opSetStatus('sending', '版本落後，正在重新對齊');
+        return;
+      }
       opSetStatus('conflict', '另一個裝置先改了同一批紀錄。這裡有 ' + OP_QUEUE.length + ' 筆尚未保存，請重新整理後重做');
       return;
     }
@@ -121,6 +163,7 @@ async function opFlush() {
     const payload = await res.json();
     OP_VERSION = payload.version;
     OP_QUEUE = OP_QUEUE.slice(batch.length);
+    OP_CONFLICT_RETRY = 0;
 
     if (payload.rejected && payload.rejected.length) {
       const first = payload.rejected[0];
@@ -135,8 +178,18 @@ async function opFlush() {
     console.warn('[operating] command flush failed', err);
   } finally {
     OP_SENDING = false;
-    if (OP_QUEUE.length && OP_STATUS !== 'conflict' && OP_STATUS !== 'error') opFlush();
+    if (OP_RESYNC_PENDING) {
+      OP_RESYNC_PENDING = false;
+      // 合併會動到 DB 與基準線，所以要等這一輪的 OP_SENDING 放掉之後才跑。
+      opResyncAndFlush();
+    } else if (OP_QUEUE.length && OP_STATUS !== 'conflict' && OP_STATUS !== 'error') opFlush();
   }
+}
+
+/** 撞到版本衝突之後的復原：併回伺服器現況，再用修正後的版本重送佇列。 */
+async function opResyncAndFlush() {
+  await opMergeRemote({ quiet: true });
+  if (OP_QUEUE.length) opFlush();
 }
 
 function opSetStatus(status, note) {
@@ -231,7 +284,10 @@ function opPendingKeys() {
  * 最無法接受的一種資料遺失，因為他明明看著畫面上有。所以：佇列裡有的那幾列
  * 保留本地版本，其餘採用伺服器版本。粒度是列，不是集合，也不是整個 store。
  */
-async function opMergeRemote() {
+async function opMergeRemote(options) {
+  // 重送前的那次合併不畫狀態：這一刻「有未送出的列」是正常的中間狀態，
+  // 畫成衝突會讓使用者看到一個下一秒就會消失的警告。
+  const quiet = !!(options && options.quiet);
   const pending = opPendingKeys();
   let payload;
   try {
@@ -293,6 +349,7 @@ async function opMergeRemote() {
   OP_BASELINE = snapshotCollections(DB, OP_WRITE_ENABLED);
   render();
 
+  if (quiet) return;
   if (kept) opSetStatus('conflict', '已取得其他裝置的更新；你有 ' + kept + ' 筆尚未保存的編輯被保留');
   else opSetStatus(OP_QUEUE.length ? 'sending' : 'idle', merged ? '已同步其他裝置的更新' : '');
 }
@@ -304,10 +361,5 @@ if (OP_LIVE) {
   doc.addEventListener('visibilitychange', () => {
     if (doc.visibilityState === 'visible') opCheckRemoteVersion();
   }, { signal: controller.signal });
-  fetch(OPERATING_COMMANDS_ENDPOINT)
-    .then(res => (res.ok ? res.json() : null))
-    .then(payload => {
-      if (payload && typeof payload.version === 'number') OP_VERSION = payload.version;
-    })
-    .catch(() => {});
+  opSyncVersion();
 }

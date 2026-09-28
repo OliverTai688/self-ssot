@@ -109,6 +109,21 @@ async function mount(seat: YuanzhanSeat, store: Record<string, unknown>) {
     button: (label: string, scope = '') => all(`${scope} button`).find((b) => flat(b).includes(label)) || null,
     click: async (el: Element | null | undefined) => { (el as HTMLElement | null)?.click(); await tick() },
     toasts: () => flat(root.querySelector('#toasts')),
+    /** 用 aria-label 找一個就地編輯的格子（可能是值、也可能是琥珀色空格）。 */
+    cell: (label: string, scope = '') => all(`${scope} button, ${scope} input, ${scope} select`).find((e) => (e.getAttribute('aria-label') || '').includes(label)) || null,
+    /** 點開一個格子、填值、收工。select 用 change，輸入框用 blur。 */
+    fill: async (label: string, value: string, scope = '') => {
+      const target = all(`${scope} button`).find((e) => (e.getAttribute('aria-label') || '').includes(label))
+      if (!target) return false
+      target.click()
+      await tick()
+      const el = root.querySelector('[data-tc-in]') as HTMLInputElement | HTMLSelectElement | null
+      if (!el) return false
+      el.value = value
+      el.dispatchEvent(new dom.window.Event(el.tagName === 'SELECT' ? 'change' : 'blur'))
+      await tick()
+      return true
+    },
     /** 找到 runtime 剛建立的 file input，塞一個檔案進去再觸發 change。 */
     feedFile: async (name: string, body: string, type: string) => {
       const input = [...root.querySelectorAll('input[type=file]')].pop() as HTMLInputElement | undefined
@@ -160,12 +175,35 @@ async function main() {
     await m.click(m.button('帳本', '.cf-subtabs'))
     check('帳本上方出現待歸帳', m.text('.cf-strip').includes('待歸帳 1'), m.text('.cf-strip'))
     await m.click(m.button('歸帳', '.cf-strip'))
-    await m.click(m.button('場地', '.cf-strip'))
+    check('按歸帳在帳本長出一列預覽，不是一排 chip', Boolean(m.root.querySelector('table.tbl tr.cf-fil')) && !m.root.querySelector('.cf-strip .chipset'))
+    check('預覽列的欄位和表頭一一對齊',
+      m.all('table.tbl thead th').length === m.all('tr.cf-fil > td').length,
+      `${m.all('table.tbl thead th').length} 欄 vs ${m.all('tr.cf-fil > td').length} 格`)
+    check('預覽列帶著收件的摘要與金額', m.text('tr.cf-fil').includes('客戶餐敘') && m.text('tr.cf-fil').includes('2,400'), m.text('tr.cf-fil'))
+    check('預覽列說自己還沒入帳', m.text('tr.cf-fil').includes('預覽 · 尚未入帳'), m.text('tr.cf-fil'))
+    check('缺的欄位標在它該在的那一欄', Boolean(m.cell('類別', 'tr.cf-fil')) && m.text('tr.cf-fil-h').includes('還缺'), m.text('tr.cf-fil-h'))
+    check('欄位沒填完不能入帳', (m.button('確認入帳', 'tr.cf-fil') as HTMLButtonElement | null)?.disabled === true)
+    check('預覽列還沒寫進帳本', (m.db().txns as unknown[]).length === 3)
+    check('預覽不進 changelog', !(m.db().changelog as Array<{ ent: string }>).some((c) => c.ent === '歸帳'))
+    check('填類別走的是表格欄位', await m.fill('類別', '場地', 'tr.cf-fil'))
+    check('欄位齊了才放行', (m.button('確認入帳', 'tr.cf-fil') as HTMLButtonElement | null)?.disabled === false)
+    await m.click(m.button('確認入帳', 'tr.cf-fil'))
     const posted = (m.db().txns as Array<{ t: string; cat: string; amt: number; note: string }>).find((t) => t.t === '客戶餐敘')
-    check('歸帳建立交易，類別由記帳者選', posted?.cat === '場地' && posted?.amt === -2400, JSON.stringify(posted))
+    check('確認後才建立交易，類別由記帳者選', posted?.cat === '場地' && posted?.amt === -2400, JSON.stringify(posted))
     check('收件狀態變成已入帳', (m.db().intake as Array<{ st: string }>)[0].st === 'posted')
+    check('入帳後預覽列收起來', !m.root.querySelector('tr.cf-fil'))
     check('待歸帳清空後條帶消失', !m.root.querySelector('.cf-strip'))
     check('帳本列有生命週期狀態', m.text('table.tbl').includes('④ 已勾稽') && m.text('table.tbl').includes('③ 已入帳'))
+
+    // ── 就地編輯：表格就是那筆資料的家 ──────────────────────────────
+    check('帳本的摘要是可編輯欄，不是死字', Boolean(m.cell('摘要', 'table.tbl')))
+    check('改摘要', await m.fill('摘要', 'Vercel 年費', 'table.tbl tr[data-tx="T2"]'))
+    check('改完就存進那一筆交易', (m.db().txns as Array<{ id: string; t: string }>).find((t) => t.id === 'T2')?.t === 'Vercel 年費')
+    check('就地編輯進 changelog，可以還原', (m.db().changelog as Array<{ ent: string }>)[0].ent === '交易')
+    check('屬性欄是選單不是自由輸入', await m.fill('類別', '媒體', 'table.tbl tr[data-tx="T2"]'))
+    check('類別存進去了', (m.db().txns as Array<{ id: string; cat: string }>).find((t) => t.id === 'T2')?.cat === '媒體')
+    await m.click(m.cell('代收付', 'table.tbl tr[data-tx="T2"]'))
+    check('代收付點一下就換一個值', (m.db().txns as Array<{ id: string; pass: boolean }>).find((t) => t.id === 'T2')?.pass === true)
 
     await m.click(m.button('對帳', '.cf-subtabs'))
     check('對帳給出建議配對與理由', m.text().includes('建議配對') && m.text().includes('金額相同 · 同日'), m.text().slice(0, 120))

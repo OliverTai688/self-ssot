@@ -6739,13 +6739,22 @@ function payrollView() {
       formPayroll(p.who);
     })}><td class="k">${person(p.who)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num" style="color:var(--text-3)">另計</td></tr>`;
     const b = DB.projects.filter(x => x.owner === p.who).reduce((a, x) => a + bonus(x.id), 0);
+    const c3 = (k, lb, v) => tcCell({
+      kind: 'payroll',
+      id: p.who,
+      k,
+      type: 'num',
+      lb,
+      val: v,
+      text: nt(v)
+    });
     return `<tr ${bind("click", (event, element) => {
       (isOwner() ? (event, element) => {
         formPayroll(p.who);
       } : (event, element) => {
         toast('本人薪資唯讀；由管理者調整試算');
       })(event, element);
-    })}><td class="k">${person(p.who)}</td><td class="num">${nt(p.base)}</td><td class="num">${nt(p.overtime)}</td><td class="num" style="color:var(--pri)">${nt(b)}</td><td class="num">${nt(p.milestone)}</td><td class="num" style="color:var(--ok)">${nt(p.base + p.overtime + b + p.milestone)}</td></tr>`;
+    })}><td class="k">${person(p.who)}</td><td class="num">${c3('base', '固定薪資', p.base)}</td><td class="num">${c3('overtime', '加班試算', p.overtime)}</td><td class="num" style="color:var(--pri)">${nt(b)}</td><td class="num">${c3('milestone', '里程碑獎金', p.milestone)}</td><td class="num" style="color:var(--ok)">${nt(p.base + p.overtime + b + p.milestone)}</td></tr>`;
   }).join('')}</tbody><tfoot><tr><td colspan="6">示例試算 · 固定＋加班＋專案獎金＋里程碑；尚未連接正式薪酬</td></tr></tfoot></table></div>`, isOwner() ? `<button class="btn sm" ${bind("click", (event, element) => {
     formPayroll();
   })}>新增／調整</button>` : '', true)}${panel('獎金結算閘門', '§13.1 五項全數成立', DB.projects.some(p => p.id === 'PRJ-2026-004') ? g.map(([t, ok, m]) => `<div class="gate"><span class="ix ${ok ? 'y' : 'n'}">${ok ? svg('check', 12) : '…'}</span><span class="tt">${esc(t)}</span><span class="mm">${esc(m)}</span></div>`).join('') : '<div class="empty">尚無專案結算資料</div>')}</div>`;
@@ -6793,54 +6802,31 @@ function editLedgerCell(id, field, value) {
   } else if (field === 'quantity' || field === 'unitPrice') {
     if (!Number.isFinite(+value)) return toast('請填數字');
     t[field] = +value;
-  } else t[field] = value.trim();
+  }
+  // 代收付是開關，不是文字：value 進來就是布林，不能走 trim()。
+  else if (field === 'pass') {
+    t.pass = value === true || value === 'true' || value === '是';
+  }
+  // 改日期等於改它屬於哪個月：跨進已結帳的月份要先擋下來，並把期間跟著搬過去。
+  else if (field === 'd') {
+    const v = String(value).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return toast('日期格式錯誤');
+    if (cfLocked(v.slice(0, 7))) return toast(cfMonthLabel(v.slice(0, 7)) + ' 已結帳，不能把交易移進去');
+    t.d = v;
+    S.cfMonth = v.slice(0, 7);
+  } else t[field] = String(value).trim();
   commit('update', '交易', t.t, () => ['表格、憑證、專案毛利與獎金同步更新'], () => Object.assign(t, old));
 }
 function enhanceLedger() {
   const table = $('table.tbl');
   if (!table) return;
+  // 就地編輯不再由這裡黏 dblclick：哪一格可以改，由 tcCell() 在標記裡宣告（table-cells.source.js）。
+  // 這裡只補兩件 DOM 才知道的事：固定列號，以及表頭上的「表格操作」。
   for (const row of table.querySelectorAll('tbody tr[data-tx]')) {
     const record = TX(row.dataset.tx);
     if (!record) continue;
     row.dataset.row = record.ledgerRow;
-    row.title = '固定列號 ' + record.ledgerRow + ' · 雙擊摘要、類別或金額編輯';
-    for (const [index, field] of [[1, 't'], [3, 'cat'], [4, 'amt']]) {
-      const cell = row.children[index];
-      if (!editable(record)) continue;
-      cell.tabIndex = 0;
-      cell.setAttribute('aria-label', '編輯 ' + record.t + ' ' + (field === 'amt' ? '金額' : field === 'cat' ? '類別' : '摘要'));
-      const edit = e => {
-        e.stopPropagation();
-        closeDrawer(true);
-        const input = doc.createElement('input');
-        input.className = 'cell-editor';
-        input.value = String(field === 'amt' ? record.formula ?? record.amt : record[field]);
-        input.setAttribute('aria-label', cell.getAttribute('aria-label'));
-        cell.replaceChildren(input);
-        input.focus();
-        input.select();
-        let cancelled = false;
-        input.onclick = ev => ev.stopPropagation();
-        input.onkeydown = ev => {
-          ev.stopPropagation();
-          if (ev.key === 'Escape') {
-            cancelled = true;
-            render();
-          }
-          if (ev.key === 'Enter') input.blur();
-        };
-        input.onblur = () => {
-          if (!cancelled) editLedgerCell(record.id, field, input.value);
-        };
-      };
-      cell.ondblclick = edit;
-      cell.onkeydown = e => {
-        if (e.key === 'Enter' || e.key === 'F2') {
-          e.preventDefault();
-          edit(e);
-        }
-      };
-    }
+    row.title = '固定列號 ' + record.ledgerRow + (editable(record) ? ' · 標色的欄位點一下就能改' : '');
   }
   const h = table.closest('.panel').querySelector('.panel-h');
   h.insertAdjacentHTML('beforeend', `<button class="btn sm" ${bind("click", (event, element) => {
@@ -7124,7 +7110,7 @@ function fileRows(q = '') {
 function filterFiles(q) {
   $('#fileList').innerHTML = fileRows(q);
 }
-async function presignUpload(file) {
+async function presignUpload(file, extra) {
   const res = await fetch('/api/company/operating/uploads', {
     method: 'POST',
     headers: {
@@ -7133,12 +7119,37 @@ async function presignUpload(file) {
     body: JSON.stringify({
       name: file.name,
       contentType: file.type,
-      bytes: file.size
+      bytes: file.size,
+      ...(extra || {})
     })
   });
   if (!res.ok) {
     const p = await res.json().catch(() => ({}));
     throw Error(p.error || '取得上傳網址失敗');
+  }
+  return res.json();
+}
+/**
+ * 告訴伺服器「傳完了」，由它回頭問 R2 到底存進去沒、大小對不對。
+ *
+ * 少了這一步，那一列會永遠停在 uploading，24 小時後被孤兒清理當成沒傳完的垃圾刪掉 ——
+ * 檔案還在畫面上，bytes 卻已經不在 bucket 裡。所以每一條上傳路徑都必須呼叫它。
+ */
+async function finalizeUpload(assetId, outcome) {
+  if (!assetId) return null;
+  const res = await fetch('/api/company/operating/uploads', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      assetId,
+      outcome: outcome || 'uploaded'
+    })
+  });
+  if (!res.ok) {
+    const p = await res.json().catch(() => ({}));
+    throw Error(p.error || '上傳未完成');
   }
   return res.json();
 }
@@ -7172,14 +7183,27 @@ function uploadFile(existingId, after) {
       const isText = /\.(md|txt|csv|json)$/i.test(file.name);
       let text = '',
         data = '',
-        objectKey = '';
+        objectKey = '',
+        assetId = '',
+        refCode = '';
       if (isText) {
         text = await file.text();
       } else if (OP_LIVE) {
         toast('上傳中…');
-        const signed = await presignUpload(file);
-        await putToR2(signed.uploadUrl, file);
+        const signed = await presignUpload(file, {
+          origin: 'library',
+          space
+        });
+        try {
+          await putToR2(signed.uploadUrl, file);
+          await finalizeUpload(signed.assetId);
+        } catch (e) {
+          await finalizeUpload(signed.assetId, 'failed').catch(() => {});
+          throw e;
+        }
         objectKey = signed.objectKey;
+        assetId = signed.assetId;
+        refCode = signed.refCode;
       } else {
         data = await new Promise((resolve, reject) => {
           const r = new FileReader();
@@ -7210,6 +7234,8 @@ function uploadFile(existingId, after) {
         text,
         data,
         objectKey,
+        assetId,
+        refCode,
         bytes: file.size,
         at: nowts()
       });
@@ -7723,25 +7749,8 @@ doc.addEventListener('keydown', e => {
 }, {
   signal: controller.signal
 });
-const originalLedgerEnhance = enhanceLedger;
-enhanceLedger = function () {
-  originalLedgerEnhance();
-  for (const cell of root.querySelectorAll('td[aria-label^="編輯 "]')) {
-    const edit = cell.ondblclick;
-    let timer;
-    cell.onclick = e => {
-      if (e.target.tagName === 'INPUT') return;
-      e.stopPropagation();
-      clearTimeout(timer);
-      const id = cell.closest('tr').dataset.tx;
-      timer = setTimeout(() => selectTxn(id), 240);
-    };
-    cell.ondblclick = e => {
-      clearTimeout(timer);
-      edit(e);
-    };
-  }
-};
+// 舊的「單擊延遲 240ms 再開抽屜」包裝已移除：可編輯的格子自己吃掉點擊（stopPropagation），
+// 列上其他地方點下去仍然直接開抽屜，不必再等。
 const currentReconcile = reconView;
 reconView = () => {
   const out = currentReconcile();
@@ -14114,6 +14123,14 @@ function cfMonths() {
   DB.txns.forEach(t => t.d && set.add(t.d.slice(0, 7)));
   DB.bank.forEach(b => b.d && set.add(b.d.slice(0, 7)));
   DB.periods.forEach(p => set.add(p.id));
+  // 正在歸帳的那一筆可能落在一個還沒有任何交易的月份：把它加進來，
+  // 不然切過去看預覽列的時候，期間選單裡根本沒有那個月。
+  if (S.cfFiling) {
+    const dr = S.cfDraft[S.cfFiling],
+      x = DB.intake.find(y => y.id === S.cfFiling);
+    const fd = dr && dr.d || x && x.d || '';
+    if (fd) set.add(fd.slice(0, 7));
+  }
   return [...set].filter(m => /^\d{4}-\d{2}$/.test(m)).sort().reverse();
 }
 function cfPeriod(m) {
@@ -14153,6 +14170,9 @@ function cfUnfiled() {
 const cfApprovals = () => DB.reimb.filter(r => r.st === '已送');
 const cfProjLabel = p => !p || p === '公司層級' ? '公司層級' : P(p) ? P(p).t : p;
 const cfProjOptions = () => [...(isOwner() ? DB.projects.map(p => p.id) : myProjects()), '公司層級'];
+/** 歸屬在表格裡一律是同一顆 chip —— 預覽列和入帳後那一列要長得一模一樣，
+ *  不然「預覽」就沒有在預覽。 */
+const cfProjChip = p => !p ? '' : p.startsWith('PRJ') ? `<span class="chip c-p">${esc(p.slice(-3))}</span>` : '<span class="chip c-n">公司</span>';
 function cfBadge(face) {
   if (face === 'intake') return isOwner() ? cfApprovals().length : DB.intake.filter(x => x.who === DB.me && x.st === 'draft').length;
   if (face === 'books' && isOwner()) return cfUnfiled().length + DB.bank.filter(b => !b.m && b.d.slice(0, 7) === cfMonth()).length;
@@ -14210,11 +14230,23 @@ async function cfReadFile(file) {
     by: DB.me
   };
   if (OP_LIVE) {
-    const signed = await presignUpload(file);
-    await putToR2(signed.uploadUrl, file);
+    const signed = await presignUpload(file, {
+      origin: 'cashflow'
+    });
+    // finalize 沒跑到的那一列會停在 uploading，24 小時後被孤兒清理刪掉 bytes。
+    // 所以失敗也要回報，讓它直接變 failed，而不是留一列狀態不明的紀錄。
+    try {
+      await putToR2(signed.uploadUrl, file);
+      await finalizeUpload(signed.assetId);
+    } catch (e) {
+      await finalizeUpload(signed.assetId, 'failed').catch(() => {});
+      throw e;
+    }
     return {
       ...meta,
-      objectKey: signed.objectKey
+      objectKey: signed.objectKey,
+      assetId: signed.assetId,
+      refCode: signed.refCode
     };
   }
   const data = await new Promise((resolve, reject) => {
@@ -14498,12 +14530,15 @@ function cfSubmit(id) {
   const before = {
     ...x
   };
-  const r = isOwner() ? null : {
+  // 送出一律留下報帳單，「我的報帳」才看得到自己的錢走到哪。
+  // 負責人不需要自我核准：直接落在「已核」，後面只剩付款那一步。
+  const selfApproved = isOwner();
+  const r = {
     id: nid('RMB'),
     who: DB.me,
     t,
     amt,
-    st: '已送',
+    st: selfApproved ? '已核' : '已送',
     d: x.d || TODAY
   };
   S.cfEditing = null;
@@ -14518,16 +14553,14 @@ function cfSubmit(id) {
       t,
       st: 'unfiled'
     });
-    if (r) {
-      DB.reimb.unshift(r);
-      x.reimb = r.id;
-    }
-    return r ? ['已送出，等負責人核准代墊', '核准後進入帳本的待歸帳'] : ['已送出 → 帳本的<b>待歸帳</b>'];
+    DB.reimb.unshift(r);
+    x.reimb = r.id;
+    return selfApproved ? ['已送出 → 帳本的<b>待歸帳</b>', '同時記進<b>報帳</b>，等付款'] : ['已送出，等負責人核准代墊', '核准後進入帳本的待歸帳'];
   }, () => {
     Object.assign(x, before);
-    if (r) DB.reimb = DB.reimb.filter(y => y.id !== r.id);
+    DB.reimb = DB.reimb.filter(y => y.id !== r.id);
   });
-  toast(r ? '已送出，等負責人核准' : '已送出，出現在帳本的待歸帳');
+  toast(selfApproved ? '已送出，出現在帳本的待歸帳' : '已送出，等負責人核准');
 }
 function cfDiscard(id) {
   const x = DB.intake.find(y => y.id === id);
@@ -15236,69 +15269,122 @@ function cfSetFilter(k) {
   S.cfFilter = k;
   render();
 }
+
+/* ---------- 歸帳：一列預覽，不是一排按鈕（Owner 決策 2026-09-28）----------
+   原本按「歸帳」是在待歸帳條帶裡攤開兩排 chip，選到最後一顆的同時就寫進帳本 ——
+   按下去之前，你看不到這一筆進帳本會長成什麼樣子，也沒有反悔的地方。
+   改成：按「歸帳」在帳本表格最上面長出一列草稿列，欄位和表頭一一對齊，
+   缺的欄位就是那一欄裡的琥珀色空格，補完再按「確認入帳」。
+   預覽和結果是同一個形狀 —— 因為它本來就是同一列。 */
+
+/** 草稿 ＝ 收件那一筆的值，疊上你在預覽列上改過的部分。 */
+function cfFilingDraft(id) {
+  const x = DB.intake.find(y => y.id === id);
+  if (!x) return null;
+  const dr = S.cfDraft[id] || (S.cfDraft[id] = {});
+  return {
+    id,
+    x,
+    d: dr.d || x.d || TODAY,
+    t: dr.t != null ? dr.t : x.t,
+    p: dr.p || x.p || '',
+    cat: dr.cat || '',
+    amt: dr.amt != null ? dr.amt : -Math.abs(Number(x.amt) || 0),
+    pass: !!dr.pass
+  };
+}
+function cfDraftSet(id, k, v) {
+  const dr = S.cfDraft[id] || (S.cfDraft[id] = {});
+  if (k === 'amt') {
+    const n = Number(String(v).replace(/[,\s]/g, ''));
+    if (!Number.isFinite(n)) return toast('金額請填數字');
+    dr.amt = n;
+  } else if (k === 'd') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return toast('日期格式錯誤');
+    dr.d = v;
+    // 預覽列改日期，期間跟著走：不然你會把它填到一個自己看不到的月份去。
+    S.cfMonth = v.slice(0, 7);
+  } else if (k === 'pass') dr.pass = !!v;else dr[k] = v;
+}
 function cfFileStart(id) {
+  if (id && !isOwner()) return deny();
   S.cfFiling = id;
+  TC.at = '';
+  if (id) {
+    const dr = cfFilingDraft(id);
+    if (dr) S.cfMonth = dr.d.slice(0, 7);
+    closeDrawer(true);
+  }
   render();
 }
 function cfFilePick(id, p) {
-  (S.cfDraft[id] || (S.cfDraft[id] = {})).p = p;
+  cfDraftSet(id, 'p', p);
   render();
 }
+/** 舊入口：給了類別就直接入帳。指令面板與既有連結還在用。 */
 function cfFile(id, cat) {
+  cfDraftSet(id, 'cat', cat);
+  cfFileConfirm(id);
+}
+
+/** 真正寫進帳本的那一次 —— 也是唯一一次進 changelog 的那一次。 */
+function cfFileConfirm(id) {
   if (!isOwner()) return deny();
-  const x = DB.intake.find(y => y.id === id);
-  if (!x) return;
-  const p = x.p || S.cfDraft[id]?.p;
-  if (!p) return toast('先選歸屬');
-  const d = x.d || TODAY;
-  if (cfLocked(d.slice(0, 7))) return toast(cfMonthLabel(d.slice(0, 7)) + ' 已結帳，請先解鎖或改日期');
+  const dr = cfFilingDraft(id);
+  if (!dr) return;
+  if (!dr.p) return toast('先選歸屬');
+  if (!dr.cat) return toast('先選類別');
+  const m = dr.d.slice(0, 7);
+  if (cfLocked(m)) return toast(cfMonthLabel(m) + ' 已結帳，請先解鎖或改日期');
+  const x = dr.x,
+    r = cfReimbOf(x),
+    wasP = x.p;
+  const amt = dr.cat === '收入' ? Math.abs(dr.amt) : -Math.abs(dr.amt);
   const t = {
     id: nid('TXN'),
-    d,
-    t: x.t,
-    p,
-    cat,
-    amt: -Math.abs(Number(x.amt) || 0),
-    pass: false,
+    d: dr.d,
+    t: dr.t,
+    p: dr.p,
+    cat: dr.cat,
+    amt,
+    pass: !!dr.pass,
     v: x.file ? ['收據'] : [],
     files: x.file ? [x.file] : [],
     note: '由收件 ' + x.id + (x.reimb ? ' · 報帳 ' + x.reimb : '')
   };
-  const r = cfReimbOf(x);
   S.cfFiling = null;
-  commit('create', '交易（歸帳）', x.t, () => {
+  delete S.cfDraft[id];
+  commit('create', '交易（歸帳）', t.t, () => {
     DB.txns.unshift(t);
     Object.assign(x, {
       st: 'posted',
       txn: t.id,
-      p
+      p: dr.p
     });
     if (r) r.txn = t.id;
-    return [`${esc(x.t)} → <b>${cat}</b> 入帳 ${nt(t.amt)}`, ...(p.startsWith('PRJ') ? effProject(p) : ['公司層級支出，不進入任何專案毛利'])];
+    return [`${esc(t.t)} → <b>${esc(dr.cat)}</b> 入帳 ${nt(amt)}`, ...(dr.p.startsWith('PRJ') ? effProject(dr.p) : ['公司層級支出，不進入任何專案毛利'])];
   }, () => {
     DB.txns = DB.txns.filter(y => y.id !== t.id);
     Object.assign(x, {
       st: 'unfiled',
-      txn: ''
+      txn: '',
+      p: wasP
     });
     if (r) r.txn = null;
   });
 }
+
+/** 待歸帳條帶：現在只負責「還有誰在排隊」，填欄位是下面那一列的事。 */
 function cfUnfiledStrip() {
   const list = cfUnfiled();
   if (!list.length) return '';
-  const cats = CATS.filter(c => c !== '收入');
-  return `<div class="cf-strip"><div class="cf-strip-h"><b>待歸帳 ${list.length}</b><span>補上類別就會進帳本</span></div>${list.map(x => {
+  return `<div class="cf-strip"><div class="cf-strip-h"><b>待歸帳 ${list.length}</b><span>按「歸帳」會在下面的帳本長出一列預覽，補上標色的欄位再確認</span></div>${list.map(x => {
     const p = x.p || S.cfDraft[x.id]?.p;
     const filing = S.cfFiling === x.id;
-    return `<div class="cf-strip-i"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${person(x.who)} · ${p ? esc(cfProjLabel(p)) : '<span class="cf-need">未選歸屬</span>'}${x.file ? ` · <span class="lnk" ${bind("click", (event, element) => {
+    return `<div class="cf-strip-i ${filing ? 'on' : ''}"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${person(x.who)} · ${p ? esc(cfProjLabel(p)) : '<span class="cf-need">未選歸屬</span>'}${x.file ? ` · <span class="lnk" ${bind("click", (event, element) => {
       cfOpenIntakeFile(x.id);
     })}>看憑證</span>` : ''}</small></span><span class="n">${nt(-Math.abs(Number(x.amt) || 0))}</span>
-      ${filing ? `<span class="cf-strip-pick">${!x.p ? `<span class="chipset">${cfProjOptions().map(o => `<button type="button" class="${p === o ? 'on' : ''}" ${bind("click", (event, element) => {
-      cfFilePick(x.id, o);
-    })}>${esc(cfProjLabel(o))}</button>`).join('')}</span>` : ''}<span class="chipset">${cats.map(c => `<button type="button" ${bind("click", (event, element) => {
-      cfFile(x.id, c);
-    })}>${c}</button>`).join('')}</span><button class="btn sm" ${bind("click", (event, element) => {
+      ${filing ? `<span class="cf-strip-now">${svg('arrowRight', 12)} 正在下面那一列填<button class="btn sm" ${bind("click", (event, element) => {
       cfFileStart(null);
     })}>取消</button></span>` : `<button class="btn sm pri" ${bind("click", (event, element) => {
       cfFileStart(x.id);
@@ -15311,6 +15397,135 @@ function cfOpenIntakeFile(id) {
     kind: 'inbox',
     label: '回收件匣'
   });
+}
+
+/** 預覽列：和帳本的列同一組欄位、同一種格子，只是還沒入帳。 */
+function cfFilingRow() {
+  if (!S.cfFiling) return '';
+  const dr = cfFilingDraft(S.cfFiling);
+  if (!dr) return '';
+  const x = dr.x;
+  const c = (k, o) => tcCell(Object.assign({
+    kind: 'filing',
+    id: dr.id,
+    k
+  }, o));
+  const need = [];
+  if (!dr.p) need.push('歸屬');
+  if (!dr.cat) need.push('類別');
+  const n = x.file ? 1 : 0;
+  return `<tr class="cf-fil-h"><td colspan="9"><b>正在歸帳</b><span>來自收件 ${esc(x.id)} · ${person(x.who)} 交件${need.length ? ` · 還缺 <i>${need.join('、')}</i>` : ' · 欄位齊了，確認就入帳'}</span></td></tr>
+    <tr class="cf-fil">
+      <td>${c('d', {
+    type: 'date',
+    lb: '日期',
+    val: dr.d,
+    text: dr.d.slice(5)
+  })}</td>
+      <td class="k">${c('t', {
+    type: 'text',
+    lb: '摘要',
+    val: dr.t
+  })}</td>
+      <td>${c('p', {
+    type: 'select',
+    lb: '專案',
+    val: dr.p,
+    text: cfProjChip(dr.p),
+    html: true,
+    gap: '歸屬',
+    opts: cfProjOptions().map(o => [o, cfProjLabel(o)])
+  })}</td>
+      <td>${c('cat', {
+    type: 'select',
+    lb: '類別',
+    val: dr.cat,
+    gap: '類別',
+    opts: CATS.map(k => [k, k])
+  })}</td>
+      <td class="num">${c('amt', {
+    type: 'num',
+    lb: '金額',
+    val: dr.amt,
+    text: nt(dr.amt)
+  })}</td>
+      <td>${c('pass', {
+    type: 'toggle',
+    lb: '代收付',
+    val: dr.pass,
+    text: dr.pass ? '<span class="chip c-w">是</span>' : '—',
+    html: true
+  })}</td>
+      <td>${n ? `<span class="chip c-o">${svg('paperclip', 10)} ${n}</span>` : '<span class="chip c-d">缺</span>'}</td>
+      <td><span class="chip c-w">預覽 · 尚未入帳</span></td>
+      <td><span class="rowacts"><button class="btn sm pri" ${need.length ? 'disabled title="還有欄位沒填"' : ''} ${bind("click", (event, element) => {
+    cfFileConfirm(dr.id);
+  })}>${svg('checkCircle', 12)} 確認入帳</button><button class="btn sm" ${bind("click", (event, element) => {
+    cfFileStart(null);
+  })}>取消</button></span></td>
+    </tr>`;
+}
+
+/** 帳本的一列。每一格都是它自己的欄位，不是那個欄位的照片。 */
+function cfLedgerRow(t) {
+  const c = (k, o) => tcCell(Object.assign({
+    kind: 'txn',
+    id: t.id,
+    k
+  }, o));
+  const locked = cfTxLocked(t);
+  const chip = cfProjChip(t.p);
+  const files = (t.files || []).length;
+  return `<tr data-tx="${t.id}" class="${S.selTxn === t.id ? 'sel' : ''}" ${bind("click", (event, element) => {
+    selectTxn(t.id);
+  })}>
+    <td>${c('d', {
+    type: 'date',
+    lb: '日期',
+    val: t.d,
+    text: t.d.slice(5)
+  })}</td>
+    <td class="k">${c('t', {
+    type: 'text',
+    lb: '摘要',
+    val: t.t
+  })}</td>
+    <td>${c('p', {
+    type: 'select',
+    lb: '專案',
+    val: t.p,
+    text: chip,
+    html: true,
+    opts: cfProjOptions().map(o => [o, cfProjLabel(o)])
+  })}</td>
+    <td>${c('cat', {
+    type: 'select',
+    lb: '類別',
+    val: t.cat,
+    opts: CATS.map(k => [k, k])
+  })}</td>
+    <td class="num" style="${t.pass ? 'color:var(--text-3)' : t.amt > 0 ? 'color:var(--ok)' : ''}">${c('amt', {
+    type: 'num',
+    lb: '金額',
+    val: t.formula != null ? t.formula : t.amt,
+    text: nt(t.amt)
+  })}</td>
+    <td>${c('pass', {
+    type: 'toggle',
+    lb: '代收付',
+    val: t.pass,
+    text: t.pass ? '<span class="chip c-w">是</span>' : '—',
+    html: true
+  })}</td>
+    <td>${files ? `<span class="chip c-o">${svg('paperclip', 10)} ${files}</span>` : t.v.length ? `<span class="chip c-n">${t.v.length}</span>` : '<span class="chip c-d">缺</span>'}</td>
+    <td>${cfStage(t)}</td>
+    <td><span class="rowacts">${mini('paperclip', (event, element) => {
+    cfAttach(t.id);
+  }, '', '上傳憑證')}${mini('pen', (event, element) => {
+    formTxn(t.id);
+  })}${locked ? '' : mini('trash', (event, element) => {
+    delTxn(t.id);
+  }, 'dgr')}</span></td></tr>`;
 }
 function cfLedgerView() {
   if (!isOwner()) return cfBoundary('帳務由負責人處理', '帳本、對帳與月結是記帳的工作。你交出的單據核准後會出現在這裡等待歸帳，你不需要選類別。');
@@ -15325,34 +15540,20 @@ function cfLedgerView() {
   })}>${nm}</button>`).join('')}</div><span class="sp"></span><button class="btn pri" ${bind("click", (event, element) => {
     formTxn();
   })}>${svg('plus')} 新增交易</button></div>`;
+  const draft = cfFilingRow();
   let h = bar + cfUnfiledStrip();
-  if (!rows.length) return h + cfEmpty('帳本的每一列就是一張傳票', `${cfMonthLabel(m)} 還沒有交易。從上方待歸帳挑一筆，或直接新增。`, `<button class="btn pri" ${bind("click", (event, element) => {
+  // 沒有交易、也沒有在歸帳，才是真的空的。正在歸帳時表格要在，預覽列才有地方站。
+  if (!rows.length && !draft) return h + cfEmpty('帳本的每一列就是一張傳票', `${cfMonthLabel(m)} 還沒有交易。從上方待歸帳挑一筆，或直接新增。`, `<button class="btn pri" ${bind("click", (event, element) => {
     formTxn();
   })}>${svg('plus')} 新增交易</button>`);
-  h += panel('交易內帳', locked ? '已結帳 · 可加註與補憑證，金額、日期、歸屬唯讀' : '點一列開抽屜 · 雙擊摘要、類別或金額可直接改', `<div class="tbl-wrap"><table class="tbl">
+  const body = shown.map(t => cfLedgerRow(t)).join('') || (draft ? '' : `<tr><td colspan="9"><div class="empty">沒有符合「${CF_FILTERS[f][0]}」的交易</div></td></tr>`);
+  h += panel('交易內帳', locked ? '已結帳 · 可加註與補憑證，金額、日期、歸屬唯讀' : '點一列開抽屜 · 摘要、專案、類別、金額、代收付點一下就能改', `<div class="tbl-wrap"><table class="tbl">
     <thead><tr><th>日期</th><th>摘要</th><th>專案</th><th>類別</th><th class="num">金額</th><th>代收付</th><th>憑證</th><th>狀態</th><th></th></tr></thead>
-    <tbody>${shown.map(t => `<tr data-tx="${t.id}" class="${S.selTxn === t.id ? 'sel' : ''}" ${bind("click", (event, element) => {
-    selectTxn(t.id);
-  })}>
-      <td>${t.d.slice(5)}</td><td class="k">${esc(t.t)}</td>
-      <td>${t.p.startsWith('PRJ') ? `<span class="chip c-p">${t.p.slice(-3)}</span>` : '<span class="chip c-n">公司</span>'}</td>
-      <td>${esc(t.cat)}</td>
-      <td class="num" style="${t.pass ? 'color:var(--text-3)' : t.amt > 0 ? 'color:var(--ok)' : ''}">${nt(t.amt)}</td>
-      <td>${t.pass ? '<span class="chip c-w">是</span>' : '—'}</td>
-      <td>${(t.files || []).length ? `<span class="chip c-o">${svg('paperclip', 10)} ${(t.files || []).length}</span>` : t.v.length ? `<span class="chip c-n">${t.v.length}</span>` : '<span class="chip c-d">缺</span>'}</td>
-      <td>${cfStage(t)}</td>
-      <td><span class="rowacts">${mini('paperclip', (event, element) => {
-    cfAttach(t.id);
-  }, '', '上傳憑證')}${mini('pen', (event, element) => {
-    formTxn(t.id);
-  })}${locked ? '' : mini('trash', (event, element) => {
-    delTxn(t.id);
-  }, 'dgr')}</span></td></tr>`).join('') || `<tr><td colspan="9"><div class="empty">沒有符合「${CF_FILTERS[f][0]}」的交易</div></td></tr>`}</tbody>
+    <tbody>${draft}${body}</tbody>
     <tfoot><tr><td colspan="4">${cfMonthLabel(m)} 淨額（不含代收代付）</td><td class="num" style="color:${sum < 0 ? 'var(--danger)' : 'var(--ok)'}">${nt(sum)}</td><td colspan="4"></td></tr></tfoot>
   </table></div>`, '', true);
   return h;
 }
-
 /* 已結帳月份：編輯改為加註；刪除、改金額由 editable() 擋。 */
 const cfBaseEditable = editable;
 editable = x => x && DB.txns.includes(x) && cfTxLocked(x) ? false : cfBaseEditable(x);
@@ -16463,10 +16664,29 @@ function ccProjectPane(pid) {
     const state = ccTermState(t);
     const d = t.settledOn ? ccDays(t.expectedOn, t.settledOn) : null;
     const pill = state === 'overdue' ? `<span class="chip c-d">${svg('warn', 10)} 逾期 ${ccOverdue(t)} 天</span>` : state === 'settled' ? `<span class="chip c-o">${svg('check', 10)} 已收</span>` : state === 'invoiced' ? '<span class="chip c-w">已開票未收</span>' : '<span class="chip c-n">未開票</span>';
+    // 條件、金額、預計收款日是人寫的，就地改；狀態與落差是算出來的，不給改。
+    const c2 = (k, o) => tcCell(Object.assign({
+      kind: 'ccterm',
+      id: t.id,
+      k
+    }, o));
     return `<tr><td class="num">${t.seq}/${ts.length}</td>
-      <td class="k">${esc(t.label)}${t.ms ? `<span class="sub">里程碑：${esc(t.ms)}</span>` : ''}</td>
-      <td class="num">${nt(t.amount)}</td><td class="num">${t.pct ? t.pct + '%' : '—'}</td>
-      <td class="num">${t.expectedOn}</td><td class="num">${t.settledOn || '—'}</td>
+      <td class="k">${c2('label', {
+      type: 'text',
+      lb: '收款條件',
+      val: t.label
+    })}${t.ms ? `<span class="sub">里程碑：${esc(t.ms)}</span>` : ''}</td>
+      <td class="num">${c2('amount', {
+      type: 'num',
+      lb: '金額',
+      val: t.amount,
+      text: nt(t.amount)
+    })}</td><td class="num">${t.pct ? t.pct + '%' : '—'}</td>
+      <td class="num">${c2('expectedOn', {
+      type: 'date',
+      lb: '預計收款日',
+      val: t.expectedOn
+    })}</td><td class="num">${t.settledOn || '—'}</td>
       <td class="num">${d == null ? '—' : `<span class="cc-lag ${d > 0 ? 'pos' : 'ok'}">${d > 0 ? '+' : ''}${d} 天</span>`}</td>
       <td>${pill}</td>
       <td class="num">${isOwner() && !t.settledOn ? `<button class="link" ${bind("click", (event, element) => {
@@ -17201,6 +17421,273 @@ doc.addEventListener('keydown', e => {
 }, {
   capture: true,
   signal: controller.signal
+});
+
+/* ==================================================================
+   通用就地編輯：可寫的表格就是那筆資料的家
+   （Owner 決策 2026-09-28：單擊可編輯欄＝直接編輯；索引與報表維持唯讀）
+
+   一句話：表格看到的那一格，就是那筆資料的那個欄位。
+   點下去直接改，不必先開抽屜、也不必先開表單。
+
+   ── 為什麼不是「所有表格都能改」 ──────────────────────────────
+   RES-002 / ARC-030 §8：resource index 是唯讀的，沒有批次寫入。
+   所以這一層用「註冊制」而不是「掃描所有 <table>」：
+   只有在這裡 tcReg() 過的資料種類才會長出可編輯的格子。
+   物件索引、對帳建議、洞察、月結、權限表都沒有註冊 ——
+   它們是別人的鏡子，改鏡子不會改到人。
+
+   ── 三種格子的長相 ──────────────────────────────────────────
+   有值、可寫    .tc-v     平常看不出來，hover 才浮出一個可點的框
+   沒值、可寫    .cf-gap   琥珀色虛線空格，本身就是按鈕（沿用收單面的語彙）
+   不可寫        原樣輸出，和改版前一模一樣
+
+   ── 寫入一律走 commit() ──────────────────────────────────────
+   就地編輯不是「偷偷改資料」：每一次存檔都進 changelog、可以 undo、
+   會觸發 recalcLedger 與連動說明。草稿（draft: true）例外 ——
+   還沒入帳的預覽列不該在歷史裡留下一堆「更新」。
+   ================================================================== */
+
+/** 目前正在編輯的那一格；空字串代表沒有任何格子在編輯中。 */
+const TC = {
+  at: ''
+};
+/** 資料種類 → 怎麼找到它、誰能改、怎麼存。 */
+const CELL_KINDS = {};
+
+/**
+ * 註冊一種可就地編輯的資料。
+ * spec: {
+ *   nm     人看得懂的名稱（給 aria-label 用）
+ *   ent    進 changelog 的實體名稱
+ *   find   id → 記錄物件（找不到回 null）
+ *   can    (rec, k) → 這個人現在能不能改這一格
+ *   why    (rec, k) → 不能改時要說的話（選填，沒給就用 deny()）
+ *   label  rec → 進 changelog 的標題
+ *   save   (rec, k, value) → 連動說明陣列；自己 commit 過就設 own: true
+ *   own    true＝save 自己負責 commit 與錯誤訊息
+ *   draft  true＝這是草稿，不進 changelog
+ * }
+ */
+function tcReg(kind, spec) {
+  CELL_KINDS[kind] = spec;
+}
+function tcAt(kind, id, k) {
+  return kind + '·' + id + '·' + k;
+}
+function tcRec(kind, id) {
+  const s = CELL_KINDS[kind];
+  return s ? s.find(id) : null;
+}
+
+/** 進入編輯：記下是哪一格，重畫，然後把游標放進去。 */
+function tcEdit(kind, id, k) {
+  const spec = CELL_KINDS[kind],
+    rec = tcRec(kind, id);
+  if (!spec || !rec) return;
+  if (!spec.can(rec, k)) return spec.why ? toast(spec.why(rec, k)) : deny();
+  closeDrawer(true);
+  TC.at = tcAt(kind, id, k);
+  runtime._afterRender = () => {
+    const el = root.querySelector('[data-tc-in]');
+    if (!el) return;
+    el.focus();
+    if (el.select) el.select();
+  };
+  render();
+}
+function tcCancel() {
+  TC.at = '';
+  render();
+}
+/** Esc 取消、Enter 收工。stopPropagation 是必要的：表格列上還有別的快捷鍵。 */
+function tcKeys(event, element) {
+  event.stopPropagation();
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    tcCancel();
+    return;
+  }
+  if (event.key === 'Enter' && element.tagName !== 'SELECT') element.blur();
+}
+
+/**
+ * 存一格。
+ * TC.at 同時是「這一格還在編輯中嗎」的旗標 —— <select> 會先 change 再 blur，
+ * 兩個事件都叫 tcSave，第二次進來時 TC.at 已經清掉，就自然被擋住，不會存兩次。
+ */
+function tcSave(kind, id, k, value) {
+  if (TC.at !== tcAt(kind, id, k)) return;
+  TC.at = '';
+  const spec = CELL_KINDS[kind],
+    rec = tcRec(kind, id);
+  if (!spec || !rec) return render();
+  if (!spec.can(rec, k)) {
+    render();
+    return deny();
+  }
+  const v = typeof value === 'string' ? value.trim() : value;
+  if (spec.draft) {
+    spec.save(rec, k, v);
+    return render();
+  }
+  if (spec.own) {
+    spec.save(rec, k, v);
+    return render();
+  }
+  const before = {
+    ...rec
+  };
+  let eff;
+  try {
+    eff = spec.save(rec, k, v);
+  } catch (e) {
+    render();
+    return toast(esc(e.message));
+  }
+  if (eff === false) return render();
+  commit('update', spec.ent, spec.label(rec), () => eff || ['已更新'], () => Object.assign(rec, before));
+}
+/** 開關型欄位不需要編輯器：點一下就是換一個值。 */
+function tcToggle(kind, id, k) {
+  const spec = CELL_KINDS[kind],
+    rec = tcRec(kind, id);
+  if (!spec || !rec) return;
+  if (!spec.can(rec, k)) return spec.why ? toast(spec.why(rec, k)) : deny();
+  TC.at = tcAt(kind, id, k);
+  tcSave(kind, id, k, !rec[k]);
+}
+
+/**
+ * 一個可就地編輯的儲存格內容，回傳的 HTML 直接塞進 <td>。
+ * o: {
+ *   kind, id, k   指到「哪一筆資料的哪個欄位」
+ *   type          text | num | date | select | toggle
+ *   lb            欄位名稱，給 aria-label 與空格按鈕用
+ *   val           放進輸入框的原始值
+ *   text          顯示值（沒給就用 val）
+ *   html          true＝text 已經是 HTML，不要再逃逸
+ *   opts          select 的選項 [[value, label], …]
+ *   gap           沒值時空格上的字（沒給就用 lb）
+ *   cls / style   顯示狀態要多帶的 class 與 inline style
+ * }
+ */
+function tcCell(o) {
+  const spec = CELL_KINDS[o.kind],
+    rec = tcRec(o.kind, o.id);
+  const raw = o.val == null ? '' : String(o.val);
+  const shown = o.text != null ? String(o.text) : raw;
+  const disp = o.html ? shown : esc(shown);
+  if (!spec || !rec || !spec.can(rec, o.k)) return disp;
+  const aria = esc((spec.nm ? spec.nm + ' · ' : '') + (o.lb || o.k));
+  if (o.type === 'toggle') return `<button class="tc-v tc-sw ${o.cls || ''}" aria-label="${aria}" title="點一下切換" ${bind("click", (event, element) => {
+    event.stopPropagation();
+    tcToggle(o.kind, o.id, o.k);
+  })}>${disp || '—'}</button>`;
+  if (TC.at === tcAt(o.kind, o.id, o.k)) {
+    const common = `class="tc-in" data-tc-in="1" aria-label="${aria}" ${bind("click", (event, element) => {
+      event.stopPropagation();
+    })} ${bind("keydown", (event, element) => {
+      tcKeys(event, element);
+    })}`;
+    if (o.type === 'select') {
+      const opts = (raw === '' ? [['', '選擇…']] : []).concat(o.opts || []);
+      return `<select ${common} ${bind("change", (event, element) => {
+        tcSave(o.kind, o.id, o.k, element.value);
+      })}>${opts.map(x => `<option value="${esc(x[0])}" ${String(x[0]) === raw ? 'selected' : ''}>${esc(x[1])}</option>`).join('')}</select>`;
+    }
+    const t = o.type === 'date' ? 'date' : 'text';
+    const im = o.type === 'num' ? ' inputmode="decimal"' : '';
+    return `<input type="${t}"${im} ${common} value="${esc(raw)}" ${bind("blur", (event, element) => {
+      tcSave(o.kind, o.id, o.k, element.value);
+    })}>`;
+  }
+  if (raw === '') return `<button class="cf-gap" aria-label="${aria}" ${bind("click", (event, element) => {
+    event.stopPropagation();
+    tcEdit(o.kind, o.id, o.k);
+  })}>${svg('plus', 11)} ${esc(o.gap || o.lb || '')}</button>`;
+  const cls = 'tc-v' + (o.type === 'num' ? ' n' : '') + (o.type === 'select' || o.type === 'date' ? ' tc-pick' : '') + (o.cls ? ' ' + o.cls : '');
+  return `<button class="${cls}" aria-label="${aria}" title="點一下改" ${o.style ? `style="${o.style}"` : ''} ${bind("click", (event, element) => {
+    event.stopPropagation();
+    tcEdit(o.kind, o.id, o.k);
+  })}>${disp}</button>`;
+}
+
+/* ---------- 帳本的交易 ----------
+   寫入仍然走既有的 editLedgerCell()：公式、已配對金額的擋，都在那裡，
+   這一層只負責「哪一格、什麼型別」。 */
+tcReg('txn', {
+  nm: '交易',
+  ent: '交易',
+  own: true,
+  find: id => TX(id),
+  can: t => !!t && editable(t),
+  why: t => cfTxLocked(t) ? cfMonthLabel(t.d.slice(0, 7)) + ' 已結帳：可以加註與補憑證，金額、日期與歸屬要先解鎖' : '此交易由作者維護',
+  label: t => t.t,
+  save: (t, k, v) => editLedgerCell(t.id, k, v)
+});
+
+/* ---------- 合約期款 ----------
+   條件與金額是人寫的，狀態（未開票／已開票／已收／逾期）是算出來的，
+   所以狀態那一欄沒有掛編輯 —— 要改狀態請走「標記收款」。 */
+tcReg('ccterm', {
+  nm: '期款',
+  ent: '期款',
+  find: id => DB.terms.find(x => x.id === id),
+  can: t => !!t && isOwner() && !t.settledOn,
+  why: t => t.settledOn ? '已收款的期款不改條件與金額；要更正請先解除勾稽' : '期款由負責人維護',
+  label: t => {
+    const p = ccProjectOfTerm(t);
+    return `${p ? p.t : ''} 第 ${t.seq} 期`;
+  },
+  save: (t, k, v) => {
+    if (k === 'amount') {
+      const n = Number(String(v).replace(/[,\s]/g, ''));
+      if (!Number.isFinite(n) || n <= 0) throw Error('金額須為大於 0 的數字');
+      t.amount = n;
+      return ['推演與兩顆燈已重算', '占比只是輔助值，不回算'];
+    }
+    if (k === 'expectedOn') {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw Error('日期格式錯誤');
+      t.expectedOn = v;
+      return ['推演會再用這個客戶的付款落差平移它', '逾期燈重算'];
+    }
+    if (!String(v).trim()) throw Error('收款條件不能空白');
+    t.label = String(v).trim();
+    return ['期款條件已更新'];
+  }
+});
+
+/* ---------- 薪資試算 ----------
+   這是試算，不是付款：改這裡不會發錢，專案獎金仍然由帳本算出來，不給改。 */
+tcReg('payroll', {
+  nm: '薪資試算',
+  ent: '薪資試算',
+  find: who => DB.payroll.find(p => p.who === who),
+  can: p => !!p && isOwner() && !p.separate,
+  why: () => '薪資試算由管理者調整；另計的人員不在這張表裡改',
+  label: p => person(p.who),
+  save: (p, k, v) => {
+    const n = Number(String(v).replace(/[,\s]/g, ''));
+    if (!Number.isFinite(n) || n < 0) throw Error('金額須為 0 以上的數字');
+    p[k] = n;
+    return ['只更新本頁示例試算，不付款'];
+  }
+});
+
+/* ---------- 歸帳預覽列 ----------
+   還沒入帳的那一列。它長得和帳本的列一模一樣，因為它就是「等一下會變成那一列」的東西。
+   draft: true —— 在預覽列上打字不該在 changelog 留下一堆「更新」，
+   歷史只記真正入帳的那一次。 */
+tcReg('filing', {
+  nm: '歸帳預覽',
+  ent: '歸帳',
+  draft: true,
+  find: id => cfFilingDraft(id),
+  can: () => isOwner(),
+  why: () => '歸帳是記帳者的工作',
+  label: dr => dr.t,
+  save: (dr, k, v) => cfDraftSet(dr.id, k, v)
 });
 paintUser();
 renderRail();

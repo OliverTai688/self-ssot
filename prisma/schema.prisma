@@ -2234,6 +2234,58 @@ model OperatingLibraryFile {
   @@map("operating_library_files")
 }
 
+/// 日誌／文件庫／金流共用的一份檔案資產：bytes 在 Cloudflare R2，這裡只存座標與身分。
+///
+/// 為什麼不是把 objectKey 塞進 OperatingLibraryFile.versions[] 就好：那樣檔案永遠只是
+/// 某張表的一個欄位，沒有自己的 id，所以進不了 mentionHits()、@ 不到、物件索引也掃不到。
+/// 這張表讓一份檔案有唯一的家 —— 與「物件有唯一的家」同一條原則。
+///
+/// signed URL 一律即時產生、永不落地（AUT-004）；這裡只存 bucket 與 objectKey。
+model OperatingAsset {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  workbenchRef String?   @map("workbench_ref")
+  /// AST-JRNL-000124-20260928（RES-018）。由伺服器指派一次，永不重生成。
+  /// 前端計數器撞號曾讓寫入佇列卡死並撞出渲染無限遞迴（YZUI-020），所以不放前端。
+  refCode      String    @unique @map("ref_code")
+  /// image | pdf | doc | sheet | slide | audio | video —— 決定卡片主體與索引 facet
+  kind         String
+  /// 顯示名稱可以改；改了不影響 refCode，引用因此不會失效
+  displayName  String    @map("display_name")
+  bucket       String
+  /// operating/{workspaceId}/asset/{yyyy-mm}/{uuid}{ext}；由伺服器決定，不採用前端送來的路徑
+  objectKey    String    @map("object_key")
+  mimeType     String?   @map("mime_type")
+  sizeBytes    Int?      @map("size_bytes")
+  /// finalize 時由 HeadObject 的 ETag 寫入，不信任前端回報
+  contentHash  String?   @map("content_hash")
+  /// uploading | ready | failed。只有 ready 進得了 @ 選單與物件索引
+  status       String    @default("uploading")
+  /// multipart 進行中才有；complete 或 abort 之後清空
+  uploadId     String?   @map("upload_id")
+  /// team = 全員可見；personal = 只有作者讀得到（下載授權依這欄）
+  space        String    @default("team")
+  authorKey    String?   @map("author_key")
+  /// journal | library | cashflow —— 從哪道門進來的
+  origin       String    @default("journal")
+  /// 誕生在哪一天的日誌。日誌那一行刪掉之後，物件索引還靠它標出來源
+  bornDay      DateTime? @map("born_day") @db.Date
+  bornAt       DateTime? @map("born_at")
+  /// 抽出來的純文字，讓物件索引搜得到內容（P3 才會有值）
+  extractedText String?  @map("extracted_text")
+  durationSec  Int?      @map("duration_sec")
+  transcript   String?
+  deletedAt    DateTime? @map("deleted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@unique([bucket, objectKey], map: "operating_assets_object_key_unique")
+  @@index([workspaceId, status], map: "operating_assets_workspace_status_idx")
+  @@index([workspaceId, bornDay], map: "operating_assets_workspace_day_idx")
+  @@index([workspaceId, workbenchRef], map: "operating_assets_ref_idx")
+  @@map("operating_assets")
+}
+
 /// 日誌裡召喚出來的結構化文件物件（會議紀錄、訪談稿之類）。
 model OperatingDocObject {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

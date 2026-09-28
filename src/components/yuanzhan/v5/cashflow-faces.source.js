@@ -88,6 +88,13 @@ function cfMonths() {
   DB.txns.forEach(t => t.d && set.add(t.d.slice(0, 7)));
   DB.bank.forEach(b => b.d && set.add(b.d.slice(0, 7)));
   DB.periods.forEach(p => set.add(p.id));
+  // 正在歸帳的那一筆可能落在一個還沒有任何交易的月份：把它加進來，
+  // 不然切過去看預覽列的時候，期間選單裡根本沒有那個月。
+  if (S.cfFiling) {
+    const dr = S.cfDraft[S.cfFiling], x = DB.intake.find(y => y.id === S.cfFiling);
+    const fd = (dr && dr.d) || (x && x.d) || '';
+    if (fd) set.add(fd.slice(0, 7));
+  }
   return [...set].filter(m => /^\d{4}-\d{2}$/.test(m)).sort().reverse();
 }
 function cfPeriod(m) { return DB.periods.find(p => p.id === m); }
@@ -114,6 +121,9 @@ function cfUnfiled() {
 const cfApprovals = () => DB.reimb.filter(r => r.st === '已送');
 const cfProjLabel = p => !p || p === '公司層級' ? '公司層級' : (P(p) ? P(p).t : p);
 const cfProjOptions = () => [...(isOwner() ? DB.projects.map(p => p.id) : myProjects()), '公司層級'];
+/** 歸屬在表格裡一律是同一顆 chip —— 預覽列和入帳後那一列要長得一模一樣，
+ *  不然「預覽」就沒有在預覽。 */
+const cfProjChip = p => !p ? '' : p.startsWith('PRJ') ? `<span class="chip c-p">${esc(p.slice(-3))}</span>` : '<span class="chip c-n">公司</span>';
 function cfBadge(face) {
   if (face === 'intake') return isOwner() ? cfApprovals().length : DB.intake.filter(x => x.who === DB.me && x.st === 'draft').length;
   if (face === 'books' && isOwner()) return cfUnfiled().length + DB.bank.filter(b => !b.m && b.d.slice(0, 7) === cfMonth()).length;
@@ -154,9 +164,17 @@ async function cfReadFile(file) {
   if (!CF_FILE_TYPES.test(file.name)) throw Error('請上傳 JPG、PNG、WEBP 或 PDF');
   const meta = { name: file.name, type: file.type, bytes: file.size, at: TODAY + ' ' + nowts(), by: DB.me };
   if (OP_LIVE) {
-    const signed = await presignUpload(file);
-    await putToR2(signed.uploadUrl, file);
-    return { ...meta, objectKey: signed.objectKey };
+    const signed = await presignUpload(file, { origin: 'cashflow' });
+    // finalize 沒跑到的那一列會停在 uploading，24 小時後被孤兒清理刪掉 bytes。
+    // 所以失敗也要回報，讓它直接變 failed，而不是留一列狀態不明的紀錄。
+    try {
+      await putToR2(signed.uploadUrl, file);
+      await finalizeUpload(signed.assetId);
+    } catch (e) {
+      await finalizeUpload(signed.assetId, 'failed').catch(() => {});
+      throw e;
+    }
+    return { ...meta, objectKey: signed.objectKey, assetId: signed.assetId, refCode: signed.refCode };
   }
   const data = await new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -363,7 +381,10 @@ function cfSubmit(id) {
   if (!p) miss.push('歸屬');
   if (miss.length) { S.cfErr = '還差' + miss.join('與') + '。'; render(); return; }
   const before = { ...x };
-  const r = isOwner() ? null : { id: nid('RMB'), who: DB.me, t, amt, st: '已送', d: x.d || TODAY };
+  // 送出一律留下報帳單，「我的報帳」才看得到自己的錢走到哪。
+  // 負責人不需要自我核准：直接落在「已核」，後面只剩付款那一步。
+  const selfApproved = isOwner();
+  const r = { id: nid('RMB'), who: DB.me, t, amt, st: selfApproved ? '已核' : '已送', d: x.d || TODAY };
   S.cfEditing = null;
   S.cfStep = '';
   S.cfErr = '';
@@ -371,13 +392,16 @@ function cfSubmit(id) {
   S.cfQueueTail = S.cfQueueTail.filter(i => i !== id);
   commit('update', '收件', t + ' 送出', () => {
     Object.assign(x, { amt, p, t, st: 'unfiled' });
-    if (r) { DB.reimb.unshift(r); x.reimb = r.id; }
-    return r ? ['已送出，等負責人核准代墊', '核准後進入帳本的待歸帳'] : ['已送出 → 帳本的<b>待歸帳</b>'];
+    DB.reimb.unshift(r);
+    x.reimb = r.id;
+    return selfApproved
+      ? ['已送出 → 帳本的<b>待歸帳</b>', '同時記進<b>報帳</b>，等付款']
+      : ['已送出，等負責人核准代墊', '核准後進入帳本的待歸帳'];
   }, () => {
     Object.assign(x, before);
-    if (r) DB.reimb = DB.reimb.filter(y => y.id !== r.id);
+    DB.reimb = DB.reimb.filter(y => y.id !== r.id);
   });
-  toast(r ? '已送出，等負責人核准' : '已送出，出現在帳本的待歸帳');
+  toast(selfApproved ? '已送出，出現在帳本的待歸帳' : '已送出，等負責人核准');
 }
 function cfDiscard(id) {
   const x = DB.intake.find(y => y.id === id);
@@ -851,42 +875,139 @@ const CF_FILTERS = {
   expense: ['支出', t => t.amt < 0]
 };
 function cfSetFilter(k) { S.cfFilter = k; render(); }
-function cfFileStart(id) { S.cfFiling = id; render(); }
-function cfFilePick(id, p) { (S.cfDraft[id] || (S.cfDraft[id] = {})).p = p; render(); }
-function cfFile(id, cat) {
-  if (!isOwner()) return deny();
+
+/* ---------- 歸帳：一列預覽，不是一排按鈕（Owner 決策 2026-09-28）----------
+   原本按「歸帳」是在待歸帳條帶裡攤開兩排 chip，選到最後一顆的同時就寫進帳本 ——
+   按下去之前，你看不到這一筆進帳本會長成什麼樣子，也沒有反悔的地方。
+   改成：按「歸帳」在帳本表格最上面長出一列草稿列，欄位和表頭一一對齊，
+   缺的欄位就是那一欄裡的琥珀色空格，補完再按「確認入帳」。
+   預覽和結果是同一個形狀 —— 因為它本來就是同一列。 */
+
+/** 草稿 ＝ 收件那一筆的值，疊上你在預覽列上改過的部分。 */
+function cfFilingDraft(id) {
   const x = DB.intake.find(y => y.id === id);
-  if (!x) return;
-  const p = x.p || S.cfDraft[id]?.p;
-  if (!p) return toast('先選歸屬');
-  const d = x.d || TODAY;
-  if (cfLocked(d.slice(0, 7))) return toast(cfMonthLabel(d.slice(0, 7)) + ' 已結帳，請先解鎖或改日期');
-  const t = { id: nid('TXN'), d, t: x.t, p, cat, amt: -Math.abs(Number(x.amt) || 0), pass: false, v: x.file ? ['收據'] : [], files: x.file ? [x.file] : [], note: '由收件 ' + x.id + (x.reimb ? ' · 報帳 ' + x.reimb : '') };
-  const r = cfReimbOf(x);
+  if (!x) return null;
+  const dr = S.cfDraft[id] || (S.cfDraft[id] = {});
+  return {
+    id, x,
+    d: dr.d || x.d || TODAY,
+    t: dr.t != null ? dr.t : x.t,
+    p: dr.p || x.p || '',
+    cat: dr.cat || '',
+    amt: dr.amt != null ? dr.amt : -Math.abs(Number(x.amt) || 0),
+    pass: !!dr.pass
+  };
+}
+function cfDraftSet(id, k, v) {
+  const dr = S.cfDraft[id] || (S.cfDraft[id] = {});
+  if (k === 'amt') {
+    const n = Number(String(v).replace(/[,\s]/g, ''));
+    if (!Number.isFinite(n)) return toast('金額請填數字');
+    dr.amt = n;
+  } else if (k === 'd') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return toast('日期格式錯誤');
+    dr.d = v;
+    // 預覽列改日期，期間跟著走：不然你會把它填到一個自己看不到的月份去。
+    S.cfMonth = v.slice(0, 7);
+  } else if (k === 'pass') dr.pass = !!v;
+  else dr[k] = v;
+}
+function cfFileStart(id) {
+  if (id && !isOwner()) return deny();
+  S.cfFiling = id;
+  TC.at = '';
+  if (id) {
+    const dr = cfFilingDraft(id);
+    if (dr) S.cfMonth = dr.d.slice(0, 7);
+    closeDrawer(true);
+  }
+  render();
+}
+function cfFilePick(id, p) { cfDraftSet(id, 'p', p); render(); }
+/** 舊入口：給了類別就直接入帳。指令面板與既有連結還在用。 */
+function cfFile(id, cat) { cfDraftSet(id, 'cat', cat); cfFileConfirm(id); }
+
+/** 真正寫進帳本的那一次 —— 也是唯一一次進 changelog 的那一次。 */
+function cfFileConfirm(id) {
+  if (!isOwner()) return deny();
+  const dr = cfFilingDraft(id);
+  if (!dr) return;
+  if (!dr.p) return toast('先選歸屬');
+  if (!dr.cat) return toast('先選類別');
+  const m = dr.d.slice(0, 7);
+  if (cfLocked(m)) return toast(cfMonthLabel(m) + ' 已結帳，請先解鎖或改日期');
+  const x = dr.x, r = cfReimbOf(x), wasP = x.p;
+  const amt = dr.cat === '收入' ? Math.abs(dr.amt) : -Math.abs(dr.amt);
+  const t = { id: nid('TXN'), d: dr.d, t: dr.t, p: dr.p, cat: dr.cat, amt, pass: !!dr.pass, v: x.file ? ['收據'] : [], files: x.file ? [x.file] : [], note: '由收件 ' + x.id + (x.reimb ? ' · 報帳 ' + x.reimb : '') };
   S.cfFiling = null;
-  commit('create', '交易（歸帳）', x.t, () => {
+  delete S.cfDraft[id];
+  commit('create', '交易（歸帳）', t.t, () => {
     DB.txns.unshift(t);
-    Object.assign(x, { st: 'posted', txn: t.id, p });
+    Object.assign(x, { st: 'posted', txn: t.id, p: dr.p });
     if (r) r.txn = t.id;
-    return [`${esc(x.t)} → <b>${cat}</b> 入帳 ${nt(t.amt)}`, ...(p.startsWith('PRJ') ? effProject(p) : ['公司層級支出，不進入任何專案毛利'])];
+    return [`${esc(t.t)} → <b>${esc(dr.cat)}</b> 入帳 ${nt(amt)}`, ...(dr.p.startsWith('PRJ') ? effProject(dr.p) : ['公司層級支出，不進入任何專案毛利'])];
   }, () => {
     DB.txns = DB.txns.filter(y => y.id !== t.id);
-    Object.assign(x, { st: 'unfiled', txn: '' });
+    Object.assign(x, { st: 'unfiled', txn: '', p: wasP });
     if (r) r.txn = null;
   });
 }
+
+/** 待歸帳條帶：現在只負責「還有誰在排隊」，填欄位是下面那一列的事。 */
 function cfUnfiledStrip() {
   const list = cfUnfiled();
   if (!list.length) return '';
-  const cats = CATS.filter(c => c !== '收入');
-  return `<div class="cf-strip"><div class="cf-strip-h"><b>待歸帳 ${list.length}</b><span>補上類別就會進帳本</span></div>${list.map(x => {
+  return `<div class="cf-strip"><div class="cf-strip-h"><b>待歸帳 ${list.length}</b><span>按「歸帳」會在下面的帳本長出一列預覽，補上標色的欄位再確認</span></div>${list.map(x => {
     const p = x.p || S.cfDraft[x.id]?.p;
     const filing = S.cfFiling === x.id;
-    return `<div class="cf-strip-i"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${person(x.who)} · ${p ? esc(cfProjLabel(p)) : '<span class="cf-need">未選歸屬</span>'}${x.file ? ` · <span class="lnk" onclick="cfOpenIntakeFile('${x.id}')">看憑證</span>` : ''}</small></span><span class="n">${nt(-Math.abs(Number(x.amt) || 0))}</span>
-      ${filing ? `<span class="cf-strip-pick">${!x.p ? `<span class="chipset">${cfProjOptions().map(o => `<button type="button" class="${p === o ? 'on' : ''}" onclick="cfFilePick('${x.id}','${o}')">${esc(cfProjLabel(o))}</button>`).join('')}</span>` : ''}<span class="chipset">${cats.map(c => `<button type="button" onclick="cfFile('${x.id}','${c}')">${c}</button>`).join('')}</span><button class="btn sm" onclick="cfFileStart(null)">取消</button></span>` : `<button class="btn sm pri" onclick="cfFileStart('${x.id}')">歸帳</button>`}</div>`;
+    return `<div class="cf-strip-i ${filing ? 'on' : ''}"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${person(x.who)} · ${p ? esc(cfProjLabel(p)) : '<span class="cf-need">未選歸屬</span>'}${x.file ? ` · <span class="lnk" onclick="cfOpenIntakeFile('${x.id}')">看憑證</span>` : ''}</small></span><span class="n">${nt(-Math.abs(Number(x.amt) || 0))}</span>
+      ${filing ? `<span class="cf-strip-now">${svg('arrowRight', 12)} 正在下面那一列填<button class="btn sm" onclick="cfFileStart(null)">取消</button></span>` : `<button class="btn sm pri" onclick="cfFileStart('${x.id}')">歸帳</button>`}</div>`;
   }).join('')}</div>`;
 }
 function cfOpenIntakeFile(id) { const x = DB.intake.find(y => y.id === id); if (x?.file) cfOpenFile(x.file, { kind: 'inbox', label: '回收件匣' }); }
+
+/** 預覽列：和帳本的列同一組欄位、同一種格子，只是還沒入帳。 */
+function cfFilingRow() {
+  if (!S.cfFiling) return '';
+  const dr = cfFilingDraft(S.cfFiling);
+  if (!dr) return '';
+  const x = dr.x;
+  const c = (k, o) => tcCell(Object.assign({ kind: 'filing', id: dr.id, k }, o));
+  const need = [];
+  if (!dr.p) need.push('歸屬');
+  if (!dr.cat) need.push('類別');
+  const n = x.file ? 1 : 0;
+  return `<tr class="cf-fil-h"><td colspan="9"><b>正在歸帳</b><span>來自收件 ${esc(x.id)} · ${person(x.who)} 交件${need.length ? ` · 還缺 <i>${need.join('、')}</i>` : ' · 欄位齊了，確認就入帳'}</span></td></tr>
+    <tr class="cf-fil">
+      <td>${c('d', { type: 'date', lb: '日期', val: dr.d, text: dr.d.slice(5) })}</td>
+      <td class="k">${c('t', { type: 'text', lb: '摘要', val: dr.t })}</td>
+      <td>${c('p', { type: 'select', lb: '專案', val: dr.p, text: cfProjChip(dr.p), html: true, gap: '歸屬', opts: cfProjOptions().map(o => [o, cfProjLabel(o)]) })}</td>
+      <td>${c('cat', { type: 'select', lb: '類別', val: dr.cat, gap: '類別', opts: CATS.map(k => [k, k]) })}</td>
+      <td class="num">${c('amt', { type: 'num', lb: '金額', val: dr.amt, text: nt(dr.amt) })}</td>
+      <td>${c('pass', { type: 'toggle', lb: '代收付', val: dr.pass, text: dr.pass ? '<span class="chip c-w">是</span>' : '—', html: true })}</td>
+      <td>${n ? `<span class="chip c-o">${svg('paperclip', 10)} ${n}</span>` : '<span class="chip c-d">缺</span>'}</td>
+      <td><span class="chip c-w">預覽 · 尚未入帳</span></td>
+      <td><span class="rowacts"><button class="btn sm pri" ${need.length ? 'disabled title="還有欄位沒填"' : ''} onclick="cfFileConfirm('${dr.id}')">${svg('checkCircle', 12)} 確認入帳</button><button class="btn sm" onclick="cfFileStart(null)">取消</button></span></td>
+    </tr>`;
+}
+
+/** 帳本的一列。每一格都是它自己的欄位，不是那個欄位的照片。 */
+function cfLedgerRow(t) {
+  const c = (k, o) => tcCell(Object.assign({ kind: 'txn', id: t.id, k }, o));
+  const locked = cfTxLocked(t);
+  const chip = cfProjChip(t.p);
+  const files = (t.files || []).length;
+  return `<tr data-tx="${t.id}" class="${S.selTxn === t.id ? 'sel' : ''}" onclick="selectTxn('${t.id}')">
+    <td>${c('d', { type: 'date', lb: '日期', val: t.d, text: t.d.slice(5) })}</td>
+    <td class="k">${c('t', { type: 'text', lb: '摘要', val: t.t })}</td>
+    <td>${c('p', { type: 'select', lb: '專案', val: t.p, text: chip, html: true, opts: cfProjOptions().map(o => [o, cfProjLabel(o)]) })}</td>
+    <td>${c('cat', { type: 'select', lb: '類別', val: t.cat, opts: CATS.map(k => [k, k]) })}</td>
+    <td class="num" style="${t.pass ? 'color:var(--text-3)' : t.amt > 0 ? 'color:var(--ok)' : ''}">${c('amt', { type: 'num', lb: '金額', val: t.formula != null ? t.formula : t.amt, text: nt(t.amt) })}</td>
+    <td>${c('pass', { type: 'toggle', lb: '代收付', val: t.pass, text: t.pass ? '<span class="chip c-w">是</span>' : '—', html: true })}</td>
+    <td>${files ? `<span class="chip c-o">${svg('paperclip', 10)} ${files}</span>` : t.v.length ? `<span class="chip c-n">${t.v.length}</span>` : '<span class="chip c-d">缺</span>'}</td>
+    <td>${cfStage(t)}</td>
+    <td><span class="rowacts">${mini('paperclip', `cfAttach('${t.id}')`, '', '上傳憑證')}${mini('pen', `formTxn('${t.id}')`)}${locked ? '' : mini('trash', `delTxn('${t.id}')`, 'dgr')}</span></td></tr>`;
+}
 
 function cfLedgerView() {
   if (!isOwner()) return cfBoundary('帳務由負責人處理', '帳本、對帳與月結是記帳的工作。你交出的單據核准後會出現在這裡等待歸帳，你不需要選類別。');
@@ -896,24 +1017,18 @@ function cfLedgerView() {
   const shown = rows.filter(CF_FILTERS[f][1]).sort((a, b) => a.d < b.d ? 1 : -1);
   const sum = rows.filter(t => !t.pass).reduce((a, b) => a + b.amt, 0);
   const bar = `<div class="cf-bar">${cfPeriodBar()}<div class="seg">${Object.entries(CF_FILTERS).map(([k, [nm]]) => `<button class="${f === k ? 'on' : ''}" onclick="cfSetFilter('${k}')">${nm}</button>`).join('')}</div><span class="sp"></span><button class="btn pri" onclick="formTxn()">${svg('plus')} 新增交易</button></div>`;
+  const draft = cfFilingRow();
   let h = bar + cfUnfiledStrip();
-  if (!rows.length) return h + cfEmpty('帳本的每一列就是一張傳票', `${cfMonthLabel(m)} 還沒有交易。從上方待歸帳挑一筆，或直接新增。`, `<button class="btn pri" onclick="formTxn()">${svg('plus')} 新增交易</button>`);
-  h += panel('交易內帳', locked ? '已結帳 · 可加註與補憑證，金額、日期、歸屬唯讀' : '點一列開抽屜 · 雙擊摘要、類別或金額可直接改', `<div class="tbl-wrap"><table class="tbl">
+  // 沒有交易、也沒有在歸帳，才是真的空的。正在歸帳時表格要在，預覽列才有地方站。
+  if (!rows.length && !draft) return h + cfEmpty('帳本的每一列就是一張傳票', `${cfMonthLabel(m)} 還沒有交易。從上方待歸帳挑一筆，或直接新增。`, `<button class="btn pri" onclick="formTxn()">${svg('plus')} 新增交易</button>`);
+  const body = shown.map(t => cfLedgerRow(t)).join('') || (draft ? '' : `<tr><td colspan="9"><div class="empty">沒有符合「${CF_FILTERS[f][0]}」的交易</div></td></tr>`);
+  h += panel('交易內帳', locked ? '已結帳 · 可加註與補憑證，金額、日期、歸屬唯讀' : '點一列開抽屜 · 摘要、專案、類別、金額、代收付點一下就能改', `<div class="tbl-wrap"><table class="tbl">
     <thead><tr><th>日期</th><th>摘要</th><th>專案</th><th>類別</th><th class="num">金額</th><th>代收付</th><th>憑證</th><th>狀態</th><th></th></tr></thead>
-    <tbody>${shown.map(t => `<tr data-tx="${t.id}" class="${S.selTxn === t.id ? 'sel' : ''}" onclick="selectTxn('${t.id}')">
-      <td>${t.d.slice(5)}</td><td class="k">${esc(t.t)}</td>
-      <td>${t.p.startsWith('PRJ') ? `<span class="chip c-p">${t.p.slice(-3)}</span>` : '<span class="chip c-n">公司</span>'}</td>
-      <td>${esc(t.cat)}</td>
-      <td class="num" style="${t.pass ? 'color:var(--text-3)' : t.amt > 0 ? 'color:var(--ok)' : ''}">${nt(t.amt)}</td>
-      <td>${t.pass ? '<span class="chip c-w">是</span>' : '—'}</td>
-      <td>${(t.files || []).length ? `<span class="chip c-o">${svg('paperclip', 10)} ${(t.files || []).length}</span>` : t.v.length ? `<span class="chip c-n">${t.v.length}</span>` : '<span class="chip c-d">缺</span>'}</td>
-      <td>${cfStage(t)}</td>
-      <td><span class="rowacts">${mini('paperclip', `cfAttach('${t.id}')`, '', '上傳憑證')}${mini('pen', `formTxn('${t.id}')`)}${locked ? '' : mini('trash', `delTxn('${t.id}')`, 'dgr')}</span></td></tr>`).join('') || `<tr><td colspan="9"><div class="empty">沒有符合「${CF_FILTERS[f][0]}」的交易</div></td></tr>`}</tbody>
+    <tbody>${draft}${body}</tbody>
     <tfoot><tr><td colspan="4">${cfMonthLabel(m)} 淨額（不含代收代付）</td><td class="num" style="color:${sum < 0 ? 'var(--danger)' : 'var(--ok)'}">${nt(sum)}</td><td colspan="4"></td></tr></tfoot>
   </table></div>`, '', true);
   return h;
 }
-
 /* 已結帳月份：編輯改為加註；刪除、改金額由 editable() 擋。 */
 const cfBaseEditable = editable;
 editable = x => (x && DB.txns.includes(x) && cfTxLocked(x)) ? false : cfBaseEditable(x);

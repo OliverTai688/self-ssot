@@ -1,5 +1,20 @@
 # Completed Log
 
+## 2026-09-28
+
+### ASSET-001..004 — 日誌檔案物件 P0 契約層
+
+- Owner 指示日誌要能從電腦或手機上傳圖片／文件（docx・xlsx・pdf・pptx）／音訊／影片到 Cloudflare R2，並且可以 `@` 引用。先產出提案（`journal-asset-upload-proposals.html`，五輪研究、需求理解 58→89），Owner 指示開始實作。**本輪只做 P0 契約層，無 UI 變化。**
+- 盤點結論：R2 管線在 `R2STORE-002`／`003` 已通，文件庫也已把 `objectKey` 存進 `versions[]`。真正的缺口是**檔案不是物件**——沒有 id 與參考碼就進不了 `mentionHits()`／`objHtml()`／`objJump()`／物件索引。
+- 新表 `OperatingAsset`（migration `20260928120000_operating_assets`，**純新增、不改既有表、無回填**）。欄位與 `SCH-005` 的 `FileAsset`／`MediaAsset` 對齊，未來合併不必改欄位名。
+- **參考碼由伺服器指派**（`AST-JRNL-000124-20260928`，`RES-018` 四段格式，續號取既有最大值 + `ref_code` UNIQUE 兜底）。這是 `YZUI-020` 殘留缺口一節自己寫下的根治方式：前端計數器每次重整都從 000001 重來，撞號讓寫入佇列卡死並撞出渲染無限遞迴。差別在於現在撞號會失敗並重試，而不是靜靜寫進兩列同號資料。
+- 純契約模組 `operating-assets.ts`（無 DOM／無 Prisma／無 `server-only`，與 `operating-commands.ts` 同一個理由）：kind 判定、分級白名單（圖片 25／PDF・文件・試算表・簡報 50／音訊 200／影片 500 MB）、multipart 門檻 64 MB、object key（**帶 workspaceId**，`ARC-033` 隔離在 key 本身成立）、參考碼、狀態機、可見性、孤兒判準。前端與伺服器呼叫同一個 `classifyAsset()`，理由一字不差。舊白名單全數保留；`.docm`／`.xlsm`／`.pptm`／`.svg`／舊版 Office 明確拒絕**且說得出為什麼**。
+- 路由三件事：POST **先建列再發預簽網址**（反過來會在 bucket 留下沒有任何一列指得到的 bytes）；新增 **PATCH finalize** 以 `HeadObject` 核對大小才轉 `ready`（截斷的檔案在前端看起來與成功一模一樣）；GET 改為查 DB 授權後才簽。回傳形狀向後相容。
+- **補掉一個既有授權漏洞**（非本輪引入）：GET 原本只檢查 key 前綴，任何有席位的人拿到 key 就能下載別人 `space:'personal'` 的私人文件。改為必須找得到引用它的那一列且該列對此席位可見，涵蓋 operating_assets／文件庫版本／金流憑證／收件匣四條路徑，找不到引用一律拒絕。
+- 孤兒清理 `pnpm ops:assets:cleanup`（預設 dry run）與既有兩條上傳路徑的 finalize 接線。必須與 P0 同時上：延後就會累積成一筆算不出來也刪不掉的儲存費。
+- Verification：`verify-asset-pipeline.mjs` **42/42 PASS**（本輪新增）、`check-prisma-structure` PASS（74 models）、`check-migration-coverage` PASS、`check-operating-command-fields` 356 PASS、`verify-object-index` 19/19、`verify-agenda-object` 99/99、`check-operating-persistence` PASS、generate PASS（523 handler templates）、eslint 新增檔 **0 errors 0 warnings**。`tsc` **12 errors，全部是 `PrismaClient.operatingAsset` 不存在**——`prisma generate` 跑不起來（`binaries.prisma.sh` 在本機 VM 與雲端容器皆 403，`ui-verify-environment-setup.md` 已記錄過同一件事）；以暫時 `.d.ts` 探針重跑為 **0 errors**，探針已刪除未入庫。schema 欄位正確性改由 harness 第 8 段守著（比對服務層依賴的 24 欄與兩條 UNIQUE），與 `check-operating-command-fields.mjs` 同一個做法。
+- **待 Owner 在本機執行**：`pnpm db:generate`（解掉 12 個型別錯誤）、`pnpm db:deploy`（套用 migration；本輪刻意未套用，`migrate dev` 會 diff 整份 schema——見 `MIG-003` 2026-07-22 addendum），以及確認文件庫上傳與金流收件匣拍照上傳仍正常且該列轉為 `ready`。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260928-journal-asset-object-p0.md)
+
 ## 2026-09-25
 
 ### YZUI-029 — 議題任務化與卡片色彩系統
@@ -4143,3 +4158,24 @@ Remaining risks:
 - `/ai-input`'s deeper mock-backed sync/proposal UI (`UICLEAN-002`) is unresolved; `isMockDataEnabled` still threads through ~40 call sites in that one file and needs local dev-server verification before conversion, not a blind text edit.
 - No live browser walkthrough was done this pass (no confirmed running `pnpm dev` instance in this session); the changes are type-safe but have not been visually re-screenshotted the way `ui-audit-and-fixes.md`'s original pass was.
 - This session's edits were made concurrently with the repo's own 10-minute Codex automation loop, which independently shipped an unrelated sidebar collapse/member-card feature during the same window; files were re-staged immediately before each edit to avoid clobbering it, but a full `git diff` review before the next loop cycle is still worth doing.
+
+## 2026-09-28 — 負責人自送收件也建立報帳單（OWNER-DIRECTED-20260928-01）
+
+問題：owner 在「收單 → 已送出」有 2 筆，但「我的報帳」是空的。
+
+根因：`cfSubmit()` 的 `const r = isOwner() ? null : {...}` 讓 owner 送出時不建立報帳單（RMB），
+intake 直接轉 `unfiled`；而「我的報帳」(`cfMineView`) 讀的是 `DB.reimb`，因此恆為空。
+收件匣那兩筆的「已核准 · 待歸帳」是 `cfSentStatus()` 找不到報帳單時的 fallback。
+
+改動（`src/components/yuanzhan/v5/cashflow-faces.source.js`）：送出一律建立報帳單，
+狀態由身分決定 —— owner 直接落在 `已核`（不需要自我核准，`待你核准` 不會出現自己的單），
+成員維持 `已送`。owner 因此可在報帳表對自己的單「標記已付」，收件匣狀態隨之變為「已付款」。
+成員路徑與帳本待歸帳的既有行為完全不變。
+
+驗證：`node scripts/generate-yuanzhan-v5.mjs` PASS、`npx tsc --noEmit` exit 0、
+報帳狀態機靜態模擬 15/15 斷言通過。
+
+已知限制：既有的 2 筆不會回填（未做自動資料寫入）；owner 的每筆送出都視為報帳，
+「未付清」合計尚未區分「公司付」與「自己墊」，後續以 intake 送出時的代墊選擇處理。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260928-owner-reimbursement-record.md`

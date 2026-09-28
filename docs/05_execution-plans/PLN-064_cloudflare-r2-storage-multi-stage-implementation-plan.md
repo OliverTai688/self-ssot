@@ -75,6 +75,18 @@ Only once `AUT-004`'s full checklist is satisfiable: audit event path for file a
 
 `ARC-001` §13.1 sketches a backup matrix (Postgres → R2 daily `pg_dump`, structured docs/images primary in R2 with cross-region replication, weekly mirroring for small user uploads). None of this is required for the first working upload/download loop; revisit only once Stages 1-4 are live and real user content exists worth protecting.
 
+## Stage 7 — Operating Journal Asset Objects (`ASSET-001`..`ASSET-005`)
+
+2026-09-28. Owner asked for journal uploads (images, docx/xlsx/pptx/pdf, audio, video) that land in R2 **and can be `@`-mentioned**. Proposal: `journal-asset-upload-proposals.html` (repo root).
+
+The storage plumbing from Stages 2-3 is reused unchanged — this stage is about the missing half: a file stored via `versions[].objectKey` has no id of its own, so it cannot enter `mentionHits()`, cannot be `@`-referenced, and does not appear in the journal's object index. Stage 7 gives it one.
+
+- **P0 (`ASSET-001`..`ASSET-004`, DONE 2026-09-28, migration not applied):** new `operating_assets` table (additive, no backfill); pure contract module with per-kind allowlist and size tiers (image 25 / document 50 / audio 200 / video 500 MB) and a 64 MB multipart threshold; `POST` creates the row **before** minting the presigned URL; new `PATCH` finalize verifies the upload with `HeadObject`; `GET` now authorizes against the database instead of a bare key-prefix check; orphan sweeper plus finalize wiring on the two pre-existing upload paths.
+- **Server-assigned reference codes.** `RES-018` codes for assets are allocated server-side (`AST-JRNL-000124-20260928`), which is exactly the root fix `YZUI-020` identified for the client-side counter that collided and deadlocked the write queue.
+- **Pre-existing authorization hole closed.** The download route previously allowed any seated account to mint a signed URL for any `operating/` key, including another seat's `space:'personal'` library file.
+- **P1 (`ASSET-005`, TODO):** the journal entry points and object rendering. Behavior change inside `UI-088` (COMPLETED) → Revision Mode, needs Product Owner sign-off per `REF-003:202`.
+- **Open decision:** whether the file library and cashflow vouchers converge onto `operating_assets` (proposal D2). P0 deliberately only creates the table for journal/new uploads; convergence is deferred and still needs an explicit go-ahead.
+
 ## Backlog Summary
 
 | Task id | Stage | Depends on | Status |
@@ -89,5 +101,10 @@ Only once `AUT-004`'s full checklist is satisfiable: audit event path for file a
 | `R2STORE-009` | 4A (formal owner-scoped read cutover) | `R2STORE-004`, `R2STORE-005` | DONE (owner browser round trip pending) |
 | `R2STORE-007` | 5 (Client Portal exposure) | `R2STORE-006`, explicit owner approval | BLOCKED (approval gate) |
 | `R2STORE-008` | 6 (backup/retention) | Stages 1-4 live with real content | DEFERRED |
+| `ASSET-001` | 7 (asset table + pure contract) | `R2STORE-003` | DONE (migration not applied) |
+| `ASSET-002` | 7 (create-row / finalize / tiered allowlist) | `ASSET-001` | DONE (owner round trip pending) |
+| `ASSET-003` | 7 (download authorization fix) | `ASSET-002` | DONE (owner verification pending) |
+| `ASSET-004` | 7 (orphan sweeper + finalize wiring) | `ASSET-002` | DONE (run locally) |
+| `ASSET-005` | 7 (journal entry points + object rendering) | `ASSET-001`..`004`, owner sign-off on `UI-088` | TODO |
 
 Full rows with files/acceptance/verification are in `PLN-060_task-backlog.md` Phase 17.
