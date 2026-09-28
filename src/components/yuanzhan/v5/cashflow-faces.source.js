@@ -180,24 +180,85 @@ function cfPick(camera, onFile) {
   };
   input.click();
 }
-function cfFileTile(f, key) {
-  const pid = 'cfImg-' + key;
-  const isImage = /^image\//.test(f.type || '') || /\.(png|jpe?g|webp)$/i.test(f.name || '');
-  if (isImage && f.objectKey) {
-    setTimeout(() => paintFilePreview(pid, f.objectKey), 0);
-    return `<img id="${pid}" class="cf-thumb" alt="${esc(f.name)}">`;
-  }
-  if (isImage && f.data) return `<img class="cf-thumb" src="${f.data}" alt="${esc(f.name)}">`;
-  return `<span class="cf-thumb cf-doc">${svg('file', 18)}<em>${esc((f.name || '').split('.').pop() || '檔案')}</em></span>`;
-}
-async function cfOpenFile(f) {
+const cfIsImage = f => /^image\//.test(f?.type || '') || /\.(png|jpe?g|webp)$/i.test(f?.name || '');
+const cfIsPdf = f => /pdf/i.test(f?.type || '') || /\.pdf$/i.test(f?.name || '');
+const cfExt = f => ((f?.name || '').split('.').pop() || '檔案').slice(0, 5);
+
+/**
+ * 縮圖與預覽：先畫骨架，圖真的解碼完才淡入。
+ *
+ * 舊版直接吐 `<img>` 但不給 src，等 paintFilePreview 取到簽名網址才補上 ——
+ * 中間那段瀏覽器畫的是破圖圖示，使用者每次都先看到壞掉再看到圖。
+ * 這裡把 <img> 包進一個佔位容器：載好才 .ready（淡入），失敗才 .failed（畫一個檔案圖示），
+ * 兩種結局都不會讓破圖露出來。
+ */
+function cfImgReady(el) { el.closest('.cf-hold')?.classList.add('ready'); }
+function cfImgFail(el) { const h = el.closest('.cf-hold'); if (h) { h.classList.remove('ready'); h.classList.add('failed'); } }
+async function cfPaintImg(pid, objectKey) {
   try {
-    if (f.objectKey) {
-      const res = await fetch('/api/company/operating/uploads?key=' + encodeURIComponent(f.objectKey));
-      if (!res.ok) throw Error('取得檔案失敗');
-      const { downloadUrl } = await res.json();
-      window.open(downloadUrl, '_blank', 'noopener');
-    } else if (f.data) window.open(f.data, '_blank', 'noopener');
+    const res = await fetch('/api/company/operating/uploads?key=' + encodeURIComponent(objectKey));
+    if (!res.ok) throw Error('取得檔案失敗');
+    const { downloadUrl } = await res.json();
+    const el = root.querySelector('#' + pid);
+    if (!el) return;
+    if (el.tagName === 'IMG') el.src = downloadUrl; else { el.data = downloadUrl; cfImgReady(el); }
+  } catch {
+    const h = root.querySelector('#' + pid + '-h');
+    if (h) h.classList.add('failed');
+  }
+}
+function cfHoldImg(f, pid, cls) {
+  if (f.objectKey) setTimeout(() => cfPaintImg(pid, f.objectKey), 0);
+  return `<span class="cf-hold ${cls}" id="${pid}-h"><img id="${pid}" alt="${esc(f.name || '憑證')}"${f.data ? ` src="${esc(f.data)}"` : ''} onload="cfImgReady(this)" onerror="cfImgFail(this)"><i class="cf-hold-fb">${svg('file', 16)}</i></span>`;
+}
+function cfFileTile(f, key) {
+  if (cfIsImage(f) && (f.objectKey || f.data)) return cfHoldImg(f, 'cfImg-' + key, 'cf-thumb');
+  return `<span class="cf-thumb cf-doc">${svg('file', 18)}<em>${esc(cfExt(f))}</em></span>`;
+}
+
+/**
+ * 看憑證用站內燈箱，不另開分頁。
+ * 開新視窗等於離開這個模組：回來之後要重找剛才那一列，
+ * 而在手機上那一個分頁常常就再也沒被關掉。原檔仍然可以從燈箱下載。
+ */
+function cfOpenFile(f, src) {
+  if (!f) return;
+  S.cfViewing = f;
+  S.cfViewSrc = src || null;
+  const pid = 'cfLb';
+  let body;
+  if (cfIsImage(f) && (f.objectKey || f.data)) body = cfHoldImg(f, pid, 'cf-lb-img');
+  else if (cfIsPdf(f)) {
+    if (f.objectKey) setTimeout(() => cfPaintImg(pid, f.objectKey), 0);
+    body = `<object id="${pid}" class="cf-lb-pdf" type="application/pdf"${f.data ? ` data="${esc(f.data)}"` : ''}><p class="cf-lb-none">${svg('file', 22)}<span>這個瀏覽器不能內嵌 PDF，請用下方「下載原檔」。</span></p></object>`;
+  } else body = `<div class="cf-lb-none">${svg('file', 26)}<span>${esc(f.name || '檔案')} 沒有可以直接看的預覽</span></div>`;
+  const meta = [f.bytes ? Math.round(f.bytes / 1024) + ' KB' : '', f.at || '', f.by ? person(f.by) + ' 上傳' : ''].filter(Boolean).join(' · ');
+  // 已經站在那一頁就不用再給「回去」——那是一顆什麼都不會發生的按鈕。
+  const jump = src && !(S.wb === 'money' && src.kind === cfKey()) ? src : null;
+  openModal(esc(f.name || '憑證'), meta, body,
+    `${jump ? `<button class="btn" onclick="cfViewGo()">${svg('goto', 12)} ${esc(jump.label)}</button>` : ''}<button class="btn" onclick="cfDownloadViewing()">${svg('download', 12)} 下載原檔</button><button class="btn pri" onclick="closeModal()">關閉</button>`);
+  $('#modalWrap')?.classList.add('cf-lb-on');
+}
+/** 燈箱是借 #modalWrap 畫的，關掉時要把放寬版面的記號拿掉。 */
+const cfBaseCloseModal = closeModal;
+closeModal = () => { $('#modalWrap')?.classList.remove('cf-lb-on'); S.cfViewing = null; S.cfViewSrc = null; cfBaseCloseModal(); };
+function cfViewGo() {
+  const src = S.cfViewSrc;
+  closeModal();
+  if (!src) return;
+  if (src.kind === 'txn') openDrawer('txn', src.id);
+  else cfGo(src.kind);
+}
+/** 下載是使用者明確要的動作，這時才開外部連結。 */
+async function cfDownloadViewing() {
+  const f = S.cfViewing;
+  if (!f) return;
+  try {
+    if (f.data) { window.open(f.data, '_blank', 'noopener'); return; }
+    const res = await fetch('/api/company/operating/uploads?key=' + encodeURIComponent(f.objectKey));
+    if (!res.ok) throw Error('取得檔案失敗');
+    const { downloadUrl } = await res.json();
+    window.open(downloadUrl, '_blank', 'noopener');
   } catch (e) { toast(esc(e.message)); }
 }
 
@@ -224,6 +285,8 @@ S.cfCell = S.cfCell || '';
 S.cfPickFor = S.cfPickFor || '';
 S.cfVaultMode = S.cfVaultMode || 'grid';
 S.cfReimbSel = S.cfReimbSel || '';
+S.cfViewing = S.cfViewing || null;
+S.cfViewSrc = S.cfViewSrc || null;
 
 const cfInboxMode = () => S.cfInboxMode || (isOwner() ? 'table' : 'focus');
 function cfSetInboxMode(m) { S.cfInboxMode = m; S.cfErr = ''; S.cfCell = ''; S.cfPickFor = ''; render(); }
@@ -424,10 +487,8 @@ function cfRail(q) {
 }
 function cfShot(x) {
   if (!x || !x.file) return `<div class="cf-shot-none">${svg('file', 26)}<span>這一筆沒有附檔</span>${x && x.st === 'draft' ? `<button class="btn sm" onclick="cfAttachIntake('${x.id}')">${svg('paperclip', 12)} 補上收據</button>` : ''}</div>`;
-  const f = x.file, pid = 'cfBig-' + x.id;
-  const isImage = /^image\//.test(f.type || '') || /\.(png|jpe?g|webp)$/i.test(f.name || '');
-  if (isImage && f.objectKey) { setTimeout(() => paintFilePreview(pid, f.objectKey), 0); return `<img id="${pid}" class="cf-shot-img" alt="${esc(f.name)}">`; }
-  if (isImage && f.data) return `<img class="cf-shot-img" src="${f.data}" alt="${esc(f.name)}">`;
+  const f = x.file;
+  if (cfIsImage(f) && (f.objectKey || f.data)) return cfHoldImg(f, 'cfBig-' + x.id, 'cf-shot-img');
   return `<div class="cf-shot-none">${svg('file', 26)}<span>${esc(f.name)}</span><button class="btn sm" onclick="cfOpenIntakeFile('${x.id}')">${svg('maximize', 12)} 開啟</button></div>`;
 }
 function cfShotPane(x, sub) {
@@ -755,8 +816,9 @@ function cfVaultView() {
   const txns = DB.txns.filter(t => t.d.slice(0, 7) === m);
   const missing = txns.filter(t => !t.v.length);
   const tiles = [];
-  txns.forEach(t => (t.files || []).forEach((f, i) => tiles.push({ f, key: t.id + '-' + i, label: t.t, sub: t.d.slice(5) + ' · ' + nt(t.amt), open: `openDrawer('txn','${t.id}')` })));
-  DB.intake.filter(x => x.file && x.st !== 'posted' && x.st !== 'discarded' && (isOwner() || x.who === DB.me)).forEach(x => tiles.push({ f: x.file, key: x.id, label: x.t, sub: (x.d || '').slice(5) + ' · ' + (x.st === 'draft' ? '待補' : '待歸帳'), open: `cfGo('inbox')` }));
+  // 點縮圖＝看這張憑證（燈箱），不是跳去別的地方；要跳，燈箱裡有「看這筆交易／回收件匣」。
+  txns.forEach(t => (t.files || []).forEach((f, i) => tiles.push({ f, key: t.id + '-' + i, label: t.t, sub: t.d.slice(5) + ' · ' + nt(t.amt), open: `cfOpenTxnFile('${t.id}',${i})` })));
+  DB.intake.filter(x => x.file && x.st !== 'posted' && x.st !== 'discarded' && (isOwner() || x.who === DB.me)).forEach(x => tiles.push({ f: x.file, key: x.id, label: x.t, sub: (x.d || '').slice(5) + ' · ' + (x.st === 'draft' ? '待補' : '待歸帳'), open: `cfOpenIntakeFile('${x.id}')` }));
   const labelOnly = txns.filter(t => t.v.length && !(t.files || []).length).length;
   const bar = `<div class="cf-deck-h">${cfPeriodBar()}<span class="cf-muted">共 ${tiles.length} 份憑證${labelOnly ? ` · 另有 ${labelOnly} 筆只標了種類、沒有檔案` : ''}</span><span class="sp"></span>
     <span class="cf-seg" role="group" aria-label="憑證檢視">
@@ -771,7 +833,7 @@ function cfVaultView() {
   const body = S.cfVaultMode === 'list'
     ? `<div class="cf-tw"><table class="cf-grid"><thead><tr><th></th><th>檔名</th><th>來源</th><th></th></tr></thead><tbody>
         ${tiles.map(v => `<tr onclick="${v.open}"><td class="thc">${cfFileTile(v.f, v.key)}</td><td class="k">${esc(v.label)}</td><td class="m">${esc(v.sub)}</td>
-          <td class="acts"><span class="rowacts">${mini('goto', v.open, '', '開啟')}</span></td></tr>`).join('')}
+          <td class="acts"><span class="rowacts">${mini('maximize', v.open, '', '看憑證')}</span></td></tr>`).join('')}
       </tbody></table></div>`
     : `<div class="cf-vault">${tiles.map(v => `<button class="cf-vch" onclick="${v.open}">${cfFileTile(v.f, v.key)}<b>${esc(v.label)}</b><span>${esc(v.sub)}</span></button>`).join('')}
         <button class="cf-vch cf-add" onclick="cfPick(false,cfIngest)">${svg('plus', 18)}<span>補上憑證</span></button></div>`;
@@ -824,7 +886,7 @@ function cfUnfiledStrip() {
       ${filing ? `<span class="cf-strip-pick">${!x.p ? `<span class="chipset">${cfProjOptions().map(o => `<button type="button" class="${p === o ? 'on' : ''}" onclick="cfFilePick('${x.id}','${o}')">${esc(cfProjLabel(o))}</button>`).join('')}</span>` : ''}<span class="chipset">${cats.map(c => `<button type="button" onclick="cfFile('${x.id}','${c}')">${c}</button>`).join('')}</span><button class="btn sm" onclick="cfFileStart(null)">取消</button></span>` : `<button class="btn sm pri" onclick="cfFileStart('${x.id}')">歸帳</button>`}</div>`;
   }).join('')}</div>`;
 }
-function cfOpenIntakeFile(id) { const x = DB.intake.find(y => y.id === id); if (x?.file) cfOpenFile(x.file); }
+function cfOpenIntakeFile(id) { const x = DB.intake.find(y => y.id === id); if (x?.file) cfOpenFile(x.file, { kind: 'inbox', label: '回收件匣' }); }
 
 function cfLedgerView() {
   if (!isOwner()) return cfBoundary('帳務由負責人處理', '帳本、對帳與月結是記帳的工作。你交出的單據核准後會出現在這裡等待歸帳，你不需要選類別。');
@@ -894,7 +956,7 @@ DRAWERS.txn = id => {
   const lock = cfTxLocked(t) ? `<div class="hint" style="margin-bottom:12px">${svg('lock', 13)}<div><b>${cfMonthLabel(t.d.slice(0, 7))} 已結帳。</b>可以加註與補憑證；金額、日期與歸屬要先由負責人解鎖才能改。</div></div>` : '';
   return { ...d, body: lock + strip + d.body, foot: cfTxLocked(t) ? d.foot.replace('編輯', '加註') : d.foot };
 };
-function cfOpenTxnFile(id, i) { const f = TX(id)?.files?.[i]; if (f) cfOpenFile(f); }
+function cfOpenTxnFile(id, i) { const f = TX(id)?.files?.[i]; if (f) cfOpenFile(f, { kind: 'txn', id, label: '看這筆交易' }); }
 
 /* ---------- 對帳 ---------- */
 function cfSuggest(m) {
