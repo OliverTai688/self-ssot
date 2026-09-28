@@ -12,7 +12,7 @@
 .cf-face.on b{color:var(--text,#e9ecf1)}
 .cf-bdg{position:absolute;top:3px;right:4px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--danger,#ef8a82);color:var(--on-danger,#1a0e0d);font-size:9.5px;font-weight:700;font-style:normal;display:grid;place-items:center;font-family:var(--mono)}
 .cf-subtabs{display:flex;gap:2px}
-@media (max-width:720px){.cf-face{padding:4px 10px}.cf-face small{display:none}.cf-drop p{display:none}.cf-drop-act .btn{height:44px;padding:0 22px;font-size:14px}}
+@media (max-width:720px){.cf-face{padding:4px 10px}.cf-face small{display:none}.cf-deck-h{padding:8px 10px}.cf-deck-h .btn{height:36px}}
 
 /* ---- 工具列與期間 ---- */
 .cf-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
@@ -22,52 +22,268 @@
 .cf-muted{color:var(--text-3,#626b77);font-size:11.5px}
 .cf-need{color:var(--warn,#f2b95e)}
 .cf-why{color:var(--teal,#4fcfc0)}
+/* 對帳、月結紀錄仍用共用的 .row 版型 */
+.cf-li{align-items:center}
+.cf-li .t small{display:block;color:var(--text-3,#626b77);font-size:11.5px}
 .cf-progress{font-size:12.5px;color:var(--text-2,#99a2af);margin-bottom:10px}
 .cf-progress b{color:var(--text,#e9ecf1);font-family:var(--mono)}
 
 /* ---- 空狀態與邊界：一句說明 + 一個動作，不畫空表格 ---- */
-.cf-empty{padding:34px 20px;text-align:center;display:grid;gap:8px;justify-items:center}
+.cf-empty{padding:34px 20px;text-align:center;display:grid;gap:8px;justify-items:center;
+  align-content:center;min-height:min(460px,calc(100vh - 300px))}
 .cf-empty h3{font-size:14px;color:var(--text,#e9ecf1);display:flex;gap:6px;align-items:center}
 .cf-empty p{color:var(--text-2,#99a2af);font-size:12.5px;max-width:44ch;margin:0}
 .cf-empty-act{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
 
-/* ---- 收件匣 ---- */
-.cf-drop{border:1.5px dashed var(--border-2,#333b45);border-radius:10px;background:var(--surface,#111418);padding:18px;display:grid;gap:10px;justify-items:center;text-align:center;margin-bottom:12px;transition:.12s}
-.cf-drop.over{border-color:var(--pri,#6cb6ff);background:var(--pri-bg,#11212e)}
-.cf-drop p{margin:0;color:var(--text-2,#99a2af);font-size:13px}
-.cf-drop-act{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-.cf-drop-act .btn{height:34px;padding:0 16px;font-size:13px}
-.cf-stack{display:grid;gap:12px}
-.cf-li{align-items:center}
-.cf-li .t small{display:block;color:var(--text-3,#626b77);font-size:11.5px}
-.cf-item{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 14px;border-bottom:1px solid var(--border,#232931)}
-.cf-item:last-child{border-bottom:0}
-.cf-item-b{display:grid;gap:2px;min-width:0}
-.cf-item-t{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
-.cf-item-t .n{font-family:var(--mono);font-size:12.5px;color:var(--text-2,#99a2af)}
-.cf-thumb{width:44px;height:44px;border-radius:6px;object-fit:cover;background:var(--surface-3,#1d232b);border:1px solid var(--border,#232931);display:block}
+/* ==================================================================
+   收單面：一塊工作面（.cf-deck）填滿整個區域。
+   內部只用 1px 分隔線 —— 不再是 panel 疊 panel，空的狀態也不佔一個空框。
+   ================================================================== */
+.cf-deck{position:relative;display:flex;flex-direction:column;min-height:min(620px,calc(100vh - 250px));
+  border:1px solid var(--border,#232931);border-radius:12px;background:var(--surface,#111418);overflow:hidden}
+.cf-dropover{position:absolute;inset:0;z-index:9;display:none;place-items:center;border-radius:12px;
+  background:var(--pri-bg,#11212e);border:2px dashed var(--pri,#6cb6ff)}
+.cf-deck.over .cf-dropover{display:grid}
+.cf-dropover b{display:inline-flex;align-items:center;gap:8px;background:var(--surface-2,#161a20);color:var(--pri,#6cb6ff);
+  border-radius:22px;padding:9px 20px;font-size:13.5px;box-shadow:0 5px 18px rgba(0,0,0,.24)}
+
+/* 工具列：分頁在上面（#tabs），這裡只放狀態、檢視切換與加入 */
+.cf-deck-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 14px;
+  border-bottom:1px solid var(--border,#232931);background:var(--surface-2,#161a20)}
+.cf-deck-h .sp{flex:1}
+.cf-deck-t{font-size:13.5px;color:var(--text,#e9ecf1)}
+.cf-deck-t b{font-family:var(--mono);font-size:15px}
+.cf-deck-h .btn{height:30px}
+.cf-seg{display:inline-flex;gap:2px;padding:2px;border-radius:8px;background:var(--surface-3,#1d232b)}
+.cf-seg button{display:inline-flex;align-items:center;gap:5px;border:0;background:none;border-radius:6px;
+  padding:4px 10px;font-size:12.5px;color:var(--text-3,#626b77);font-family:inherit;cursor:pointer}
+.cf-seg button:hover{color:var(--text-2,#99a2af)}
+.cf-seg button.on{background:var(--surface,#111418);color:var(--text,#e9ecf1);font-weight:600}
+
+/* ---- 逐筆過單 ---- */
+.cf-rail{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid var(--border,#232931);
+  background:var(--surface,#111418)}
+.cf-rail-t{font-size:12.5px;color:var(--text-2,#99a2af);white-space:nowrap}
+.cf-rail-t b{font-family:var(--mono);color:var(--text,#e9ecf1);font-size:15px}
+.cf-pips{display:flex;gap:4px;flex:1;min-width:40px}
+.cf-pips i{display:block;height:6px;flex:1;max-width:44px;border-radius:3px;background:var(--surface-3,#1d232b)}
+.cf-pips i.done{background:var(--ok,#5fd09a)}
+.cf-pips i.now{background:var(--pri,#6cb6ff);flex:1.6}
+.cf-rail-a{display:inline-flex;gap:6px;flex-wrap:wrap}
+
+.cf-stagewrap{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr)}
+.cf-shotwrap{position:relative;display:grid;place-items:center;padding:20px;min-height:0;overflow:hidden;
+  background:var(--surface-4,#242b34);border-right:1px solid var(--border,#232931)}
+.cf-shot-img{max-width:100%;max-height:340px;border-radius:9px;border:1px solid var(--border-2,#333b45);
+  background:var(--surface,#111418);box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.cf-shot-none{display:grid;gap:8px;justify-items:center;color:var(--text-3,#626b77);font-size:12.5px;text-align:center}
+.cf-shot-meta{position:absolute;top:0;left:0;right:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;
+  padding:11px 16px;font-size:11.5px;color:var(--text-3,#626b77)}
+.cf-shot-meta b{font-size:13px;color:var(--text,#e9ecf1)}
+.cf-shot-tools{position:absolute;right:12px;bottom:12px}
+
+.cf-ask{display:flex;flex-direction:column;min-height:0;background:var(--surface,#111418)}
+.cf-crumbs{display:flex;gap:7px;flex-wrap:wrap;padding:12px 22px 0}
+.cf-crumb{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border,#232931);
+  background:var(--surface-2,#161a20);border-radius:16px;padding:3px 11px;font-size:12px;
+  color:var(--text-2,#99a2af);font-family:inherit;cursor:pointer}
+.cf-crumb b{color:var(--text,#e9ecf1);font-family:var(--mono)}
+.cf-crumb svg{color:var(--ok,#5fd09a)}
+.cf-crumb:hover{border-color:var(--border-3,#465060)}
+.cf-qbody{flex:1;min-height:0;overflow:auto;padding:18px 22px 8px;display:flex;flex-direction:column;justify-content:center}
+.cf-qk{font-size:10.5px;letter-spacing:.14em;color:var(--text-3,#626b77);margin-bottom:6px}
+.cf-q{font-size:22px;font-weight:600;letter-spacing:-.02em;margin:0 0 4px;color:var(--text,#e9ecf1)}
+.cf-qh{color:var(--text-2,#99a2af);font-size:12.8px;margin:0 0 16px;max-width:46ch}
+.cf-qh b{color:var(--text,#e9ecf1)}
+.cf-qhint{margin-top:10px;font-size:11.5px;color:var(--text-3,#626b77)}
+.cf-bigin{width:100%;max-width:320px;height:58px;border:2px solid var(--border-2,#333b45);border-radius:11px;
+  background:var(--surface-2,#161a20);color:var(--text,#e9ecf1);font-family:var(--mono);font-size:28px;
+  font-weight:600;padding:0 15px}
+.cf-bigin:focus{outline:0;border-color:var(--pri,#6cb6ff);box-shadow:0 0 0 4px var(--pri-bg,#11212e)}
+.cf-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-width:520px}
+.cf-opt{border:1.5px solid var(--border-2,#333b45);background:var(--surface-2,#161a20);border-radius:10px;
+  padding:13px 14px;text-align:left;font-family:inherit;cursor:pointer;color:var(--text,#e9ecf1)}
+.cf-opt b{font-size:13.5px;font-weight:550}
+.cf-opt:hover,.cf-opt.on{border-color:var(--pri,#6cb6ff);background:var(--pri-bg,#11212e)}
+.cf-sum{display:grid;gap:8px;max-width:440px}
+.cf-sum-r{display:flex;align-items:center;gap:12px;border-bottom:1px dashed var(--border,#232931);padding-bottom:7px}
+.cf-sum-r span{font-size:11.5px;color:var(--text-3,#626b77);width:52px;flex:0 0 52px}
+.cf-sum-r b{font-size:15px;font-weight:600;color:var(--text,#e9ecf1)}
+.cf-sum-r b.n{font-family:var(--mono)}
+.cf-sum-r input{flex:1;min-width:0;height:30px;border:1px solid var(--border-2,#333b45);border-radius:6px;
+  background:var(--surface-2,#161a20);color:var(--text,#e9ecf1);padding:0 10px;font-size:13.5px;font-family:inherit}
+.cf-sum-r input:focus{outline:0;border-color:var(--pri,#6cb6ff)}
+.cf-ed{margin-left:auto;border:0;background:none;color:var(--pri,#6cb6ff);font-size:11.5px;font-family:inherit;cursor:pointer}
+.cf-act{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 22px;
+  border-top:1px solid var(--border,#232931);background:var(--surface,#111418)}
+.cf-act .sp{flex:1}
+.cf-go{height:44px;padding:0 22px;font-size:14.5px;font-weight:600;border-radius:10px}
+.cf-err{color:var(--danger,#ef8a82);font-size:12.5px;margin-top:12px}
+.cf-err-bar{margin:0;padding:8px 16px;background:var(--danger-bg,#2a1614);border-bottom:1px solid var(--border,#232931)}
+
+/* 送出過的收在一條安靜的列，不是第二張卡 */
+.cf-quiet{border-top:1px solid var(--border,#232931);background:var(--surface-2,#161a20);max-height:172px;overflow:auto}
+.cf-quiet-h{display:flex;position:sticky;top:0;background:var(--surface-2,#161a20);padding:7px 16px;
+  font-size:10.5px;letter-spacing:.09em;color:var(--text-3,#626b77);border-bottom:1px solid var(--border,#232931)}
+.cf-quiet-h .sp{flex:1}
+.cf-qrow{display:grid;width:100%;grid-template-columns:52px minmax(0,1fr) auto auto;gap:10px;align-items:center;
+  padding:8px 16px;border-bottom:1px solid var(--border,#232931);font-size:12.5px;text-align:left;
+  background:none;border-left:0;border-right:0;border-top:0;color:var(--text,#e9ecf1);font-family:inherit}
+.cf-qrow:last-child{border-bottom:0}
+.cf-qrow .m{font-family:var(--mono);font-size:11.5px;color:var(--text-3,#626b77)}
+.cf-qrow .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cf-qrow .n{font-family:var(--mono)}
+.cf-qrow.lnk-row{cursor:pointer}
+.cf-qrow.lnk-row:hover{background:var(--surface-3,#1d232b)}
+
+/* 清空＝成績單。最大的版面給最好的消息，不是給一張寫著「沒有資料」的空卡片 */
+.cf-cleared{flex:1;display:grid;place-content:center;justify-items:center;gap:8px;text-align:center;padding:34px}
+.cf-cleared .ic{width:52px;height:52px;border-radius:50%;background:var(--ok-bg,#11291f);color:var(--ok,#5fd09a);
+  display:grid;place-items:center;margin-bottom:4px}
+.cf-cleared h3{margin:0;font-size:18px;color:var(--text,#e9ecf1)}
+.cf-cleared p{margin:0;color:var(--text-2,#99a2af);font-size:13px;max-width:42ch}
+.cf-stats{display:flex;gap:30px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border,#232931)}
+.cf-stats div{text-align:center}
+.cf-stats b{display:block;font-family:var(--mono);font-size:21px;font-weight:600;color:var(--text,#e9ecf1)}
+.cf-stats span{font-size:11.5px;color:var(--text-3,#626b77)}
+.cf-cleared-a{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+.cf-zero{flex:1;display:grid;place-content:center;justify-items:center;gap:7px;text-align:center;padding:34px}
+.cf-zero .ic{width:44px;height:44px;border-radius:50%;background:var(--surface-3,#1d232b);color:var(--text-3,#626b77);
+  display:grid;place-items:center}
+.cf-zero h4{margin:4px 0 0;font-size:15px;color:var(--text,#e9ecf1)}
+.cf-zero p{margin:0;color:var(--text-2,#99a2af);font-size:12.8px;max-width:42ch}
+
+/* ---- 一張清單：狀態是分組列，缺漏是可以點的空格 ---- */
+.cf-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 14px;
+  border-bottom:1px solid var(--border,#232931);background:var(--surface,#111418)}
+.cf-seg2{display:inline-flex;gap:2px;padding:2px;border-radius:8px;background:var(--surface-3,#1d232b)}
+.cf-seg2 button{display:inline-flex;align-items:center;gap:5px;border:0;background:none;border-radius:6px;
+  padding:4px 11px;font-size:12.5px;color:var(--text-3,#626b77);font-family:inherit;cursor:pointer}
+.cf-seg2 button.on{background:var(--surface,#111418);color:var(--text,#e9ecf1);font-weight:600}
+.cf-seg2 button i{font-style:normal;font-family:var(--mono);font-size:10.5px;border-radius:8px;padding:0 5px;
+  background:var(--surface-4,#242b34);color:var(--text-2,#99a2af)}
+.cf-seg2 button.on i{background:var(--warn-bg,#2a2111);color:var(--warn,#f2b95e)}
+.cf-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;font-size:12.8px;
+  background:var(--pri-bg,#11212e);color:var(--pri,#6cb6ff);border-bottom:1px solid var(--border,#232931)}
+.cf-bulk b{font-family:var(--mono)}
+.cf-bulk .sp{flex:1}
+.cf-bulkpick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px;
+  background:var(--surface-2,#161a20);border-bottom:1px solid var(--border,#232931)}
+.cf-pick-l{font-size:11.5px;color:var(--text-3,#626b77)}
+
+.cf-tw{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column}
+table.cf-grid{width:100%;border-collapse:collapse;font-size:12.8px}
+table.cf-grid thead th{position:sticky;top:0;z-index:3;text-align:left;padding:7px 10px;white-space:nowrap;
+  font-size:10.5px;font-weight:600;letter-spacing:.05em;color:var(--text-3,#626b77);
+  background:var(--surface-2,#161a20);border-bottom:1px solid var(--border,#232931)}
+table.cf-grid td{padding:0 10px;height:46px;border-bottom:1px solid var(--border,#232931);vertical-align:middle}
+table.cf-grid tbody tr:hover{background:var(--surface-2,#161a20)}
+table.cf-grid tbody tr.sel{background:var(--pri-bg,#11212e)}
+table.cf-grid td.ck,table.cf-grid th.ck{width:34px}
+table.cf-grid td.thc{width:44px}
+table.cf-grid td.m{width:56px;font-family:var(--mono);font-size:11.5px;color:var(--text-3,#626b77)}
+table.cf-grid td.k{min-width:0}
+table.cf-grid td.k small{display:block;font-size:11px;color:var(--text-3,#626b77)}
+table.cf-grid td.num{width:118px;text-align:right}
+table.cf-grid td.num .n{font-family:var(--mono)}
+table.cf-grid td.acts{width:104px}
+table.cf-grid td.trk{width:210px}
+tr.cf-grp td{height:30px;position:sticky;top:31px;z-index:2;background:var(--surface-3,#1d232b);
+  font-size:10.5px;letter-spacing:.06em;color:var(--text-3,#626b77);border-bottom:1px solid var(--border,#232931)}
+tr.cf-grp td b{color:var(--text-2,#99a2af);margin-right:8px;letter-spacing:.06em}
+tr.cf-pickrow td{height:auto;padding:8px 10px;background:var(--surface-2,#161a20)}
+tr.cf-pickrow .chipset{display:inline-flex;flex-wrap:wrap;gap:6px;margin:0 8px}
+.cf-ck{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border-2,#333b45);display:grid;
+  place-items:center;cursor:pointer;background:var(--surface,#111418);color:var(--on-pri,#04121f);padding:0}
+.cf-ck.on{background:var(--pri,#6cb6ff);border-color:var(--pri,#6cb6ff)}
+.cf-thb{padding:0;border:0;background:none;cursor:pointer;display:block}
+/* 送出／核准是這張表的主要動作：常駐，不是 hover 才浮出來（觸控裝置沒有 hover） */
+table.cf-grid .rowacts{opacity:1}
+/* 沒有附檔的列不要多一個灰方塊：留白就好，欄位仍然對齊 */
+table.cf-grid td.thc .cf-doc{border-color:transparent;background:none;opacity:.5}
+/* 缺漏就長在它該在的那一欄：琥珀色的空格本身就是按鈕 */
+.cf-gap{display:inline-flex;align-items:center;gap:4px;border:1px dashed var(--warn,#f2b95e);
+  background:var(--warn-bg,#2a2111);color:var(--warn,#f2b95e);border-radius:6px;padding:3px 9px;
+  font-size:12px;font-family:inherit;cursor:pointer}
+.cf-gap:hover{filter:brightness(1.15)}
+.cf-amt{border:0;background:none;color:var(--text,#e9ecf1);font-family:var(--mono);font-size:12.8px;
+  cursor:text;padding:2px 4px;border-radius:5px}
+.cf-amt:hover{background:var(--surface-3,#1d232b)}
+.cf-cellin{width:100px;height:28px;border:1px solid var(--pri,#6cb6ff);border-radius:6px;padding:0 8px;
+  background:var(--surface-2,#161a20);color:var(--text,#e9ecf1);font-family:var(--mono);font-size:12.8px;
+  text-align:right;box-shadow:0 0 0 3px var(--pri-bg,#11212e);outline:0}
+.cf-proj{border:1px solid var(--border-2,#333b45);background:var(--surface-2,#161a20);color:var(--text-2,#99a2af);
+  border-radius:14px;padding:2px 10px;font-size:12px;font-family:inherit;cursor:pointer;white-space:nowrap}
+.cf-proj:hover{border-color:var(--pri,#6cb6ff);color:var(--pri,#6cb6ff)}
+.cf-proj.ro{cursor:default}
+.cf-ghost{flex:1;min-height:52px;display:grid;place-items:center;gap:6px;grid-auto-flow:column;
+  margin:12px 14px 14px;border:1px dashed var(--border-2,#333b45);border-radius:9px;
+  color:var(--text-3,#626b77);font-size:12.3px}
+.cf-foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 14px;font-size:12.3px;
+  color:var(--text-2,#99a2af);border-top:1px solid var(--border,#232931);background:var(--surface-2,#161a20)}
+.cf-foot b{font-family:var(--mono);color:var(--text,#e9ecf1)}
+.cf-foot b.warn{color:var(--warn,#f2b95e)}
+.cf-foot .sp{flex:1}
+
+/* 進度欄：四段填滿整格，一眼看出卡在哪 */
+.cf-track{display:flex;align-items:center;gap:2px}
+.cf-track i{flex:1;max-width:38px;height:5px;border-radius:3px;background:var(--surface-3,#1d232b)}
+.cf-track i.done{background:var(--ok,#5fd09a)}
+.cf-track i.now{background:var(--pri,#6cb6ff)}
+.cf-track em{font-style:normal;font-size:11.5px;color:var(--text-2,#99a2af);margin-left:8px;white-space:nowrap}
+
+/* 成員的報帳：一筆一個狀態軸 */
+.cf-trackwrap{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;padding:26px 30px}
+.cf-track-h{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.cf-track-h h3{margin:0;font-size:19px;letter-spacing:-.01em;color:var(--text,#e9ecf1)}
+.cf-track-h .n{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--text,#e9ecf1)}
+.cf-trail{display:grid;grid-template-columns:repeat(4,1fr);margin-top:24px}
+.cf-tn{display:grid;justify-items:center;gap:7px;text-align:center;position:relative}
+.cf-tn::before{content:'';position:absolute;top:15px;left:-50%;width:100%;height:3px;background:var(--border,#232931)}
+.cf-tn:first-child::before{display:none}
+.cf-tn.done::before,.cf-tn.now::before{background:var(--ok,#5fd09a)}
+.cf-tn .bul{width:32px;height:32px;border-radius:50%;border:3px solid var(--border-2,#333b45);
+  background:var(--surface,#111418);display:grid;place-items:center;font-size:12.5px;
+  color:var(--text-3,#626b77);font-family:var(--mono);z-index:1}
+.cf-tn.done .bul{background:var(--ok,#5fd09a);border-color:var(--ok,#5fd09a);color:var(--bg,#0a0c0f)}
+.cf-tn.now .bul{border-color:var(--pri,#6cb6ff);color:var(--pri,#6cb6ff);box-shadow:0 0 0 5px var(--pri-bg,#11212e)}
+.cf-tn b{font-size:13px;color:var(--text,#e9ecf1)}
+.cf-tn small{font-size:11.3px;color:var(--text-3,#626b77);max-width:20ch;line-height:1.5}
+.cf-tn.todo b{color:var(--text-3,#626b77);font-weight:450}
+
+/* ---- 憑證：縮圖鋪滿整個區域，缺憑證的提醒收進一條 strip ---- */
+.cf-miss{display:flex;align-items:flex-start;gap:9px;padding:8px 14px;font-size:12.3px;
+  background:var(--warn-bg,#2a2111);color:var(--warn,#f2b95e);border-bottom:1px solid var(--border,#232931)}
+.cf-miss b{color:var(--warn,#f2b95e)}
+.cf-thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;background:var(--surface-3,#1d232b);
+  border:1px solid var(--border,#232931);display:block}
 .cf-doc{display:grid;place-items:center;align-content:center;gap:1px;color:var(--text-3,#626b77)}
 .cf-doc em{font-style:normal;font-size:9.5px;text-transform:uppercase;font-family:var(--mono)}
-.cf-form{display:grid;gap:10px;margin-top:8px;padding:12px;border-radius:8px;background:var(--surface-2,#161a20);border:1px solid var(--border,#232931)}
-.cf-field{display:grid;gap:4px;font-size:11.5px;color:var(--text-3,#626b77)}
-.cf-field input{height:30px;border:1px solid var(--border-2,#333b45);background:var(--surface,#111418);color:var(--text,#e9ecf1);border-radius:6px;padding:0 10px;font-size:13px;max-width:280px}
-.cf-field input[inputmode="numeric"]{font-family:var(--mono);max-width:160px}
-.cf-err{color:var(--danger,#ef8a82);font-size:12px}
-.cf-form-act{display:flex;gap:8px;align-items:center}
-.cf-steps{display:inline-flex;gap:3px;flex-wrap:wrap}
-.cf-steps i{font-style:normal;font-size:10.5px;padding:1px 7px;border-radius:10px;background:var(--surface-3,#1d232b);color:var(--text-3,#626b77)}
-.cf-steps i.past{color:var(--text-2,#99a2af)}
-.cf-steps i.on{background:var(--pri-bg,#11212e);color:var(--pri,#6cb6ff);font-weight:600}
-
-/* ---- 憑證 ---- */
-.cf-vault,.cf-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}
-.cf-files{margin-bottom:14px}
-.cf-vch{display:grid;gap:3px;justify-items:start;text-align:left;padding:8px;border:1px solid var(--border-2,#333b45);border-radius:8px;background:var(--surface-2,#161a20);min-width:0}
-.cf-vch:hover{border-color:var(--border-3,#465060)}
-.cf-vch .cf-thumb{width:100%;height:72px}
-.cf-vch b{font-size:11.5px;font-weight:550;color:var(--text,#e9ecf1);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-vault,.cf-files{flex:1;min-height:0;overflow:auto;align-content:start;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px;padding:14px}
+.cf-files{flex:none;overflow:visible;padding:0;margin-bottom:14px;grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
+.cf-vch{display:grid;gap:3px;justify-items:start;text-align:left;padding:8px;border:1px solid var(--border-2,#333b45);
+  border-radius:9px;background:var(--surface-2,#161a20);min-width:0;cursor:pointer;font-family:inherit}
+.cf-vch:hover{border-color:var(--pri,#6cb6ff)}
+.cf-vch .cf-thumb{width:100%;height:96px}
+.cf-vch b{font-size:12px;font-weight:550;color:var(--text,#e9ecf1);max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
 .cf-vch span{font-size:10.5px;color:var(--text-3,#626b77)}
-.cf-vch.cf-add{border-style:dashed;justify-items:center;align-content:center;text-align:center;color:var(--text-3,#626b77);min-height:112px}
+.cf-vch.cf-add{border-style:dashed;justify-items:center;align-content:center;text-align:center;
+  color:var(--text-3,#626b77);min-height:150px}
+
+@media (max-width:860px){
+  .cf-stagewrap{grid-template-columns:1fr;grid-template-rows:minmax(150px,26vh) minmax(0,1fr)}
+  .cf-shotwrap{border-right:0;border-bottom:1px solid var(--border,#232931);padding:14px}
+  .cf-shot-img{max-height:100%}
+  .cf-deck{min-height:0}
+  .cf-go{flex:1;height:48px}
+  .cf-bigin{max-width:none;height:56px}
+  .cf-opts{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+  .cf-trail{grid-template-columns:1fr 1fr}
+  .cf-tn::before{display:none}
+  table.cf-grid td.thc,table.cf-grid td.m{display:none}
+}
 
 /* ---- 待歸帳條 ---- */
 .cf-strip{border:1px solid var(--warn-bg,#2a2111);background:var(--warn-bg,#2a2111);border-radius:9px;padding:10px;display:grid;gap:6px;margin-bottom:12px}

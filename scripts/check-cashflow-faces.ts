@@ -6,6 +6,7 @@
  * 走 database 模式的載入路徑（store → createV5State → mountV5），真的去點按鈕，
  * 斷言使用者講得出來的幾條線：
  *   - 負責人進來在帳務 · 帳本，成員進來在收單 · 收件匣；舊的分頁索引導到對的地方
+ *   - 收件匣兩種檢視：成員預設逐筆過單（一次一題），負責人預設一張清單（就地補、可批次）
  *   - 成員交件 → 等核准 → 負責人核准 → 待歸帳 → 歸帳成交易（不再自動寫成「公司層級／場地」）
  *   - 對帳有建議配對、CSV 匯入；月結檢查沒過不能鎖，鎖了以後編輯變成加註，解鎖要原因
  *   - 洞察不顯示沒有來源的數字（Runway、應收未收）
@@ -146,8 +147,11 @@ async function main() {
     check('舊索引 3（報帳）導到收單 · 我的報帳', m.face() === '收單' && m.tab() === '我的報帳', `${m.face()} · ${m.tab()}`)
 
     await m.click(m.button('收件匣', '.cf-subtabs'))
+    check('負責人預設是一張清單，不是逐筆', Boolean(m.root.querySelector('table.cf-grid')) && !m.root.querySelector('.cf-stagewrap'))
+    check('狀態是表內的分組列，不是各開一張卡', m.all('.cf-grp').length >= 1 && m.all('.panel').length === 0, `分組 ${m.all('.cf-grp').length} · panel ${m.all('.panel').length}`)
     check('收件匣列出需要核准的代墊', m.text().includes('需要你核准') && m.text().includes('客戶餐敘'), m.text().slice(0, 80))
-    await m.click(m.button('核准', '#inner'))
+    // 「核准」要在表格列裡找：篩選鍵「待你核准」也含這兩個字。
+    await m.click(m.button('核准', 'table.cf-grid'))
     check('核准後報帳狀態是已核', (m.db().reimb as Array<{ st: string }>)[0].st === '已核')
     check('核准不會自動產生交易', (m.db().txns as unknown[]).length === 3)
 
@@ -236,23 +240,36 @@ async function main() {
     })
     await m.go(0)
     check('成員 · 預設落點是收單 · 收件匣', m.face() === '收單' && m.tab() === '收件匣', `${m.face()} · ${m.tab()}`)
-    check('待補列直接寫出缺什麼', m.text().includes('缺金額、歸屬'), m.text().slice(0, 120))
-    await m.click(m.button('補齊', '#inner'))
-    await m.click(m.button('送出', '#inner'))
-    check('缺資料送出會說還差什麼', m.text('.cf-err').includes('還差金額與歸屬'), m.text('.cf-err'))
+    check('成員預設是逐筆過單，不是清單', Boolean(m.root.querySelector('.cf-stagewrap')) && !m.root.querySelector('table.cf-grid'))
+    check('待補的那一筆直接寫出缺什麼', m.text('.cf-shot-meta').includes('缺金額、歸屬'), m.text('.cf-shot-meta'))
+    check('系統先問金額，一次只問一題', m.text('.cf-q') === '這張多少錢？', m.text('.cf-q'))
+    await m.click(m.button('下一題', '#inner'))
+    check('沒填金額不能往下，會說還差什麼', m.text('.cf-err').includes('還差金額'), m.text('.cf-err'))
     ;(m.root.querySelector('#cfAmt-I2') as HTMLInputElement).value = '320'
-    await m.click(m.button('公司層級', '.cf-form'))
-    check('選歸屬不會清掉已輸入的金額', (m.root.querySelector('#cfAmt-I2') as HTMLInputElement).value === '320')
-    await m.click(m.button('送出', '#inner'))
+    await m.click(m.button('下一題', '#inner'))
+    check('答完第一題自動問歸屬', m.text('.cf-q') === '這筆算誰的？', m.text('.cf-q'))
+    check('往下一題不會殘留上一題的錯誤訊息', !m.root.querySelector('.cf-err'), m.text('.cf-err'))
+    check('答過的縮成可以點回去改的麵包屑', m.text('.cf-crumbs').includes('320'), m.text('.cf-crumbs'))
+    await m.click(m.button('公司層級', '.cf-opts'))
+    check('選完歸屬進確認頁，金額沒有被清掉', m.text('.cf-q') === '送出這一筆？' && m.text('.cf-sum').includes('320'), m.text('.cf-sum'))
+    await m.click(m.button('送出', '.cf-act'))
     const item = (m.db().intake as Array<{ id: string; st: string; amt: number; reimb: string }>).find((x) => x.id === 'I2')
     check('送出後進入待歸帳並建立代墊報帳', item?.st === 'unfiled' && item?.amt === 320 && Boolean(item?.reimb), JSON.stringify(item))
     check('最近送出顯示等待核准', m.text().includes('等待核准'))
+
+    check('清空後是成績單，不是一張空卡片', m.text('.cf-cleared').includes('收件匣清空了'), m.text('.cf-cleared').slice(0, 60))
 
     await m.click(m.button('拍照', '#inner'))
     await m.feedFile('高鐵票.jpg', 'jpeg-bytes', 'image/jpeg')
     const fresh = (m.db().intake as Array<{ t: string; st: string; file: { objectKey?: string } | null }>).find((x) => x.t === '高鐵票')
     check('拍照上傳 · 檔案存成 R2 參照而不是 data URL', fresh?.file?.objectKey === 'operating/2026-09/test.jpg', JSON.stringify(fresh?.file))
-    check('上傳後直接展開補齊表單', Boolean(m.root.querySelector('.cf-form')))
+    check('上傳後直接進到第一題', m.text('.cf-q') === '這張多少錢？' && Boolean(m.root.querySelector('.cf-bigin')), m.text('.cf-q'))
+
+    await m.click(m.button('清單', '.cf-seg'))
+    check('成員也可以切到清單檢視', Boolean(m.root.querySelector('table.cf-grid')))
+    check('清單把缺漏畫成可以點的空格，不是說明文字', m.all('.cf-gap').length >= 2, String(m.all('.cf-gap').length))
+    await m.click(m.button('逐筆', '.cf-seg'))
+    check('可以切回逐筆', Boolean(m.root.querySelector('.cf-stagewrap')))
 
     await m.click(m.button('帳務', '.cf-faces'))
     check('成員進帳務看到邊界說明', m.text().includes('帳務由負責人處理') && !m.root.querySelector('table.tbl'), m.text().slice(0, 60))

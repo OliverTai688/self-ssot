@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>金流收單 · 提案 C：一次只問一件事</title>
+<style>
+:root{
+  --bg:#ffffff; --surface:#f7f7f8; --surface-2:#f0f1f3; --surface-3:#e7e9ec; --surface-4:#dee1e6;
+  --border:#e3e5e8; --border-2:#cfd3d8; --border-3:#aeb5bd;
+  --text:#16181c; --text-2:#555b64; --text-3:#8a9099;
+  --pri:#2563eb; --pri-bg:#eaf1fe; --pri-br:#bcd0f8;
+  --ok:#15803d; --ok-bg:#e8f6ed;
+  --warn:#b45309; --warn-bg:#fdf2e0;
+  --danger:#dc2626; --danger-bg:#fdeaea;
+  --info:#6d3fd4; --info-bg:#f0ebfd;
+  --accent:#c2410c; --accent-bg:#fff1e8;
+  --ink:#171a1f;
+  --page:#f4f5f7;
+  --mono:ui-monospace,SFMono-Regular,Menlo,"SF Mono",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",system-ui,sans-serif;
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1320px;margin:0 auto;padding:34px 20px 90px}
+h1{font-size:24px;margin:0 0 8px;letter-spacing:-.015em}
+h1 em{font-style:normal;color:var(--accent)}
+.lede{color:var(--text-2);margin:0 0 14px;max-width:76ch;font-size:14.5px}
+.lede b{color:var(--text)}
+.stamp{display:inline-flex;align-items:center;gap:7px;background:var(--accent-bg);color:var(--accent);
+  border:1px solid #f6d6c2;border-radius:20px;padding:3px 12px;font-size:12px;margin-bottom:16px;font-weight:550}
+h2.sec{font-size:16.5px;margin:40px 0 12px;letter-spacing:-.01em}
+h2.sec span{color:var(--text-3);font-weight:400;font-size:13px;margin-left:8px}
+code{font-family:var(--mono);font-size:12.2px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+a{color:var(--pri)}
+p.note{color:var(--text-2);font-size:13.2px;margin:10px 0 0;max-width:82ch}
+
+.diag{display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));gap:10px}
+.dg{background:#fff;border:1px solid var(--border);border-radius:11px;padding:13px 15px;border-left:3px solid var(--danger)}
+.dg .no{font-family:var(--mono);font-size:10.5px;color:var(--text-3);display:block;margin-bottom:4px;letter-spacing:.06em}
+.dg h4{margin:0 0 5px;font-size:13.5px}
+.dg p{margin:0;color:var(--text-2);font-size:12.7px;line-height:1.62}
+.dg p b{color:var(--text)}
+.claim{background:#fff;border:1px solid var(--border);border-radius:13px;padding:18px 20px;border-top:3px solid var(--accent)}
+.claim .one{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px}
+.claim .sub{color:var(--text-2);margin:0 0 14px;font-size:13.4px}
+.prins{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin:0;padding:0;list-style:none}
+.prins li{border-top:1px solid var(--border);padding-top:10px}
+.prins b{display:block;font-size:13.3px;margin-bottom:3px}
+.prins span{color:var(--text-2);font-size:12.6px;line-height:1.6;display:block}
+.refs{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.refs a{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border-2);
+  border-radius:16px;padding:3px 11px;font-size:12px;text-decoration:none;color:var(--text-2)}
+.refs a:hover{border-color:var(--accent);color:var(--accent)}
+.refs a i{font-style:normal;color:var(--text-3);font-size:11px}
+
+.proto{background:var(--bg);border:1px solid var(--border-2);border-radius:14px;overflow:hidden;
+  box-shadow:0 12px 34px rgba(16,20,28,.09);margin-top:12px}
+.proto-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.proto-bar .dots{display:flex;gap:5px}
+.proto-bar .dots i{width:9px;height:9px;border-radius:50%;background:var(--border-2);display:block}
+.proto-bar .u{flex:1;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.proto-bar .lbl{font-size:11px;color:var(--text-3)}
+.mod{padding:16px 22px 0}
+.mod-h{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.mod-h h3{margin:0;font-size:19px;letter-spacing:-.01em}
+.mod-h .q{color:var(--accent);font-size:12.5px}
+.mod-h .rt{margin-left:auto;font-size:11.5px;color:var(--text-3)}
+.faces{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}
+.face{position:relative;display:grid;padding:4px 14px;border-radius:7px;text-align:left;border:0;background:none;cursor:pointer;font-family:inherit}
+.face b{font-size:13px;font-weight:600;color:var(--text-2)}
+.face small{font-size:10.5px;color:var(--text-3)}
+.face.on{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.face.on b{color:var(--text)}
+.fbdg{position:absolute;top:1px;right:2px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;
+  background:var(--danger);color:#fff;font-size:9.5px;font-weight:700;display:grid;place-items:center;font-family:var(--mono)}
+
+/* ══ 舞台：整個區域就是一個畫面，沒有卡片 ══ */
+.deck{border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden;margin:0 22px 22px;
+  display:flex;flex-direction:column;height:606px;position:relative}
+.deck-h{display:flex;align-items:center;gap:4px;padding:0 14px;border-bottom:1px solid var(--border);
+  background:var(--surface);min-height:46px;flex-wrap:wrap}
+.tab{border:0;background:none;font-family:inherit;font-size:13.5px;color:var(--text-2);cursor:pointer;
+  padding:13px 12px 11px;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500;display:flex;gap:6px;align-items:center}
+.tab.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.tab .n{font-family:var(--mono);font-size:11px;background:var(--surface-3);color:var(--text-2);border-radius:9px;padding:0 6px;min-width:17px;text-align:center}
+.tab.on .n{background:var(--accent-bg);color:var(--accent)}
+.deck-h .sp{flex:1}
+.btn{border:1px solid var(--border-2);background:#fff;color:var(--text);border-radius:7px;height:30px;padding:0 12px;
+  font-size:12.8px;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--border-3)}
+.btn.sm{height:26px;padding:0 9px;font-size:12px}
+.btn.gh{border-color:transparent;background:transparent;color:var(--text-2)}
+.btn.gh:hover{background:var(--surface-2)}
+.btn.dgr{color:var(--danger)}
+
+/* 進度列：告訴你「還剩幾筆」 */
+.rail{display:flex;align-items:center;gap:12px;padding:9px 20px;border-bottom:1px solid var(--border);background:#fff}
+.rail .txt{font-size:13px;color:var(--text-2);white-space:nowrap}
+.rail .txt b{font-family:var(--mono);color:var(--text);font-size:15px}
+.pips{display:flex;gap:4px;flex:1;min-width:60px}
+.pips i{height:6px;flex:1;max-width:44px;border-radius:3px;background:var(--surface-3);cursor:pointer;transition:.18s}
+.pips i.done{background:var(--ok)}
+.pips i.now{background:var(--accent);flex:1.6}
+.rail .nav{display:flex;gap:4px}
+
+/* 舞台：左圖右問，兩邊都滿版 */
+.stage{flex:1;display:grid;grid-template-columns:minmax(0,44%) minmax(0,1fr);min-height:0}
+.shotwrap{background:var(--ink);display:grid;place-items:center;padding:20px;position:relative;min-height:0;overflow:hidden}
+.shot{max-width:100%;max-height:100%;border-radius:9px;box-shadow:0 14px 40px rgba(0,0,0,.4)}
+.shotwrap .meta{position:absolute;left:0;right:0;top:0;padding:11px 18px;display:flex;gap:10px;align-items:center;
+  color:#d6dae1;font-size:12px;background:linear-gradient(#171a1f,rgba(23,26,31,0))}
+.shotwrap .meta b{color:#fff;font-size:13px}
+.shotwrap .tools{position:absolute;right:14px;bottom:13px;display:flex;gap:6px}
+.shotwrap .tools button{border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:7px;width:30px;height:30px;
+  cursor:pointer;font-size:14px;font-family:inherit}
+.shotwrap .tools button:hover{background:rgba(255,255,255,.26)}
+
+/* 問答面板 */
+.ask{display:flex;flex-direction:column;min-height:0;padding:0}
+.crumbs{display:flex;gap:8px;flex-wrap:wrap;padding:14px 26px 0}
+.crumb{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--surface);
+  border-radius:16px;padding:3px 11px;font-size:12.3px;color:var(--text-2);cursor:pointer}
+.crumb b{color:var(--text);font-family:var(--mono)}
+.crumb:hover{border-color:var(--accent);color:var(--accent)}
+.crumb .tick{color:var(--ok);font-size:11px}
+.qbody{flex:1;min-height:0;overflow:auto;padding:20px 26px 6px;display:flex;flex-direction:column;justify-content:center}
+.qk{font-size:11px;letter-spacing:.14em;color:var(--text-3);margin-bottom:6px}
+.q{font-size:25px;font-weight:600;letter-spacing:-.02em;margin:0 0 4px}
+.qh{color:var(--text-2);font-size:13.2px;margin:0 0 18px;max-width:46ch}
+.bigin{width:100%;max-width:340px;height:62px;border:2px solid var(--border-2);border-radius:12px;background:#fff;
+  font-family:var(--mono);font-size:32px;font-weight:600;padding:0 16px;color:var(--text)}
+.bigin:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-bg)}
+.hintrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.sugg{border:1px solid var(--border-2);background:#fff;border-radius:16px;padding:4px 12px;font-size:12.5px;
+  font-family:var(--mono);cursor:pointer;color:var(--text-2)}
+.sugg:hover{border-color:var(--accent);color:var(--accent)}
+.sugg em{font-style:normal;font-family:inherit;font-size:11px;color:var(--text-3);margin-left:5px}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:9px;max-width:560px}
+.opt{border:1.5px solid var(--border-2);background:#fff;border-radius:11px;padding:13px 15px;text-align:left;
+  font-family:inherit;cursor:pointer;display:grid;gap:2px}
+.opt:hover{border-color:var(--accent);background:var(--accent-bg)}
+.opt.on{border-color:var(--accent);background:var(--accent-bg)}
+.opt b{font-size:14px}
+.opt small{font-size:11.5px;color:var(--text-3)}
+.opt kbd{position:relative;float:right;font-family:var(--mono);font-size:10px;color:var(--text-3);
+  border:1px solid var(--border-2);border-radius:4px;padding:0 4px}
+.sumline{display:grid;gap:9px;max-width:460px}
+.sumline .r{display:flex;align-items:baseline;gap:12px;border-bottom:1px dashed var(--border);padding-bottom:7px}
+.sumline .r span{font-size:12px;color:var(--text-3);width:56px}
+.sumline .r b{font-size:16px;font-weight:600}
+.sumline .r .ed{margin-left:auto;font-size:11.5px;color:var(--pri);cursor:pointer}
+
+/* 行動列：滿版一條，主按鈕很大 */
+.act{display:flex;align-items:center;gap:10px;padding:14px 26px;border-top:1px solid var(--border);background:#fff}
+.go{flex:1;max-width:330px;height:46px;border:0;border-radius:11px;background:var(--accent);color:#fff;
+  font-size:15.5px;font-weight:600;font-family:inherit;cursor:pointer;display:inline-flex;align-items:center;
+  justify-content:center;gap:9px}
+.go:hover{filter:brightness(.94)}
+.go[disabled]{background:var(--surface-3);color:var(--text-3);cursor:not-allowed}
+.go kbd{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.22);border-radius:4px;padding:1px 5px}
+.go[disabled] kbd{background:var(--surface-4)}
+.act .sp{flex:1}
+
+/* 完成畫面：填滿整個舞台 */
+.cleared{flex:1;display:grid;place-content:center;justify-items:center;gap:9px;text-align:center;padding:34px;
+  background:linear-gradient(180deg,#fff,var(--ok-bg))}
+.cleared .ic{width:56px;height:56px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:26px}
+.cleared h4{margin:6px 0 0;font-size:20px;letter-spacing:-.01em}
+.cleared p{margin:0;color:var(--text-2);font-size:13.4px;max-width:44ch}
+.stats{display:flex;gap:34px;margin-top:18px;padding-top:16px;border-top:1px solid #cfe6d8}
+.stats div{text-align:center}
+.stats b{display:block;font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.02em}
+.stats span{font-size:11.5px;color:var(--text-2)}
+.cleared .after{margin-top:18px;display:flex;gap:8px}
+
+/* 送出後的安靜列（不是卡片，只是一條列） */
+.quiet{border-top:1px solid var(--border);background:var(--surface);max-height:150px;overflow:auto}
+.qrow{display:grid;grid-template-columns:26px 58px minmax(0,1fr) auto auto;gap:10px;align-items:center;
+  padding:8px 20px;border-bottom:1px solid var(--border);font-size:12.8px}
+.qrow:last-child{border-bottom:0}
+.qrow .dt{font-family:var(--mono);font-size:11.5px;color:var(--text-3)}
+.qrow .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrow .am{font-family:var(--mono)}
+.chip{font-size:11.2px;border-radius:12px;padding:2px 9px;white-space:nowrap}
+.c-ok{background:var(--ok-bg);color:var(--ok)}.c-pri{background:var(--pri-bg);color:var(--pri)}
+.c-info{background:var(--info-bg);color:var(--info)}.c-warn{background:var(--warn-bg);color:var(--warn)}
+.quiet-h{padding:7px 20px;font-size:10.8px;letter-spacing:.09em;color:var(--text-3);
+  border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);display:flex}
+.quiet-h .sp{flex:1}
+
+/* 憑證庫：大圖 + 底部膠捲 */
+.light{flex:1;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto}
+.lbig{background:var(--ink);display:grid;place-items:center;padding:20px;position:relative;min-height:0}
+.lbig .cap{position:absolute;left:0;right:0;bottom:0;padding:14px 20px;color:#d6dae1;font-size:12.5px;
+  background:linear-gradient(rgba(23,26,31,0),#171a1f);display:flex;gap:12px;align-items:center}
+.lbig .cap b{color:#fff;font-size:14px}
+.lbig .cap .sp{flex:1}
+.film{display:flex;gap:8px;padding:11px 14px;overflow-x:auto;background:var(--surface);border-top:1px solid var(--border)}
+.fm{flex:0 0 84px;height:64px;border-radius:7px;border:2px solid transparent;background:#fff;display:grid;
+  place-items:center;font-size:20px;cursor:pointer;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.fm.on{border-color:var(--accent)}
+.fm small{position:absolute;bottom:2px;left:0;right:0;font-size:9px;color:var(--text-3);text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.strip{display:flex;align-items:center;gap:9px;padding:8px 20px;font-size:12.6px;background:var(--warn-bg);
+  color:var(--warn);border-bottom:1px solid #f2dfc0}
+.strip .sp{flex:1}
+.strip .lnk{color:#8a4008;text-decoration:underline;cursor:pointer}
+
+/* 報帳狀態軸（橫向、填滿） */
+.track{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;padding:30px 40px;gap:0}
+.trail{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative;margin-top:24px}
+.tn{display:grid;justify-items:center;gap:8px;position:relative;text-align:center}
+.tn::before{content:'';position:absolute;top:15px;left:-50%;width:100%;height:3px;background:var(--border)}
+.tn:first-child::before{display:none}
+.tn.done::before,.tn.now::before{background:var(--ok)}
+.tn .bul{width:32px;height:32px;border-radius:50%;border:3px solid var(--border);background:#fff;display:grid;
+  place-items:center;font-size:13px;color:var(--text-3);z-index:1}
+.tn.done .bul{background:var(--ok);border-color:var(--ok);color:#fff}
+.tn.now .bul{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 5px var(--accent-bg)}
+.tn b{font-size:13.5px}
+.tn small{font-size:11.5px;color:var(--text-3);max-width:19ch;line-height:1.5}
+.tn.todo b{color:var(--text-3);font-weight:450}
+
+.drop{position:absolute;inset:0;background:rgba(194,65,12,.07);border:2px dashed var(--accent);border-radius:12px;
+  display:none;place-items:center;z-index:30}
+.deck.over .drop{display:grid}
+.drop b{background:#fff;border-radius:22px;padding:9px 20px;font-size:14px;color:var(--accent);box-shadow:0 5px 18px rgba(194,65,12,.22)}
+
+.tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:11px;
+  overflow:hidden;font-size:13px;margin-top:10px}
+.tbl th{text-align:left;padding:9px 13px;background:var(--surface-2);font-size:11.5px;color:var(--text-3);
+  font-weight:600;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+.tbl td{padding:10px 13px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text-2)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td b{color:var(--text)}
+kbd{font-family:var(--mono);font-size:11px;background:#fff;border:1px solid var(--border-2);
+  border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--text-2)}
+.kb{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.kb span{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);
+  background:#fff;border:1px solid var(--border);border-radius:8px;padding:5px 10px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px}
+.box{background:#fff;border:1px solid var(--border);border-radius:11px;padding:14px 16px}
+.box h4{margin:0 0 7px;font-size:13.5px}
+.box ul{margin:0;padding-left:17px;color:var(--text-2);font-size:12.8px;line-height:1.75}
+.box ul b{color:var(--text)}
+.tag{display:inline-block;font-size:10.5px;font-family:var(--mono);border-radius:4px;padding:1px 6px;
+  background:var(--surface-3);color:var(--text-2);margin-left:6px;vertical-align:1px}
+.tag.new{background:var(--ok-bg);color:var(--ok)}
+.tag.del{background:var(--danger-bg);color:var(--danger)}
+.phone{width:216px;border:8px solid #22262c;border-radius:26px;background:#fff;overflow:hidden;flex:0 0 auto}
+.phone .ph-top{background:var(--ink);height:132px;display:grid;place-items:center;color:#8d949e;font-size:26px}
+.phone .ph-q{padding:13px 14px}
+.phone .ph-q .k{font-size:9.5px;letter-spacing:.12em;color:var(--text-3)}
+.phone .ph-q .t{font-size:16px;font-weight:600;margin:2px 0 8px}
+.phone .ph-in{height:44px;border:2px solid var(--accent);border-radius:9px;display:flex;align-items:center;
+  padding:0 11px;font-family:var(--mono);font-size:21px;font-weight:600;box-shadow:0 0 0 3px var(--accent-bg)}
+.phone .ph-go{margin:10px 14px 12px;height:42px;border-radius:9px;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-size:14px;font-weight:600}
+@media(max-width:860px){.stage{grid-template-columns:1fr;grid-template-rows:180px minmax(0,1fr)}.deck{height:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="stamp">● 提案 C / 三案之一</div>
+<h1>一次只問一件事 —— <em>做完就沒了</em></h1>
+<p class="lede">
+收單的使用者是<b>現場的人</b>：手上拿著一張皺掉的收據，在工地、在車上、在展場。
+他不需要看到「三個狀態、四個區塊、七顆按鈕」，他只需要被問<b>一個問題</b>，答完就換下一張。
+這一案把整個區域變成一個<b>過單舞台</b>：左邊是放到最大的收據，右邊一次只有一題，
+頭上有一條「還剩 3 筆」。全部做完，舞台就換成本月的成績單 —— 而不是一張寫著「沒有資料」的空卡片。
+</p>
+
+<h2 class="sec">現況診斷<span>對照你提供的三張截圖</span></h2>
+<div class="diag">
+  <div class="dg"><span class="no">D-01</span><h4>一次呈現太多</h4>
+    <p>核准、待補、已送出、拖放區同時出現，<b>使用者要自己決定先做哪一個</b>——這是系統該負責的事。</p></div>
+  <div class="dg"><span class="no">D-02</span><h4>看不出「還剩多少」</h4>
+    <p>沒有任何進度感。做完一筆畫面只是少一列，沒有「快結束了」的回饋，所以沒有人想一次做完。</p></div>
+  <div class="dg"><span class="no">D-03</span><h4>桌機版塞進手機</h4>
+    <p>小字、小按鈕、44px 縮圖 —— 但收單這件事九成發生在手機上、單手、光線不好。</p></div>
+  <div class="dg"><span class="no">D-04</span><h4>空狀態浪費最好的版面</h4>
+    <p>「還沒有報帳」一張置中卡片佔了 1400×900 的畫面說一句話，周圍全白。</p></div>
+  <div class="dg"><span class="no">D-05</span><h4>表單太小</h4>
+    <p>金額 input 高 30px、寬 160px。這是整個流程<b>唯一要精準的數字</b>，卻是畫面上最小的元件。</p></div>
+  <div class="dg"><span class="no">D-06</span><h4>憑證庫沒有閱讀模式</h4>
+    <p>112px 縮圖只能辨識「有東西」，要真的看內容一定得另開分頁，離開這個模組。</p></div>
+</div>
+
+<h2 class="sec">這個提案主張什麼</h2>
+<div class="claim">
+  <p class="one">把決定權交還給系統：你只要回答。</p>
+  <p class="sub">哪一筆先處理、這一筆缺什麼、下一題是什麼 —— 全部由系統排好。使用者的心智負擔壓到<b>一次一題</b>。</p>
+  <ul class="prins">
+    <li><b>舞台，不是卡片牆</b><span>整個區域＝一張收據 ＋ 一個問題 ＋ 一顆大按鈕。畫面上沒有任何一個可以略過的元素。</span></li>
+    <li><b>進度可見</b><span>頂部一條 pips：做完一格變綠。「還剩 2 筆」比「待補 2」更能推人做完。</span></li>
+    <li><b>問題有順序</b><span>先問金額（最需要看圖）、再問歸屬（最需要想）、最後給一頁確認。已答的縮成可點的小膠囊。</span></li>
+    <li><b>空的時候最值錢</b><span>清空＝成績單：本月交了幾筆、代墊多少、最久的一筆幾天。把最大的版面給最好的消息。</span></li>
+  </ul>
+  <div class="refs">
+    <a href="https://ramp.com/blog/receipt-scanning-expense-management" target="_blank"><i>參考</i> Ramp · OCR 預填後只問差額</a>
+    <a href="https://blog.redhub.ai/inbox-zero" target="_blank"><i>模式</i> Inbox Zero · 逐筆清空的心理機制</a>
+    <a href="https://en.wikipedia.org/wiki/Master%E2%80%93detail_interface" target="_blank"><i>模式</i> Master–detail 的單筆變體</a>
+    <a href="https://theledgerstack.com/articles/dext-vs-hubdoc-receipt-capture" target="_blank"><i>參考</i> Dext · 行動端單據擷取流程</a>
+  </div>
+</div>
+
+<h2 class="sec">互動原型<span>可以點：打金額、選歸屬、送出並繼續、清空後看成績單</span></h2>
+<div class="proto">
+  <div class="proto-bar">
+    <div class="dots"><i></i><i></i><i></i></div>
+    <div class="u">www.person.yzedtech.com/company/operating</div>
+    <div class="lbl">提案 C</div>
+  </div>
+  <div class="mod">
+    <div class="mod-h"><h3>金流</h3><span class="q">「這筆錢是什麼、對得起來嗎」</span>
+      <div class="rt">主操作面：收單每天、帳務每週、洞察每月</div></div>
+    <div class="faces" style="margin-bottom:12px">
+      <button class="face on"><b>收單</b><small>每天 · 全員</small><i class="fbdg" id="faceBdg">5</i></button>
+      <button class="face"><b>帳務</b><small>每週 · 記帳</small></button>
+      <button class="face"><b>洞察</b><small>每月 · 決策</small></button>
+    </div>
+  </div>
+
+  <div class="deck" id="deck"
+       ondragover="event.preventDefault();deck.classList.add('over')"
+       ondragleave="deck.classList.remove('over')"
+       ondrop="event.preventDefault();deck.classList.remove('over');addFake()">
+    <div class="drop"><b>放開就收進來，我等一下問你它是什麼</b></div>
+    <div class="deck-h">
+      <button class="tab on" data-t="inbox" onclick="go('inbox')">收件匣 <span class="n" id="nInbox">5</span></button>
+      <button class="tab" data-t="mine" onclick="go('mine')">我的報帳 <span class="n">3</span></button>
+      <button class="tab" data-t="vault" onclick="go('vault')">憑證庫 <span class="n">9</span></button>
+      <span class="sp"></span>
+      <button class="btn" onclick="addFake()">＋ 加入</button>
+    </div>
+    <div id="body" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
+  </div>
+</div>
+<p class="note">原型是靜態模擬。把三筆待補與兩筆待核准都處理完，舞台會換成本月成績單；按「＋ 加入」可以再丟一筆進來。</p>
+
+<h2 class="sec">問題的順序是設計出來的</h2>
+<table class="tbl">
+  <tr><th style="width:74px">順位</th><th style="width:130px">問題</th><th>為什麼排在這裡</th></tr>
+  <tr><td><b>1</b></td><td><b>多少錢？</b></td><td>唯一必須看著收據才能答的題目，所以排在圖片剛出現、注意力最集中的時候。OCR 有讀到就直接預填，變成<b>確認題</b>而不是輸入題。</td></tr>
+  <tr><td><b>2</b></td><td><b>算誰的？</b></td><td>需要思考但不需要看圖。選項用<b>最近用過的排最前面</b>，並依日期、地點猜測（同一天已經有兩筆歸石壩專案 → 預選它）。</td></tr>
+  <tr><td><b>3</b></td><td><b>這是什麼？</b></td><td>大多數時候檔名或 OCR 已經夠用，所以這題預設<b>不出現</b>，只在確認頁當一行可改的文字。</td></tr>
+  <tr><td><b>4</b></td><td><b>確認</b></td><td>三行摘要，任一行可點回去改。主按鈕文字直接寫出後果：「送出，等佳玲核准」。</td></tr>
+</table>
+<p class="note">原則：<b>系統知道的不要問，猜得到的先填好讓人否認</b>。現況是一次攤開三個欄位都要人填，這裡是一次一題、能填的先填。</p>
+
+<h2 class="sec">手機才是主場</h2>
+<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:10px">
+  <div class="phone">
+    <div class="ph-top">🧾</div>
+    <div class="ph-q"><div class="k">還剩 3 筆 · 第 1 筆</div><div class="t">這張多少錢？</div>
+      <div class="ph-in">1,4<span style="width:2px;height:22px;background:var(--accent);margin-left:1px"></span></div></div>
+    <div class="ph-go">下一題</div>
+  </div>
+  <div style="flex:1;min-width:290px">
+    <div class="box"><h4>同一套版型，不用第二套</h4>
+      <ul>
+        <li>桌機的左右兩欄，在手機就是<b>上下兩塊</b>：上面收據、下面問題。其他什麼都不變。</li>
+        <li>金額輸入是 62px 高的大框，<b>數字鍵盤直接彈出</b>，不用捲動。</li>
+        <li>歸屬選項是整塊可點的方塊（最小 48px），單手拇指可及。</li>
+        <li>主按鈕固定在最底，永遠只有一顆 —— 「下一題」或「送出並繼續」。</li>
+        <li>拍完照直接進入第 1 題，不需要先找到「補齊」按鈕。</li>
+      </ul></div>
+  </div>
+</div>
+
+<h2 class="sec">鍵盤（桌機）</h2>
+<div class="kb">
+  <span>直接打數字＝填金額</span>
+  <span><kbd>1</kbd>–<kbd>4</kbd> 選歸屬</span>
+  <span><kbd>↵</kbd> 下一題</span>
+  <span><kbd>⌘</kbd><kbd>↵</kbd> 送出並繼續</span>
+  <span><kbd>⇧</kbd><kbd>Tab</kbd> 回上一題</span>
+  <span><kbd>S</kbd> 這筆跳過，晚點再說</span>
+  <span><kbd>⌫</kbd> 丟棄</span>
+</div>
+
+<h2 class="sec">落地對應<span>對現有 <code>cashflow-faces.source.js</code> 的改動</span></h2>
+<table class="tbl">
+  <tr><th style="width:230px">現有</th><th>動作</th></tr>
+  <tr><td><code>cfInboxView()</code></td><td>改成 <code>cfStage()</code>：從 <code>cfQueue()</code> 取第一筆，依 <code>cfMissing()</code> 決定要問哪一題。<span class="tag">改寫</span></td></tr>
+  <tr><td><code>cfDraftForm(x)</code></td><td>拆成 <code>cfAskAmount(x)</code> / <code>cfAskProject(x)</code> / <code>cfConfirm(x)</code> 三個小函式，共用 <code>cfSubmit()</code>。<span class="tag">拆解</span></td></tr>
+  <tr><td><code>cfMissing(x)</code></td><td>成為排程核心：回傳的第一個缺項＝下一題。已經是現成的，語意剛好。<span class="tag new">升格</span></td></tr>
+  <tr><td><code>cfEmpty()</code></td><td>換成 <code>cfScoreboard()</code>：本月交件數、代墊總額、最久未處理天數。<span class="tag">改寫</span></td></tr>
+  <tr><td><code>cfVaultView()</code></td><td>改成 lightbox＋底部膠捲；縮圖格改為次要檢視。<span class="tag">改寫</span></td></tr>
+  <tr><td>—</td><td>新增 <code>S.cfStep</code>（amt / proj / confirm）、<code>S.cfSkipped</code>（跳過的排到隊尾）。<span class="tag new">新增</span></td></tr>
+  <tr><td>—</td><td>建議同步接 OCR 預填（現在 <code>cfIngest</code> 只取檔名），否則第 1 題仍是純手打，效益會少一半。<span class="tag new">建議</span></td></tr>
+</table>
+
+<h2 class="sec">這個方向的取捨</h2>
+<div class="two">
+  <div class="box" style="border-left:3px solid var(--ok)"><h4>值得</h4>
+    <ul><li>手機與桌機<b>同一套版型</b>，維護成本最低。</li>
+    <li>認知負擔最低：不用挑先做哪一個，不會「看到一堆就不想開始」。</li>
+    <li>收據放到最大，金額看錯的機率明顯下降。</li>
+    <li>空狀態變成成績單，是三案裡唯一把「沒事做」變成正回饋的。</li></ul></div>
+  <div class="box" style="border-left:3px solid var(--warn)"><h4>代價</h4>
+    <ul><li><b>看不到全貌</b>。想知道「這個月總共交了什麼」要另外切分頁。</li>
+    <li>沒有批次。五筆都歸同一個專案還是要按五次（可加「套用到接下來全部」緩解）。</li>
+    <li>負責人一天要核准 20 筆時，逐筆過會比表格慢 —— 負責人可能需要提案 B 的表格當第二視圖。</li>
+    <li>沒有 OCR 預填的話，第 1 題的價值會打折。</li></ul></div>
+</div>
+
+</div>
+
+<script>
+const PROJ=[['公司層級','沒有特定專案'],['石壩專案','本週已有 2 筆'],['場地','固定支出'],['行銷','展會與宣傳']];
+let DATA=[
+ {id:'i1',t:'高鐵 台北→台中',amt:null,p:'',d:'09-26',who:'我',st:'draft',ic:'🚄',ocr:1490},
+ {id:'i2',t:'工地便當 ×6',amt:780,p:'',d:'09-26',who:'我',st:'draft',ic:'🍱'},
+ {id:'i3',t:'影印紙 A4 五包',amt:null,p:'公司層級',d:'09-25',who:'我',st:'draft',ic:'🧾',ocr:349},
+ {id:'a1',t:'計程車 工地往返',amt:420,p:'石壩專案',d:'09-25',who:'佳玲',st:'appr',ic:'🚕'},
+ {id:'a2',t:'五金行 束帶與膠帶',amt:1260,p:'場地',d:'09-24',who:'佳玲',st:'appr',ic:'🔧'},
+ {id:'s1',t:'測試發票圖片',amt:5,p:'公司層級',d:'09-26',who:'我',st:'posted',ic:'📄'},
+ {id:'s2',t:'雲端主機月費',amt:1490,p:'公司層級',d:'09-22',who:'我',st:'sent',ic:'☁️'},
+ {id:'s3',t:'展場拖車運費',amt:3600,p:'石壩專案',d:'09-19',who:'我',st:'paid',ic:'🚚'}
+];
+const ST={sent:['等待核准','c-info'],posted:['已入帳','c-ok'],paid:['已付款','c-ok'],draft:['待補','c-warn'],appr:['待核准','c-pri']};
+let S={tab:'inbox',step:null,tmp:{},vsel:0};
+const deck=document.getElementById('deck'),nt=n=>n==null?'—':'NT$'+n.toLocaleString();
+function go(t){S.tab=t;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));render()}
+function addFake(){
+  DATA.unshift({id:'n'+Date.now(),t:'新收據 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}),
+    amt:null,p:'',d:'09-26',who:'我',st:'draft',ic:'🧾',ocr:Math.round(200+Math.random()*2400)});
+  S.tab='inbox';S.step=null;S.tmp={};
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t==='inbox'));render();
+}
+const queue=()=>DATA.filter(x=>x.st==='draft'||x.st==='appr');
+function cur(){return queue()[0]}
+function stepOf(x){
+  if(!x)return null;
+  if(x.st==='appr')return 'approve';
+  if(S.step)return S.step;
+  if(x.amt==null&&S.tmp.amt==null)return 'amt';
+  if(!x.p&&!S.tmp.p)return 'proj';
+  return 'confirm';
+}
+function setAmt(v){S.tmp.amt=v.replace(/[^\d]/g,'');}
+function nextFromAmt(){
+  const x=cur(),v=S.tmp.amt!=null?S.tmp.amt:(x.ocr||'');
+  if(!v){return}
+  S.tmp.amt=String(v);S.step=null;render();
+}
+function pickProj(o){S.tmp.p=o;S.step=null;render()}
+function back(k){S.step=k;render()}
+function submit(){
+  const x=cur();
+  x.amt=+(S.tmp.amt!=null?S.tmp.amt:x.amt);x.p=S.tmp.p||x.p;x.st='sent';
+  S.tmp={};S.step=null;render();
+}
+function approve(){const x=cur();x.st='posted';S.tmp={};S.step=null;render()}
+function bounce(){const x=cur();x.st='draft';x.amt=null;S.tmp={};S.step=null;render()}
+function skip(){const x=cur();DATA=DATA.filter(y=>y.id!==x.id);DATA.push(x);S.tmp={};S.step=null;render()}
+function drop(){const x=cur();DATA=DATA.filter(y=>y.id!==x.id);S.tmp={};S.step=null;render()}
+
+function shot(x,amt){
+  return `<svg class="shot" width="252" height="332" viewBox="0 0 292 382" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="收據影像模擬">
+    <rect width="292" height="382" rx="4" fill="#fff"/>
+    <text x="24" y="42" font-size="15" font-weight="700" fill="#16181c" font-family="system-ui">${x.ic} ${x.t.slice(0,11)}</text>
+    <text x="24" y="63" font-size="11" fill="#8a9099" font-family="ui-monospace">2026-${x.d}　統編 84512396</text>
+    <line x1="24" y1="78" x2="268" y2="78" stroke="#e3e5e8"/>
+    ${[0,1,2,3,4].map(i=>`<g><rect x="24" y="${96+i*28}" width="${130-i*13}" height="8" rx="4" fill="#e7e9ec"/>
+      <rect x="216" y="${96+i*28}" width="${52-i*4}" height="8" rx="4" fill="#eef0f3"/></g>`).join('')}
+    <line x1="24" y1="248" x2="268" y2="248" stroke="#e3e5e8"/>
+    <text x="24" y="276" font-size="12" fill="#555b64" font-family="system-ui">合計</text>
+    <rect x="172" y="256" width="100" height="30" rx="6" fill="${amt?'#fff1e8':'#fff'}" stroke="${amt?'#c2410c':'none'}" stroke-width="1.5"/>
+    <text x="264" y="278" font-size="20" font-weight="700" text-anchor="end" fill="#16181c" font-family="ui-monospace">${(amt||x.amt||1480).toLocaleString()}</text>
+    <rect x="24" y="300" width="244" height="54" rx="6" fill="#f7f7f8"/>
+    <text x="38" y="324" font-size="10.5" fill="#8a9099" font-family="ui-monospace">INVOICE  AB-1928 4471</text>
+    <text x="38" y="342" font-size="10.5" fill="#8a9099" font-family="ui-monospace">CARD ****4412  APPROVED</text>
+  </svg>`;
+}
+
+function render(){
+  const b=document.getElementById('body'),q=queue();
+  document.getElementById('nInbox').textContent=q.length;
+  document.getElementById('faceBdg').textContent=q.length;
+  if(S.tab==='mine')return b.innerHTML=mine();
+  if(S.tab==='vault')return b.innerHTML=vault();
+  if(!q.length)return b.innerHTML=scoreboard();
+
+  const x=q[0],st=stepOf(x);
+  const total=q.length, doneAll=DATA.filter(y=>['sent','posted','paid'].includes(y.st)).length;
+  const rail=`<div class="rail">
+    <span class="txt">還剩 <b>${total}</b> 筆</span>
+    <span class="pips">${Array.from({length:Math.min(doneAll,6)}).map(()=>'<i class="done"></i>').join('')}${q.map((y,i)=>`<i class="${i===0?'now':''}" title="${y.t}"></i>`).join('')}</span>
+    <span class="nav"><button class="btn sm gh" onclick="skip()">跳過 S</button>
+      <button class="btn sm gh dgr" onclick="drop()">丟棄 ⌫</button></span></div>`;
+
+  const amtNow=S.tmp.amt!=null?+S.tmp.amt:x.amt;
+  const left=`<div class="shotwrap">
+    <div class="meta"><b>${x.t}</b><span>${x.d} · ${x.who}</span></div>
+    ${shot(x,st==='amt'?amtNow:null)}
+    <div class="tools"><button title="放大">＋</button><button title="旋轉">⟳</button><button title="原圖">⤢</button></div></div>`;
+
+  let crumbs='',qbody='',act='';
+  const cAmt=amtNow!=null?`<span class="crumb" onclick="back('amt')"><span class="tick">✓</span>金額 <b>${nt(amtNow)}</b></span>`:'';
+  const pNow=S.tmp.p||x.p;
+  const cP=pNow?`<span class="crumb" onclick="back('proj')"><span class="tick">✓</span>歸屬 <b>${pNow}</b></span>`:'';
+
+  if(st==='approve'){
+    qbody=`<div class="qk">需要你核准 · ${q.filter(y=>y.st==='appr').length} 筆代墊</div>
+      <h2 class="q">要核准這筆代墊嗎？</h2>
+      <p class="qh">${x.who} 在 ${x.d} 先墊了這筆錢。核准後會進入帳本的「待歸帳」，由記帳者補上類別才算入帳。</p>
+      <div class="sumline">
+        <div class="r"><span>金額</span><b style="font-family:var(--mono)">${nt(x.amt)}</b></div>
+        <div class="r"><span>歸屬</span><b>${x.p}</b></div>
+        <div class="r"><span>代墊人</span><b>${x.who}</b><span class="ed">看聯絡方式</span></div>
+      </div>`;
+    act=`<button class="go" onclick="approve()">核准，進待歸帳 <kbd>⌘↵</kbd></button>
+      <button class="btn" onclick="bounce()">退回補件</button><span class="sp"></span>
+      <span style="font-size:12px;color:var(--text-3)">核准後 ${x.who} 會收到通知</span>`;
+  }
+  else if(st==='amt'){
+    crumbs=cP;
+    qbody=`<div class="qk">第 1 題 · 共 ${x.p?1:2} 題</div>
+      <h2 class="q">這張多少錢？</h2>
+      <p class="qh">${x.ocr?`系統從圖上讀到 <b>${nt(x.ocr)}</b>，對的話直接按下一題。`:'看右邊那張收據的合計欄。'}</p>
+      <input class="bigin" inputmode="numeric" placeholder="${x.ocr||'0'}" value="${S.tmp.amt??(x.ocr||'')}"
+        oninput="setAmt(this.value);document.querySelector('.go').disabled=!this.value"
+        onkeydown="if(event.key==='Enter')nextFromAmt()" autofocus>
+      <div class="hintrow">
+        ${x.ocr?`<button class="sugg" onclick="S.tmp.amt='${x.ocr}';nextFromAmt()">${nt(x.ocr)}<em>圖上讀到</em></button>`:''}
+        <button class="sugg" onclick="S.tmp.amt='1490';nextFromAmt()">NT$1,490<em>上次同樣的</em></button>
+        <span style="font-size:12px;color:var(--text-3)">含稅金額就好，發票號碼系統自己抓</span>
+      </div>`;
+    act=`<button class="go" onclick="nextFromAmt()">下一題 <kbd>↵</kbd></button><span class="sp"></span>
+      <span style="font-size:12px;color:var(--text-3)">${q.length>1?`做完這筆還有 ${q.length-1} 筆`:'這是最後一筆'}</span>`;
+  }
+  else if(st==='proj'){
+    crumbs=cAmt;
+    qbody=`<div class="qk">第 2 題 · 最後一題</div>
+      <h2 class="q">這筆算誰的？</h2>
+      <p class="qh">選錯之後在帳本還能改，先挑最接近的就好。</p>
+      <div class="opts">${PROJ.map(([o,h],i)=>
+        `<button class="opt ${pNow===o?'on':''}" onclick="pickProj('${o}')"><kbd>${i+1}</kbd><b>${o}</b><small>${h}</small></button>`).join('')}</div>`;
+    act=`<button class="go" disabled>選一個就會自動往下 <kbd>1-4</kbd></button><span class="sp"></span>
+      <button class="btn gh" onclick="back('amt')">← 回上一題</button>`;
+  }
+  else{
+    crumbs=cAmt+cP;
+    qbody=`<div class="qk">確認</div>
+      <h2 class="q">送出這一筆？</h2>
+      <p class="qh">送出後由負責人核准，核准完進入帳本的待歸帳。你可以在「我的報帳」看它走到哪。</p>
+      <div class="sumline">
+        <div class="r"><span>是什麼</span><b>${x.t}</b><span class="ed">改</span></div>
+        <div class="r"><span>金額</span><b style="font-family:var(--mono)">${nt(amtNow)}</b><span class="ed" onclick="back('amt')">改</span></div>
+        <div class="r"><span>歸屬</span><b>${pNow}</b><span class="ed" onclick="back('proj')">改</span></div>
+        <div class="r" style="border:0"><span>日期</span><b>2026-${x.d}</b><span class="ed">改</span></div>
+      </div>`;
+    act=`<button class="go" onclick="submit()">送出，等佳玲核准 <kbd>⌘↵</kbd></button>
+      <span class="sp"></span><button class="btn gh" onclick="skip()">晚點再說</button>`;
+  }
+
+  const sent=DATA.filter(y=>['sent','posted','paid'].includes(y.st)).slice(0,4);
+  const quiet=`<div class="quiet"><div class="quiet-h">今天已送出<span class="sp"></span>${sent.length} 筆</div>
+    ${sent.map(y=>`<div class="qrow"><span>${y.ic}</span><span class="dt">${y.d}</span>
+      <span class="nm">${y.t}</span><span class="am">${nt(y.amt)}</span>
+      <span class="chip ${ST[y.st][1]}">${ST[y.st][0]}</span></div>`).join('')}</div>`;
+
+  b.innerHTML=rail+`<div class="stage">${left}
+    <div class="ask">${crumbs?`<div class="crumbs">${crumbs}</div>`:''}
+      <div class="qbody">${qbody}</div><div class="act">${act}</div></div></div>`+quiet;
+  setTimeout(()=>document.querySelector('.bigin')?.focus(),0);
+}
+
+function scoreboard(){
+  const sent=DATA.filter(y=>['sent','posted','paid'].includes(y.st));
+  const sum=sent.reduce((a,c)=>a+(c.amt||0),0);
+  return `<div class="cleared"><div class="ic">✓</div>
+    <h4>收件匣清空了</h4>
+    <p>這個月該交的都交了。有新的收據隨時拖進來、拍進來，我會一張一張問你。</p>
+    <div class="stats">
+      <div><b>${sent.length}</b><span>本月交件</span></div>
+      <div><b>${sum.toLocaleString()}</b><span>送出金額 NT$</span></div>
+      <div><b>${DATA.filter(y=>y.st==='sent').length}</b><span>等核准中</span></div>
+      <div><b>0</b><span>逾期未補</span></div>
+    </div>
+    <div class="after"><button class="btn" onclick="addFake()">＋ 加入一張</button>
+      <button class="btn" onclick="go('mine')">看我的報帳進度</button>
+      <button class="btn gh" onclick="go('vault')">本月憑證庫</button></div></div>`;
+}
+
+function mine(){
+  const rs=[{t:'高鐵 台北→台中',amt:1490,st:2,d:'09-22'},{t:'展場拖車運費',amt:3600,st:3,d:'09-19'},{t:'工地便當 ×6',amt:780,st:1,d:'09-26'}];
+  const names=['待送','已送','已核','已付'];
+  const hints=['你在收件匣按下送出','負責人收到通知，等他核准','進入帳本待歸帳，記帳者補類別','出納付款，這筆才真的結束'];
+  const r=rs[0];
+  return `<div class="rail"><span class="txt">我的報帳 <b>${rs.length}</b> 筆在途</span>
+    <span class="pips">${rs.map((y,i)=>`<i class="${i===0?'now':'done'}"></i>`).join('')}</span>
+    <span class="nav"><button class="btn sm gh">← 上一筆</button><button class="btn sm gh">下一筆 →</button></span></div>
+  <div class="track">
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+      <h2 class="q" style="margin:0">${r.t}</h2>
+      <span style="font-family:var(--mono);font-size:21px;font-weight:600">${nt(r.amt)}</span>
+      <span style="color:var(--text-3);font-size:12.5px">${r.d} 送出 · 自己代墊 · 已經 4 天</span></div>
+    <div class="trail">${names.map((n,i)=>`<div class="tn ${i<r.st?'done':i===r.st?'now':'todo'}">
+      <span class="bul">${i<r.st?'✓':i+1}</span><b>${n}</b><small>${hints[i]}</small></div>`).join('')}</div>
+  </div>
+  <div class="act" style="border-top:1px solid var(--border)">
+    <button class="go" style="background:var(--pri)">催一下負責人</button>
+    <button class="btn" onclick="go('inbox')">看原始收據</button><span class="sp"></span>
+    <span style="font-size:12.5px;color:var(--text-2)">尚未拿回 <b style="font-family:var(--mono);color:var(--text)">NT$5,870</b>，最久的一筆 7 天</span></div>
+  <div class="quiet"><div class="quiet-h">其他在途<span class="sp"></span>${rs.length-1} 筆</div>
+    ${rs.slice(1).map(y=>`<div class="qrow"><span>💳</span><span class="dt">${y.d}</span><span class="nm">${y.t}</span>
+      <span class="am">${nt(y.amt)}</span><span class="chip c-pri">${names[y.st]}</span></div>`).join('')}</div>`;
+}
+
+function vault(){
+  const files=[['測試發票圖片','09-26 · NT$5','📄'],['雲端主機月費','09-22 · NT$1,490','☁️'],['展場拖車運費','09-19 · NT$3,600','🚚'],
+   ['五金行 束帶','09-24 · NT$1,260','🔧'],['計程車 工地','09-25 · NT$420','🚕'],['場地保險費','09-15 · NT$8,400','🏛'],
+   ['工地便當 ×6','09-26 · NT$780','🍱'],['影印紙 A4','09-25 · 待補','🧾'],['高鐵車票','09-26 · 待補','🚄']];
+  const i=S.vsel,f=files[i];
+  return `<div class="strip">⚡ <b>2 筆交易缺原始憑證</b>：<span class="lnk">場地保險費</span>、<span class="lnk">網域續約</span>
+    <span class="sp"></span><span>2026 年 9 月 · 未結帳</span><button class="btn sm" style="height:24px">一次補齊</button></div>
+  <div class="light">
+    <div class="lbig">
+      <svg class="shot" width="228" height="300" viewBox="0 0 292 382" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="憑證預覽">
+        <rect width="292" height="382" rx="4" fill="#fff"/>
+        <text x="24" y="44" font-size="16" font-weight="700" fill="#16181c" font-family="system-ui">${f[2]} ${f[0]}</text>
+        <text x="24" y="66" font-size="11" fill="#8a9099" font-family="ui-monospace">${f[1]}</text>
+        <line x1="24" y1="82" x2="268" y2="82" stroke="#e3e5e8"/>
+        ${[0,1,2,3,4,5].map(k=>`<rect x="24" y="${102+k*30}" width="${190-k*18}" height="9" rx="4" fill="#e7e9ec"/>`).join('')}
+        <rect x="24" y="300" width="244" height="54" rx="6" fill="#f7f7f8"/></svg>
+      <div class="cap"><b>${f[0]}</b><span>${f[1]}</span><span class="sp"></span>
+        <span>${i+1} / ${files.length}</span>
+        <button class="btn sm" onclick="S.vsel=(S.vsel+files.length-1)%${files.length};render()">←</button>
+        <button class="btn sm" onclick="S.vsel=(S.vsel+1)%${files.length};render()">→</button>
+        <button class="btn sm">下載</button></div></div>
+    <div class="film">${files.map(([t,s,ic],k)=>
+      `<button class="fm ${k===i?'on':''}" onclick="S.vsel=${k};render()">${ic}<small>${t}</small></button>`).join('')}
+      <button class="fm" style="border:2px dashed var(--border-2);color:var(--text-3)" onclick="addFake()">＋</button></div>
+  </div>`;
+}
+render();
+document.addEventListener('keydown',e=>{
+  if(S.tab!=='inbox')return;
+  const x=cur();if(!x)return;
+  if(stepOf(x)==='proj'&&/^[1-4]$/.test(e.key)){pickProj(PROJ[+e.key-1][0]);e.preventDefault()}
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){const s=stepOf(x);if(s==='confirm')submit();if(s==='approve')approve();e.preventDefault()}
+});
+</script>
+</body>
+</html>

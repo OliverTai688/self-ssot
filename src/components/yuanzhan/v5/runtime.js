@@ -179,7 +179,19 @@ const I = {
   flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
   paperclip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
   send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
-  grip: '<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>'
+  grip: '<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/>',
+  layers: '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
+  skip: '<path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+  table: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+  card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  maximize: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  checkCircle: '<circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/>'
 };
 const svg = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"${w ? ` style="width:${w}px;height:${w}px"` : ''}>${I[k] || ''}</svg>`;
 
@@ -14202,8 +14214,51 @@ async function cfOpenFile(f) {
 }
 
 /* ==================================================================
-   面 A：收單
+   面 A：收單 —— 一個區域一塊工作面，不是卡片疊卡片
+
+   舊版把「需要你核准 / 待補 / 最近送出」各開一張 panel()，空的狀態還留一個空框；
+   四塊加起來不到 600px，下面全是空白。改成一塊 .cf-deck 填滿該區域，
+   內部只用 1px 分隔線，狀態降級成分組標題或篩選鍵。
+
+   兩種檢視，角色決定預設（可手動切換，記在 S.cfInboxMode）：
+     成員   → focus 逐筆過單：一次一題，系統決定先問什麼，做完就沒了
+     負責人 → table 一張清單：缺什麼就地補，可勾選多筆一次處理
+
+   拖放不再常駐佔頂部 180px：整塊 deck 都是 drop 區，拖進來才浮出 overlay。
+   圖示一律走 svg()（lucide），不用 emoji。
    ================================================================== */
+S.cfInboxMode = S.cfInboxMode || '';
+S.cfInFilter = S.cfInFilter || 'todo';
+S.cfStep = S.cfStep || '';
+S.cfQueueTail = S.cfQueueTail || [];
+S.cfChecked = S.cfChecked || [];
+S.cfCell = S.cfCell || '';
+S.cfPickFor = S.cfPickFor || '';
+S.cfVaultMode = S.cfVaultMode || 'grid';
+S.cfReimbSel = S.cfReimbSel || '';
+const cfInboxMode = () => S.cfInboxMode || (isOwner() ? 'table' : 'focus');
+function cfSetInboxMode(m) {
+  S.cfInboxMode = m;
+  S.cfErr = '';
+  S.cfCell = '';
+  S.cfPickFor = '';
+  render();
+}
+
+/* ---------- 草稿疊在原值之上：畫面一律看疊完的結果 ---------- */
+function cfAmtOf(x) {
+  const d = S.cfDraft[x.id] || {};
+  if (d.amt != null && d.amt !== '') {
+    const n = Number(String(d.amt).replace(/[^\d]/g, ''));
+    return Number.isNaN(n) ? null : n;
+  }
+  return x.amt == null || x.amt === '' ? null : Number(x.amt);
+}
+const cfProjOf = x => (S.cfDraft[x.id] || {}).p || x.p;
+const cfTitleOf = x => {
+  const d = S.cfDraft[x.id] || {};
+  return d.t != null && d.t !== '' ? d.t : x.t;
+};
 async function cfIngest(file) {
   try {
     toast(OP_LIVE ? '上傳中…' : '讀取中…');
@@ -14224,6 +14279,8 @@ async function cfIngest(file) {
     };
     S.cfEditing = x.id;
     S.cfDraft[x.id] = {};
+    S.cfStep = '';
+    S.cfQueueTail = [];
     commit('create', '收件', x.t, () => {
       DB.intake.unshift(x);
       return ['收件匣 +1 · 補上金額與歸屬就能送出'];
@@ -14242,10 +14299,11 @@ function cfDrop(e, el) {
   const file = e.dataTransfer?.files?.[0];
   if (file) cfIngest(file);
 }
+/** 缺什麼＝下一題。回傳順序就是提問順序：先金額（要看圖），再歸屬（要想）。 */
 function cfMissing(x) {
   const miss = [];
-  if (x.amt == null || x.amt === '') miss.push('金額');
-  if (!x.p) miss.push('歸屬');
+  if (cfAmtOf(x) == null) miss.push('金額');
+  if (!cfProjOf(x)) miss.push('歸屬');
   return miss;
 }
 function cfReadDraft(id) {
@@ -14258,19 +14316,22 @@ function cfReadDraft(id) {
 }
 function cfEdit(id) {
   S.cfEditing = id;
-  S.cfDraft[id] = {};
+  S.cfStep = 'amt';
   S.cfErr = '';
   render();
   setTimeout(() => getById('cfAmt-' + id)?.focus(), 0);
 }
 function cfCancel() {
   S.cfEditing = null;
+  S.cfStep = '';
   S.cfErr = '';
   render();
 }
 function cfPickProj(id, p) {
   cfReadDraft(id).p = p;
   S.cfErr = '';
+  S.cfStep = '';
+  S.cfPickFor = '';
   render();
 }
 function cfSubmit(id) {
@@ -14280,7 +14341,7 @@ function cfSubmit(id) {
   const raw = String(d.amt != null ? d.amt : x.amt ?? '').replace(/[^\d]/g, '');
   const amt = raw ? Number(raw) : null;
   const p = d.p || x.p;
-  const t = (d.t != null ? d.t : x.t).trim() || x.t;
+  const t = (d.t != null && d.t !== '' ? d.t : x.t).trim() || x.t;
   const miss = [];
   if (!amt) miss.push('金額');
   if (!p) miss.push('歸屬');
@@ -14301,7 +14362,10 @@ function cfSubmit(id) {
     d: x.d || TODAY
   };
   S.cfEditing = null;
+  S.cfStep = '';
   S.cfErr = '';
+  S.cfChecked = S.cfChecked.filter(i => i !== id);
+  S.cfQueueTail = S.cfQueueTail.filter(i => i !== id);
   commit('update', '收件', t + ' 送出', () => {
     Object.assign(x, {
       amt,
@@ -14325,6 +14389,7 @@ function cfDiscard(id) {
   if (!x || x.st !== 'draft' || x.who !== DB.me && !isOwner()) return deny();
   const i = DB.intake.indexOf(x);
   S.cfEditing = null;
+  S.cfStep = '';
   commit('delete', '收件', x.t, () => {
     DB.intake.splice(i, 1);
     return ['收件匣 −1'];
@@ -14354,8 +14419,61 @@ function cfAttach(id) {
     }
   });
 }
-function cfDropzone() {
-  return `<div class="cf-drop" style="margin-bottom:0" ${bind("dragover", (event, element) => {
+/** 收件本身補一張圖：逐筆模式左側「沒有附檔」時的出口。 */
+function cfAttachIntake(id) {
+  const x = DB.intake.find(y => y.id === id);
+  if (!x || x.who !== DB.me && !isOwner()) return deny();
+  cfPick(false, async file => {
+    try {
+      toast(OP_LIVE ? '上傳中…' : '讀取中…');
+      const f = await cfReadFile(file);
+      if (!active) return;
+      const before = x.file;
+      commit('update', '收件', x.t + ' ＋' + f.name, () => {
+        x.file = f;
+        return ['收據已附上這一筆'];
+      }, () => {
+        x.file = before;
+      });
+    } catch (e) {
+      toast(esc(e.message));
+    }
+  });
+}
+
+/* ---------- 隊列：待處理＝（負責人的）待核准 ＋ 自己的待補 ---------- */
+const cfOwnIntake = () => DB.intake.filter(x => x.who === DB.me && x.st !== 'discarded');
+const cfDrafts = () => cfOwnIntake().filter(x => x.st === 'draft');
+const cfSentList = () => cfOwnIntake().filter(x => x.st !== 'draft');
+const cfQueueKey = it => it.kind === 'appr' ? it.r.id : it.x.id;
+function cfQueue() {
+  const ap = isOwner() ? cfApprovals().map(r => ({
+    kind: 'appr',
+    r,
+    x: DB.intake.find(y => y.reimb === r.id)
+  })) : [];
+  const dr = cfDrafts().map(x => ({
+    kind: 'draft',
+    x
+  }));
+  const q = [...ap, ...dr];
+  const tail = S.cfQueueTail;
+  return [...q.filter(i => !tail.includes(cfQueueKey(i))), ...q.filter(i => tail.includes(cfQueueKey(i)))];
+}
+/** 跳過不是丟掉：排到隊尾，這一輪還是會回來。 */
+function cfSkip() {
+  const q = cfQueue();
+  if (q.length < 2) return;
+  const k = cfQueueKey(q[0]);
+  S.cfQueueTail = [...S.cfQueueTail.filter(i => i !== k), k];
+  S.cfStep = '';
+  S.cfErr = '';
+  render();
+}
+
+/* ---------- 外框：一塊工作面，整塊都是 drop 區 ---------- */
+function cfDeck(bar, body) {
+  return `<div class="cf-deck" ${bind("dragover", (event, element) => {
     event.preventDefault();
     element.classList.add('over');
   })} ${bind("dragleave", (event, element) => {
@@ -14363,33 +14481,230 @@ function cfDropzone() {
   })} ${bind("drop", (event, element) => {
     cfDrop(event, element);
   })}>
-    <p>把收據或發票拖到這裡，分類是之後的事</p>
-    <div class="cf-drop-act"><button class="btn pri" ${bind("click", (event, element) => {
-    cfPick(true, cfIngest);
-  })}>拍照</button><button class="btn" ${bind("click", (event, element) => {
-    cfPick(false, cfIngest);
-  })}>${svg('paperclip', 13)} 選檔案</button></div>
-    <span class="cf-muted">JPG、PNG、WEBP、PDF · 5 MB 以內${OP_LIVE ? '' : ' · 示範模式：檔案只存在本頁記憶體'}</span></div>`;
+    <div class="cf-dropover"><b>${svg('inbox', 15)} 放開就收進收件匣，分類是之後的事</b></div>${bar}${body}</div>`;
 }
-function cfDraftForm(x) {
-  const d = S.cfDraft[x.id] || {};
-  const amt = d.amt != null ? d.amt : x.amt ?? '';
-  const p = d.p || x.p;
-  const title = d.t != null ? d.t : x.t;
-  return `<div class="cf-form">
-    <label class="cf-field">金額（NT$）<input id="cfAmt-${x.id}" inputmode="numeric" value="${esc(amt)}" placeholder="例如 1490"></label>
-    <label class="cf-field">這是什麼<input id="cfTitle-${x.id}" value="${esc(title)}" placeholder="例如 高鐵 台北→台中"></label>
-    <div class="cf-field">歸屬<div class="chipset">${cfProjOptions().map(o => `<button type="button" class="${p === o ? 'on' : ''}" ${bind("click", (event, element) => {
-    cfPickProj(x.id, o);
-  })}>${esc(cfProjLabel(o))}</button>`).join('')}</div></div>
-    ${S.cfErr ? `<div class="cf-err" role="alert">${S.cfErr}</div>` : ''}
-    <div class="cf-form-act"><button class="btn pri" ${bind("click", (event, element) => {
-    cfSubmit(x.id);
-  })}>送出</button><button class="btn" ${bind("click", (event, element) => {
-    cfCancel();
-  })}>取消</button><button class="btn dgr" style="margin-left:auto" ${bind("click", (event, element) => {
-    cfDiscard(x.id);
-  })}>${svg('trash', 12)}</button></div></div>`;
+function cfAddButtons() {
+  return `<button class="btn" ${bind("click", (event, element) => {
+    cfPick(true, cfIngest);
+  })}>${svg('camera', 13)} 拍照</button><button class="btn" ${bind("click", (event, element) => {
+    cfPick(false, cfIngest);
+  })}>${svg('paperclip', 13)} 選檔案</button>`;
+}
+function cfModeSwitch() {
+  const m = cfInboxMode();
+  return `<span class="cf-seg" role="group" aria-label="收件匣檢視">
+    <button class="${m === 'focus' ? 'on' : ''}" aria-pressed="${m === 'focus'}" ${bind("click", (event, element) => {
+    cfSetInboxMode('focus');
+  })} title="一次只問一件事">${svg('layers', 13)} 逐筆</button>
+    <button class="${m === 'table' ? 'on' : ''}" aria-pressed="${m === 'table'}" ${bind("click", (event, element) => {
+    cfSetInboxMode('table');
+  })} title="一張清單就地補">${svg('table', 13)} 清單</button></span>`;
+}
+function cfInboxBar() {
+  const q = cfQueue().length,
+    sent = cfSentList().length;
+  return `<div class="cf-deck-h"><span class="cf-deck-t">${q ? `<b>${q}</b> 筆等你處理` : '都處理完了'}</span>
+    <span class="cf-muted">${cfMonthLabel(TODAY.slice(0, 7))} 已交件 ${sent} 筆</span>
+    <span class="sp"></span>${cfModeSwitch()}${cfAddButtons()}</div>`;
+}
+function cfInboxView() {
+  return cfDeck(cfInboxBar(), cfInboxMode() === 'table' ? cfTableBody() : cfFocusBody());
+}
+
+/* ==================================================================
+   檢視一：逐筆過單（成員預設）
+   哪一筆先處理、這一筆缺什麼、下一題是什麼，都由系統排好，人只要回答。
+   ================================================================== */
+function cfFocusBody() {
+  const q = cfQueue();
+  // 清空之後仍然看得到自己送出去的東西：成績單在上、最近送出在下。
+  if (!q.length) return cfCleared() + cfQuiet();
+  const it = q[0];
+  return cfRail(q) + (it.kind === 'appr' ? cfApproveStage(it) : cfAskStage(it.x)) + cfQuiet();
+}
+function cfRail(q) {
+  const done = Math.min(cfSentList().length, 6);
+  const head = q[0];
+  return `<div class="cf-rail"><span class="cf-rail-t">還剩 <b>${q.length}</b> 筆</span>
+    <span class="cf-pips" aria-hidden="true">${Array.from({
+    length: done
+  }, () => '<i class="done"></i>').join('')}${q.map((it, i) => `<i class="${i ? '' : 'now'}"></i>`).join('')}</span>
+    <span class="cf-rail-a">${q.length > 1 ? `<button class="btn sm" ${bind("click", (event, element) => {
+    cfSkip();
+  })}>${svg('skip', 12)} 晚點再說</button>` : ''}${head.kind === 'draft' ? `<button class="btn sm dgr" ${bind("click", (event, element) => {
+    cfDiscard(head.x.id);
+  })}>${svg('trash', 12)} 丟棄</button>` : ''}</span></div>`;
+}
+function cfShot(x) {
+  if (!x || !x.file) return `<div class="cf-shot-none">${svg('file', 26)}<span>這一筆沒有附檔</span>${x && x.st === 'draft' ? `<button class="btn sm" ${bind("click", (event, element) => {
+    cfAttachIntake(x.id);
+  })}>${svg('paperclip', 12)} 補上收據</button>` : ''}</div>`;
+  const f = x.file,
+    pid = 'cfBig-' + x.id;
+  const isImage = /^image\//.test(f.type || '') || /\.(png|jpe?g|webp)$/i.test(f.name || '');
+  if (isImage && f.objectKey) {
+    setTimeout(() => paintFilePreview(pid, f.objectKey), 0);
+    return `<img id="${pid}" class="cf-shot-img" alt="${esc(f.name)}">`;
+  }
+  if (isImage && f.data) return `<img class="cf-shot-img" src="${f.data}" alt="${esc(f.name)}">`;
+  return `<div class="cf-shot-none">${svg('file', 26)}<span>${esc(f.name)}</span><button class="btn sm" ${bind("click", (event, element) => {
+    cfOpenIntakeFile(x.id);
+  })}>${svg('maximize', 12)} 開啟</button></div>`;
+}
+function cfShotPane(x, sub) {
+  return `<div class="cf-shotwrap"><div class="cf-shot-meta"><b>${esc(cfTitleOf(x))}</b><span>${sub}</span></div>${cfShot(x)}${x && x.file ? `<span class="cf-shot-tools"><button class="btn sm" ${bind("click", (event, element) => {
+    cfOpenIntakeFile(x.id);
+  })} title="看原圖">${svg('maximize', 12)}</button></span>` : ''}</div>`;
+}
+/** 下一題＝cfMissing 的第一個缺項；都不缺就是確認頁。 */
+function cfAskStep(x) {
+  if (S.cfStep) return S.cfStep;
+  const miss = cfMissing(x);
+  if (miss.includes('金額')) return 'amt';
+  if (miss.includes('歸屬')) return 'proj';
+  return 'confirm';
+}
+function cfAskNext(id) {
+  const x = DB.intake.find(y => y.id === id);
+  if (!x) return;
+  // 先判斷現在在哪一題，再把畫面上的值收進草稿：
+  // 反過來的話，cfReadDraft 寫進去的金額會讓 cfAskStep 以為這一題已經答完，
+  // 同一次點擊就直接掉到下一題並報「還差歸屬」。
+  const step = cfAskStep(x);
+  const d = cfReadDraft(id);
+  if (step === 'amt') {
+    const raw = String(d.amt != null ? d.amt : x.amt ?? '').replace(/[^\d]/g, '');
+    if (!raw) {
+      S.cfErr = '還差金額。';
+      render();
+      return;
+    }
+    d.amt = raw;
+    S.cfErr = '';
+    S.cfStep = '';
+    render();
+    return;
+  }
+  if (step === 'proj') {
+    S.cfErr = '還差歸屬。';
+    render();
+    return;
+  }
+  cfSubmit(id);
+}
+function cfAskBack(id, k) {
+  cfReadDraft(id);
+  S.cfStep = k;
+  S.cfErr = '';
+  render();
+}
+function cfAskStage(x) {
+  const step = cfAskStep(x);
+  const amt = cfAmtOf(x),
+    p = cfProjOf(x),
+    miss = cfMissing(x);
+  const total = x.p ? 1 : 2;
+  const crumbs = [amt != null && step !== 'amt' ? `<button class="cf-crumb" ${bind("click", (event, element) => {
+    cfAskBack(x.id, 'amt');
+  })}>${svg('check', 11)} 金額 <b>${nt(amt)}</b></button>` : '', p && step !== 'proj' ? `<button class="cf-crumb" ${bind("click", (event, element) => {
+    cfAskBack(x.id, 'proj');
+  })}>${svg('check', 11)} 歸屬 <b>${esc(cfProjLabel(p))}</b></button>` : ''].filter(Boolean).join('');
+  const left = cfQueue().length - 1;
+  let qbody = '',
+    act = '';
+  if (step === 'amt') {
+    qbody = `<div class="cf-qk">第 1 題 · 共 ${total} 題</div><h3 class="cf-q">這張多少錢？</h3>
+      <p class="cf-qh">看左邊那張收據的合計欄，含稅金額就好。</p>
+      <input id="cfAmt-${x.id}" class="cf-bigin" inputmode="numeric" aria-label="金額（新台幣）" value="${esc(amt == null ? '' : amt)}" placeholder="0" ${bind("keydown", (event, element) => {
+      if (event.key === 'Enter') cfAskNext(x.id);
+    })}>
+      <div class="cf-qhint">發票號碼與日期不必填，系統從檔案帶。</div>`;
+    act = `<button class="btn pri cf-go" ${bind("click", (event, element) => {
+      cfAskNext(x.id);
+    })}>${total > 1 ? '下一題' : '送出'} ${svg('arrowRight', 14)}</button><span class="sp"></span><span class="cf-muted">${left ? `做完這筆還有 ${left} 筆` : '這是最後一筆'}</span>`;
+  } else if (step === 'proj') {
+    qbody = `<div class="cf-qk">第 ${amt == null ? 1 : 2} 題 · 最後一題</div><h3 class="cf-q">這筆算誰的？</h3>
+      <p class="cf-qh">選錯了記帳的時候還能改，先挑最接近的就好。</p>
+      <div class="cf-opts">${cfProjOptions().map(o => `<button class="cf-opt ${p === o ? 'on' : ''}" ${bind("click", (event, element) => {
+      cfPickProj(x.id, o);
+    })}><b>${esc(cfProjLabel(o))}</b></button>`).join('')}</div>`;
+    act = `<button class="btn cf-go" disabled>選一個就會自動往下</button><span class="sp"></span><button class="btn" ${bind("click", (event, element) => {
+      cfAskBack(x.id, 'amt');
+    })}>${svg('undo', 12)} 回上一題</button>`;
+  } else {
+    qbody = `<div class="cf-qk">確認</div><h3 class="cf-q">送出這一筆？</h3>
+      <p class="cf-qh">${isOwner() ? '送出後進入帳本的待歸帳，補上類別就會入帳。' : '送出後由負責人核准，核准完進入帳本的待歸帳。可以在「我的報帳」看它走到哪。'}</p>
+      <div class="cf-sum">
+        <label class="cf-sum-r"><span>是什麼</span><input id="cfTitle-${x.id}" value="${esc(cfTitleOf(x))}" aria-label="這是什麼"></label>
+        <div class="cf-sum-r"><span>金額</span><b class="n">${nt(amt)}</b><button class="cf-ed" ${bind("click", (event, element) => {
+      cfAskBack(x.id, 'amt');
+    })}>改</button></div>
+        <div class="cf-sum-r"><span>歸屬</span><b>${esc(cfProjLabel(p))}</b><button class="cf-ed" ${bind("click", (event, element) => {
+      cfAskBack(x.id, 'proj');
+    })}>改</button></div>
+        <div class="cf-sum-r"><span>日期</span><b>${esc(x.d || TODAY)}</b></div>
+      </div>`;
+    act = `<button class="btn pri cf-go" ${bind("click", (event, element) => {
+      cfSubmit(x.id);
+    })}>${svg('send', 14)} 送出</button><span class="sp"></span>${left ? `<button class="btn" ${bind("click", (event, element) => {
+      cfSkip();
+    })}>晚點再說</button>` : ''}`;
+  }
+  const sub = `${(x.d || '').slice(5)} · ${person(x.who)}${miss.length ? ` · <span class="cf-need">缺${miss.join('、')}</span>` : ''}`;
+  return `<div class="cf-stagewrap">${cfShotPane(x, sub)}
+    <div class="cf-ask">${crumbs ? `<div class="cf-crumbs">${crumbs}</div>` : ''}
+      <div class="cf-qbody">${qbody}${S.cfErr ? `<div class="cf-err" role="alert">${S.cfErr}</div>` : ''}</div>
+      <div class="cf-act">${act}</div></div></div>`;
+}
+function cfApproveStage(it) {
+  const r = it.r,
+    x = it.x || {
+      id: r.id,
+      t: r.t,
+      file: null,
+      d: r.d,
+      who: r.who,
+      st: 'unfiled'
+    };
+  const sub = `${(r.d || '').slice(5)} · ${person(r.who)} 代墊`;
+  return `<div class="cf-stagewrap">${cfShotPane(x, sub)}
+    <div class="cf-ask"><div class="cf-qbody">
+      <div class="cf-qk">需要你核准 · 還有 ${cfApprovals().length} 筆</div>
+      <h3 class="cf-q">要核准這筆代墊嗎？</h3>
+      <p class="cf-qh">${person(r.who)} 先墊了這筆錢。核准後進入帳本的<b>待歸帳</b>，由記帳者補上類別才算入帳。</p>
+      <div class="cf-sum">
+        <div class="cf-sum-r"><span>項目</span><b>${esc(r.t)}</b></div>
+        <div class="cf-sum-r"><span>金額</span><b class="n">${nt(r.amt)}</b></div>
+        <div class="cf-sum-r"><span>歸屬</span><b>${it.x && it.x.p ? esc(cfProjLabel(it.x.p)) : '記帳時再選'}</b></div>
+      </div></div>
+      <div class="cf-act"><button class="btn pri cf-go" ${bind("click", (event, element) => {
+    advReimb(r.id);
+  })}>${svg('checkCircle', 14)} 核准，進待歸帳</button><span class="sp"></span><button class="btn" ${bind("click", (event, element) => {
+    cfSkip();
+  })}>晚點再說</button></div></div></div>`;
+}
+function cfQuiet() {
+  const sent = cfSentList().slice(0, 6);
+  if (!sent.length) return '';
+  return `<div class="cf-quiet"><div class="cf-quiet-h"><span>最近送出</span><span class="sp"></span><span>${sent.length} 筆</span></div>
+    ${sent.map(x => `<div class="cf-qrow"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}</span><span class="n">${x.amt != null ? nt(x.amt) : '—'}</span>${cfSentStatus(x)}</div>`).join('')}</div>`;
+}
+/** 清空不是空狀態，是成績單：最大的版面給最好的消息。 */
+function cfCleared() {
+  const sent = cfSentList();
+  const sum = sent.reduce((a, b) => a + (Number(b.amt) || 0), 0);
+  const waiting = sent.filter(x => cfReimbOf(x)?.st === '已送').length;
+  return `<div class="cf-cleared"><span class="ic">${svg('check', 24)}</span>
+    <h3>收件匣清空了</h3>
+    <p>有收據就拖進來、拍進來，缺什麼我會一張一張問你。</p>
+    <div class="cf-stats">
+      <div><b>${sent.length}</b><span>本月交件</span></div>
+      <div><b>${nt(sum)}</b><span>送出金額</span></div>
+      <div><b>${waiting}</b><span>等核准中</span></div>
+    </div>
+    <div class="cf-cleared-a">${cfAddButtons()}<button class="btn" ${bind("click", (event, element) => {
+    cfGo('mine');
+  })}>${svg('card', 13)} 看我的報帳</button></div></div>`;
 }
 function cfSentStatus(x) {
   const r = cfReimbOf(x);
@@ -14397,40 +14712,217 @@ function cfSentStatus(x) {
   if (r && r.st === '已送') return '<span class="chip c-i">等待核准</span>';
   return '<span class="chip c-w">已核准 · 待歸帳</span>';
 }
-function cfInboxView() {
-  const own = DB.intake.filter(x => x.who === DB.me);
-  const drafts = own.filter(x => x.st === 'draft');
-  const sent = own.filter(x => x.st !== 'draft' && x.st !== 'discarded').slice(0, 12);
-  const missing = DB.txns.filter(t => !t.v.length && t.author === DB.me);
-  // 沒有東西的區塊不畫：空的「待補」「需要你核准」只是噪音。
-  let h = '';
-  const ap = isOwner() ? cfApprovals() : [];
-  if (ap.length) {
-    h += panel('需要你核准', ap.length + ' 筆代墊', `<div class="rows">${ap.map(r => {
-      const x = DB.intake.find(y => y.reimb === r.id);
-      return `<div class="row cf-li"><span class="m">${(r.d || '').slice(5)}</span><span class="t">${esc(r.t)}<small>${person(r.who)} 代墊${x && x.p ? ' · ' + esc(cfProjLabel(x.p)) : ''}</small></span><span class="n">${nt(r.amt)}</span><button class="btn sm pri" ${bind("click", (event, element) => {
-        event.stopPropagation();
-        advReimb(r.id);
-      })}>核准</button></div>`;
-    }).join('')}</div>`, '', true);
+
+/* ==================================================================
+   檢視二：一張清單（負責人預設）
+   狀態是分組列與篩選鍵，不是卡片；缺漏是可以點的空格，不是說明文字。
+   ================================================================== */
+const CF_IN_FILTERS = [['todo', '待處理'], ['draft', '待補'], ['appr', '待你核准'], ['sent', '已送出'], ['all', '全部']];
+function cfSetInFilter(k) {
+  S.cfInFilter = k;
+  S.cfChecked = [];
+  S.cfCell = '';
+  S.cfPickFor = '';
+  S.cfErr = '';
+  render();
+}
+function cfCellEdit(id) {
+  S.cfCell = id;
+  S.cfPickFor = '';
+  render();
+  setTimeout(() => {
+    const e = getById('cfAmt-' + id);
+    if (e) {
+      e.focus();
+      e.select();
+    }
+  }, 0);
+}
+function cfCellSave(id, v) {
+  (S.cfDraft[id] || (S.cfDraft[id] = {})).amt = String(v).replace(/[^\d]/g, '');
+  S.cfCell = '';
+  S.cfErr = '';
+  render();
+}
+function cfPickOpen(id) {
+  S.cfPickFor = S.cfPickFor === id ? '' : id;
+  S.cfCell = '';
+  render();
+}
+function cfCheck(id) {
+  const i = S.cfChecked.indexOf(id);
+  if (i < 0) S.cfChecked.push(id);else S.cfChecked.splice(i, 1);
+  S.cfErr = '';
+  render();
+}
+function cfCheckAll(ids) {
+  const all = ids.length && ids.every(i => S.cfChecked.includes(i));
+  S.cfChecked = all ? S.cfChecked.filter(i => !ids.includes(i)) : [...new Set([...S.cfChecked, ...ids])];
+  render();
+}
+function cfBulkProj(p) {
+  S.cfChecked.forEach(id => {
+    const x = DB.intake.find(y => y.id === id);
+    if (x && x.st === 'draft') (S.cfDraft[id] || (S.cfDraft[id] = {})).p = p;
+  });
+  S.cfPickFor = '';
+  render();
+}
+function cfBulkSubmit() {
+  const ready = S.cfChecked.filter(id => {
+    const x = DB.intake.find(y => y.id === id);
+    return x && x.st === 'draft' && !cfMissing(x).length;
+  });
+  if (!ready.length) {
+    S.cfErr = '勾選的單據還有缺項，補齊金額與歸屬才能送出。';
+    render();
+    return;
   }
-  if (drafts.length) h += panel('待補', drafts.length + ' 筆', `<div class="rows">${drafts.map(x => {
-    const miss = cfMissing(x);
-    return `<div class="cf-item">${x.file ? cfFileTile(x.file, x.id) : `<span class="cf-thumb cf-doc">${svg('file', 18)}</span>`}
-      <div class="cf-item-b"><div class="cf-item-t"><b>${esc(x.t)}</b>${x.amt != null ? `<span class="n">${nt(x.amt)}</span>` : ''}</div>
-      <div class="cf-muted">${miss.length ? `<span class="cf-need">缺${miss.join('、')}</span> · ` : ''}${(x.d || '').slice(5)}</div>
-      ${S.cfEditing === x.id ? cfDraftForm(x) : ''}</div>
-      ${S.cfEditing === x.id ? '' : `<button class="btn sm pri" ${bind("click", (event, element) => {
-      cfEdit(x.id);
-    })}>補齊</button>`}</div>`;
-  }).join('')}</div>`, '', true);
-  if (missing.length) h += panel('需要你補憑證', missing.length + ' 筆交易', `<div class="rows">${missing.map(t => `<div class="row cf-li"><span class="m">${t.d.slice(5)}</span><span class="t">${esc(t.t)}<small>缺原始憑證，沒有入帳依據</small></span><span class="n">${nt(t.amt)}</span><button class="btn sm" ${bind("click", (event, element) => {
-    event.stopPropagation();
-    cfAttach(t.id);
-  })}>上傳</button></div>`).join('')}</div>`, '', true);
-  if (sent.length) h += panel('最近送出', '', `<div class="rows">${sent.map(x => `<div class="row cf-li"><span class="m">${(x.d || '').slice(5)}</span><span class="t">${esc(x.t)}<small>${esc(cfProjLabel(x.p))}</small></span><span class="n">${x.amt != null ? nt(x.amt) : '—'}</span>${cfSentStatus(x)}</div>`).join('')}</div>`, '', true);
-  if (!h) h = `<div class="cf-muted" style="text-align:center;padding:8px 0">收件匣是空的。有收據就交進來，缺什麼系統會提醒你補。</div>`;
-  return `<div class="cf-stack">${cfDropzone()}${h}</div>`;
+  ready.forEach(cfSubmit);
+}
+function cfBulkApprove() {
+  const ids = S.cfChecked.filter(id => DB.reimb.some(r => r.id === id && r.st === '已送'));
+  if (!ids.length) return;
+  S.cfChecked = S.cfChecked.filter(i => !ids.includes(i));
+  ids.forEach(id => advReimb(id));
+}
+function cfSubmitReady() {
+  cfDrafts().filter(x => !cfMissing(x).length).forEach(x => cfSubmit(x.id));
+}
+function cfInRows() {
+  const f = S.cfInFilter;
+  const ap = isOwner() ? cfApprovals().map(r => ({
+    kind: 'appr',
+    id: r.id,
+    r,
+    x: DB.intake.find(y => y.reimb === r.id)
+  })) : [];
+  const dr = cfDrafts().map(x => ({
+    kind: 'draft',
+    id: x.id,
+    x
+  }));
+  const st = cfSentList().map(x => ({
+    kind: 'sent',
+    id: x.id,
+    x
+  }));
+  if (f === 'draft') return dr;
+  if (f === 'appr') return ap;
+  if (f === 'sent') return st;
+  if (f === 'all') return [...ap, ...dr, ...st];
+  return [...ap, ...dr];
+}
+function cfThumb(x) {
+  if (x && x.file) return `<button class="cf-thb" ${bind("click", (event, element) => {
+    cfOpenIntakeFile(x.id);
+  })} title="看憑證">${cfFileTile(x.file, x.id)}</button>`;
+  return `<span class="cf-thumb cf-doc">${svg('file', 15)}</span>`;
+}
+function cfRow(it) {
+  const x = it.x,
+    own = !!x && x.st === 'draft' && x.who === DB.me;
+  const amt = x ? cfAmtOf(x) : it.r.amt;
+  const p = x ? cfProjOf(x) : '';
+  const checked = S.cfChecked.includes(it.id);
+  const canCheck = it.kind === 'draft' ? own : it.kind === 'appr';
+  const amtCell = S.cfCell === it.id ? `<input id="cfAmt-${it.id}" class="cf-cellin" inputmode="numeric" aria-label="金額" value="${esc(amt == null ? '' : amt)}" ${bind("blur", (event, element) => {
+    cfCellSave(it.id, element.value);
+  })} ${bind("keydown", (event, element) => {
+    if (event.key === 'Enter') element.blur();
+  })}>` : amt == null ? `<button class="cf-gap" ${bind("click", (event, element) => {
+    cfCellEdit(it.id);
+  })}>${svg('plus', 11)} 金額</button>` : own ? `<button class="cf-amt" ${bind("click", (event, element) => {
+    cfCellEdit(it.id);
+  })} title="點一下改">${nt(amt)}</button>` : `<span class="n">${nt(amt)}</span>`;
+  const projCell = p ? own ? `<button class="cf-proj" ${bind("click", (event, element) => {
+    cfPickOpen(it.id);
+  })}>${esc(cfProjLabel(p))}</button>` : `<span class="cf-proj ro">${esc(cfProjLabel(p))}</span>` : own ? `<button class="cf-gap" ${bind("click", (event, element) => {
+    cfPickOpen(it.id);
+  })}>${svg('plus', 11)} 歸屬</button>` : '<span class="cf-muted">記帳時再選</span>';
+  const status = it.kind === 'appr' ? '<span class="chip c-i">待你核准</span>' : it.kind === 'draft' ? '<span class="chip c-w">待補</span>' : cfSentStatus(x);
+  const acts = it.kind === 'appr' ? `<button class="btn sm pri" ${bind("click", (event, element) => {
+    advReimb(it.r.id);
+  })}>核准</button>` : own ? `<button class="btn sm pri" ${bind("click", (event, element) => {
+    cfSubmit(it.id);
+  })}>送出</button>${mini('trash', (event, element) => {
+    cfDiscard(it.id);
+  }, 'dgr', '丟棄')}` : x && x.file ? mini('maximize', (event, element) => {
+    cfOpenIntakeFile(x.id);
+  }, '', '看憑證') : '';
+  const miss = it.kind === 'draft' ? cfMissing(x) : [];
+  const label = it.kind === 'appr' ? it.r.t : cfTitleOf(x);
+  const who = it.kind === 'appr' ? it.r.who : x.who;
+  const main = `<tr class="${checked ? 'sel' : ''}">
+    <td class="ck">${canCheck ? `<button class="cf-ck ${checked ? 'on' : ''}" role="checkbox" aria-checked="${checked}" aria-label="選取 ${esc(label)}" ${bind("click", (event, element) => {
+    cfCheck(it.id);
+  })}>${checked ? svg('check', 11) : ''}</button>` : ''}</td>
+    <td class="thc">${cfThumb(x)}</td>
+    <td class="m">${((x ? x.d : it.r.d) || '').slice(5)}</td>
+    <td class="k">${esc(label)}<small>${person(who)} 交件${miss.length ? ` · <span class="cf-need">缺${miss.join('、')}</span>` : ''}</small></td>
+    <td>${projCell}</td>
+    <td class="num">${amtCell}</td>
+    <td>${status}</td>
+    <td class="acts"><span class="rowacts">${acts}</span></td></tr>`;
+  const picker = S.cfPickFor === it.id ? `<tr class="cf-pickrow"><td colspan="8"><span class="cf-pick-l">歸到哪裡</span><span class="chipset">${cfProjOptions().map(o => `<button type="button" class="${p === o ? 'on' : ''}" ${bind("click", (event, element) => {
+    cfPickProj(it.id, o);
+  })}>${esc(cfProjLabel(o))}</button>`).join('')}</span><button class="btn sm" ${bind("click", (event, element) => {
+    cfPickOpen('');
+  })}>取消</button></td></tr>` : '';
+  return main + picker;
+}
+function cfTableBody() {
+  const rows = cfInRows();
+  const drafts = cfDrafts(),
+    ap = isOwner() ? cfApprovals() : [];
+  const sent = cfSentList();
+  const count = k => k === 'todo' ? drafts.length + ap.length : k === 'draft' ? drafts.length : k === 'appr' ? ap.length : k === 'sent' ? sent.length : 0;
+  const tools = `<div class="cf-tools"><span class="cf-seg2" role="group" aria-label="篩選">${CF_IN_FILTERS.filter(([k]) => k !== 'appr' || isOwner()).map(([k, nm]) => `<button class="${S.cfInFilter === k ? 'on' : ''}" aria-pressed="${S.cfInFilter === k}" ${bind("click", (event, element) => {
+    cfSetInFilter(k);
+  })}>${nm}${count(k) ? `<i>${count(k)}</i>` : ''}</button>`).join('')}</span></div>`;
+  const checkable = rows.filter(r => r.kind === 'appr' || r.x && r.x.st === 'draft' && r.x.who === DB.me).map(r => r.id);
+  const allOn = checkable.length > 0 && checkable.every(i => S.cfChecked.includes(i));
+  const hasIntake = S.cfChecked.some(i => DB.intake.some(x => x.id === i));
+  const hasReimb = S.cfChecked.some(i => DB.reimb.some(r => r.id === i));
+  const bulk = S.cfChecked.length ? `<div class="cf-bulk">已選 <b>${S.cfChecked.length}</b> 筆<span class="sp"></span>
+    ${hasIntake ? `<button class="btn sm" ${bind("click", (event, element) => {
+    cfPickOpen('__bulk');
+  })}>一次指定歸屬</button><button class="btn sm pri" ${bind("click", (event, element) => {
+    cfBulkSubmit();
+  })}>${svg('send', 12)} 全部送出</button>` : ''}
+    ${hasReimb ? `<button class="btn sm pri" ${bind("click", (event, element) => {
+    cfBulkApprove();
+  })}>${svg('checkCircle', 12)} 全部核准</button>` : ''}
+    <button class="btn sm" ${bind("click", (event, element) => {
+    cfCheckAll([]);
+  })}>取消選取</button></div>${S.cfPickFor === '__bulk' ? `<div class="cf-bulkpick"><span class="cf-pick-l">全部歸到</span><span class="chipset">${cfProjOptions().map(o => `<button type="button" ${bind("click", (event, element) => {
+    cfBulkProj(o);
+  })}>${esc(cfProjLabel(o))}</button>`).join('')}</span><button class="btn sm" ${bind("click", (event, element) => {
+    cfPickOpen('');
+  })}>取消</button></div>` : ''}` : '';
+  let body = '';
+  if (!rows.length) {
+    body = `<div class="cf-zero"><span class="ic">${svg('check', 20)}</span><h4>${S.cfInFilter === 'todo' ? '沒有等你處理的單據' : '這個篩選底下沒有單據'}</h4>
+      <p>有收據就拖進來，或按右上「拍照 / 選檔案」。缺什麼會直接標在那一格。</p></div>`;
+  } else {
+    const group = (label, hint, list) => list.length ? `<tr class="cf-grp"><td colspan="8"><b>${label}</b><span>${hint}</span></td></tr>` + list.map(cfRow).join('') : '';
+    const inner = S.cfInFilter === 'todo' ? group('需要你核准', `${rows.filter(r => r.kind === 'appr').length} 筆代墊，核准後進入帳本待歸帳`, rows.filter(r => r.kind === 'appr')) + group('你要補齊', `${rows.filter(r => r.kind === 'draft').length} 筆，補上標色的空格就能送出`, rows.filter(r => r.kind === 'draft')) : rows.map(cfRow).join('');
+    body = `<div class="cf-tw"><table class="cf-grid">
+      <thead><tr><th class="ck">${checkable.length ? `<button class="cf-ck ${allOn ? 'on' : ''}" role="checkbox" aria-checked="${allOn}" aria-label="全選" ${bind("click", (event, element) => {
+      cfCheckAll(esc(JSON.stringify(checkable)));
+    })}>${allOn ? svg('check', 11) : ''}</button>` : ''}</th>
+        <th></th><th>日期</th><th>項目</th><th>歸屬</th><th class="num">金額</th><th>狀態</th><th></th></tr></thead>
+      <tbody>${inner}</tbody></table>
+      <div class="cf-ghost">${svg('inbox', 15)} 把收據或發票拖到這裡 —— 分類是之後的事</div></div>`;
+  }
+  const readyN = drafts.filter(x => !cfMissing(x).length).length;
+  const owe = cfOwnIntake().filter(x => x.st === 'draft' || cfReimbOf(x)?.st === '已送').reduce((a, c) => a + (cfAmtOf(c) || 0), 0);
+  const foot = `<div class="cf-foot"><span>待補 <b class="warn">${drafts.length}</b> 筆</span>${isOwner() ? `<span>待核准 <b>${ap.length}</b> 筆</span>` : ''}
+    <span>我還沒拿回的代墊 <b class="n">${nt(owe)}</b></span><span class="sp"></span>
+    ${readyN ? `<span>有 <b>${readyN}</b> 筆已經補齊</span><button class="btn sm pri" ${bind("click", (event, element) => {
+    cfSubmitReady();
+  })}>${svg('send', 12)} 一次送出</button>` : '<span class="cf-muted">補齊金額與歸屬後，這裡會出現「一次送出」</span>'}</div>`;
+  return tools + bulk + (S.cfErr ? `<div class="cf-err cf-err-bar" role="alert">${S.cfErr}</div>` : '') + body + foot;
 }
 
 /** 核准代墊不再自動以「公司層級／場地」寫進帳本：它進待歸帳，由記帳者補類別。 */
@@ -14454,6 +14946,8 @@ advReimb = id => {
     txn: '',
     at: Date.now()
   };
+  S.cfQueueTail = S.cfQueueTail.filter(i => i !== id);
+  S.cfChecked = S.cfChecked.filter(i => i !== id);
   commit('update', '報帳狀態', r.t + ' → 已核', () => {
     r.st = '已核';
     if (x) DB.intake.unshift(x);
@@ -14463,24 +14957,78 @@ advReimb = id => {
     if (x) DB.intake = DB.intake.filter(y => y.id !== x.id);
   });
 };
+
+/* ==================================================================
+   我的報帳：同一套角色分工
+     負責人 → 一張表，多一個「進度」欄，一眼看出誰卡在哪
+     成員   → 一筆一個狀態軸，看得到自己的錢走到哪裡
+   ================================================================== */
+function cfReimbPick(id) {
+  S.cfReimbSel = id;
+  render();
+}
 function cfMineView() {
   const list = DB.reimb.filter(r => isOwner() || r.who === DB.me);
-  const steps = RSTEPS;
-  if (!list.length) return cfEmpty('還沒有報帳', '自己代墊的費用，從收件匣交出來就會出現在這裡，看得到走到哪一步。', `<button class="btn pri" ${bind("click", (event, element) => {
-    cfGo('inbox');
-  })}>前往收件匣</button>`);
-  return panel(isOwner() ? '報帳' : '我的報帳', '待送 → 已送 → 已核 → 已付', `<div class="rows">${list.map(r => {
-    const i = steps.indexOf(r.st);
-    const canAdvance = r.st === '待送' ? r.who === DB.me : isOwner() && r.st !== '已付';
-    return `<div class="row cf-li" ${bind("click", (event, element) => {
+  if (!list.length) {
+    return cfDeck(`<div class="cf-deck-h"><span class="cf-deck-t">${isOwner() ? '報帳' : '我的報帳'}</span><span class="sp"></span>${cfAddButtons()}</div>`, `<div class="cf-zero"><span class="ic">${svg('card', 20)}</span><h4>還沒有報帳</h4>
+        <p>自己代墊的費用，從收件匣交出來就會出現在這裡，看得到走到哪一步。</p>
+        <div class="cf-cleared-a"><button class="btn pri" ${bind("click", (event, element) => {
+      cfGo('inbox');
+    })}>${svg('inbox', 13)} 前往收件匣</button></div></div>`);
+  }
+  const owe = list.filter(r => r.st !== '已付').reduce((a, c) => a + (Number(c.amt) || 0), 0);
+  const bar = `<div class="cf-deck-h"><span class="cf-deck-t">${isOwner() ? '報帳' : '我的報帳'}</span>
+    <span class="cf-muted">待送 → 已送 → 已核 → 已付</span><span class="sp"></span>
+    <span class="cf-muted">未付清 <b class="n">${nt(owe)}</b></span></div>`;
+  return cfDeck(bar, isOwner() ? cfMineTable(list) : cfMineTrack(list));
+}
+function cfMineTable(list) {
+  const rows = list.map(r => {
+    const i = RSTEPS.indexOf(r.st);
+    const can = r.st === '待送' ? r.who === DB.me : isOwner() && r.st !== '已付';
+    return `<tr ${bind("click", (event, element) => {
       (r.who === DB.me ? (event, element) => {
         formReimb(r.id);
       } : (event, element) => {})(event, element);
-    })}><span class="m">${(r.d || '').slice(5)}</span><span class="t">${esc(r.t)}${isOwner() ? `<small>${person(r.who)}</small>` : ''}</span><span class="cf-steps">${steps.map((s, j) => `<i class="${j < i ? 'past' : j === i ? 'on' : ''}">${s}</i>`).join('')}</span><span class="n">${nt(r.amt)}</span>${canAdvance ? `<button class="btn sm" ${bind("click", (event, element) => {
+    })}>
+      <td class="thc"><span class="cf-thumb cf-doc">${svg('card', 15)}</span></td>
+      <td class="m">${(r.d || '').slice(5)}</td>
+      <td class="k">${esc(r.t)}<small>${person(r.who)} 代墊</small></td>
+      <td class="trk"><span class="cf-track">${RSTEPS.map((s, j) => `<i class="${j < i ? 'done' : j === i ? 'now' : ''}" title="${s}"></i>`).join('')}<em>${r.st}</em></span></td>
+      <td class="num"><span class="n">${nt(r.amt)}</span></td>
+      <td class="acts"><span class="rowacts">${can ? `<button class="btn sm" ${bind("click", (event, element) => {
       event.stopPropagation();
       advReimb(r.id);
-    })}>${r.st === '待送' ? '送出' : r.st === '已核' ? '標記已付' : '推進'}</button>` : '<span></span>'}</div>`;
-  }).join('')}</div>`, '', true) + `<div class="note" style="margin-top:10px">給外包、接案者的外部報帳連結尚未開放；目前由成員從收件匣交單。</div>`;
+    })}>${r.st === '待送' ? '送出' : r.st === '已核' ? '標記已付' : '推進'}</button>` : ''}</span></td></tr>`;
+  }).join('');
+  return `<div class="cf-tw"><table class="cf-grid"><thead><tr><th></th><th>日期</th><th>項目</th><th>進度</th><th class="num">金額</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <div class="cf-foot"><span class="cf-muted">給外包、接案者的外部報帳連結尚未開放；目前由成員從收件匣交單。</span></div>`;
+}
+function cfMineTrack(list) {
+  const sel = list.find(r => r.id === S.cfReimbSel) || list[0];
+  const i = RSTEPS.indexOf(sel.st);
+  const hints = ['你在收件匣按下送出', '負責人收到通知，等他核准', '進入帳本的待歸帳，記帳者補上類別', '出納付款，這一筆才真的結束'];
+  const rest = list.filter(r => r.id !== sel.id);
+  return `<div class="cf-trackwrap">
+      <div class="cf-track-h"><h3>${esc(sel.t)}</h3><span class="n">${nt(sel.amt)}</span><span class="cf-muted">${esc(sel.d || '')} 送出 · 自己代墊</span></div>
+      <div class="cf-trail">${RSTEPS.map((s, j) => `<div class="cf-tn ${j < i ? 'done' : j === i ? 'now' : 'todo'}"><span class="bul">${j < i ? svg('check', 12) : j + 1}</span><b>${s}</b><small>${hints[j]}</small></div>`).join('')}</div>
+    </div>
+    <div class="cf-act"><span class="cf-muted">目前卡在 <b>${sel.st}</b>。${i < 2 ? '等負責人核准。' : i === 2 ? '等記帳者補上類別。' : '已經付款，這一筆結束了。'}</span><span class="sp"></span><button class="btn" ${bind("click", (event, element) => {
+    cfGo('inbox');
+  })}>${svg('inbox', 13)} 回收件匣</button></div>
+    ${rest.length ? `<div class="cf-quiet"><div class="cf-quiet-h"><span>其他在途</span><span class="sp"></span><span>${rest.length} 筆</span></div>
+      ${rest.map(r => `<button class="cf-qrow lnk-row" ${bind("click", (event, element) => {
+    cfReimbPick(r.id);
+  })}><span class="m">${(r.d || '').slice(5)}</span><span class="t">${esc(r.t)}</span><span class="n">${nt(r.amt)}</span><span class="chip c-p">${r.st}</span></button>`).join('')}</div>` : ''}`;
+}
+
+/* ==================================================================
+   憑證庫：縮圖直接鋪滿整個區域，不再包一層 panel
+   ================================================================== */
+function cfSetVaultMode(m) {
+  S.cfVaultMode = m;
+  render();
 }
 function cfVaultView() {
   const m = cfMonth();
@@ -14498,22 +15046,40 @@ function cfVaultView() {
     f: x.file,
     key: x.id,
     label: x.t,
-    sub: x.st === 'draft' ? '待補' : '待歸帳',
+    sub: (x.d || '').slice(5) + ' · ' + (x.st === 'draft' ? '待補' : '待歸帳'),
     open: `cfGo('inbox')`
   }));
   const labelOnly = txns.filter(t => t.v.length && !(t.files || []).length).length;
-  let h = `<div class="cf-bar">${cfPeriodBar()}</div>`;
-  if (missing.length) h += `<div class="hint w" style="margin-bottom:12px">${svg('bolt', 13)}<div><b>${missing.length} 筆交易缺原始憑證</b>：${missing.map(t => `<span class="lnk" ${bind("click", (event, element) => {
+  const bar = `<div class="cf-deck-h">${cfPeriodBar()}<span class="cf-muted">共 ${tiles.length} 份憑證${labelOnly ? ` · 另有 ${labelOnly} 筆只標了種類、沒有檔案` : ''}</span><span class="sp"></span>
+    <span class="cf-seg" role="group" aria-label="憑證檢視">
+      <button class="${S.cfVaultMode === 'grid' ? 'on' : ''}" aria-pressed="${S.cfVaultMode === 'grid'}" ${bind("click", (event, element) => {
+    cfSetVaultMode('grid');
+  })}>${svg('grid', 13)} 格狀</button>
+      <button class="${S.cfVaultMode === 'list' ? 'on' : ''}" aria-pressed="${S.cfVaultMode === 'list'}" ${bind("click", (event, element) => {
+    cfSetVaultMode('list');
+  })}>${svg('table', 13)} 表格</button></span></div>`;
+  const strip = missing.length ? `<div class="cf-miss">${svg('bolt', 13)}<div><b>${missing.length} 筆交易缺原始憑證</b>：${missing.map(t => `<span class="lnk" ${bind("click", (event, element) => {
     cfAttach(t.id);
-  })}>${esc(t.t)}</span>`).join('、')}。點名稱直接上傳。</div></div>`;
-  if (!tiles.length && !labelOnly) return h + cfEmpty('這個月還沒有憑證', '收件匣交出的收據、帳本補上的發票都會收在這裡。', `<button class="btn pri" ${bind("click", (event, element) => {
-    cfGo('inbox');
-  })}>前往收件匣</button>`);
-  h += panel('憑證檔案', tiles.length + ' 份', tiles.length ? `<div class="cf-vault">${tiles.map(v => `<button class="cf-vch" ${bind("click", (event, element) => {
+  })}>${esc(t.t)}</span>`).join('、')} —— 點名稱直接上傳。</div></div>` : '';
+  if (!tiles.length) {
+    return cfDeck(bar, strip + `<div class="cf-zero"><span class="ic">${svg('file', 20)}</span><h4>這個月還沒有憑證</h4>
+      <p>收件匣交出的收據、帳本補上的發票都會收在這裡。</p>
+      <div class="cf-cleared-a"><button class="btn pri" ${bind("click", (event, element) => {
+      cfGo('inbox');
+    })}>${svg('inbox', 13)} 前往收件匣</button></div></div>`);
+  }
+  const body = S.cfVaultMode === 'list' ? `<div class="cf-tw"><table class="cf-grid"><thead><tr><th></th><th>檔名</th><th>來源</th><th></th></tr></thead><tbody>
+        ${tiles.map(v => `<tr ${bind("click", (event, element) => {
     ((event, element) => v.open(event, element))(event, element);
-  })}>${cfFileTile(v.f, v.key)}<b>${esc(v.label)}</b><span>${esc(v.sub)}</span></button>`).join('')}</div>` : '<div class="empty">這個月還沒有上傳的檔案</div>');
-  if (labelOnly) h += `<div class="note" style="margin-top:10px">另有 ${labelOnly} 筆交易只標了憑證種類、沒有檔案 —— 從交易抽屜可以補上檔案。</div>`;
-  return h;
+  })}><td class="thc">${cfFileTile(v.f, v.key)}</td><td class="k">${esc(v.label)}</td><td class="m">${esc(v.sub)}</td>
+          <td class="acts"><span class="rowacts">${mini('goto', (event, element) => v.open(event, element), '', '開啟')}</span></td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="cf-vault">${tiles.map(v => `<button class="cf-vch" ${bind("click", (event, element) => {
+    ((event, element) => v.open(event, element))(event, element);
+  })}>${cfFileTile(v.f, v.key)}<b>${esc(v.label)}</b><span>${esc(v.sub)}</span></button>`).join('')}
+        <button class="cf-vch cf-add" ${bind("click", (event, element) => {
+    cfPick(false, cfIngest);
+  })}>${svg('plus', 18)}<span>補上憑證</span></button></div>`;
+  return cfDeck(bar, strip + body);
 }
 
 /* ==================================================================
