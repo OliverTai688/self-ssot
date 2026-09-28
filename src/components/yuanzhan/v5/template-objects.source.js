@@ -169,16 +169,28 @@ function secWordCount(sec) {
   return ensureSecBlocks(sec).reduce((acc, b) => acc + (TEXTY(b.t) && b.text ? b.text.length : 0), 0);
 }
 
+/**
+ * 一個型別對外叫什麼。多數型別就是 meta.nm，但有的型別同一個 kind 會有兩種身分
+ * （議題 vs 任務 —— 差別只在有沒有 owner，刻意不拆成兩個型別），
+ * 這種就由該型別自己掛一個 meta.label(doc) 回傳當下該叫什麼。
+ * 標題、卡片、側欄全部走這一個函式，才不會出現「卡片寫任務、標題寫議題」的分歧。
+ */
+function docObjectLabel(doc, meta) {
+  const m = meta || metaOf(doc);
+  return (typeof m.label === 'function' && m.label(doc)) || m.nm;
+}
+
 // 自動命名：抓各段落第一個有內容的區塊當名稱依據；使用者若在獨立頁面手動改過標題（titleAuto=false），尊重手動命名。
 function docObjectAutoName(doc, meta) {
+  const nm = docObjectLabel(doc, meta);
   for (const sec of doc.secs) {
     const first = ensureSecBlocks(sec).find(b => TEXTY(b.t) && b.text && b.text.trim());
     if (first) {
       const clean = first.text.trim().replace(/\s+/g, ' ');
-      return `${meta.nm}：${clean.length > 20 ? clean.slice(0, 20) + '…' : clean}`;
+      return `${nm}：${clean.length > 20 ? clean.slice(0, 20) + '…' : clean}`;
     }
   }
-  return `${meta.nm} · ${doc.day}`;
+  return `${nm} · ${doc.day}`;
 }
 function docObjectName(doc) {
   const meta = metaOf(doc);

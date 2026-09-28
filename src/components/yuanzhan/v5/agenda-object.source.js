@@ -20,6 +20,9 @@
 // DOC_METAS 一註冊，物件索引的型別 facet（Object.keys(DOC_METAS)）就自動多一格，不必另外接線。
 DOC_METAS.agenda = {
   k: 'agenda', nm: '議題', chip: 'c-w', color: 'var(--rq-warn,#f0924f)',
+  // 有負責人就叫任務，沒有才叫議題。掛在 meta 上，docObjectLabel() 一處決定，
+  // 標題、卡片、抽屜、側欄就不會各自寫死一個詞。
+  label: d => (agIsTask(d) ? '任務' : '議題'),
   secs: ['內文', '結論'],
   placeholders: [
     '今天要處理掉的是什麼；# 召喚、@ 引用在這裡照常可用...',
@@ -28,7 +31,9 @@ DOC_METAS.agenda = {
 };
 // TPL 是 applySummon 判斷「這是文件模板」的依據；SUMMON 是 # 選單的來源。
 TPL.agenda = { h: '議題', secs: ['內文', '結論'] };
-SUMMON[0].items.push({ k: 'agenda', nm: '議題', ds: '今天要處理的一件事 · 可排期、討論、附檔、結案', ic: 'flag' });
+// # 建立的是空白物件，當下還不知道要不要指派，所以只有一個入口；
+// 指派了負責人它就叫任務（見 meta.label）。ds 帶上「任務」兩字，打 #任務 才找得到這一項。
+SUMMON[0].items.push({ k: 'agenda', nm: '議題／任務', ds: '今天要處理的一件事 · 可排期、討論、附檔、結案；指派負責人後就是任務（行內打 !任務 可直接建任務）', ic: 'flag' });
 
 /* ---------- 狀態存取 ---------- */
 
@@ -161,6 +166,8 @@ function agSubtree(b) {
  */
 function agCreate(b, opts = {}) {
   if (!canWriteJournal()) return null;
+  // opts.parse 只有 !任務 這個入口會給 —— 它同時是「使用者要的是任務」的意圖旗標。
+  const asTask = !!opts.parse || !!opts.owner;
   // 任務模式：先把 @指派 與 ~到期 從行文字裡解析掉，標題才不會殘留語法符號。
   if (opts.parse) {
     const got = agParseTask(b.text || '');
@@ -168,13 +175,17 @@ function agCreate(b, opts = {}) {
     if (got.owner) opts.owner = got.owner;
     if (got.due) opts.due = got.due;
   }
+  // 任務＝有負責人的議題。使用者明講要建任務卻沒寫 @某人 時，負責人就是自己 ——
+  // 以前這裡留空，結果選了「建立任務」卻拿到一張議題卡，意圖被默默吃掉。
+  // 不是自己要做的，在卡片或議題頁的「負責」欄位改指派即可。
+  if (asTask && !opts.owner) opts.owner = DB.me;
   const title = (b.text || '').trim();
-  if (!title) { toast('先寫下要處理的事，再標成' + (opts.owner || opts.parse ? '任務' : '議題')); return null; }
+  if (!title) { toast('先寫下要處理的事，再標成' + (asTask ? '任務' : '議題')); return null; }
   const { arr, i, kids } = agSubtree(b);
   if (i < 0) { toast('找不到這一行'); return null; }
   syncAll();
   let made = null;
-  commit('create', '議題物件', title, () => {
+  commit('create', asTask ? '任務物件' : '議題物件', title, () => {
     const d = createDocObject('agenda', S.jday || TODAY, TPL.agenda);
     const st = agState(d);
     st.bornDay = opts.bornDay || S.jday || TODAY;
@@ -237,7 +248,7 @@ function agSetOwner(id, who) {
   const st = agState(d);
   const next = who || '';
   if (next === st.owner) return;
-  commit('update', '議題物件', docObjectName(d), () => {
+  commit('update', next ? '任務物件' : '議題物件', docObjectName(d), () => {
     st.owner = next;
     st.assigner = next ? DB.me : '';
     // 指給別人才發通知；指給自己不用通知自己。
@@ -409,7 +420,7 @@ renderDocObjectCard = function (b) {
   <div class="eb-obj eb-doc-card ag-card ${st.doneAt ? 'ag-done' : ''} ${agOverdue(d) ? 'ag-over' : ''} ${collapsed ? 'collapsed' : 'expanded'}" data-doc-id="${d.id}">
     <div class="eb-doc-bar">
       <div class="eb-doc-bar-left" onclick="toggleDocCollapse('${d.id}')">
-        <span class="chip ${meta.chip}">${svg('flag', 11)} ${agIsTask(d) ? '任務' : meta.nm}</span>
+        <span class="chip ${meta.chip}">${svg('flag', 11)} ${docObjectLabel(d, meta)}</span>
         <span class="eb-doc-bar-title">${esc(docObjectName(d))}</span>
         <span class="ag-pills">${agPills(d)}</span>
       </div>
@@ -461,7 +472,7 @@ DRAWERS.doc_object = id => {
     crumb: agIsTask(d) ? '日誌 › 任務' : '日誌 › 議題',
     title: `<span class="doc-page-title ed" contenteditable="true" data-doc-id="${d.id}" data-ph="輸入議題標題...">${esc(docObjectName(d))}</span>`,
     sub: `<span class="doc-page-meta">
-        <span class="chip ${meta.chip}">${svg('flag', 11)} ${agIsTask(d) ? '任務' : meta.nm}</span>
+        <span class="chip ${meta.chip}">${svg('flag', 11)} ${docObjectLabel(d, meta)}</span>
         <span class="ag-ref">${esc(d.id)}</span>
         <span>${esc(docObjectTimestamp(d))}</span>
         <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
@@ -616,13 +627,8 @@ function agReviewHtml() {
   return panel('任務', `${agTasks().filter(d => !agState(d).doneAt).length} 項未完成 · 依到期日`, body, '', true);
 }
 
-// 回顧分頁＝連續敘事（讀）＋任務（追）。敘事留在原位，任務接在前面。
-const agBaseJournalView = VIEWS.journal;
-VIEWS.journal = function (tab) {
-  const base = agBaseJournalView(tab);
-  if (tab !== 1 || space !== 'team') return base;
-  return agReviewHtml() + base;
-};
+// 回顧分頁由 journal-review.source.js 統一擁有（同步列／篩選／三種檢視），
+// 這裡只負責提供任務那一段的內容，不自己掛 VIEWS.journal —— 兩邊都包會疊出兩份。
 
 /* ---------- 收工檢查 ---------- */
 

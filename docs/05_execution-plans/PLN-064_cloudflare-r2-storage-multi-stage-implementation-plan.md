@@ -84,7 +84,7 @@ The storage plumbing from Stages 2-3 is reused unchanged — this stage is about
 - **P0 (`ASSET-001`..`ASSET-004`, DONE 2026-09-28, migration not applied):** new `operating_assets` table (additive, no backfill); pure contract module with per-kind allowlist and size tiers (image 25 / document 50 / audio 200 / video 500 MB) and a 64 MB multipart threshold; `POST` creates the row **before** minting the presigned URL; new `PATCH` finalize verifies the upload with `HeadObject`; `GET` now authorizes against the database instead of a bare key-prefix check; orphan sweeper plus finalize wiring on the two pre-existing upload paths.
 - **Server-assigned reference codes.** `RES-018` codes for assets are allocated server-side (`AST-JRNL-000124-20260928`), which is exactly the root fix `YZUI-020` identified for the client-side counter that collided and deadlocked the write queue.
 - **Pre-existing authorization hole closed.** The download route previously allowed any seated account to mint a signed URL for any `operating/` key, including another seat's `space:'personal'` library file.
-- **P1 (`ASSET-005`, TODO):** the journal entry points and object rendering. Behavior change inside `UI-088` (COMPLETED) → Revision Mode, needs Product Owner sign-off per `REF-003:202`.
+- **P1 (`ASSET-005`, DONE 2026-09-28, owner browser pass pending):** four entry points (drop on a line, paste, `#` summon, journal-header button with camera/gallery/file on mobile) funnelling into one `assetIntake()`; optimistic card with real XHR upload progress; `@` mention limited to `ready` assets and filtered by personal space; asset facet in the object index; image thumbnails plus PDF/media preview in the drawer. Behavior change inside `UI-088` (COMPLETED) → Revision Mode; the owner's 2026-09-28 "繼續實作" instruction is the `REF-003:202` sign-off, and no UI ID was added. Notably this needed **zero** `source-patches.mjs` edits — the icon table is a mutable object, the four runtime functions take the repo's existing override idiom, and `SUMMON` takes a push.
 - **Open decision:** whether the file library and cashflow vouchers converge onto `operating_assets` (proposal D2). P0 deliberately only creates the table for journal/new uploads; convergence is deferred and still needs an explicit go-ahead.
 
 ## Backlog Summary
@@ -105,6 +105,6 @@ The storage plumbing from Stages 2-3 is reused unchanged — this stage is about
 | `ASSET-002` | 7 (create-row / finalize / tiered allowlist) | `ASSET-001` | DONE (owner round trip pending) |
 | `ASSET-003` | 7 (download authorization fix) | `ASSET-002` | DONE (owner verification pending) |
 | `ASSET-004` | 7 (orphan sweeper + finalize wiring) | `ASSET-002` | DONE (run locally) |
-| `ASSET-005` | 7 (journal entry points + object rendering) | `ASSET-001`..`004`, owner sign-off on `UI-088` | TODO |
+| `ASSET-005` | 7 (journal entry points + object rendering) | `ASSET-001`..`004`, owner sign-off on `UI-088` | DONE (owner browser pass pending) |
 
 Full rows with files/acceptance/verification are in `PLN-060_task-backlog.md` Phase 17.

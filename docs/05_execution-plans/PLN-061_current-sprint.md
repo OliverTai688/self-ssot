@@ -1,5 +1,19 @@
 # Current Sprint
 
+## Owner-directed 日誌檔案物件 P1 — 2026-09-28
+
+`ASSET-005` 已完成實作。接續同日 P0 的契約層，這一輪把介面接上：**四道門**（拖放到某一行／⌘V 貼上截圖／`#` 召喚「附件」／日誌欄頭的「附件」按鈕，手機是拍照・相簿・檔案三選一）全部收斂到一個 `assetIntake()`，每個檔案各自一列物件、各自一張卡片 —— 一張卡片塞三個檔案的話，`@` 就引用不到其中某一個。
+
+**`UI-088` Revision Mode**：新增上傳入口屬行為變更，Owner 於本輪以「繼續實作」明確核可；未新增 UI ID。
+
+**不需要動 `source-patches.mjs`**（提案原估五筆窄 rep）：icon 表直接 mutate（`svg()` 是呼叫當下查 `I[k]`）、`objHtml`／`mentionHits`／`objJump`／`summonObject` 用 repo 既有的覆寫慣例接管、`SUMMON` 用 push。少動凍結原型一分，generator 就少一分因原型文字位移整包爆掉的機會。
+
+三個實作上的決定：**列先進 DB、卡片先畫出來，網路才開始跑**（使用者不必盯著空白等）；**用 XHR 不用 fetch**（fetch 沒有上傳進度事件，而假的進度條會在 99% 卡住，比沒有更糟），進度只改進度條那一個節點不 `render()`，否則游標會被踢出正在打字的那一行；**貼上走 capture 階段**，趕在既有 paste 監聽插入空字串之前攔下來。`@` 只收 `status === 'ready'` 且過濾別人的 `space:'personal'`。
+
+驗收 51/51 PASS（`pnpm ops:assets:object:check`），既有 harness 全數無回歸，生成檔 inline handler 0。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260928-journal-asset-object-p1.md)
+
+**仍阻擋部署**：`pnpm db:generate` 與 `pnpm db:deploy`（同 P0）。**瀏覽器驗收七條**沙箱做不到，需 Owner 在本機走一次。**D2 仍待決** —— 在收斂之前會有「`@` 得到日誌的檔、`@` 不到文件庫的檔」這個已知不一致。下一個是 P2（multipart 續傳、影音播放、D3 的 TTL 策略）。
+
 ## Owner-directed 日誌檔案物件 P0 — 2026-09-28
 
 `ASSET-001`..`ASSET-004` 已完成實作，**無 UI 變化**。Owner 要的是「日誌能從電腦或手機上傳圖片／文件／音訊／影片到 R2，而且可以 `@` 他們」。盤點後發現這件事已經做完一半：R2 預簽上傳與瀏覽器直傳在 `R2STORE-002`／`003` 就通了，缺的是**檔案沒有自己的 id 與參考碼**，所以進不了 `mentionHits()`、`@` 不到、物件索引也掃不到。

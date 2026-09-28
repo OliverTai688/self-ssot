@@ -76,17 +76,21 @@ function createDocObject(typeKey, day) {
   DB.docObjects.push(d);
   return d;
 }
+function docObjectLabel(d, meta) {
+  const m = meta || DOC_METAS[d.type];
+  return (typeof m.label === 'function' && m.label(d)) || m.nm;
+}
 function docObjectName(d) {
   if (d.titleAuto === false) return d.title || '議題';
-  const meta = DOC_METAS[d.type];
-  for (const sec of d.secs) { const f = ensureSecBlocks(sec).find(b => TEXTY(b.t) && b.text && b.text.trim()); if (f) return meta.nm + '：' + f.text.trim(); }
-  return meta.nm + ' · ' + d.day;
+  const meta = DOC_METAS[d.type], nm = docObjectLabel(d, meta);
+  for (const sec of d.secs) { const f = ensureSecBlocks(sec).find(b => TEXTY(b.t) && b.text && b.text.trim()); if (f) return nm + '：' + f.text.trim(); }
+  return nm + ' · ' + d.day;
 }
 
 const stubs = {
   DB, S, TODAY, TPL, SUMMON, DOC_METAS, DRAWERS, VIEWS, panel,
   esc, TEXTY, dadd, rqShortDay, newBid, blks, bIdx, bOf,
-  ensureSecBlocks, createDocObject, docObjectName,
+  ensureSecBlocks, createDocObject, docObjectName, docObjectLabel,
   metaOf: d => DOC_METAS[d.type],
   docObjectTimestamp: () => '12:00 更新',
   renderDocSectionBody: (d, sec) => '<div class="eb-doc-inline-sec">' + esc(sec.title) + '</div>',
@@ -347,6 +351,29 @@ ok('T10b 行內語法只寫 @ 沒寫 ~ 也成立（到期日選填）', (() => {
   const d = api.agCreate(mkLine('校稿 @Lily'), { parse: true });
   return !!d && api.agState(d).owner === 'lily' && api.agState(d).due === ''; })());
 
+// 回歸：Owner 2026-09-28 回報「明明建立任務卻拿到議題」。原因是沒寫 @某人 時 owner 留空，
+// 而 agIsTask() 看的就是 owner —— 使用者明講的意圖被默默吃掉。
+ok('T10c !任務 沒寫 @某人：負責人預設是自己，仍然是任務', (() => {
+  const d = api.agCreate(mkLine('把上個月的收據整理好'), { parse: true });
+  return !!d && api.agIsTask(d) && api.agState(d).owner === DB.me && api.agTaskState(d) === 'todo'; })());
+
+ok('T10d 標題前綴跟著身分走：任務叫「任務：」，收回指派才退回「議題：」', (() => {
+  const d = api.agCreate(mkLine('寄年度報告'), { parse: true });
+  if (!d || !docObjectName(d).startsWith('任務：')) return false;
+  api.agSetOwner(d.id, '');
+  return docObjectName(d).startsWith('議題：') && !api.agIsTask(d); })());
+
+ok('T10e 稽核記的實體名稱分得出任務與議題', (() => {
+  const before = log.length;
+  api.agCreate(mkLine('任務會記成任務物件'), { parse: true });
+  api.agCreate(mkLine('議題會記成議題物件'));
+  const ents = log.slice(before).filter(l => l.op === 'create').map(l => l.ent);
+  return ents.includes('任務物件') && ents.includes('議題物件'); })());
+
+ok('T10f #選單只有一個入口，但打「任務」也找得到（ds 帶得出來）', (() => {
+  const it = api.SUMMON[0].items.find(i => i.k === 'agenda');
+  return !!it && (it.nm + it.ds).includes('任務'); })());
+
 /* ---- 顏色：狀態只由 pill 表達 ---- */
 ok('T11 狀態 pill 走 --ag-<state> 三階 class，議題不宣告狀態', (() => {
   const d = api.agCreate(mkLine('待辦一件事'), { owner: 'lily' });
@@ -398,13 +425,15 @@ ok('S8 !任務 進了觸發詞與旗標選單',
   rep.includes("'任務','task'") && rep.includes("flag:'task'") && rep.includes("agCreate(b,{parse:true})"));
 
 /* ---- 驗收 R：回顧分頁的任務區塊 ---- */
-ok('R1 回顧分頁在連續敘事之前接上任務區塊（tab 1、圓展空間）', (() => {
-  const html = api.VIEWS.journal(1);
-  return html.includes('ag-rv-kpi') && html.indexOf('ag-rv-kpi') < html.indexOf('<BASEVIEW');
+// 回顧分頁的擁有權在 YZUI-030 移給 journal-review.source.js（它統一掛 VIEWS.journal，
+// 並在任務檢視呼叫 agReviewHtml()）。這裡只驗內容，掛載由 verify-journal-review.mjs 6c 驗。
+ok('R1 任務區塊自己就是完整一段，不依賴誰來掛它', (() => {
+  const html = api.agReviewHtml();
+  return html.includes('ag-rv-kpi') && html.includes('ag-rv-row');
 })());
-ok('R1b 今天分頁（tab 0）與個人空間不受影響', (() => {
-  const t0 = api.VIEWS.journal(0);
-  return !t0.includes('ag-rv-kpi');
+ok('R1b agenda-object 不再自己覆寫 VIEWS.journal', (() => {
+  const src2 = fs.readFileSync(path.join(V5, 'agenda-object.source.js'), 'utf8');
+  return !/VIEWS\.journal\s*=/.test(src2);
 })());
 ok('R2 分組順序把卡住的排在做完的前面', (() => {
   const ks = api.agReviewGroups().map(g => g.k);

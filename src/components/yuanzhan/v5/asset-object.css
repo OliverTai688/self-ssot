@@ -1,0 +1,70 @@
+/* 檔案物件（ASSET-005）。骨架沿用 .eb-obj，只換卡片主體那一塊，
+   所以同一張卡在日誌、在文件物件段落、在物件索引時間軸長得一樣。
+   顏色全走 V5_PALETTES token，每一個都帶 fallback（AGENTS.md §12.1）。 */
+
+.ast-body { margin-top: 8px; }
+
+/* ── 縮圖與燈箱 ─────────────────────────────────────────────── */
+.ast-hold {
+  position: relative; width: 100%; max-width: 240px; height: 108px;
+  border: 1px solid var(--border, #e4e7ec); border-radius: 7px;
+  background: var(--surface-3, #eef0f4); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.ast-hold img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .18s ease; }
+.ast-hold.ready img { opacity: 1; }
+.ast-hold .ast-ph { position: absolute; color: var(--text-3, #8a9099); font-size: 11.5px; }
+.ast-hold.ready .ast-ph, .ast-hold.failed img { display: none; }
+.ast-hold.failed .ast-ph { color: var(--text-3, #8a9099); }
+.ast-hold:hover { border-color: var(--border-2, #d3d8e0); }
+
+.ast-lb-img { max-width: 100%; max-height: 72vh; border-radius: 8px; display: block; margin: 0 auto; }
+.ast-frame {
+  width: 100%; height: 68vh; border: 1px solid var(--border, #e4e7ec);
+  border-radius: 8px; background: var(--surface-2, #f7f8fa);
+}
+
+/* ── 進度 ───────────────────────────────────────────────────── */
+.ast-prog {
+  height: 5px; border-radius: 4px; overflow: hidden; max-width: 300px;
+  background: var(--surface-3, #eef0f4); margin-top: 9px;
+}
+.ast-prog i { display: block; height: 100%; background: var(--pri, #3b5bdb); transition: width .2s ease; }
+
+/* ── 失敗 ───────────────────────────────────────────────────── */
+.eb-obj.ast-failed {
+  border-color: var(--danger-br, #e6b9b3);
+  background: var(--danger-bg, #fdeceb);
+}
+.eb-obj.ast-failed .ast-err { color: var(--danger, #c0392b); }
+
+/* ── 播放器（音訊／影片，P2 之前先給原生控制項）─────────────── */
+.ast-media { width: 100%; max-width: 420px; margin-top: 9px; }
+.ast-media video { width: 100%; max-height: 300px; border-radius: 7px; background: var(--surface-4, #dee1e6); }
+.ast-media audio { width: 100%; }
+
+/* ── 拖放落點 ───────────────────────────────────────────────── */
+.eb.ast-drop { position: relative; }
+.eb.ast-drop::after {
+  content: ''; position: absolute; inset: -2px -4px; pointer-events: none;
+  border: 2px dashed var(--pri, #3b5bdb); border-radius: 7px;
+  background: var(--pri-bg, #eef2fe); opacity: .55;
+}
+
+/* ── 抽屜 ───────────────────────────────────────────────────── */
+.ast-meta { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 10px 0 4px; font-size: 12.5px; }
+.ast-meta span { color: var(--text-2, #5b6370); }
+.ast-meta b { color: var(--text, #191c20); font-weight: 600; }
+.ast-code {
+  font-family: var(--mono, ui-monospace, Menlo, monospace); font-size: 11px;
+  color: var(--text-3, #8a9099); background: var(--surface-3, #eef0f4);
+  border: 1px solid var(--border, #e4e7ec); border-radius: 4px; padding: 1px 6px; cursor: pointer;
+}
+.ast-code:hover { background: var(--surface-4, #dee1e6); }
+
+/* ── 手機 ───────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .ast-hold { max-width: 100%; height: 160px; }
+  .ast-media { max-width: 100%; }
+  .ast-frame { height: 52vh; }
+}

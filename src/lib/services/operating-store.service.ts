@@ -127,6 +127,7 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     termRows,
     accountRows,
     assumptionRow,
+    assetRows,
   ] = await Promise.all([
     db.operatingGoal.findMany({ where: { workspaceId } }),
     db.operatingProjectProfile.findMany({ include: { project: true } }),
@@ -181,6 +182,18 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     db.operatingContractTerm.findMany({ where: { workspaceId }, orderBy: { seq: "asc" } }),
     db.operatingCashAccount.findMany({ where: { workspaceId } }),
     db.operatingCashAssumption.findUnique({ where: { workspaceId } }),
+    // 檔案物件：只讀得到團隊的與自己的私人檔（與文件庫同一條規則）。
+    // 傳到一半與失敗的不送進工作台 —— 它們在畫面上由當下那一次上傳自己維持狀態，
+    // 讀回來只會變成一張永遠 62% 的殭屍卡片。
+    db.operatingAsset.findMany({
+      where: {
+        workspaceId,
+        status: "ready",
+        deletedAt: null,
+        OR: [{ space: "team" }, { authorKey: { in: viewerSeatKeys } }],
+      },
+      orderBy: { createdAt: "desc" },
+    }),
   ])
 
   /** 主鍵 → 工作台 id，讓子列的關聯接得回父列。 */
@@ -564,6 +577,23 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       space: row.space,
       author: row.authorKey ?? "",
       versions: row.versions,
+    })),
+
+    /** 檔案物件。id 用 refCode —— 它是伺服器指派、永不重生成的那一個身分（RES-018）。 */
+    assets: assetRows.map((row) => ({
+      id: row.refCode,
+      assetId: row.id,
+      name: row.displayName,
+      kind: row.kind,
+      objectKey: row.objectKey,
+      bytes: row.sizeBytes ?? 0,
+      mime: row.mimeType ?? "",
+      status: row.status,
+      space: row.space,
+      author: row.authorKey ?? "",
+      day: iso(row.bornDay),
+      bornAt: row.bornAt ? row.bornAt.getTime() : row.createdAt.getTime(),
+      text: row.extractedText ?? "",
     })),
 
     docObjects: withRef(docObjectRows).map((row) => {

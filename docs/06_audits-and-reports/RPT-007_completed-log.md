@@ -2,6 +2,19 @@
 
 ## 2026-09-28
 
+### ASSET-005 — 日誌檔案物件 P1（四道門、卡片、`@` 引用）
+
+- 接續同日 P0。Owner 指示「繼續實作」，該指示同時是 `UI-088` Revision Mode 的核可（`REF-003:202`），未新增 UI ID。
+- **四道門收斂成一個 `assetIntake()`**：拖放到某一行、⌘V 貼上（截圖自動命名 `截圖 MM-DD HH:mm.png`）、`#` 召喚「附件」、日誌欄頭「附件」按鈕（手機跳拍照／相簿／檔案三選一，由瀏覽器叫系統選單，不自己畫）。一次多檔各自成物件、各自一張卡片。
+- **不需要動 `source-patches.mjs`**（提案原估五筆窄 rep，實際零筆）：icon 表是物件可直接 `I.image ??= ...`（`svg()` 是呼叫當下查 `I[k]`，不是啟動快照）；`objHtml`／`mentionHits`／`objJump`／`summonObject` 用 repo 既有的 `const astBaseX = X; X = function(...)` 覆寫慣例接管；`SUMMON[1].items.push()`。少動凍結原型一分，generator 就少一分因原型文字位移而整包爆掉的機會。
+- **拖放要先分流**：區塊排序本來就佔用 `dragover`／`drop`，先判 `dataTransfer` 有沒有檔案，有就走上傳並 `stopPropagation()`，沒有就原樣交還。**貼上走 capture 階段**：既有 paste 監聽會 `preventDefault()` 並插入剪貼簿純文字，剪貼簿是圖片時那是空字串，插空節點雖無害但仍會送出 `input` 把那行標成已修改。
+- **列先進 DB、卡片先畫出來，網路才開始跑**。上傳用 **XHR 不用 fetch** —— fetch 沒有上傳進度事件，而假的進度條會在 99% 卡住，比沒有進度條更糟。進度只改 `[data-ast-prog]` 那一個節點，不 `render()`，否則每個 tick 都把游標從正在打字的那行踢走。失敗的卡片留在原地帶「重試／重新選擇檔案／移除」，重試換新 objectKey 但**參考碼不變**（`RES-018`；R2 對同一 key 每秒只能寫一次，半份舊 bytes 也會讓 finalize 的大小比對失去意義）。
+- **前端與伺服器共用同一個 `classifyAsset()`**：generator 的 import 行多一條 `@/lib/ui-data/yuanzhan/operating-assets`，不是抄一份鏡像。harness 有一條逐字斷言前端 toast 與契約回傳字串相等。
+- `@` 只收 `status === 'ready'` 並過濾別人的 `space:'personal'`；物件索引 `OI_LEDGERS` 加 asset 帳本（facet 自動多一格），順帶把帳本契約加上選用的 `nameOf`／`bodyOf`（檔案的名字在 `.name` 不在 `.t`，且 P3 的 `extractedText` 要進搜尋語料）。store 只讀回 `ready` 且沿用文件庫的 team／personal 規則 —— 讀回傳到一半的列只會變成永遠 62% 的殭屍卡片。
+- 預覽照提案分級，P1 只做圖片縮圖／抽屜大圖、PDF iframe、影音原生播放器，其餘圖示與下載。縮圖先畫骨架、解碼完才淡入（沿用 `cashflow-faces` 修過的破圖坑）。
+- Verification：`verify-asset-object.mjs` **51/51 PASS**（本輪新增）、`verify-asset-pipeline` 42/42、`verify-object-index` 19/19、`verify-agenda-object` 99/99、`check-operating-command-fields` 356、prisma structure／migration coverage／operating persistence 全 PASS、generate PASS（545 handler templates，前 523）、`node --check runtime.js` PASS、**生成檔 inline handler 0**、eslint 0 errors（5 warnings 為 `onclick=` 字串引用的函式，與 `oiOpen`／`oiJump` 同一既有樣式）。`tsc` **213 errors 全為 `PrismaClient.operatingAsset` 未產生所致**（`Promise.all` 多一個 `never` 元素讓 tuple 推導整串塌掉）；以暫時 `.d.ts` 探針重跑 **0 errors**，探針已刪除未入庫。
+- **待 Owner**：`pnpm db:generate`、`pnpm db:deploy`，以及**七條瀏覽器驗收**（拖放進度、⌘V 自動命名、`#` 附件、390px 欄頭按鈕、拖放不誤觸區塊排序、隔天 `@` 同一份不產生第二份、四主題可讀）。**D2 仍待決**；D3 影音 TTL 仍是 5 分鐘，長影片會播到一半 403（排 P2）。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260928-journal-asset-object-p1.md)
+
 ### ASSET-001..004 — 日誌檔案物件 P0 契約層
 
 - Owner 指示日誌要能從電腦或手機上傳圖片／文件（docx・xlsx・pdf・pptx）／音訊／影片到 Cloudflare R2，並且可以 `@` 引用。先產出提案（`journal-asset-upload-proposals.html`，五輪研究、需求理解 58→89），Owner 指示開始實作。**本輪只做 P0 契約層，無 UI 變化。**

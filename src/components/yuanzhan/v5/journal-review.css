@@ -1,0 +1,76 @@
+/* 回顧分頁：同步列、篩選、敘事流與雙軌。
+   顏色一律走 V5_PALETTES token 的 var(--token, fallback) 形式。 */
+
+/* ---- 同步狀態列 ---- */
+.jr-sync{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  padding:9px 13px;margin-bottom:10px;border-radius:9px;font-size:12.5px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-2)}
+.jr-sync b{color:var(--text);font-weight:600}
+.jr-sync .jr-gap{flex:1}
+.jr-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--ag-done-ink,#5fd09a)}
+.jr-sync.warn{border-color:var(--ag-over-br,#5e2a2c)}
+.jr-sync.warn .jr-dot{background:var(--rq-warn,#f0924f)}
+.jr-sync.bad{border-color:var(--ag-over-br,#5e2a2c);background:var(--ag-over-tint,#1d1417)}
+.jr-sync.bad .jr-dot{background:var(--ag-over-ink,#ff8a8c)}
+.jr-sync.off{border-style:dashed}
+.jr-sync.off .jr-dot{display:none}
+.jr-pend{font-family:var(--mono);font-size:11.5px;color:var(--ag-over-ink,#ff8a8c)}
+
+/* ---- 篩選 ---- */
+.jr-filters{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.jr-fg{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.jr-k{font-size:11px;color:var(--text-3)}
+.jr-filters .jr-gap{flex:1}
+
+/* ---- 敘事流 ---- */
+.jr-day{margin-bottom:22px}
+.jr-date{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.jr-w{font-size:11.5px;color:var(--text-3)}
+.jr-line{flex:1;height:1px;background:var(--border)}
+.jr-entry{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;
+  background:var(--surface)}
+.jr-who{display:flex;align-items:center;gap:7px;margin-bottom:6px;font-size:12.5px}
+.jr-who b{font-weight:600}
+.jr-who .jr-gap{flex:1}
+.jr-tag{font-size:10.5px;padding:1px 7px;border-radius:99px;
+  border:1px solid var(--border-2);color:var(--text-3);background:var(--surface-2)}
+.jr-doc{padding:0;min-height:0;cursor:default;background:transparent}
+.jr-hollow{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);cursor:pointer;
+  border:1px dashed var(--border-2);border-radius:8px;padding:7px 10px;background:var(--surface-2)}
+.jr-hollow:hover{color:var(--text-2)}
+.jr-fold{display:none}
+.jr-fold.on{display:block;margin-top:8px}
+
+/* ---- 雙軌 ---- */
+.jr-dual{margin:-12px -14px}
+.jr-lanehead{display:grid;grid-template-columns:1fr 92px 1fr;
+  border-bottom:1px solid var(--border);background:var(--surface-2)}
+.jr-lanehead>div{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:12.5px}
+.jr-lanehead .jr-rgt{justify-content:flex-end}
+.jr-lanehead .jr-mid{justify-content:center;
+  border-left:1px solid var(--border);border-right:1px solid var(--border)}
+.jr-row{display:grid;grid-template-columns:1fr 92px 1fr;border-bottom:1px solid var(--border)}
+.jr-row:last-child{border-bottom:0}
+.jr-row .jr-mid{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:2px;padding:12px 2px;background:var(--surface-2);
+  border-left:1px solid var(--border);border-right:1px solid var(--border)}
+.jr-row.today .jr-mid{background:var(--ag-doing-bg,#0f1726)}
+.jr-dd{font:600 11.5px var(--mono)}
+.jr-row.today .jr-dd{color:var(--ag-doing-ink,#4ea1ff)}
+.jr-ww{font-size:10.5px;color:var(--text-3)}
+.jr-lane{padding:12px 14px;min-width:0}
+.jr-card{border:1px solid var(--border);border-radius:9px;padding:9px 11px;cursor:pointer;
+  background:var(--surface)}
+.jr-card:hover{border-color:var(--border-3,var(--border-2))}
+.jr-gapslot{border:1px dashed var(--border-2);border-radius:9px;padding:9px 11px;
+  font-size:12px;color:var(--text-3);background:var(--surface-2)}
+.jr-lane.r{text-align:right}
+.jr-lane.r .jr-doc{text-align:right}
+
+@media(max-width:760px){
+  .jr-lanehead,.jr-row{grid-template-columns:1fr}
+  .jr-lanehead .jr-mid,.jr-row .jr-mid{flex-direction:row;justify-content:flex-start;gap:9px;
+    padding:8px 14px;border-left:0;border-right:0;border-bottom:1px solid var(--border)}
+  .jr-lanehead .jr-rgt{justify-content:flex-start}
+  .jr-lane.r,.jr-lane.r .jr-doc{text-align:left}
+}

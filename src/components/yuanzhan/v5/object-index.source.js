@@ -22,7 +22,14 @@ const OI_LEDGERS = {
   txn:      { nm: '金流', chip: 'c-w', list: () => DB.txns || [],      day: x => x.d || '' },
   project:  { nm: '專案', chip: 'c-i', list: () => DB.projects || [],  day: () => '' },
   decision: { nm: '決策', chip: 'c-o', list: () => DB.decisions || [], day: x => x.date || '' },
-  event:    { nm: '事件', chip: 'c-t', list: () => DB.events || [],    day: x => x.d || '' }
+  event:    { nm: '事件', chip: 'c-t', list: () => DB.events || [],    day: x => x.d || '' },
+  /* 檔案的顯示名稱在 .name 不在 .t，而且只有傳完的才該被列進來 ——
+     傳到一半的東西出現在索引裡，點下去會是一張沒有內容的卡片。 */
+  asset:    { nm: '檔案', chip: 'c-o',
+              list: () => (DB.assets || []).filter(a => a.status === 'ready'),
+              day: x => x.day || '',
+              nameOf: x => x.name || x.id,
+              bodyOf: x => [x.name, x.text || ''].filter(Boolean).join(' ') }
 };
 
 /* ---------- 小工具 ---------- */
@@ -99,9 +106,9 @@ function oiRows() {
       const s = src[x.id] || null, day = (s && s.day) || L.day(x) || '';
       rows.push({
         id: x.id, ty, tyKey: ty, tyNm: L.nm, chip: L.chip,
-        name: x.t || x.id, code: x.id,
-        born: (s && s.bornAt) || 0, day,
-        updated: 0, body: x.t || '', src: s,
+        name: L.nameOf ? L.nameOf(x) : (x.t || x.id), code: x.id,
+        born: (s && s.bornAt) || x.bornAt || 0, day,
+        updated: 0, body: L.bodyOf ? L.bodyOf(x) : (x.t || ''), src: s,
         landmark: (s && titles[s.day]) || titles[day] || '', snip: ''
       });
     });

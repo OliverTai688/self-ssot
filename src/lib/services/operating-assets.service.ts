@@ -121,7 +121,9 @@ export async function createPendingAsset(input: CreatePendingAssetInput) {
           origin: input.origin,
           bornDay: input.bornDay ?? null,
           bornAt: now,
-          workbenchRef: input.workbenchRef ?? null,
+          // 工作台那一側用 refCode 當 id，所以 workbenchRef 就是它 ——
+          // 一份檔案不該有兩個身分，withRef() 也才撈得到這一列。
+          workbenchRef: input.workbenchRef ?? refCode,
         },
       })
     } catch (error) {
@@ -229,9 +231,22 @@ export async function resolveDownloadGrant(params: {
   const { workspaceId, objectKey, seatKeys } = params
   if (!isWellFormedAssetKey(objectKey)) throw new AssetNotFoundError("無效的檔案位置。")
 
-  const asset = await db.operatingAsset.findFirst({
-    where: { workspaceId, objectKey, deletedAt: null },
-  })
+  // 新資產表的查詢是新路徑的入口，但它失敗不該把底下三條舊路徑一起帶走。
+  //
+  // 2026-09-28 正式站就是這樣壞的：operating_assets 的 migration 還沒套用
+  // （deploy 流程當時不跑 migration），這一行直接丟 P2021，
+  // 於是每一張既有憑證 —— 文件庫、交易附件、收件匣 —— 全部讀不到，
+  // 而那三條相容路徑本來就是為了讓它們繼續讀得到才寫的。
+  //
+  // 只吞基礎設施層的錯誤：查得到列但沒有權限，仍然是拒絕，不會往下改用團隊層級的舊路徑。
+  let asset: Awaited<ReturnType<typeof db.operatingAsset.findFirst>> = null
+  try {
+    asset = await db.operatingAsset.findFirst({
+      where: { workspaceId, objectKey, deletedAt: null },
+    })
+  } catch (error) {
+    console.error("[operating-assets] 資產表查詢失敗，改走既有檔案的相容路徑", error)
+  }
   if (asset) {
     if (!canSeatReadAsset(asset, { workspaceId, seatKeys })) throw new AssetForbiddenError()
     return { bucket: asset.bucket, objectKey: asset.objectKey }

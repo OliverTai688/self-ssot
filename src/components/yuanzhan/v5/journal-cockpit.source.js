@@ -27,6 +27,16 @@ DB.journalEdits={};
 let jcRendering=false, jcLineOpen='', jcFocus='';
 const jcDrafts=new Map();
 const JC_TYPES={issue:['工作','c-p'],txn:['金流','c-w'],project:['專案','c-i'],decision:['決策','c-o'],event:['事件','c-t']};
+/* 文件物件的標籤不能寫死在這張表裡：型別是 doc_object，但對外的名字由該物件的 meta 決定
+   （議題指派了負責人就叫任務）。表裡查不到就回退到型別 key，至少不會印出 undefined。 */
+function jcObjChip(o){
+ if(o.ty==='doc_object'){
+  const d=(DB.docObjects||[]).find(x=>x.id===o.rid);
+  if(!d)return['已刪除','c-n'];
+  const m=metaOf(d);return[docObjectLabel(d,m),m.chip||'c-n'];
+ }
+ return JC_TYPES[o.ty]||[o.ty,'c-n'];
+}
 function jcNow(){return nowts().slice(0,5)}
 function jcDayRows(day=S.jday){return DB.dayLogs.filter(r=>r.day===day)}
 /* 回傳有沒有真的新增一列：呼叫端要據此決定重畫與排保存。 */
@@ -136,7 +146,7 @@ function jcMyColumn(){
  const carry=carried.length?`<div class="rq-carrybar">${carried.map(t=>`<button class="rq-pill today" onclick="rqCompleteToday('${t.id}')" title="點一下標記完成">${svg('rotate', 11)} 從昨天帶來 · ${esc(t.text)}</button>`).join('')}</div>`:'';
  return `<section class="jc-col" id="jcMine" data-author="${DB.me}">
   <div class="jc-col-h doc-bar">${rqAv(DB.me,'md')}<b>${esc(jcShort(DB.me))}</b><span class="jc-col-m">· 你 · 編輯中</span><span class="sp"></span>
-   <button class="btn sm" aria-label="召喚" title="# 召喚 component" onclick="insertAt('#')">${svg('hash', 13)} 召喚</button><button class="btn sm" aria-label="引用" title="@ 引用既有物件或通知對方" onclick="insertAt('@')">${svg('at', 13)} 引用</button></div>
+   <button class="btn sm" aria-label="召喚" title="# 召喚 component" onclick="insertAt('#')">${svg('hash', 13)} 召喚</button><button class="btn sm" aria-label="引用" title="@ 引用既有物件或通知對方" onclick="insertAt('@')">${svg('at', 13)} 引用</button><button class="btn sm" aria-label="附件" title="上傳圖片、文件、音訊或影片" onclick="astOpenPicker('')">${svg('paperclip', 13)} 附件</button></div>
   <div class="jc-col-b">${carry}<div class="doc" id="doc" onclick="docClick(event)" onkeydown="docKey(event)" oninput="docInput(event)" oncompositionstart="docComposeStart()" oncompositionend="docComposeEnd(event)">${blocks}${rqIncomingHtml()}</div></div></section>`;
 }
 
@@ -179,7 +189,7 @@ function jcSendPage(){
 }
 function jcCockpit(){
  const objs=jcObjects();
- const objRows=objs.map(({who,line,o})=>{const [nm,cls]=JC_TYPES[o.ty]||[o.ty,'c-n'];return `<button class="jc-obj" onclick="objJump('${o.ty}','${o.rid}')"><span class="chip ${cls}">${nm}</span><span class="jc-obj-t">${esc(jcObjName(o))}</span><span class="jc-obj-s">${esc(jcShort(who))} L${line}</span></button>`}).join('');
+ const objRows=objs.map(({who,line,o})=>{const [nm,cls]=jcObjChip(o);return `<button class="jc-obj" onclick="objJump('${o.ty}','${o.rid}')"><span class="chip ${cls}">${nm}</span><span class="jc-obj-t">${esc(jcObjName(o))}</span><span class="jc-obj-s">${esc(jcShort(who))} L${line}</span></button>`}).join('');
  return `<aside class="jc-side">
   <div class="jc-side-b">${jcStats(objs)}
    <div class="jc-sec"><div class="jc-sec-t">回覆追蹤</div>${rqSideBody()}</div>
