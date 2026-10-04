@@ -67,6 +67,9 @@ function withRef<T>(rows: T[]): Array<T & { workbenchRef: string }> {
  */
 const DAY_STATE_WINDOW_DAYS = 90
 
+/** 聊天室訊息一次載回多少則（全專案合計）。 */
+const CHAT_MESSAGE_WINDOW = 1500
+
 const PROJECT_STATUS_FALLBACK = "進行中"
 const TASK_STATUS_FALLBACK = "Todo"
 
@@ -128,6 +131,10 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
     accountRows,
     assumptionRow,
     assetRows,
+    folderRows,
+    cycleRows,
+    channelRows,
+    messageRows,
   ] = await Promise.all([
     db.operatingGoal.findMany({ where: { workspaceId } }),
     db.operatingProjectProfile.findMany({ include: { project: true } }),
@@ -194,6 +201,24 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       },
       orderBy: { createdAt: "desc" },
     }),
+    // 專案硬碟的資料夾樹（PLN-075）。私人資料夾只有建立者讀得到，與檔案同一條規則。
+    db.projectFolder.findMany({
+      where: {
+        workspaceId,
+        deletedAt: null,
+        OR: [{ space: "team" }, { createdByProfileId: viewerProfileId }],
+      },
+      orderBy: [{ depth: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    }),
+    db.projectPhaseCycle.findMany({ where: { workspaceId, deletedAt: null }, orderBy: { ordinal: "asc" } }),
+    db.projectChatChannel.findMany({ where: { workspaceId, deletedAt: null }, orderBy: { sortOrder: "asc" } }),
+    // 訊息一列一則，會一直長。只載最近這一段；沒載到的列留在資料庫裡，
+    // 比對只發生在本地載到的列之間，不會被當成「已刪除」送上去。
+    db.projectChatMessage.findMany({
+      where: { workspaceId, deletedAt: null },
+      orderBy: { sentAt: "desc" },
+      take: CHAT_MESSAGE_WINDOW,
+    }),
   ])
 
   /** 主鍵 → 工作台 id，讓子列的關聯接得回父列。 */
@@ -204,6 +229,14 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
   const phaseProjectById = new Map(phaseRows.map((row) => [row.id, row.projectId]))
   const milestoneRefById = new Map(withRef(milestoneRows).map((row) => [row.id, row.workbenchRef]))
   const rhythmRefById = new Map(withRef(rhythmRows).map((row) => [row.id, row.workbenchRef]))
+  const objectiveRefById = new Map(withRef(objectiveRows).map((row) => [row.id, row.workbenchRef]))
+  const cycleRefById = new Map(withRef(cycleRows).map((row) => [row.id, row.workbenchRef]))
+  const channelRefById = new Map(withRef(channelRows).map((row) => [row.id, row.workbenchRef]))
+  const messageRefById = new Map(withRef(messageRows).map((row) => [row.id, row.workbenchRef]))
+  // 資料夾不過 withRef：ROOT／INBOX 可能由上傳路徑的 bootstrap 建立，沒有業務 id。
+  // 那種列直接用主鍵當身分，寫入端的 resolveWorkbenchRowId() 認得它。
+  const folderRefById = new Map(folderRows.map((row) => [row.id, row.workbenchRef ?? row.id]))
+  const folderRef = (id: string | null | undefined) => (id ? (folderRefById.get(id) ?? "") : "")
 
   /**
    * 日誌一定要分作者。
@@ -318,6 +351,14 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       rel: row.relations,
       cf: row.customFields,
       sub: row.subtasks,
+      objectiveId: row.objectiveId ? (objectiveRefById.get(row.objectiveId) ?? "") : "",
+      // 審核任務與「直接掛里程碑」（PLN-075）。舊列的 kind 是 TODO、其餘為空。
+      kind: row.kind,
+      msId: row.milestoneId ? (milestoneRefById.get(row.milestoneId) ?? "") : "",
+      reviewer: row.reviewerKey ?? "",
+      reviewResult: row.reviewResult ?? "",
+      reviewedAt: row.reviewedAt ? row.reviewedAt.getTime() : 0,
+      reviewNote: row.reviewNote ?? "",
     })),
 
     phases: withRef(phaseRows).map((row) => ({
@@ -327,6 +368,9 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       label: row.label,
       startOn: iso(row.startDate),
       endOn: iso(row.endDate),
+      cycleId: row.phaseCycleId ? (cycleRefById.get(row.phaseCycleId) ?? "") : "",
+      ordinal: row.ordinal ?? 0,
+      stageKind: row.stageKind ?? "",
     })),
 
     milestones: withRef(milestoneRows).map((row) => ({
@@ -340,6 +384,8 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       derivedFrom: row.derivedFrom ?? "",
       remind: row.remind ?? "",
       bonus: row.bonusAmount,
+      state: row.status === "COMPLETED" ? "done" : "open",
+      folderId: folderRef(row.folderId),
     })),
 
     objectives: withRef(objectiveRows).map((row) => ({
@@ -391,6 +437,11 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       media: [],
       derivedFrom: row.derivedFrom ?? "",
       remind: row.remind ?? "",
+      // 會議（PLN-075 OD-D）：資料夾 1:1、外部與會者、注意事項、產生時間。
+      folderId: folderRef(row.folderId),
+      guests: row.externalGuests ?? "",
+      cautions: row.cautions ?? "",
+      createdAt: row.createdAt.getTime(),
     })),
 
     decisions: withRef(decisionRows).map((row) => ({
@@ -594,7 +645,78 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       day: iso(row.bornDay),
       bornAt: row.bornAt ? row.bornAt.getTime() : row.createdAt.getTime(),
       text: row.extractedText ?? "",
+      // 專案硬碟上的位置。projectId 為空＝不在任何專案硬碟上（日誌／文件庫／金流的檔）。
+      projectId: row.projectId ? (projectRefById.get(row.projectId) ?? "") : "",
+      folderId: folderRef(row.folderId),
+      filedAt: row.filedAt ? row.filedAt.getTime() : 0,
     })),
+
+    folders: folderRows
+      .filter((row) => projectRefById.has(row.projectId))
+      .map((row) => ({
+        id: row.workbenchRef ?? row.id,
+        projectId: projectRefById.get(row.projectId) ?? "",
+        parentId: folderRef(row.parentId),
+        kind: row.kind,
+        visibility: row.visibility,
+        name: row.name,
+        sortOrder: row.sortOrder,
+        isSystem: row.isSystem,
+        space: row.space,
+        author: row.createdByProfileId ? (seatByProfile.get(row.createdByProfileId) ?? "") : "",
+        note: row.note ?? "",
+        createdAt: row.createdAt.getTime(),
+      })),
+
+    phaseCycles: withRef(cycleRows)
+      .filter((row) => projectRefById.has(row.projectId))
+      .map((row) => ({
+        id: row.workbenchRef,
+        projectId: projectRefById.get(row.projectId) ?? "",
+        ordinal: row.ordinal,
+        title: row.title ?? "",
+        contractId: row.contractId ? (contractRefById.get(row.contractId) ?? "") : "",
+        // 「還沒編預算」與「預算是 0」不是同一件事：沒編的不帶這個欄位。
+        ...(row.budgetAmount == null ? {} : { budget: row.budgetAmount }),
+        startOn: iso(row.startOn),
+        endOn: iso(row.endOn),
+        status: row.status,
+        note: row.note ?? "",
+      })),
+
+    chatChannels: withRef(channelRows)
+      .filter((row) => projectRefById.has(row.projectId))
+      .map((row) => ({
+        id: row.workbenchRef,
+        projectId: projectRefById.get(row.projectId) ?? "",
+        kind: row.kind,
+        name: row.name,
+        topic: row.topic ?? "",
+        readOnly: row.isReadOnly,
+        archived: row.isArchived,
+        sortOrder: row.sortOrder,
+        dropFolderId: folderRef(row.dropFolderId),
+        author: row.createdByProfileId ? (seatByProfile.get(row.createdByProfileId) ?? "") : "",
+      })),
+
+    // 查詢是新到舊（為了只取最近一段），工作台要的是舊到新。
+    chatMessages: withRef(messageRows)
+      .filter((row) => channelRefById.has(row.channelId))
+      .reverse()
+      .map((row) => ({
+        id: row.workbenchRef,
+        channelId: channelRefById.get(row.channelId) ?? "",
+        w: row.authorKey ?? "",
+        ...(row.authorDisplayName ? { authorName: row.authorDisplayName } : {}),
+        origin: row.origin,
+        text: row.body,
+        type: row.messageType,
+        at: row.sentAt.getTime(),
+        ...(row.editedAt ? { editedAt: row.editedAt.getTime() } : {}),
+        ...(row.replyToId && messageRefById.has(row.replyToId) ? { replyTo: messageRefById.get(row.replyToId) } : {}),
+        mentions: row.mentions,
+        meta: row.meta,
+      })),
 
     docObjects: withRef(docObjectRows).map((row) => {
       const payload = (row.payload ?? {}) as Record<string, unknown>

@@ -14,6 +14,7 @@
  * 與 check-operating-command-fields.mjs 同一個理由、同一個做法。
  */
 import fs from 'node:fs'
+import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const MODULE_PATH = 'src/lib/ui-data/yuanzhan/operating-assets.ts'
@@ -191,8 +192,20 @@ ok('migration 帶上兩條 UNIQUE',
 
 // snake_case 對照：Prisma @map 的每一個欄名都要真的出現在 migration 裡。
 const mapped = [...modelBody.matchAll(/@map\("(\w+)"\)/g)].map(m => m[1])
-const notInSql = mapped.filter(col => !new RegExp('"' + col + '"').test(migration))
-ok('每個 @map 欄名都出現在 migration SQL', notInSql.length === 0, notInSql.join(', '))
+// 欄位可能是後續 migration 用 ALTER TABLE ... ADD COLUMN 加的（例如 PLN-075 的
+// project_id / folder_id / filed_at / derivatives），所以這一條要掃整個 migration 歷史，
+// 而不是只看建表的那一份 —— 只看建表會在每次加欄時假性失敗。
+const allMigrationSql = fs
+  .readdirSync('prisma/migrations', { withFileTypes: true })
+  .filter(d => d.isDirectory())
+  .sort((a, b) => a.name.localeCompare(b.name))
+  .map(d => {
+    const f = path.join('prisma/migrations', d.name, 'migration.sql')
+    return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : ''
+  })
+  .join('\n')
+const notInSql = mapped.filter(col => !new RegExp('"' + col + '"').test(allMigrationSql))
+ok('每個 @map 欄名都出現在 migration 歷史', notInSql.length === 0, notInSql.join(', '))
 
 /* ── 收尾 ───────────────────────────────────────────────────────── */
 

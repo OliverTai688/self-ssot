@@ -1,5 +1,19 @@
 # Current Sprint
 
+## Owner-directed 專案模組五大資源 S3 — 2026-10-04
+
+`PROJMOD-S3` 已完成實作，`PROJMOD-S4`（Owner 整合測試）進行中。專案模組從「總覽／工作／對話／Evidence Repo／財務／里程碑」改為 **總覽／計劃／檔案／會議／對話／財務**：A 的分頁外殼、C 的資源樹放進檔案與會議、B 的時間流放進總覽下半（`INTEGRATION-DECISION`，Owner 2026-10-03 批准）。「工作」「Evidence Repo」「里程碑」「議題串」降為子視圖，舊分頁 index 的連結仍然走得到。
+
+**`UI-088` Revision Mode**：分頁重組屬行為變更，依 Owner 批准的整合決策執行；未新增 UI ID。**`source-patches.mjs` 沒有動**，也沒有新增圖示或色彩 token。
+
+**交接文件沒寫到、但不補就不能上線的缺口**：新集合只接了寫入、沒接讀取（重整後資料夾／期／訊息全部消失）；會議、階段、里程碑的新欄位沒有寫入；里程碑的「已達成」從來沒被存過；一次 commit 內的變更順序不是依賴順序；兩個型別錯誤會擋住 Vercel build。全部在這一輪補上。
+
+驗收：`tsc` 0、`pnpm build` exit 0、`pnpm project:ui:check` 74/74（含 database 模式的寫入契約）、新檔 nested-card 0 違規、瀏覽器實測 1440／390 與黑／白佈景。報告：[RPT-068](../06_audits-and-reports/RPT-068_project-module-five-resource-acceptance-report.md)；證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-project-module-s3-five-resource-surfaces.md)。
+
+**仍待 Owner**：依 `RPT-068` §8 走一次整合測試。第一次真實上傳才是第一次端到端（本輪依規定沒有對 R2 實際上傳）；上傳需要公司 workspace 與 Owner 的 ACTIVE membership。
+
+**既有問題（非本輪造成）**：`check-operating-canvas` 與 `check-reply-jump` 在 HEAD 上就失敗；`ops:check` 的 tsx 腳本在 Node 24 因 top-level await 跑不起來 → `PROJMOD-007`。
+
 ## Owner-directed 日誌檔案物件 P1 — 2026-09-28
 
 `ASSET-005` 已完成實作。接續同日 P0 的契約層，這一輪把介面接上：**四道門**（拖放到某一行／⌘V 貼上截圖／`#` 召喚「附件」／日誌欄頭的「附件」按鈕，手機是拍照・相簿・檔案三選一）全部收斂到一個 `assetIntake()`，每個檔案各自一列物件、各自一張卡片 —— 一張卡片塞三個檔案的話，`@` 就引用不到其中某一個。

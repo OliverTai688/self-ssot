@@ -4192,3 +4192,24 @@ intake 直接轉 `unfiled`；而「我的報帳」(`cfMineView`) 讀的是 `DB.r
 「未付清」合計尚未區分「公司付」與「自己墊」，後續以 intake 送出時的代墊選擇處理。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260928-owner-reimbursement-record.md`
+
+## 2026-10-04 — 專案模組五大資源版面與讀寫接線（PROJMOD-S3）
+
+`PLN-075` S3。專案模組改為六個分頁（總覽／計劃／檔案／會議／對話／財務），四個資源面可操作，
+LINE 依 OD-H 以停用入口呈現。舊分頁 index 經 `opRedirect` 落到新分頁的子視圖，沒有刪掉任何既有畫面。
+
+改動：新增 `src/components/yuanzhan/v5/pm-{shell,overview,plan,drive,meeting,chat}.source.js` 與 `pm-shell.css`
+（團隊自有檔；`source-patches.mjs` 未動）；`operating-store.service.ts` 補上新集合與新欄位的讀取；
+`operating-commands.service.ts` 補會議／階段／里程碑的新欄位寫入、依外鍵關係排序套用、資料夾搬移的子樹重寫；
+`drive` 兩支 route 接受工作台的業務 id；`work.mapper.ts` 的輸入型別修正（解掉 2 個會擋 build 的型別錯誤）。
+
+驗證：`pnpm exec tsc --noEmit` 0 errors、`pnpm build` exit 0、`node scripts/generate-yuanzhan-v5.mjs` PASS（626 handlers）、
+`pnpm project:ui:check` 74/74、`node scripts/check-nested-card.mjs` PASS（新檔 0）、
+`check-operating-command-fields` 356 PASS、`check-migration-coverage` PASS、`verify-project-drive` 140/140、
+`check-operating-runtime` 雙模式 26 分頁 0 錯誤、瀏覽器實測（本機 showcase，1440／390，黑／白佈景）。
+
+已知限制：沒有對 R2 做真實上傳（依規定）；`check-operating-canvas` 與 `check-reply-jump` 在未改動的 HEAD 上就失敗；
+任務負責人、會議時間、交付標準三個既有欄位仍未持久化（`PROJMOD-005`）。
+
+驗收報告：`docs/06_audits-and-reports/RPT-068_project-module-five-resource-acceptance-report.md`
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-project-module-s3-five-resource-surfaces.md`

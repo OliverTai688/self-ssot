@@ -550,6 +550,23 @@ model Project {
   dueAt       DateTime?         @map("due_at")
   nextAction  String?           @map("next_action")
   companyAxis String?           @map("company_axis")
+
+  // ── 專案工作區五大資源（PLN-075 S2）───────────────────────────────────────
+  /// 生命週期（提案→接案→執行→驗收→結案）。這四欄是新的權威來源，
+  /// 但既有的 `status` / `phase` / `OperatingProjectProfile.operatingStatus`
+  /// （獎金閘門③讀它）與 `ProjectDealStage`（金流推演讀它）一律原狀保留、不被覆寫。
+  ///
+  /// 既有列會拿到預設 `PROPOSING` —— 那對一個正在執行的專案是錯的。
+  /// 在 S3 的回填把它算對之前，介面不得把這一欄當權威顯示（見 S2 證據報告）。
+  lifecycleStage ProjectLifecycleStage @default(PROPOSING) @map("lifecycle_stage")
+  /// 目前走到第幾期（`ProjectPhaseCycle.ordinal` 的快取）。null＝還沒分期。
+  phaseRound     Int?              @map("phase_round")
+  /// `0_工作區` 的兩位數資料夾編號。**不是鍵**：`09` 被用過兩次（編號會回收），
+  /// 它只是「從舊硬碟找回同一個案子」的線索。
+  legacyFolderNo String?           @map("legacy_folder_no")
+  /// 1＝最高。null＝未分級。
+  priorityTier   Int?              @map("priority_tier")
+
   tasksDone   Int               @default(0) @map("tasks_done")
   tasksTotal  Int               @default(0) @map("tasks_total")
   createdAt   DateTime          @default(now()) @map("created_at")
@@ -567,7 +584,13 @@ model Project {
   feedback ProjectFeedback[] @relation("ProjectFeedbackProject")
   memoryCandidates ProjectMemoryCandidate[] @relation("ProjectMemoryCandidateProject")
 
+  folders      ProjectFolder[]      @relation("ProjectFolders")
+  phaseCycles  ProjectPhaseCycle[]  @relation("ProjectPhaseCycles")
+  chatChannels ProjectChatChannel[] @relation("ProjectChatChannels")
+  chatMessages ProjectChatMessage[] @relation("ProjectChatMessages")
+
   @@index([workspaceId, status], map: "projects_workspace_status_idx")
+  @@index([workspaceId, lifecycleStage], map: "projects_workspace_lifecycle_idx")
 
   @@map("projects")
 }
@@ -817,6 +840,26 @@ model ProjectTask {
 
   workbenchRef String? @map("workbench_ref")
 
+  // ── 審核任務（PLN-075 S2 · Migration ②）──────────────────────────────────
+  /// TODO 與審核是同一張表的兩種 kind，不是兩張表：兩張表的話
+  /// 「這個里程碑還剩幾件事」必須 UNION 兩個來源，於是會有兩個答案。
+  kind         ProjectTaskKind     @default(TODO)
+  /// kind = REVIEW 才有意義。Profile.id；對不到人時留空，身分仍由 reviewerKey 保住
+  /// （抄 OperatingComment 的雙身分設計）。刻意不加外鍵，與 OperatingDayLog.actorId 一致。
+  reviewerId   String?             @map("reviewer_id") @db.Uuid
+  /// 席位字串（yz / lily）。工作台送上來的是席位，不是 uuid。
+  reviewerKey  String?             @map("reviewer_key")
+  reviewResult ProjectReviewState? @map("review_result")
+  reviewedAt   DateTime?           @map("reviewed_at")
+  reviewNote   String?             @map("review_note")
+
+  /// 直接掛在哪個里程碑。objectiveId 仍然存在（更細的分組），但不再是必要的中間層：
+  /// 「里程碑底下的 TODO」不該被迫先發明一個目標。
+  milestoneId  String?             @map("milestone_id") @db.Uuid
+  milestone    ProjectMilestone?   @relation("MilestoneTasks", fields: [milestoneId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, kind, status], map: "project_tasks_project_kind_status_idx")
+  @@index([milestoneId, kind], map: "project_tasks_milestone_kind_idx")
   @@map("project_tasks")
 }
 
@@ -870,9 +913,22 @@ model ProjectPhaseNode {
   createdAt  DateTime               @default(now()) @map("created_at")
   updatedAt  DateTime               @updatedAt @map("updated_at")
 
+  // ── 期（PLN-075 S2 · Migration ②）────────────────────────────────────────
+  /// 這個階段屬於哪一期。**必須可空**：v5 工作台的 `phases` 集合會繼續寫入
+  /// 沒有期的階段列，設成必填會讓既有寫入路徑當場壞掉（PLN-075 §S2 不可觸碰）。
+  phaseCycleId String?            @map("phase_cycle_id") @db.Uuid
+  phaseCycle   ProjectPhaseCycle? @relation("PhaseCycleStages", fields: [phaseCycleId], references: [id], onDelete: SetNull)
+  /// 期內順序（1,2,3…）。stageKind 可以重複（一期內「執行→驗收→執行→驗收」），
+  /// 所以階段在期內的身分是 ordinal 而不是 stageKind。
+  ordinal      Int?
+  /// 五格流程的種類。既有的 `phase`（ProjectPhase enum）是另一套詞彙，
+  /// 仍被 `Project.phase` 與工作台使用，不動它。
+  stageKind    ProjectStageKind?  @map("stage_kind")
+
   milestones ProjectMilestone[]
 
   @@index([projectId, startDate], map: "project_phase_nodes_project_start_idx")
+  @@index([phaseCycleId, ordinal], map: "project_phase_nodes_cycle_ordinal_idx")
   @@map("project_phase_nodes")
 }
 
@@ -895,11 +951,18 @@ model ProjectMilestone {
   /// 有了它，人事頁那一格才是算出來的；在這之前它是 payroll 草稿裡手打的數字。
   bonusAmount Int                     @default(0) @map("bonus_amount")
 
+  /// 交付夾（INTEGRATION-DECISION §5）：`20260411_M04_網站資源一版/` 成為 M04 的交付夾。
+  /// 這是**連結**，不是包含 —— 資料夾不會被搬進里程碑，刪掉里程碑也不該動到檔案。
+  folderId    String?                 @map("folder_id") @db.Uuid
+  folder      ProjectFolder?          @relation("MilestoneFolder", fields: [folderId], references: [id], onDelete: SetNull)
+
   objectives  ProjectObjective[]
+  tasks       ProjectTask[]           @relation("MilestoneTasks")
   createdAt   DateTime                @default(now()) @map("created_at")
   updatedAt   DateTime                @updatedAt @map("updated_at")
 
   @@index([phaseNodeId, date], map: "project_milestones_phase_node_date_idx")
+  @@index([folderId], map: "project_milestones_folder_idx")
   @@map("project_milestones")
 }
 
@@ -1670,6 +1733,13 @@ model Occasion {
   /// [{ t, done, dueOn?, taskId? }]
   prep           Json             @default("[]")
   recap          String?
+  // ── 會議（PLN-075 OD-D：擴充 Occasion，不另開 ProjectMeeting）─────────────
+  /// 會議資料夾。語意是「資料夾 ←→ 會議 1:1 連結」，所以是 @unique 而不是普通索引。
+  folderId       String?          @unique @map("folder_id") @db.Uuid
+  folder         ProjectFolder?   @relation("OccasionFolder", fields: [folderId], references: [id], onDelete: SetNull)
+  /// 會議「注意事項」。`recap` 已經是**結論**，兩者是不同的東西：
+  /// 結論是這場會議產出了什麼，注意事項是下一次要先知道的前提。
+  cautions       String?
   derivedFrom    String?          @map("derived_from")
   remind         String?
   createdAt      DateTime         @default(now()) @map("created_at")
@@ -2110,6 +2180,8 @@ model OperatingContract {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   terms        OperatingContractTerm[]
+  /// 一份合約通常就是一「期」（PLN-075 資源③）。
+  phaseCycles  ProjectPhaseCycle[]     @relation("ContractPhaseCycles")
 
   @@index([workspaceId, projectId], map: "operating_contracts_workspace_project_idx")
   @@index([workspaceId, workbenchRef], map: "operating_contracts_ref_idx")
@@ -2275,6 +2347,22 @@ model OperatingAsset {
   extractedText String?  @map("extracted_text")
   durationSec  Int?      @map("duration_sec")
   transcript   String?
+  // ── 專案雲端硬碟（PLN-075 OD-E：OperatingAsset 是專案檔案唯一的家）─────────
+  /// 專案範圍的檔案才有值。授權因此走得到 assertCanAccessProject，不只看 workspaceId。
+  /// 刻意不加外鍵：這張表自己的慣例就是不加（`workspace_id` 同），而且專案被刪除時
+  /// cascade 與 restrict 都不對 —— bytes 在 R2，該由孤兒清理處理，不是由 FK。
+  projectId    String?   @map("project_id") @db.Uuid
+  /// 在硬碟樹上的位置。null＝還沒接上專案硬碟的既有檔案（日誌／文件庫／金流三道門）。
+  /// 搬移只改這一欄，`objectKey` 永不變動 —— 這是把資料夾放在 DB 而不是 key 裡的回報。
+  folderId     String?   @map("folder_id") @db.Uuid
+  /// 被整理出收件匣的時刻。null＝待整理。
+  /// 另外存而不是只看 folderId：使用者把檔案又移回收件匣之後，
+  /// 「整理過沒有」這個問題仍然答得出來。
+  filedAt      DateTime? @map("filed_at")
+  /// { "thumb480": "operating/{ws}/derived/{assetId}/thumb-480.webp", "poster": "…" }
+  /// 衍生檔座標。形狀仍在演進（縮圖尺寸、影片 poster、PDF 首頁），先整包存。
+  derivatives  Json      @default("{}")
+
   deletedAt    DateTime? @map("deleted_at")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
@@ -2283,6 +2371,8 @@ model OperatingAsset {
   @@index([workspaceId, status], map: "operating_assets_workspace_status_idx")
   @@index([workspaceId, bornDay], map: "operating_assets_workspace_day_idx")
   @@index([workspaceId, workbenchRef], map: "operating_assets_ref_idx")
+  @@index([projectId, folderId, status], map: "operating_assets_project_folder_idx")
+  @@index([projectId, filedAt], map: "operating_assets_project_filed_idx")
   @@map("operating_assets")
 }
 
@@ -2428,4 +2518,359 @@ model TimeSpine {
   @@index([workspaceId, onDate], map: "time_spine_workspace_date_idx")
   @@index([workspaceId, track, onDate], map: "time_spine_workspace_track_idx")
   @@map("time_spine")
+}
+
+// ─── 專案工作區五大資源（PLN-075 S2 · Migration ①＋②）───────────────────────
+//
+// Owner 決策（PLN-075 §S0）在這一段的落點：
+//   OD-D 會議＝擴充 `Occasion` 加 `folderId?`，**不另開 ProjectMeeting**
+//   OD-E `OperatingAsset` 是專案檔案唯一的家，`FileAsset`／`MediaAsset` 完全不動
+//   OD-F 聊天室新建「一列一訊息」模型，`OperatingThread` 完全保留不動
+//
+// 全部 additive：沒有刪欄、沒有改必填、沒有改型別。
+
+/// 資料夾的用途。
+///
+/// 為什麼是 enum 而不是 `role: String`：enum 讓「哪些 kind 禁止對客戶可見」
+/// 這條規則在 schema 層就看得見，而 `check-migration-coverage.mjs` 會逐 enum 比對。
+/// 代價是新增一種資料夾要一次 migration —— `GENERIC` 已涵蓋 99% 的新需求。
+enum ProjectFolderKind {
+  /// 硬碟根。每個專案恰好一個，`isSystem = true`，`parentId = null`
+  ROOT
+  /// 收件匣。每個專案恰好一個；任何沒有指定資料夾的上傳都落這裡（OD-E／D-E）
+  INBOX
+  /// 一般資料夾
+  GENERIC
+  /// 提案（開案前）
+  PROPOSAL
+  /// 回簽合約／報價單。**禁止**被設為 CLIENT_VISIBLE
+  CONTRACT
+  /// 里程碑交付夾。由 `ProjectMilestone.folderId` 連結（是連結，不是包含）
+  MILESTONE
+  /// 一個資料夾＝一場會議。屬性在 `Occasion`（OD-D）
+  MEETING
+  /// 對客戶共用（Owner 既有慣例 `[共用]`）
+  SHARED
+  /// 內部不得提供客戶。**禁止**被設為 CLIENT_VISIBLE
+  INTERNAL
+  /// 修改需求 —— 下一期的入口（可綁 `ProjectPhaseCycle`）
+  REVISION
+  /// 素材庫
+  MATERIAL
+  /// 專案財務。預設 INTERNAL_ONLY
+  FINANCE
+  /// 聊天室附件落點
+  CHAT_DROP
+  /// LINE 媒體落點（OD-H：本階段不做，只留停用的佔位）
+  LINE_DROP
+
+  @@map("project_folder_kind")
+}
+
+/// 可見性是三級，不是兩級（INTEGRATION-DECISION §5）。
+///
+/// 第三級不是潔癖：`05/商城專案資訊.docx` 是明文帳號密碼。若它建了
+/// `OperatingAsset.extractedText`，任何有席位的人搜「密碼」就看得到 ——
+/// **資料夾權限擋不住全文搜尋**，所以「不建索引」必須是自己的一級。
+enum ProjectFolderVisibility {
+  /// 客戶可見
+  CLIENT_VISIBLE
+  /// 內部 · 禁對客戶（預設：對客戶一律 deny-by-default）
+  INTERNAL_ONLY
+  /// 最高敏感 · 不建全文索引
+  RESTRICTED_NO_INDEX
+
+  @@map("project_folder_visibility")
+}
+
+/// 階段的種類。既有的 `ProjectPhase`（DISCOVERY/PLANNING/EXECUTION/REVIEW/MAINTENANCE）
+/// 是另一套詞彙，仍被 `Project.phase` 與 v5 工作台的 `phases` 集合使用，不動它。
+enum ProjectStageKind {
+  PROPOSAL
+  CONTRACT
+  EXECUTION
+  ACCEPTANCE
+  CLOSING
+  /// 使用者自訂的流程格
+  CUSTOM
+
+  @@map("project_stage_kind")
+}
+
+/// 專案生命週期。`Project.lifecycleStage` 用它。
+enum ProjectLifecycleStage {
+  PROPOSING
+  CONTRACTED
+  EXECUTING
+  ACCEPTANCE
+  CLOSED
+
+  @@map("project_lifecycle_stage")
+}
+
+enum ProjectPhaseCycleStatus {
+  PLANNED
+  ACTIVE
+  ACCEPTED
+  CLOSED
+  CANCELLED
+
+  @@map("project_phase_cycle_status")
+}
+
+/// TODO 與審核是同一張表的兩種 kind，不是兩張表。
+enum ProjectTaskKind {
+  TODO
+  REVIEW
+
+  @@map("project_task_kind")
+}
+
+enum ProjectReviewState {
+  PENDING
+  IN_REVIEW
+  PASSED
+  CHANGES_REQUESTED
+  WAIVED
+
+  @@map("project_review_state")
+}
+
+enum ProjectChatChannelKind {
+  /// 專案主頻道
+  MAIN
+  /// 主題討論
+  TOPIC
+  /// LINE 群鏡射（唯讀；OD-H 本階段不接）
+  LINE_MIRROR
+  /// 客戶可見（未來 Client Portal 用；本階段不開）
+  CLIENT
+
+  @@map("project_chat_channel_kind")
+}
+
+enum ProjectChatOrigin {
+  /// 站內送出
+  APP
+  /// LINE bot 即時導入（OD-H 本階段不做）
+  LINE
+  /// LINE 匯出檔匯入的歷史
+  LINE_IMPORT
+  /// 系統訊息（階段完成、里程碑達成）
+  SYSTEM
+
+  @@map("project_chat_origin")
+}
+
+/// 專案雲端硬碟的資料夾。一棵樹、一個 `kind`、三級 `visibility`。
+///
+/// 為什麼每個專案一定有一個 ROOT 列：Postgres 的 UNIQUE 視 NULL 為互異，
+/// 所以 `@@unique([parentId, nameNormalized])` 擋不住兩個 `parentId = null` 的同名資料夾。
+/// 給每個專案一個真的根之後，其餘資料夾的 `parentId` 一律非空，同層同名才真的被擋下來。
+///
+/// 收件匣是**真資料夾**（`kind = INBOX`），不是虛擬視圖、不是旗標：
+/// 每個 asset 永遠恰好屬於一個 folderId，listing 只有一種形狀、麵包屑永遠畫得出來。
+model ProjectFolder {
+  id          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String                  @map("project_id") @db.Uuid
+  project     Project                 @relation("ProjectFolders", fields: [projectId], references: [id], onDelete: Cascade)
+  /// `OperatingAsset.workspaceId` 是 NOT NULL，而資料夾與夾內檔案必須同一個工作區，
+  /// 所以這裡也 NOT NULL。`Project.workspaceId` 是可空的 —— 啟用硬碟時由服務層的
+  /// `ensureProjectWorkspace()` 先把它補上，那是一個具名步驟，不是隱性副作用。
+  /// 與 operating_* 諸表一致地不加外鍵。
+  workspaceId String                  @map("workspace_id") @db.Uuid
+  /// 工作台的業務 id（`FLD-…`）。沒有它，讀取路徑就還原不回工作台需要的 id。
+  workbenchRef String?                @map("workbench_ref")
+
+  parentId    String?                 @map("parent_id") @db.Uuid
+  parent      ProjectFolder?          @relation("ProjectFolderTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children    ProjectFolder[]         @relation("ProjectFolderTree")
+
+  kind        ProjectFolderKind       @default(GENERIC)
+  visibility  ProjectFolderVisibility @default(INTERNAL_ONLY)
+  name        String
+  /// 小寫 ＋ NFC 正規化後的名字，只用來做同層唯一性。顯示一律用 `name`。
+  nameNormalized String               @map("name_normalized")
+  /// 具體化路徑 `/<rootId>/<id>/`：子樹查詢 startsWith，搬移一次 UPDATE ... LIKE。
+  /// 不用 ltree：Prisma 沒有該型別，整張表會退回 `Unsupported()` 與 raw query。
+  path        String                  @default("/")
+  depth       Int                     @default(0)
+  sortOrder   Int                     @default(0) @map("sort_order")
+  /// 系統資料夾（ROOT／INBOX／CHAT_DROP）：不可改名、不可刪除、不可搬移
+  isSystem    Boolean                 @default(false) @map("is_system")
+  /// team＝專案成員可見；personal＝只有建立者（與 `OperatingAsset.space` 同語意）
+  space       String                  @default("team")
+  /// Profile.id。對不到人時留空 —— 不加外鍵，與 operating_* 一致。
+  createdByProfileId String?          @map("created_by_profile_id") @db.Uuid
+  note        String?
+  /// 只軟刪：資料夾被引用過（里程碑交付夾、會議資料夾）就不能真的消失。
+  deletedAt   DateTime?               @map("deleted_at")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  milestones  ProjectMilestone[]      @relation("MilestoneFolder")
+  occasion    Occasion?               @relation("OccasionFolder")
+
+  @@unique([parentId, nameNormalized], map: "project_folders_sibling_name_unique")
+  @@index([projectId, kind], map: "project_folders_project_kind_idx")
+  @@index([projectId, path], map: "project_folders_project_path_idx")
+  @@index([workspaceId, workbenchRef], map: "project_folders_ref_idx")
+  @@map("project_folders")
+}
+
+/// 「期」：一個交付週期，通常對應一份合約（一期／二期／三期）。
+///
+/// 為什麼不是 `ProjectPhaseNode` 上的一個整數欄位：二期帶著自己的合約、預算與起訖，
+/// 那是一個實體。做成整數欄位的話這些東西會散在別處，再靠 cycleNo 串回來。
+/// 加一期＝插一列，不需要 migration、不需要改 enum。
+model ProjectPhaseCycle {
+  id          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String                  @map("project_id") @db.Uuid
+  project     Project                 @relation("ProjectPhaseCycles", fields: [projectId], references: [id], onDelete: Cascade)
+  workspaceId String?                 @map("workspace_id") @db.Uuid
+  workbenchRef String?                @map("workbench_ref")
+
+  /// 1, 2, 3 …。顯示成「一期」「二期」。
+  ordinal     Int
+  /// 使用者可覆寫的標籤（`二期：南區擴充`）。空＝依 ordinal 自動顯示。
+  title       String?
+  /// 這一期依據哪份合約。可空：提案階段還沒有合約。
+  contractId  String?                 @map("contract_id") @db.Uuid
+  contract    OperatingContract?      @relation("ContractPhaseCycles", fields: [contractId], references: [id], onDelete: SetNull)
+
+  /// 可空而不是 default 0：「這一期還沒編預算」與「這一期預算是 0」不是同一件事。
+  budgetAmount Int?                   @map("budget_amount")
+  startOn     DateTime?               @map("start_on") @db.Date
+  endOn       DateTime?               @map("end_on") @db.Date
+  status      ProjectPhaseCycleStatus @default(PLANNED)
+  note        String?
+  deletedAt   DateTime?               @map("deleted_at")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+
+  stages      ProjectPhaseNode[]      @relation("PhaseCycleStages")
+
+  @@unique([projectId, ordinal], map: "project_phase_cycles_project_ordinal_unique")
+  @@index([projectId, status], map: "project_phase_cycles_project_status_idx")
+  @@index([workspaceId, workbenchRef], map: "project_phase_cycles_ref_idx")
+  @@map("project_phase_cycles")
+}
+
+/// 專案聊天室的頻道。
+///
+/// 為什麼需要頻道這一層：每個綁定的 LINE 群要變成同一個閱讀器裡的一個頻道
+/// （`kind = LINE_MIRROR`），才能與站內訊息共用同一種訊息形狀、同一個附件管線、
+/// 同一套權限。沒有頻道層，LINE 就得另造一套訊息表。
+model ProjectChatChannel {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String                 @map("project_id") @db.Uuid
+  project     Project                @relation("ProjectChatChannels", fields: [projectId], references: [id], onDelete: Cascade)
+  workspaceId String?                @map("workspace_id") @db.Uuid
+  workbenchRef String?               @map("workbench_ref")
+
+  kind        ProjectChatChannelKind @default(TOPIC)
+  name        String
+  topic       String?
+  /// LINE_MIRROR 一律 true：站內不回傳訊息到 LINE。
+  isReadOnly  Boolean                @default(false) @map("is_read_only")
+  isArchived  Boolean                @default(false) @map("is_archived")
+  sortOrder   Int                    @default(0) @map("sort_order")
+  /// 衍生計數，由服務層單一 writer 維護（與 TimeSpine 同模式）。
+  messageCount Int                   @default(0) @map("message_count")
+  lastMessageAt DateTime?            @map("last_message_at")
+  /// 附件落點（`kind = CHAT_DROP` 的資料夾）。可空＝附件直接落 INBOX。
+  dropFolderId String?               @map("drop_folder_id") @db.Uuid
+  createdByProfileId String?         @map("created_by_profile_id") @db.Uuid
+  deletedAt   DateTime?              @map("deleted_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  messages    ProjectChatMessage[]   @relation("ChannelMessages")
+
+  @@index([projectId, kind, isArchived], map: "project_chat_channels_project_kind_idx")
+  @@index([workspaceId, workbenchRef], map: "project_chat_channels_ref_idx")
+  @@map("project_chat_channels")
+}
+
+/// **一列一訊息**（OD-F）。
+///
+/// 為什麼不是 `OperatingThread.messages Json`：Json 陣列代表每送一則訊息重寫整列，
+/// 兩人同時講話會互相覆蓋；而且每則訊息沒有自己的 id，就無法回覆特定訊息、
+/// 無法掛附件外鍵、無法被 @ 引用、無法建索引搜尋。`OperatingThread` 保留不動。
+///
+/// 欄位形狀抄 `OperatingComment`：`authorProfileId` ＋ `authorKey` 雙身分、
+/// `replyToId`、`meta Json`、`deletedAt` 軟刪（被引用過就不能真的消失）。
+model ProjectChatMessage {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channelId   String             @map("channel_id") @db.Uuid
+  channel     ProjectChatChannel @relation("ChannelMessages", fields: [channelId], references: [id], onDelete: Cascade)
+  /// 去正規化，讓「這個專案所有訊息」與授權檢查不必 join。
+  projectId   String             @map("project_id") @db.Uuid
+  project     Project            @relation("ProjectChatMessages", fields: [projectId], references: [id], onDelete: Cascade)
+  workspaceId String?            @map("workspace_id") @db.Uuid
+  workbenchRef String?           @map("workbench_ref")
+
+  /// Profile.id；對不到人時留空，身分仍由 authorKey／authorExternalRef 保住。
+  authorProfileId String?        @map("author_profile_id") @db.Uuid
+  /// 席位字串（yz / lily）
+  authorKey   String?            @map("author_key")
+  /// LINE userId 或匯出檔裡的顯示名稱 —— 對不到站內身分的外部作者
+  authorExternalRef String?      @map("author_external_ref")
+  authorDisplayName String?      @map("author_display_name")
+
+  origin      ProjectChatOrigin  @default(APP)
+  /// 外部唯一鍵：LINE 的 messageId，或匯入檔的 sha256(時間|作者|內容)。去重用。
+  externalRef String?            @map("external_ref")
+
+  body        String
+  /// text | image | video | audio | file | sticker | location | system
+  messageType String             @default("text") @map("message_type")
+  /// 匯出檔的占位訊息（`[照片]`）—— 有訊息但永遠沒有 bytes
+  isPlaceholder Boolean          @default(false) @map("is_placeholder")
+  /// 匯入的歷史（UI 以分隔線與底色區分）
+  isHistorical Boolean           @default(false) @map("is_historical")
+
+  replyToId   String?            @map("reply_to_id") @db.Uuid
+  replyTo     ProjectChatMessage?  @relation("ChatMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     ProjectChatMessage[] @relation("ChatMessageReplies")
+
+  /// @ 到的人（Profile.id）與引用到的物件 refCode。形狀仍在演進，先整包存。
+  mentions    Json               @default("[]")
+  /// { lineQuotedMessageId, lineStickerId, importLineNo, … } 來源細節
+  meta        Json               @default("{}")
+
+  /// 真正發生的時刻（LINE timestamp／匯出檔的時間），與 createdAt 可能不同天。
+  sentAt      DateTime           @map("sent_at")
+  editedAt    DateTime?          @map("edited_at")
+  deletedAt   DateTime?          @map("deleted_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  attachments ProjectChatAttachment[] @relation("MessageAttachments")
+
+  @@unique([channelId, externalRef], map: "project_chat_messages_channel_external_unique")
+  @@index([channelId, sentAt], map: "project_chat_messages_channel_time_idx")
+  @@index([projectId, sentAt], map: "project_chat_messages_project_time_idx")
+  @@index([replyToId], map: "project_chat_messages_reply_idx")
+  @@index([workspaceId, workbenchRef], map: "project_chat_messages_ref_idx")
+  @@map("project_chat_messages")
+}
+
+/// 訊息 ↔ 檔案。
+///
+/// 為什麼不是 `assetIds String[]`：反向查詢（「這個檔案在哪些訊息被提到」）是
+/// 物件索引與檔案詳細抽屜都要的功能，而 Postgres 的陣列包含查詢需要 GIN 索引，
+/// Prisma 宣告不了。`assetId` 不加外鍵，與 `OperatingAsset` 整張表的慣例一致。
+model ProjectChatAttachment {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId String             @map("message_id") @db.Uuid
+  message   ProjectChatMessage @relation("MessageAttachments", fields: [messageId], references: [id], onDelete: Cascade)
+  /// OperatingAsset.id
+  assetId   String             @map("asset_id") @db.Uuid
+  sortOrder Int                @default(0) @map("sort_order")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  @@unique([messageId, assetId], map: "project_chat_attachments_unique")
+  @@index([assetId], map: "project_chat_attachments_asset_idx")
+  @@map("project_chat_attachments")
 }

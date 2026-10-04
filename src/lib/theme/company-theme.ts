@@ -142,6 +142,9 @@ const BLACK: V5Palette = {
   "--scroll-thumb": "#2a313a",
   "--scroll-thumb-hover": "#3a424d",
   "--shadow": "0 18px 44px rgba(0, 0, 0, 0.55)",
+  /* 覆蓋層背幕（抽屜／彈窗）。先前每個覆蓋層各自寫死 rgba，淺色佈景下會過黑；
+     收斂成語意 token 後，白／橘佈景可以用較淺的背幕。見 ARC-043 §3。 */
+  "--scrim": "rgba(4, 6, 9, 0.62)",
   // ── 需要與亮底文字對比的強調色底 ──
   "--on-pri": "#07121b",
   "--on-danger": "#1a0e0d",
@@ -244,6 +247,7 @@ const WHITE: V5Palette = {
   "--scroll-thumb": "#cfd3d8",
   "--scroll-thumb-hover": "#aeb5bd",
   "--shadow": "0 14px 36px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)",
+  "--scrim": "rgba(22, 24, 28, 0.42)",
   // ── 需要與亮底文字對比的強調色底（亮色佈景） ──
   "--on-pri": "#ffffff",
   "--on-danger": "#ffffff",

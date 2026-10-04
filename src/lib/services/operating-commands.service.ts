@@ -61,6 +61,20 @@ function rowUuid(collection: PersistedCollection, id: string): string {
   return deterministicUuid(WORKSPACE_SLUG, collection, id)
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * 工作台送上來的 id 可能是業務 id（`FLD-…`），也可能本來就是主鍵。
+ *
+ * 後者只發生在「伺服器自己建的列」：專案硬碟的 ROOT／INBOX 由
+ * `ensureProjectRootAndInbox()` 以隨機 UUID 建立、沒有 workbenchRef，讀取路徑只能把
+ * 主鍵原樣交給工作台。那一列之後被改名或被當成 parent 時，再套一次 UUIDv5 會算出
+ * 另一個主鍵，於是同一個資料夾變成兩列。所以長得像 UUID 的就原樣使用。
+ */
+export function resolveWorkbenchRowId(collection: PersistedCollection, ref: string): string {
+  return UUID_PATTERN.test(ref) ? ref.toLowerCase() : rowUuid(collection, ref)
+}
+
 /* ------------------------------------------------------------------ */
 /* workspace 與席位                                                    */
 /* ------------------------------------------------------------------ */
@@ -218,6 +232,21 @@ async function lockedMonth(ctx: ApplyContext, ...dates: Array<Date | null | unde
   return null
 }
 
+async function savedProjectIdOrNull(ref: string | null): Promise<string | null> {
+  if (!ref) return null
+  const id = resolveWorkbenchRowId("projects", ref)
+  const row = await db.project.findUnique({ where: { id }, select: { id: true } })
+  return row ? row.id : null
+}
+
+/** 只認同一個工作區、而且沒被刪掉的資料夾。 */
+async function savedFolderIdOrNull(ref: string | null, workspaceId: string): Promise<string | null> {
+  if (!ref) return null
+  const id = resolveWorkbenchRowId("folders", ref)
+  const row = await db.projectFolder.findFirst({ where: { id, workspaceId, deletedAt: null }, select: { id: true } })
+  return row ? row.id : null
+}
+
 async function applyOccasion(change: RowChange, ctx: ApplyContext): Promise<void> {
   const id = rowUuid("occasions", change.id)
 
@@ -244,6 +273,13 @@ async function applyOccasion(change: RowChange, ctx: ApplyContext): Promise<void
     recap: str(row.recap),
     derivedFrom: str(row.derivedFrom),
     remind: str(row.remind),
+    // 會議（PLN-075 OD-D）：連結的專案、會議資料夾、外部與會者、注意事項。
+    // 專案與資料夾對不到已保存的列時留空而不是拒絕整筆 —— 活動本身仍然成立，
+    // 少的只是那條連結。
+    projectId: await savedProjectIdOrNull(str(row.projectId)),
+    folderId: await savedFolderIdOrNull(str(row.folderId), ctx.workspaceId),
+    externalGuests: str(row.guests),
+    cautions: str(row.cautions),
   }
 
   await db.occasion.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
@@ -350,6 +386,20 @@ const TASK_STATUS_MAP: Record<string, "TODO" | "IN_PROGRESS" | "DONE" | "BLOCKED
   Done: "DONE",
 }
 
+/** TODO 與審核是同一張表的兩種 kind。看不懂的值退回 TODO。 */
+function toTaskKind(value: unknown): "TODO" | "REVIEW" {
+  return typeof value === "string" && value.toUpperCase() === "REVIEW" ? "REVIEW" : "TODO"
+}
+
+const REVIEW_STATES = ["PENDING", "IN_REVIEW", "PASSED", "CHANGES_REQUESTED", "WAIVED"] as const
+type ReviewState = (typeof REVIEW_STATES)[number]
+
+/** 審核結果。空值要留 null —— 「還沒審」與「審過但待補」不是同一件事。 */
+function toReviewState(value: unknown): ReviewState | null {
+  const upper = typeof value === "string" ? value.toUpperCase() : ""
+  return (REVIEW_STATES as readonly string[]).includes(upper) ? (upper as ReviewState) : null
+}
+
 function toJson(value: unknown, fallback: Prisma.InputJsonValue): Prisma.InputJsonValue {
   return (value === undefined || value === null ? fallback : value) as Prisma.InputJsonValue
 }
@@ -398,7 +448,7 @@ async function applyProject(change: RowChange, ctx: ApplyContext): Promise<void>
   })
 }
 
-async function applyIssue(change: RowChange, _ctx: ApplyContext): Promise<void> {
+async function applyIssue(change: RowChange, ctx: ApplyContext): Promise<void> {
   const id = rowUuid("issues", change.id)
 
   if (change.op === "delete") {
@@ -415,10 +465,40 @@ async function applyIssue(change: RowChange, _ctx: ApplyContext): Promise<void> 
   // 工作項不先於專案存在。缺專案就讓這一筆被拒，而不是造一個空殼專案出來。
   if (!exists) throw new Error(`issue ${change.id} references a project that is not saved yet`)
 
+  // 直接掛里程碑（PLN-075 S2）：「里程碑底下的 TODO」不該被迫先發明一個目標。
+  // objectiveId 仍然存在，但不再是必要的中間層。
+  const milestoneRef = str(row.msId)
+  let milestoneId: string | null = null
+  if (milestoneRef) {
+    milestoneId = rowUuid("milestones", milestoneRef)
+    const milestone = await db.projectMilestone.findUnique({ where: { id: milestoneId }, select: { id: true } })
+    if (!milestone) throw new Error(`issue ${change.id} references a milestone that is not saved yet`)
+  }
+
+  // 目標（里程碑底下更細的分組）。對不到已保存的目標時留空，工作本身照存。
+  const objectiveRef = str(row.objectiveId)
+  let objectiveId: string | null = null
+  if (objectiveRef) {
+    const candidate = rowUuid("objectives", objectiveRef)
+    const objective = await db.projectObjective.findUnique({ where: { id: candidate }, select: { id: true } })
+    objectiveId = objective ? objective.id : null
+  }
+
+  const reviewerKey = str(row.reviewer)
   const operatingStatus = str(row.st) ?? "Todo"
   const data = {
     projectId,
+    objectiveId,
     title: str(row.t) ?? "（未命名）",
+    // 審核任務（Migration ②）。欄位缺席時落在預設 TODO ／ null，
+    // 所以既有工作台送上來的舊形狀列不會因此改變語意。
+    kind: toTaskKind(row.kind),
+    milestoneId,
+    reviewerId: (reviewerKey ? ctx.actors.get(reviewerKey) : undefined) ?? null,
+    reviewerKey,
+    reviewResult: toReviewState(row.reviewResult),
+    reviewedAt: toInstant(row.reviewedAt),
+    reviewNote: str(row.reviewNote),
     status: TASK_STATUS_MAP[operatingStatus] ?? ("TODO" as const),
     operatingStatus,
     priority: Number.isFinite(Number(row.pri)) ? Math.trunc(Number(row.pri)) : 2,
@@ -538,6 +618,15 @@ async function ensureDefaultPhase(projectId: string): Promise<string> {
   return id
 }
 
+const STAGE_KINDS = ["PROPOSAL", "CONTRACT", "EXECUTION", "ACCEPTANCE", "CLOSING", "CUSTOM"] as const
+type StageKind = (typeof STAGE_KINDS)[number]
+
+/** 五格流程的種類。舊形狀的階段列沒有這一欄，留 null。 */
+function toStageKind(value: unknown): StageKind | null {
+  const upper = typeof value === "string" ? value.toUpperCase() : ""
+  return (STAGE_KINDS as readonly string[]).includes(upper) ? (upper as StageKind) : null
+}
+
 async function applyPhase(change: RowChange, _ctx: ApplyContext): Promise<void> {
   const id = rowUuid("phases", change.id)
   if (change.op === "delete") {
@@ -552,6 +641,17 @@ async function applyPhase(change: RowChange, _ctx: ApplyContext): Promise<void> 
   const exists = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
   if (!exists) throw new Error(`phase ${change.id} references a project that is not saved yet`)
 
+  // 期（PLN-075）。可空是硬規定：v5 既有的階段列沒有期，照樣要寫得進來。
+  const cycleRef = str(row.cycleId)
+  let phaseCycleId: string | null = null
+  if (cycleRef) {
+    const candidate = rowUuid("phaseCycles", cycleRef)
+    const cycle = await db.projectPhaseCycle.findUnique({ where: { id: candidate }, select: { id: true, projectId: true } })
+    // 期與階段必須同一個專案；對不上就當作沒有期，不把階段掛到別人的期底下。
+    phaseCycleId = cycle && cycle.projectId === projectId ? cycle.id : null
+  }
+  const ordinal = Math.trunc(Number(row.ordinal))
+
   const start = toDateOnly(row.startOn) ?? new Date()
   const data = {
     projectId,
@@ -559,11 +659,14 @@ async function applyPhase(change: RowChange, _ctx: ApplyContext): Promise<void> 
     label: str(row.label) ?? "（未命名階段）",
     startDate: start,
     endDate: toDateOnly(row.endOn) ?? start,
+    phaseCycleId,
+    ordinal: Number.isFinite(ordinal) && ordinal > 0 ? ordinal : null,
+    stageKind: toStageKind(row.stageKind),
   }
   await db.projectPhaseNode.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
-async function applyMilestone(change: RowChange, _ctx: ApplyContext): Promise<void> {
+async function applyMilestone(change: RowChange, ctx: ApplyContext): Promise<void> {
   const id = rowUuid("milestones", change.id)
   if (change.op === "delete") {
     await removeSpine(db, "project_milestones", id)
@@ -590,6 +693,10 @@ async function applyMilestone(change: RowChange, _ctx: ApplyContext): Promise<vo
     derivedFrom: str(row.derivedFrom),
     remind: str(row.remind),
     bonusAmount: Math.max(0, toAmount(row.bonus)),
+    // 已達成／進行中。之前沒有寫進來，重整後每個里程碑都回到「進行中」。
+    status: row.state === "done" ? ("COMPLETED" as const) : ("UPCOMING" as const),
+    // 交付夾是連結不是包含：資料夾不會被搬進里程碑。
+    folderId: await savedFolderIdOrNull(str(row.folderId), ctx.workspaceId),
   }
   await db.projectMilestone.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
   await syncMilestone(db, id)
@@ -1307,6 +1414,371 @@ async function applyCashAssumption(change: RowChange, ctx: ApplyContext): Promis
   })
 }
 
+/* ------------------------------------------------------------------ */
+/* PLN-075 S2：專案工作區五大資源                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 專案必須先存下來。
+ *
+ * 與 applyIssue／applyPhase 同一條規則：缺專案就讓這一筆被拒，
+ * 而不是造一個空殼專案出來 —— 空殼專案會出現在清單裡，而且沒有人記得它為什麼存在。
+ */
+async function requireSavedProject(ref: string | null, what: string, rowId: string): Promise<string> {
+  if (!ref) throw new Error(`${what} ${rowId} has no project`)
+  const projectId = rowUuid("projects", ref)
+  const exists = await db.project.findUnique({ where: { id: projectId }, select: { id: true } })
+  if (!exists) throw new Error(`${what} ${rowId} references a project that is not saved yet`)
+  return projectId
+}
+
+const FOLDER_KINDS = [
+  "ROOT", "INBOX", "GENERIC", "PROPOSAL", "CONTRACT", "MILESTONE", "MEETING",
+  "SHARED", "INTERNAL", "REVISION", "MATERIAL", "FINANCE", "CHAT_DROP", "LINE_DROP",
+] as const
+type FolderKind = (typeof FOLDER_KINDS)[number]
+
+function toFolderKind(value: unknown): FolderKind {
+  const upper = typeof value === "string" ? value.toUpperCase() : ""
+  return (FOLDER_KINDS as readonly string[]).includes(upper) ? (upper as FolderKind) : "GENERIC"
+}
+
+const FOLDER_VISIBILITIES = ["CLIENT_VISIBLE", "INTERNAL_ONLY", "RESTRICTED_NO_INDEX"] as const
+type FolderVisibility = (typeof FOLDER_VISIBILITIES)[number]
+
+/**
+ * 對客戶一律 deny-by-default：看不懂的值退回 INTERNAL_ONLY，不是 CLIENT_VISIBLE。
+ *
+ * CONTRACT 與 INTERNAL 兩種資料夾永遠不可能對客戶可見，而那條規則在這裡強制，
+ * 不是在介面上用停用的選項暗示 —— 介面擋得住滑鼠，擋不住重送一次請求。
+ */
+function toFolderVisibility(value: unknown, kind: FolderKind): FolderVisibility {
+  const upper = typeof value === "string" ? value.toUpperCase() : ""
+  const parsed = (FOLDER_VISIBILITIES as readonly string[]).includes(upper)
+    ? (upper as FolderVisibility)
+    : "INTERNAL_ONLY"
+  if (parsed === "CLIENT_VISIBLE" && (kind === "CONTRACT" || kind === "INTERNAL")) return "INTERNAL_ONLY"
+  return parsed
+}
+
+const FOLDER_VISIBILITY_RANK: Record<FolderVisibility, number> = {
+  CLIENT_VISIBLE: 0,
+  INTERNAL_ONLY: 1,
+  RESTRICTED_NO_INDEX: 2,
+}
+
+/** 兩者取較嚴的那一級。上層沒有（根）時原樣回傳。 */
+function stricterVisibility(own: FolderVisibility, parent: FolderVisibility | null | undefined): FolderVisibility {
+  if (!parent) return own
+  return FOLDER_VISIBILITY_RANK[parent] > FOLDER_VISIBILITY_RANK[own] ? parent : own
+}
+
+/** 同層唯一性比對用的名字：NFC ＋ 去頭尾空白 ＋ 小寫。顯示一律用原字串。 */
+function normalizeFolderName(name: string): string {
+  return name.normalize("NFC").trim().toLowerCase()
+}
+
+/**
+ * 資料夾樹的一列。
+ *
+ * 刪除一律軟刪：資料夾被里程碑交付夾（ProjectMilestone.folderId）或會議
+ * （Occasion.folderId）引用過，硬刪會讓那一頭指向空白。
+ *
+ * 搬移時子孫的 path／depth 在同一個處理器裡以一條子樹 UPDATE 重寫（見函式結尾）。
+ */
+async function applyProjectFolder(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = resolveWorkbenchRowId("folders", change.id)
+
+  if (change.op === "delete") {
+    await db.projectFolder.updateMany({
+      where: { id, workspaceId: ctx.workspaceId },
+      data: { deletedAt: new Date() },
+    })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectId = await requireSavedProject(str(row.projectId), "folder", change.id)
+
+  const parentRef = str(row.parentId)
+  const parentId = parentRef ? resolveWorkbenchRowId("folders", parentRef) : null
+  const parent = parentId
+    ? await db.projectFolder.findUnique({
+        where: { id: parentId },
+        select: { path: true, depth: true, visibility: true, projectId: true },
+      })
+    : null
+  if (parentRef && !parent) throw new Error(`folder ${change.id} references a parent that is not saved yet`)
+  if (parent && parent.projectId !== projectId) {
+    throw new ForbiddenChangeError("上層資料夾不屬於這個專案。")
+  }
+
+  const existing = await db.projectFolder.findUnique({ where: { id }, select: { path: true, depth: true } })
+  // 搬進自己的子樹會讓整棵樹斷成一個環：路徑互相包含，沒有一列走得回根。
+  if (existing && parent && parent.path.startsWith(existing.path)) {
+    throw new ForbiddenChangeError("不能把資料夾搬進它自己底下。")
+  }
+
+  const kind = toFolderKind(row.kind)
+  const name = str(row.name) ?? "（未命名資料夾）"
+  const authorKey = str(row.author)
+
+  // 每個專案恰好一個 ROOT、一個 INBOX。上傳路徑的 ensureProjectRootAndInbox() 也會建
+  // 這兩列，兩條路撞在一起時收件匣會變成「其中一個收件匣」，所有落點邏輯跟著失真。
+  if (kind === "ROOT" || kind === "INBOX") {
+    const twin = await db.projectFolder.findFirst({
+      where: { projectId, kind, deletedAt: null, id: { not: id } },
+      select: { id: true },
+    })
+    if (twin) throw new ForbiddenChangeError("這個專案已經有專案硬碟了，請重新整理後再試。")
+  }
+
+  const data = {
+    projectId,
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    parentId,
+    kind,
+    // 子資料夾不能比上層更寬。介面本來就不會送出這種值；這裡是為了重送與併發時
+    // 仍然成立 —— 而且是收緊，不是拒絕：對客戶一律 deny-by-default。
+    visibility: stricterVisibility(toFolderVisibility(row.visibility, kind), parent?.visibility),
+    name,
+    nameNormalized: normalizeFolderName(name),
+    // 路徑由伺服器算，不採用前端送來的值：路徑錯了，整棵子樹的查詢都會錯。
+    path: `${parent ? parent.path : "/"}${id}/`,
+    depth: parent ? parent.depth + 1 : 0,
+    sortOrder: Number.isFinite(Number(row.sortOrder)) ? Math.trunc(Number(row.sortOrder)) : 0,
+    // ROOT 與 INBOX 永遠是系統資料夾，無論前端怎麼送。
+    isSystem: row.isSystem === true || kind === "ROOT" || kind === "INBOX",
+    space: str(row.space) === "personal" ? "personal" : "team",
+    createdByProfileId: (authorKey ? ctx.actors.get(authorKey) : undefined) ?? null,
+    note: str(row.note),
+    // 重新出現在工作台的 store 裡＝使用者把它救回來了。
+    deletedAt: null,
+  }
+
+  await db.projectFolder.upsert({ where: { id }, create: { id, ...data }, update: data })
+
+  // 搬移：子孫的 path／depth 用一條 SQL 一起重寫（與 project-drive.service 的
+  // moveProjectFolder 同一個做法）。逐列更新會在半途被任何一個錯誤切成「一半在新前綴、
+  // 一半在舊前綴」—— 樹看起來是對的（介面讀 parentId），只有以前綴做的子樹查詢會算錯。
+  if (existing && existing.path !== data.path) {
+    await db.$executeRaw(Prisma.sql`
+      UPDATE project_folders
+         SET path = ${data.path} || substr(path, ${existing.path.length + 1}::int),
+             depth = depth + ${data.depth - existing.depth}::int,
+             updated_at = now()
+       WHERE project_id = ${projectId}::uuid
+         AND id <> ${id}::uuid
+         AND path LIKE ${existing.path + "%"}
+    `)
+  }
+}
+
+const CYCLE_STATUSES = ["PLANNED", "ACTIVE", "ACCEPTED", "CLOSED", "CANCELLED"] as const
+type CycleStatus = (typeof CYCLE_STATUSES)[number]
+
+function toCycleStatus(value: unknown): CycleStatus {
+  const upper = typeof value === "string" ? value.toUpperCase() : ""
+  return (CYCLE_STATUSES as readonly string[]).includes(upper) ? (upper as CycleStatus) : "PLANNED"
+}
+
+/**
+ * 「期」的一列。
+ *
+ * 刪除是硬刪而不是軟刪：階段的 phase_cycle_id 是 ON DELETE SET NULL，所以硬刪之後
+ * 階段會回到「沒有期」的狀態，也就是 v5 既有 `phases` 集合本來的樣子。
+ * 軟刪反而會讓階段繼續指著一個看不見的期，於是「這個階段屬於哪一期」有兩個答案。
+ */
+async function applyPhaseCycle(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("phaseCycles", change.id)
+
+  if (change.op === "delete") {
+    await db.projectPhaseCycle.deleteMany({ where: { id } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectId = await requireSavedProject(str(row.projectId), "phase cycle", change.id)
+
+  const ordinal = Math.trunc(Number(row.ordinal))
+  // 期數是它的身分（@@unique([projectId, ordinal])）。猜一個會把兩期併成一期。
+  if (!Number.isFinite(ordinal) || ordinal < 1) {
+    throw new Error(`phase cycle ${change.id} has no usable ordinal`)
+  }
+
+  const contractRef = str(row.contractId)
+  let contractId: string | null = null
+  if (contractRef) {
+    contractId = rowUuid("contracts", contractRef)
+    const contract = await db.operatingContract.findUnique({ where: { id: contractId }, select: { id: true } })
+    if (!contract) throw new Error(`phase cycle ${change.id} references a contract that is not saved yet`)
+  }
+
+  const budget = Number(row.budget)
+  const data = {
+    projectId,
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    ordinal,
+    title: str(row.title),
+    contractId,
+    // 可空：「還沒編預算」與「預算是 0」不是同一件事，所以空值不折成 0。
+    budgetAmount: Number.isFinite(budget) ? Math.trunc(budget) : null,
+    startOn: toDateOnly(row.startOn),
+    endOn: toDateOnly(row.endOn),
+    status: toCycleStatus(row.status),
+    note: str(row.note),
+    deletedAt: null,
+  }
+
+  await db.projectPhaseCycle.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+const CHANNEL_KINDS = ["MAIN", "TOPIC", "LINE_MIRROR", "CLIENT"] as const
+type ChannelKind = (typeof CHANNEL_KINDS)[number]
+
+function toChannelKind(value: unknown): ChannelKind {
+  const upper = typeof value === "string" ? value.toUpperCase() : ""
+  return (CHANNEL_KINDS as readonly string[]).includes(upper) ? (upper as ChannelKind) : "TOPIC"
+}
+
+const CHAT_ORIGINS = ["APP", "LINE", "LINE_IMPORT", "SYSTEM"] as const
+type ChatOrigin = (typeof CHAT_ORIGINS)[number]
+
+function toChatOrigin(value: unknown): ChatOrigin {
+  const upper = typeof value === "string" ? value.toUpperCase() : ""
+  return (CHAT_ORIGINS as readonly string[]).includes(upper) ? (upper as ChatOrigin) : "APP"
+}
+
+/**
+ * 聊天室頻道。
+ *
+ * 刪除是軟刪：頻道的訊息是 ON DELETE CASCADE，硬刪會連同整段對話一起消失，
+ * 而對話是「專案發生了什麼」的主要證據。
+ */
+async function applyChatChannel(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("chatChannels", change.id)
+
+  if (change.op === "delete") {
+    await db.projectChatChannel.updateMany({
+      where: { id, workspaceId: ctx.workspaceId },
+      data: { deletedAt: new Date(), isArchived: true },
+    })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const projectId = await requireSavedProject(str(row.projectId), "chat channel", change.id)
+
+  const kind = toChannelKind(row.kind)
+  const dropRef = str(row.dropFolderId)
+  const authorKey = str(row.author)
+
+  const data = {
+    projectId,
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    kind,
+    name: str(row.name) ?? "（未命名頻道）",
+    topic: str(row.topic),
+    // LINE 鏡射一律唯讀：站內不回傳訊息到 LINE（OD-H 本階段不接 LINE）。
+    isReadOnly: kind === "LINE_MIRROR" ? true : row.readOnly === true,
+    isArchived: row.archived === true,
+    sortOrder: Number.isFinite(Number(row.sortOrder)) ? Math.trunc(Number(row.sortOrder)) : 0,
+    dropFolderId: await savedFolderIdOrNull(dropRef, ctx.workspaceId),
+    createdByProfileId: (authorKey ? ctx.actors.get(authorKey) : undefined) ?? null,
+    deletedAt: null,
+  }
+
+  await db.projectChatChannel.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
+/**
+ * 一列一訊息（OD-F）。
+ *
+ * `projectId` 取自頻道，不取前端送來的值：訊息的授權範圍由頻道決定，
+ * 讓客戶端自己宣告專案等於讓它自己宣告授權。
+ *
+ * 刪除是軟刪（抄 OperatingComment 的理由）：訊息被回覆或被 @ 引用過就不能真的消失，
+ * 否則指向它的那一頭會變成空白。
+ */
+async function applyChatMessage(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("chatMessages", change.id)
+
+  if (change.op === "delete") {
+    // delete 沒有 after，所以頻道要先從既有列讀回來 —— 否則計數不會被重算。
+    const existing = await db.projectChatMessage.findUnique({ where: { id }, select: { channelId: true } })
+    await db.projectChatMessage.updateMany({
+      where: { id, workspaceId: ctx.workspaceId },
+      data: { deletedAt: new Date() },
+    })
+    if (existing) await syncChannelCounters(existing.channelId)
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const channelRef = str(row.channelId)
+  if (!channelRef) throw new Error(`chat message ${change.id} has no channel`)
+  const channelId = rowUuid("chatChannels", channelRef)
+  const channel = await db.projectChatChannel.findUnique({
+    where: { id: channelId },
+    select: { id: true, projectId: true, isReadOnly: true },
+  })
+  if (!channel) throw new Error(`chat message ${change.id} references a channel that is not saved yet`)
+  // 唯讀頻道（LINE 鏡射）只能由匯入／webhook 寫入，不能從站內送訊息進去。
+  if (channel.isReadOnly && toChatOrigin(row.origin) === "APP") {
+    throw new ForbiddenChangeError("這個頻道是唯讀的鏡射，站內不能往裡面發訊息。")
+  }
+
+  const authorKey = str(row.w) ?? str(row.author)
+  const replyRef = str(row.replyTo)
+
+  const data = {
+    channelId,
+    projectId: channel.projectId,
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    authorProfileId: (authorKey ? ctx.actors.get(authorKey) : undefined) ?? null,
+    authorKey,
+    authorExternalRef: str(row.externalAuthor),
+    authorDisplayName: str(row.authorName),
+    origin: toChatOrigin(row.origin),
+    externalRef: str(row.externalRef),
+    body: str(row.text) ?? "",
+    messageType: str(row.type) ?? "text",
+    isPlaceholder: row.placeholder === true,
+    isHistorical: row.historical === true,
+    replyToId: replyRef ? rowUuid("chatMessages", replyRef) : null,
+    mentions: toJson(row.mentions, []),
+    meta: toJson(row.meta, {}),
+    // 真正發生的時刻。工作台沒送時用現在 —— 訊息沒有時間就排不進對話。
+    sentAt: toInstant(row.at) ?? new Date(),
+    editedAt: toInstant(row.editedAt),
+    deletedAt: null,
+  }
+
+  await db.projectChatMessage.upsert({ where: { id }, create: { id, ...data }, update: data })
+  await syncChannelCounters(channelId)
+}
+
+/** 頻道的衍生計數由服務層單一 writer 維護（與 TimeSpine 同模式），不信任客戶端送的數字。 */
+async function syncChannelCounters(channelId: string): Promise<void> {
+  const channel = await db.projectChatChannel.findUnique({ where: { id: channelId }, select: { id: true } })
+  if (!channel) return
+
+  const messageCount = await db.projectChatMessage.count({ where: { channelId, deletedAt: null } })
+  const latest = await db.projectChatMessage.findFirst({
+    where: { channelId, deletedAt: null },
+    orderBy: { sentAt: "desc" },
+    select: { sentAt: true },
+  })
+  await db.projectChatChannel.update({
+    where: { id: channelId },
+    data: { messageCount, lastMessageAt: latest?.sentAt ?? null },
+  })
+}
+
 const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: ApplyContext) => Promise<void>>> = {
   occasions: applyOccasion,
   rhythms: applyRhythm,
@@ -1343,6 +1815,11 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   requests: applyRequest,
   files: applyLibraryFile,
   docObjects: applyDocObject,
+  // PLN-075 S2：專案工作區五大資源
+  folders: applyProjectFolder,
+  phaseCycles: applyPhaseCycle,
+  chatChannels: applyChatChannel,
+  chatMessages: applyChatMessage,
 }
 
 /* ------------------------------------------------------------------ */
@@ -1355,6 +1832,31 @@ function screen(change: RowChange): CommandRejection["code"] | null {
   if (!HANDLERS[change.collection]) return "write_not_enabled"
   if (change.op !== "delete" && (change.after === undefined || change.after === null)) return "invalid_payload"
   return null
+}
+
+/**
+ * 一筆命令裡的變更要照「被引用的先寫」的順序套用。
+ *
+ * diff 的輸出順序是集合名單的順序，而那份名單不是依賴順序：`phases` 排在 `projects`
+ * 之前、`occasions` 排在 `folders` 之前。於是「建立專案同時建階段」或「建立會議同時
+ * 建它的資料夾」會因為被引用的那一列還沒寫進來而整筆被拒。
+ *
+ * 只把有外鍵關係的那幾個集合往前排，其餘維持原順序（Array.prototype.sort 是穩定的）。
+ */
+const APPLY_PRIORITY: Partial<Record<PersistedCollection, number>> = {
+  projects: 0,
+  contracts: 5,
+  folders: 10,
+  phaseCycles: 11,
+  phases: 12,
+  milestones: 13,
+  objectives: 14,
+}
+
+function orderByDependency(changes: RowChange[]): RowChange[] {
+  return [...changes].sort(
+    (a, b) => (APPLY_PRIORITY[a.collection] ?? 20) - (APPLY_PRIORITY[b.collection] ?? 20),
+  )
 }
 
 /** 帳務變更在稽核裡與一般編輯分得開，事後查帳才找得到。 */
@@ -1406,7 +1908,7 @@ export async function applyOperatingCommands(
     }
 
     try {
-      for (const change of command.changes) {
+      for (const change of orderByDependency(command.changes)) {
         await HANDLERS[change.collection]!(change, ctx)
       }
       applied.push(command.clientRef)

@@ -13,6 +13,7 @@ import type {
 import { cache } from "react"
 
 import { db } from "@/lib/db"
+import { resolveOwnerWorkspaceId } from "@/lib/services/project-capability.service"
 
 export class UnauthorizedError extends Error {
   constructor(message = "Unauthorized to access this project") {
@@ -25,6 +26,47 @@ export class NotFoundError extends Error {
   constructor(message = "Project not found") {
     super(message)
     this.name = "NotFoundError"
+  }
+}
+
+/**
+ * 專案與公司工作區的綁定失敗。帶 `code` 讓呼叫端可判讀（不要只丟字串）。
+ *
+ * - `no_workspace_membership`：這個帳號沒有任何可用的公司 workspace membership。
+ *   **必須明確失敗**：靜默建出一個 `workspaceId = null` 的私人專案，就是 Wave 2a
+ *   要修掉的 P0——那樣的專案接不上五大資源裡的任何一個。
+ * - `client_supplied_scope`：呼叫端試圖自己指定 `workspaceId`／`accessMode`／`ownerId`。
+ *   授權範圍只能由伺服器解析。
+ */
+export type ProjectWorkspaceBindingErrorCode =
+  | "no_workspace_membership"
+  | "client_supplied_scope"
+
+export class ProjectWorkspaceBindingError extends Error {
+  readonly code: ProjectWorkspaceBindingErrorCode
+
+  constructor(code: ProjectWorkspaceBindingErrorCode, message: string) {
+    super(message)
+    this.name = "ProjectWorkspaceBindingError"
+    this.code = code
+  }
+}
+
+/**
+ * 只有伺服器能決定的欄位。出現在呼叫端 payload 裡就是個錯誤，不是可以忽略的雜訊：
+ * 它代表某條路徑把範圍決定權交了出去（與
+ * `src/app/api/company/operating/uploads/route.ts` 的 `resolveActor()` 同一條規則）。
+ */
+const SERVER_RESOLVED_PROJECT_KEYS = ["workspaceId", "accessMode", "ownerId"] as const
+
+function assertNoClientSuppliedScope(input: object) {
+  for (const key of SERVER_RESOLVED_PROJECT_KEYS) {
+    if (key in input) {
+      throw new ProjectWorkspaceBindingError(
+        "client_supplied_scope",
+        `${key} 由伺服器解析，不接受呼叫端指定。`
+      )
+    }
   }
 }
 
@@ -95,10 +137,38 @@ export interface CreateProjectForProfileInput {
   dueAt?: Date | null
 }
 
+/**
+ * 建立專案。
+ *
+ * **P0 修正（PLN-075 S2 Wave 2a）**：這裡原本完全沒有寫 `workspaceId`。
+ * `Project.workspaceId` 可空、`accessMode` 預設 `PRIVATE`，所以每一個新建專案
+ * 都是「掛不上任何公司資源的私人專案」——硬碟、聊天、會議、計劃、專案本體
+ * 五大資源一個都接不上，而且症狀要到使用者開硬碟時才出現。
+ *
+ * 現在 workspaceId **由伺服器端解析**（`resolveOwnerWorkspaceId()`，走 membership
+ * 關聯、不做公司名稱字串比對），並一併設 `accessMode: WORKSPACE_VISIBLE`。
+ * 呼叫端不能、也不會傳 workspaceId：`CreateProjectForProfileInput` 沒有這個欄位，
+ * 且 `assertNoClientSuppliedScope()` 在執行期再擋一次。
+ *
+ * 沒有任何公司 workspace membership 時**丟錯**，不退回私人專案。
+ */
 export async function createProjectForProfile(profileId: string, input: CreateProjectForProfileInput) {
+  assertNoClientSuppliedScope(input)
+
+  const workspaceId = await resolveOwnerWorkspaceId(profileId)
+
+  if (!workspaceId) {
+    throw new ProjectWorkspaceBindingError(
+      "no_workspace_membership",
+      "這個帳號還沒有可用的公司工作區成員資格，無法建立專案。請先加入公司工作區（圓展教育科技有限公司）後再試。"
+    )
+  }
+
   return await db.project.create({
     data: {
       ownerId: profileId,
+      workspaceId,
+      accessMode: "WORKSPACE_VISIBLE",
       name: input.name,
       clientName: input.clientName,
       description: input.description,
@@ -109,6 +179,74 @@ export async function createProjectForProfile(profileId: string, input: CreatePr
       dueAt: input.dueAt,
     },
   })
+}
+
+/**
+ * 冪等地把 `Project.workspaceId` 由 null 綁定到這個人的公司 workspace（OD-C）。
+ *
+ * 呼叫時機：開啟專案硬碟（或任何需要公司資源的入口）。既有專案是在 P0 修正之前
+ * 建出來的，`workspaceId` 一律是 null；要它們接上五大資源，只能在使用時補綁。
+ *
+ * 冪等保證：
+ * - **只在 `workspaceId IS NULL` 時寫**。`updateMany` 的 where 帶 `workspaceId: null`，
+ *   所以兩個請求同時進來只有一個會寫到（`count === 1`），另一個讀回已綁的值。
+ * - 已綁定則一個欄位都不動，直接回傳現有的 workspaceId。
+ * - `accessMode` 只在同一次綁定裡從 `PRIVATE` 升為 `WORKSPACE_VISIBLE`：
+ *   `workspaceId` 是 null 的時候 `PRIVATE` 不帶任何資訊（沒有工作區可以被看見），
+ *   所以那不是一個刻意的隱私設定，而正是 P0 留下的未設定狀態。
+ *   已經綁了工作區卻刻意設 `PRIVATE` 的專案不在這條路徑上，不會被動到。
+ *
+ * 授權：沿用 `assertCanAccessProject()`（擁有者精確比對）。綁定是擁有者層級的動作，
+ * 不開放給 membership 或 grant 的持有者。
+ */
+export async function ensureProjectWorkspaceBinding(
+  profileId: string,
+  projectId: string
+): Promise<string> {
+  await assertCanAccessProject(profileId, projectId)
+
+  const existing = await db.project.findUnique({
+    where: { id: projectId },
+    select: { workspaceId: true },
+  })
+
+  if (!existing) {
+    throw new NotFoundError()
+  }
+
+  if (existing.workspaceId) {
+    return existing.workspaceId
+  }
+
+  const workspaceId = await resolveOwnerWorkspaceId(profileId)
+
+  if (!workspaceId) {
+    throw new ProjectWorkspaceBindingError(
+      "no_workspace_membership",
+      "這個帳號還沒有可用的公司工作區成員資格，無法把專案綁定到公司。請先加入公司工作區（圓展教育科技有限公司）後再試。"
+    )
+  }
+
+  const bound = await db.project.updateMany({
+    where: { id: projectId, workspaceId: null },
+    data: { workspaceId, accessMode: "WORKSPACE_VISIBLE" },
+  })
+
+  if (bound.count === 1) {
+    return workspaceId
+  }
+
+  // 併發：另一個請求先綁好了。以資料庫裡的值為準，不覆寫。
+  const current = await db.project.findUnique({
+    where: { id: projectId },
+    select: { workspaceId: true },
+  })
+
+  if (!current?.workspaceId) {
+    throw new NotFoundError()
+  }
+
+  return current.workspaceId
 }
 
 export interface UpdateProjectForProfileInput {

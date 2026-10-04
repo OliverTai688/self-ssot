@@ -8,6 +8,13 @@ import type {
 } from "@prisma/client"
 import type { Project, ProjectTask, ProjectNote, ProjectDeliverable, ProjectMilestone, ProjectPhaseNode, ProjectTimeline } from "@/types/work"
 
+/**
+ * Work 模組的 view model 不讀專案工作區的生命週期欄位（PLN-075），所以 mapper 的輸入
+ * 也不要求它們。少了這個 Omit，刻意只 select 舊欄位的呼叫端（team-workspace 的相容
+ * 路徑，為了在尚未遷移的資料庫上不去查不存在的欄）就得為了型別多查四個用不到的欄。
+ */
+type DbProjectForView = Omit<DbProject, "lifecycleStage" | "phaseRound" | "legacyFolderNo" | "priorityTier">
+
 type ProjectProgressSource = {
   tasks?: Pick<DbProjectTask, "status">[]
   derivedTasksDone?: number
@@ -15,7 +22,7 @@ type ProjectProgressSource = {
   _count?: { tasks?: number; notes?: number }
 }
 
-function getProjectTaskProgress(p: DbProject & ProjectProgressSource) {
+function getProjectTaskProgress(p: DbProjectForView & ProjectProgressSource) {
   if (
     typeof p.derivedTasksDone === "number" &&
     typeof p.derivedTasksTotal === "number"
@@ -40,7 +47,7 @@ function getProjectTaskProgress(p: DbProject & ProjectProgressSource) {
   }
 }
 
-export function toProjectViewModel(p: DbProject & ProjectProgressSource): Project {
+export function toProjectViewModel(p: DbProjectForView & ProjectProgressSource): Project {
   const taskProgress = getProjectTaskProgress(p)
 
   return {

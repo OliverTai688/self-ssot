@@ -71,6 +71,7 @@
     "research:read-issues-live-read-eligibility:check": "node scripts/check-research-owner-read-issues-live-read-eligibility-gate.mjs",
     "interface:smoke:check": "node scripts/check-interface-operability.mjs",
     "ui:simplified-saas:check": "node scripts/check-simplified-saas-operating-surface.mjs",
+    "ui:nested-card:check": "node scripts/check-nested-card.mjs",
     "dashboard:simplified:check": "node scripts/check-owner-dashboard-simplified-surface.mjs",
     "ai-input:simplified:check": "node scripts/check-owneros-ai-input-simplified-surface.mjs",
     "settings:simplified:check": "node scripts/check-owneros-settings-simplified-surface.mjs",
@@ -141,6 +142,7 @@
     "ops:day-state:check": "tsx scripts/check-journal-day-state.ts",
     "ops:fields:check": "node scripts/check-operating-command-fields.mjs",
     "ops:migrations:check": "node scripts/check-migration-coverage.mjs",
+    "ops:drive:verify": "node scripts/verify-project-drive.mjs",
     "ops:assets:check": "node scripts/verify-asset-pipeline.mjs",
     "ops:assets:object:check": "node scripts/verify-asset-object.mjs",
     "ops:assets:cleanup": "NODE_OPTIONS='--conditions react-server' tsx scripts/cleanup-orphan-assets.ts",
@@ -154,7 +156,9 @@
     "ops:doc-cycles:check": "NODE_OPTIONS='--conditions react-server' tsx scripts/check-doc-object-cycles.ts",
     "ops:reply-jump:check": "tsx scripts/check-reply-jump.ts",
     "ops:cashflow:check": "tsx scripts/check-cashflow-faces.ts",
-    "ops:contract:check": "tsx scripts/check-contract-cashflow.ts"
+    "ops:contract:check": "tsx scripts/check-contract-cashflow.ts",
+    "project:capability:check": "node scripts/check-project-capability.mjs",
+    "project:ui:check": "tsx scripts/check-project-module-ui.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",

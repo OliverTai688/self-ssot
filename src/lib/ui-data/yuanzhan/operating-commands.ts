@@ -59,6 +59,12 @@ export const PERSISTED_COLLECTIONS = [
   'terms',
   'accounts',
   'cashConfig',
+  // PLN-075 S2：專案工作區五大資源。資料夾樹、期、聊天室頻道與訊息。
+  // 檔案 bytes 不在這裡 —— 上傳走預簽 URL 的 route handler，diff 佇列只送座標與關聯。
+  'folders',
+  'phaseCycles',
+  'chatChannels',
+  'chatMessages',
 ] as const
 
 export type PersistedCollection = (typeof PERSISTED_COLLECTIONS)[number]
@@ -132,6 +138,14 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   'terms',
   'accounts',
   'cashConfig',
+  // PLN-075 S2：專案工作區五大資源。
+  // Owner 決策 OD-B 要求這條路只有一個寫入入口 —— commit() + opEnqueue 的 diff 佇列
+  // （ARC-042），不另開 Server Action 旁路。所以新集合一樣在這份名單裡，
+  // 而不是在 src/app/actions/ 底下另長一條。
+  'folders',
+  'phaseCycles',
+  'chatChannels',
+  'chatMessages',
 ]
 
 /**

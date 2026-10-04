@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="black">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>圓展教育科技有限公司｜v5 扁平操作面 primitive 預覽</title>
+<style>
+:root{
+  --bg: #0a0c0f;
+  --surface: #111418;
+  --surface-2: #161a20;
+  --surface-3: #1d232b;
+  --surface-4: #242b34;
+  --border: #232931;
+  --border-2: #333b45;
+  --border-3: #465060;
+  --text: #e9ecf1;
+  --text-2: #99a2af;
+  --text-3: #626b77;
+  --pri: #6cb6ff;
+  --pri-bg: #11212e;
+  --pri-br: #2d5a7d;
+  --ok: #5fd09a;
+  --ok-bg: #0f2620;
+  --warn: #f2b95e;
+  --warn-bg: #2a2111;
+  --danger: #ef8a82;
+  --danger-bg: #2b1614;
+  --info: #a78bf5;
+  --info-bg: #1c1830;
+  --teal: #4fcfc0;
+  --teal-bg: #0d2724;
+  --v1: #3987e5;
+  --v2: #d95926;
+  --v3: #199e70;
+  --v4: #c98500;
+  --st-good: #0ca30c;
+  --st-warn: #fab219;
+  --st-serious: #ec835a;
+  --st-crit: #d03b3b;
+  --seq-1: #184f95;
+  --seq-2: #256abf;
+  --seq-3: #3987e5;
+  --seq-4: #6da7ec;
+  --seq-5: #9ec5f4;
+  --grid: #252c35;
+  --axis: #39414c;
+  --avatar-bg: #2b3440;
+  --av-yz-bg: #2b4a63;
+  --av-yz-fg: #9ecbf5;
+  --av-yz-br: #365d7c;
+  --av-yz-lc-bg: #0f1a26;
+  --av-yz-tl: #6cb6ff;
+  --av-lily-bg: #3d3357;
+  --av-lily-fg: #c4a2f5;
+  --av-lily-br: #4e416d;
+  --av-lily-lc-bg: #1a1220;
+  --av-lily-tl: #e58bc0;
+  --hover-overlay: rgba(255, 255, 255, 0.035);
+  --item-on-ic: #1d3446;
+  --pri-hover: #163044;
+  --danger-hover: #3a1c19;
+  --scroll-thumb: #2a313a;
+  --scroll-thumb-hover: #3a424d;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --scrim: rgba(4, 6, 9, 0.62);
+  --on-pri: #07121b;
+  --on-danger: #1a0e0d;
+  --danger-br: #5d2b26;
+  --gold: #e0b25a;
+  --rq-alarm: #ff4d4f;
+  --rq-alarm-hover: #ff6668;
+  --rq-alarm-pulse: #d9363a;
+  --rq-alarm-btn-fg: #b3181b;
+  --rq-dec-bg: #6a2d5c;
+  --rq-ask: #e58bc0;
+  --rq-ask-bg: #1e1019;
+  --rq-ask-br: #4f2d45;
+  --rq-ok: #4ea1ff;
+  --rq-ok-bg: #0f1726;
+  --rq-ok-br: #2c3a5c;
+  --rq-warn: #f0924f;
+  --rq-warn-bg: #2a1a0c;
+  --rq-warn-br: #6a4520;
+  --rq-done-br: #2d4d3d;
+  --rq-flash: #7c8cff;
+  --ag-over-bg: #2a1416;
+  --ag-over-br: #5e2a2c;
+  --ag-over-ink: #ff8a8c;
+  --ag-over-tint: #1d1417;
+  --ag-doing-bg: #0f1726;
+  --ag-doing-br: #2c3a5c;
+  --ag-doing-ink: #4ea1ff;
+  --ag-todo-bg: #161a20;
+  --ag-todo-br: #333b45;
+  --ag-todo-ink: #959fad;
+  --ag-done-bg: #10221a;
+  --ag-done-br: #2a4a3a;
+  --ag-done-ink: #5fd09a;
+}
+:root[data-theme="white"]{
+  --bg: #ffffff;
+  --surface: #f7f7f8;
+  --surface-2: #f0f1f3;
+  --surface-3: #e7e9ec;
+  --surface-4: #dee1e6;
+  --border: #e3e5e8;
+  --border-2: #cfd3d8;
+  --border-3: #aeb5bd;
+  --text: #16181c;
+  --text-2: #555b64;
+  --text-3: #8a9099;
+  --pri: #2563eb;
+  --pri-bg: #eaf1fe;
+  --pri-br: #bcd0f8;
+  --ok: #15803d;
+  --ok-bg: #e8f6ed;
+  --warn: #b45309;
+  --warn-bg: #fdf2e0;
+  --danger: #dc2626;
+  --danger-bg: #fdeaea;
+  --info: #6d3fd4;
+  --info-bg: #f0ebfd;
+  --teal: #0f766e;
+  --teal-bg: #e4f5f3;
+  --v1: #2563eb;
+  --v2: #c2410c;
+  --v3: #15803d;
+  --v4: #a16207;
+  --st-good: #15803d;
+  --st-warn: #b45309;
+  --st-serious: #ea580c;
+  --st-crit: #b91c1c;
+  --seq-1: #c7dbfb;
+  --seq-2: #9ec5f4;
+  --seq-3: #6da7ec;
+  --seq-4: #3987e5;
+  --seq-5: #184f95;
+  --grid: #ebedf0;
+  --axis: #c3c8ce;
+  --avatar-bg: #e2e8f0;
+  --av-yz-bg: #dbeafe;
+  --av-yz-fg: #1d4ed8;
+  --av-yz-br: #bfdbfe;
+  --av-yz-lc-bg: #eff6ff;
+  --av-yz-tl: #2563eb;
+  --av-lily-bg: #f3e8ff;
+  --av-lily-fg: #7e22ce;
+  --av-lily-br: #e9d5ff;
+  --av-lily-lc-bg: #faf5ff;
+  --av-lily-tl: #9333ea;
+  --hover-overlay: rgba(0, 0, 0, 0.035);
+  --item-on-ic: #ffffff;
+  --pri-hover: #dbeafe;
+  --danger-hover: #fee2e2;
+  --scroll-thumb: #cfd3d8;
+  --scroll-thumb-hover: #aeb5bd;
+  --shadow: 0 14px 36px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --scrim: rgba(22, 24, 28, 0.42);
+  --on-pri: #ffffff;
+  --on-danger: #ffffff;
+  --danger-br: #f3b4b4;
+  --gold: #a16207;
+  --rq-alarm: #ff4d4f;
+  --rq-alarm-hover: #ff6668;
+  --rq-alarm-pulse: #d9363a;
+  --rq-alarm-btn-fg: #b3181b;
+  --rq-dec-bg: #6a2d5c;
+  --rq-ask: #be185d;
+  --rq-ask-bg: #fce7f3;
+  --rq-ask-br: #f9a8d4;
+  --rq-ok: #1d4ed8;
+  --rq-ok-bg: #eff6ff;
+  --rq-ok-br: #bfdbfe;
+  --rq-warn: #c2410c;
+  --rq-warn-bg: #fff7ed;
+  --rq-warn-br: #fed7aa;
+  --rq-done-br: #bbf7d0;
+  --rq-flash: #4f46e5;
+  --ag-over-bg: #fdf6f4;
+  --ag-over-br: #eed8d1;
+  --ag-over-ink: #b0472d;
+  --ag-over-tint: #fdf8f6;
+  --ag-doing-bg: #eff6ff;
+  --ag-doing-br: #bfdbfe;
+  --ag-doing-ink: #1d4ed8;
+  --ag-todo-bg: #f4f4f6;
+  --ag-todo-br: #e0e2e6;
+  --ag-todo-ink: #5f6572;
+  --ag-done-bg: #f1f8f4;
+  --ag-done-br: #cfe4d8;
+  --ag-done-ink: #15803d;
+}
+:root{
+ --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+ --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:13px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.pg{max-width:1360px;margin:0 auto;padding:26px 24px 80px}
+.pg-h{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.pg-h h1{margin:0;font-size:19px;font-weight:620;letter-spacing:-.01em}
+.pg-h p{margin:5px 0 0;font-size:12px;color:var(--text-2);max-width:72ch;line-height:1.75}
+.pg-h .sp{flex:1}
+.tbtn{display:flex;gap:2px;flex-shrink:0}
+.tbtn button{background:none;border:0;border-bottom:2px solid transparent;color:var(--text-3);font:11px var(--mono);padding:4px 10px;cursor:pointer}
+.tbtn button.on{color:var(--text);border-bottom-color:var(--pri)}
+h2.sec{margin:34px 0 4px;font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+h2.sec em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--pri);margin-right:7px}
+p.lead{margin:0 0 14px;font-size:11.5px;color:var(--text-2);line-height:1.8;max-width:88ch}
+.cmp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 26px;align-items:start}
+.cmp>div{min-width:0;padding-top:4px}
+.cmp>div+div{border-left:1px solid var(--border);padding-left:26px}
+.cmp h3{margin:0 0 10px;font:11px var(--mono);letter-spacing:.06em;color:var(--text-3);display:flex;align-items:center;gap:6px}
+.cmp h3 b{font-weight:400;padding:1px 7px;border-radius:999px;border:1px solid var(--border-2);font-size:9.5px}
+.cmp>div.bad h3 b{color:var(--danger);border-color:var(--danger)}
+.cmp>div.good h3 b{color:var(--ok);border-color:var(--ok)}
+/* ── 「改造前」刻意重現提案的卡片牆：卡包卡、統計卡牆、容器卡 ── */
+.dcard{border:1px solid var(--border-2);border-radius:10px;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.18);padding:13px}
+.dcard+.dcard{margin-top:10px}
+.dcard h4{margin:0 0 8px;font-size:12px;font-weight:600}
+.dwall{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.dwall .dcard{text-align:center}
+.dwall .dcard span{display:block;font-size:10px;color:var(--text-3)}
+.dwall .dcard strong{display:block;font:600 19px var(--mono);margin-top:5px}
+.dinner{border:1px solid var(--border-2);border-radius:8px;background:var(--surface-2);padding:10px;box-shadow:0 1px 2px rgba(0,0,0,.14)}
+.dinner+.dinner{margin-top:8px}
+.dinner .e{font:9.5px var(--mono);color:var(--text-3)}
+.dinner .t{font-size:12px;font-weight:540;margin-top:3px}
+.dinner .s{font-size:11px;color:var(--text-2);margin-top:3px;line-height:1.6}
+.dinner .m{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.dinner .m span{font-size:9.5px;padding:1px 7px;border:1px solid var(--border-2);border-radius:999px;color:var(--text-2)}
+.dnote{margin-top:9px;font:10px/1.7 var(--mono);color:var(--danger)}
+.gnote{margin-top:9px;font:10px/1.7 var(--mono);color:var(--ok)}
+.btn{background:var(--surface-2);border:1px solid var(--border-2);border-radius:6px;color:var(--text);font:12px var(--sans);padding:5px 12px;cursor:pointer}
+.btn:hover{background:var(--surface-3)}
+.btn.pri{background:var(--pri-bg);border-color:var(--pri-br);color:var(--pri)}
+.foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--border);font:10.5px/1.9 var(--mono);color:var(--text-3)}
+@media(max-width:860px){.cmp{grid-template-columns:minmax(0,1fr);gap:22px}.cmp>div+div{border-left:0;padding-left:0;border-top:1px solid var(--border);padding-top:16px}.pg{padding:18px 16px 70px}}
+/* ==================================================================
+   pm-* 扁平操作面 primitive（規格：ARC-043、PLN-075 §S1.5 D）
+
+   這一組是 v5 工作台內「脫離 nested card」的版面零件。設計約束：
+
+   1. 這份檔案裡**沒有任何「四邊 border／shadow ＋ radius」的區塊容器**。
+      分隔一律用單邊髮絲線（border-bottom／border-left）或留白，不用外框。
+      唯一的例外是 .pm-drawer（position:fixed 的覆蓋層，ARC-012 §7 明文允許的
+      drilldown drawer）與 pill 形狀的 chip —— 兩者都不是頁面層級的卡片。
+   2. 顏色一律 var(--token, fallback)，token 的單一真相來源是
+      src/lib/theme/company-theme.ts 的 V5_PALETTES。不寫死任何色碼。
+   3. 密度沿用既有 v5 慣例（9–17px 字級、mono 數字、髮絲線 1px）。
+   ================================================================== */
+
+/* ---------- pmRail：一行數字列，取代統計卡牆 ---------- */
+.pm-rail{display:flex;flex-wrap:wrap;align-items:flex-start;gap:14px 30px;padding:10px 0 12px;border-bottom:1px solid var(--border,#232931)}
+.pm-rail.bare{border-bottom:0;padding-bottom:4px}
+.pm-rail-i{display:flex;flex-direction:column;gap:3px;min-width:82px}
+.pm-rail-k{font-size:10.5px;letter-spacing:.04em;color:var(--text-3,#626b77);white-space:nowrap}
+.pm-rail-v{font:600 17px/1.15 var(--mono);color:var(--text,#e9ecf1);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.pm-rail-u{margin-left:3px;font:400 10px/1 var(--mono);color:var(--text-3,#626b77)}
+.pm-rail-i.good .pm-rail-v{color:var(--ok,#5fd09a)}
+.pm-rail-i.warn .pm-rail-v{color:var(--warn,#f2b95e)}
+.pm-rail-i.crit .pm-rail-v{color:var(--danger,#ef8a82)}
+.pm-rail-n{font-size:10px;color:var(--text-3,#626b77);line-height:1.5}
+
+/* ---------- pmRow：扁平列，取代清單卡 ---------- */
+.pm-rows{min-width:0;display:block}
+.pm-row{display:flex;align-items:center;gap:14px;padding:12px 2px;border-bottom:1px solid var(--border,#232931);min-width:0}
+.pm-row:last-child{border-bottom:0}
+.pm-row:hover{background:var(--hover-overlay,rgba(255,255,255,.035))}
+.pm-row-main{flex:1;min-width:0;display:grid;gap:4px;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.pm-row-main:disabled,.pm-row-static{cursor:default}
+.pm-eyebrow{font:10px/1.4 var(--mono);letter-spacing:.03em;color:var(--text-3,#626b77);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pm-row-t{font-size:13px;font-weight:540;color:var(--text,#e9ecf1);line-height:1.45}
+.pm-row-s{font-size:11.5px;line-height:1.6;color:var(--text-2,#99a2af);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pm-row-meta{display:flex;align-items:center;gap:9px;flex-shrink:0;font:10.5px/1.4 var(--mono);color:var(--text-2,#99a2af)}
+.pm-row-main:focus-visible,.pm-row:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:2px;border-radius:3px}
+/* chip 是 pill 形狀的 repeated item，不是卡片（ARC-012 §2 允許） */
+.pm-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border:1px solid var(--border-2,#333b45);border-radius:999px;font-size:10px;color:var(--text-2,#99a2af);white-space:nowrap}
+.pm-chip.good{color:var(--ok,#5fd09a);border-color:var(--ok,#5fd09a)}
+.pm-chip.warn{color:var(--warn,#f2b95e);border-color:var(--warn,#f2b95e)}
+.pm-chip.crit{color:var(--danger,#ef8a82);border-color:var(--danger,#ef8a82)}
+.pm-chip.pri{color:var(--pri,#6cb6ff);border-color:var(--pri-br,#2d5a7d);background:var(--pri-bg,#11212e)}
+.pm-row-go{display:inline-flex;color:var(--text-3,#626b77);flex-shrink:0}
+.pm-row-go svg{width:14px;height:14px}
+@media(max-width:760px){
+  .pm-row{flex-wrap:wrap;gap:8px;align-items:flex-start}
+  .pm-row-meta{flex-wrap:wrap;gap:6px;width:100%}
+  .pm-rail-i{min-width:calc(50% - 15px)}
+  .pm-rail-v{font-size:15px}
+}
+
+/* ---------- pmTable：可排序／可篩選／鍵盤可導覽，primary surface 首選 ---------- */
+.pm-table{display:block;min-width:0}
+.pm-table-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0 0 9px}
+.pm-table-bar .pm-sp{flex:1}
+.pm-tsearch{display:flex;align-items:center;gap:5px;min-width:150px;flex:1;max-width:280px;padding:3px 7px;border-bottom:1px solid var(--border-2,#333b45)}
+.pm-tsearch svg{width:13px;height:13px;color:var(--text-3,#626b77);flex-shrink:0}
+.pm-tsearch input{flex:1;min-width:0;background:none;border:0;color:var(--text,#e9ecf1);font:11.5px var(--mono);padding:2px 0}
+.pm-tsearch input:focus{outline:none}
+.pm-tsearch:focus-within{border-bottom-color:var(--pri,#6cb6ff)}
+.pm-tseg{display:flex;gap:2px}
+.pm-tseg button{background:none;border:0;padding:3px 9px;font-size:11px;color:var(--text-3,#626b77);cursor:pointer;border-bottom:2px solid transparent}
+.pm-tseg button.on{color:var(--text,#e9ecf1);border-bottom-color:var(--pri,#6cb6ff)}
+.pm-tseg button:hover{color:var(--text-2,#99a2af)}
+.pm-tcount{font:10px var(--mono);color:var(--text-3,#626b77)}
+.pm-tscroll{overflow-x:auto;overscroll-behavior-x:contain;min-width:0}
+.pm-t{width:100%;border-collapse:collapse;font-size:11.5px}
+.pm-t th{position:sticky;top:0;z-index:1;background:var(--surface-2,#161a20);text-align:left;font-weight:560;font-size:10.5px;letter-spacing:.03em;color:var(--text-2,#99a2af);padding:0;border-bottom:1px solid var(--border-2,#333b45);white-space:nowrap}
+.pm-t th button{display:flex;align-items:center;gap:4px;width:100%;background:none;border:0;padding:7px 10px;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.pm-t th.num button{justify-content:flex-end}
+.pm-t th button:hover{color:var(--text,#e9ecf1)}
+.pm-t th[aria-sort] button{color:var(--text,#e9ecf1)}
+.pm-t th span.pm-sort{display:inline-flex;opacity:.35}
+.pm-t th[aria-sort] span.pm-sort{opacity:1;color:var(--pri,#6cb6ff)}
+.pm-t th span.pm-sort svg{width:11px;height:11px;transition:transform .12s}
+.pm-t th span.pm-sort.up svg{transform:rotate(-90deg)}
+.pm-t th span.pm-sort.down svg{transform:rotate(90deg)}
+.pm-t th.plain{padding:7px 10px}
+.pm-t td{padding:8px 10px;border-bottom:1px solid var(--border,#232931);color:var(--text,#e9ecf1);vertical-align:top}
+.pm-t td.num,.pm-t td.mono{font:11.5px var(--mono);font-variant-numeric:tabular-nums}
+.pm-t td.num{text-align:right}
+.pm-t td.dim{color:var(--text-2,#99a2af)}
+.pm-t tbody tr{cursor:pointer}
+.pm-t tbody tr:hover{background:var(--hover-overlay,rgba(255,255,255,.035))}
+.pm-t tbody tr[aria-selected=true]{background:var(--pri-bg,#11212e)}
+.pm-t tbody tr:focus{outline:none}
+.pm-t tbody tr:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:-2px}
+.pm-tempty{padding:26px 10px;text-align:center;font-size:11.5px;color:var(--text-3,#626b77)}
+.pm-tfoot{display:flex;align-items:center;gap:10px;padding:7px 2px 0;font:10px var(--mono);color:var(--text-3,#626b77)}
+@media(max-width:760px){.pm-t{font-size:11px}.pm-t td,.pm-t th button{padding:7px 8px}.pm-tsearch{max-width:none}}
+
+/* ---------- pmTrack：期／階段水平軌，取代階段卡 ---------- */
+.pm-track{display:grid;gap:16px;min-width:0}
+.pm-cycle{display:grid;gap:7px;min-width:0}
+.pm-cycle-h{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.pm-cycle-n{font:600 11px var(--mono);letter-spacing:.04em;color:var(--text-2,#99a2af)}
+.pm-cycle-t{font-size:12.5px;font-weight:540;color:var(--text,#e9ecf1)}
+.pm-cycle-m{font:10px var(--mono);color:var(--text-3,#626b77);margin-left:auto}
+.pm-stages{display:flex;align-items:stretch;gap:0;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:2px}
+.pm-stage{flex:1 1 0;min-width:96px;display:grid;gap:5px;padding:0 0 9px;border-bottom:2px solid var(--border,#232931);background:none;border-left:0;border-right:0;border-top:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.pm-stage+.pm-stage{margin-left:10px}
+.pm-stage-k{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:540;color:var(--text-2,#99a2af)}
+.pm-stage-k svg{width:12px;height:12px;flex-shrink:0}
+.pm-stage-m{font:10px var(--mono);color:var(--text-3,#626b77);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-stage.done{border-bottom-color:var(--ok,#5fd09a)}
+.pm-stage.done .pm-stage-k{color:var(--ok,#5fd09a)}
+.pm-stage.now{border-bottom-color:var(--pri,#6cb6ff)}
+.pm-stage.now .pm-stage-k{color:var(--pri,#6cb6ff)}
+.pm-stage.late{border-bottom-color:var(--danger,#ef8a82)}
+.pm-stage.late .pm-stage-k{color:var(--danger,#ef8a82)}
+.pm-stage:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:2px}
+.pm-stage:hover .pm-stage-m{color:var(--text-2,#99a2af)}
+@media(max-width:760px){.pm-stage{min-width:118px}.pm-stage+.pm-stage{margin-left:8px}}
+
+/* ---------- pmTimeline：一條線＋節點，容器不是卡 ---------- */
+.pm-timeline{display:block;min-width:0;padding-left:2px}
+.pm-tl-day{display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;min-width:0}
+.pm-tl-date{padding-top:11px}
+.pm-tl-date strong{display:block;font:600 15px/1.2 var(--mono);color:var(--text,#e9ecf1);letter-spacing:-.02em}
+.pm-tl-date span{font:9.5px var(--mono);color:var(--text-3,#626b77)}
+.pm-tl-line{border-left:1px solid var(--border-2,#333b45);padding:4px 0 18px 18px;min-width:0}
+.pm-tl-day:last-child .pm-tl-line{padding-bottom:4px}
+.pm-tl-ev{position:relative;display:flex;align-items:flex-start;gap:12px;padding:7px 0;min-width:0}
+.pm-tl-dot{position:absolute;left:-25px;top:11px;width:13px;height:13px;display:flex;align-items:center;justify-content:center;background:var(--bg,#0a0c0f);color:var(--text-3,#626b77)}
+.pm-tl-dot svg{width:9px;height:9px}
+.pm-tl-ev.pri .pm-tl-dot{color:var(--pri,#6cb6ff)}
+.pm-tl-ev.good .pm-tl-dot{color:var(--ok,#5fd09a)}
+.pm-tl-ev.warn .pm-tl-dot{color:var(--warn,#f2b95e)}
+.pm-tl-ev.crit .pm-tl-dot{color:var(--danger,#ef8a82)}
+.pm-tl-main{flex:1;min-width:0;display:grid;gap:3px;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.pm-tl-t{font-size:12.5px;font-weight:530;color:var(--text,#e9ecf1);line-height:1.5}
+.pm-tl-s{font-size:11px;line-height:1.6;color:var(--text-2,#99a2af)}
+.pm-tl-time{font:10px var(--mono);color:var(--text-3,#626b77);flex-shrink:0;padding-top:2px}
+.pm-tl-main:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:2px;border-radius:3px}
+/* 同群事件摺疊成一行（Primer Timeline 的 collapsed group 慣例） */
+.pm-tl-fold{position:relative;padding:5px 0}
+.pm-tl-fold>button{display:flex;align-items:center;gap:6px;background:none;border:0;padding:2px 0;font:10.5px var(--mono);color:var(--text-3,#626b77);cursor:pointer}
+.pm-tl-fold>button:hover{color:var(--text-2,#99a2af)}
+.pm-tl-fold>button svg{width:11px;height:11px;transition:transform .15s}
+.pm-tl-fold.open>button svg{transform:rotate(90deg)}
+.pm-tl-fold>.pm-tl-sub{display:none;padding-left:0}
+.pm-tl-fold.open>.pm-tl-sub{display:block}
+@media(max-width:760px){
+  .pm-tl-day{grid-template-columns:54px minmax(0,1fr);gap:10px}
+  .pm-tl-line{padding-left:14px}
+  .pm-tl-dot{left:-21px}
+  .pm-tl-date strong{font-size:13px}
+}
+
+/* ---------- pmDrawer：細節抽屜（覆蓋層，不是頁面卡） ---------- */
+/* z-index 52：在原型抽屜（50）之上、表單視窗（56）之下，所以表單仍疊在詳情上。 */
+.pm-drawer-wrap{position:fixed;inset:0;z-index:52;display:none;background:var(--scrim,rgba(4,6,9,.62))}
+.pm-drawer-wrap.on{display:block}
+.pm-drawer{position:absolute;inset:0 0 0 auto;width:min(520px,100%);display:flex;flex-direction:column;background:var(--surface,#111418);border-left:1px solid var(--border-2,#333b45);box-shadow:var(--shadow,0 18px 44px rgba(0,0,0,.55));animation:pmDrIn .18s cubic-bezier(.2,.8,.2,1)}
+.pm-drawer.wide{width:min(760px,100%)}
+@keyframes pmDrIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+.pm-dr-h{display:flex;align-items:flex-start;gap:10px;padding:14px 13px 11px 17px;border-bottom:1px solid var(--border,#232931)}
+.pm-dr-ht{flex:1;min-width:0}
+.pm-dr-crumb{font:11px var(--mono);color:var(--text-3,#626b77);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pm-dr-h h3{margin:0;font-size:15.5px;font-weight:620;color:var(--text,#e9ecf1);line-height:1.35}
+.pm-dr-h p{margin:4px 0 0;font-size:12px;color:var(--text-2,#99a2af);line-height:1.65}
+.pm-dr-x{background:none;border:0;padding:4px;color:var(--text-3,#626b77);cursor:pointer;flex-shrink:0;border-radius:4px}
+.pm-dr-x:hover{color:var(--text,#e9ecf1);background:var(--hover-overlay,rgba(255,255,255,.035))}
+.pm-dr-x:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:1px}
+.pm-dr-x svg{width:15px;height:15px;display:block}
+.pm-dr-b{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 17px 20px}
+.pm-dr-f{display:flex;align-items:center;gap:8px;padding:11px 15px;border-top:1px solid var(--border,#232931);background:var(--surface-2,#161a20)}
+.pm-dr-f .pm-sp{flex:1}
+/* 抽屜內的小節：只用髮絲線分段，不再長出第二層卡 */
+.pm-sec{display:grid;gap:6px;padding:11px 0;border-bottom:1px solid var(--border,#232931)}
+.pm-sec:last-child{border-bottom:0}
+.pm-sec>h4{margin:0;font-size:10.5px;font-weight:560;letter-spacing:.05em;color:var(--text-3,#626b77)}
+.pm-sec>p{margin:0;font-size:12px;line-height:1.7;color:var(--text,#e9ecf1)}
+.pm-kv{display:grid;grid-template-columns:86px minmax(0,1fr);gap:5px 12px;font-size:11.5px}
+.pm-kv dt{color:var(--text-3,#626b77)}
+.pm-kv dd{margin:0;color:var(--text,#e9ecf1);font-family:var(--mono);overflow-wrap:anywhere}
+@media(max-width:760px){
+  .pm-drawer,.pm-drawer.wide{inset:auto 0 0 0;width:100%;max-height:92dvh;border-left:0;border-top:1px solid var(--border-2,#333b45);animation:pmDrUp .2s cubic-bezier(.2,.8,.2,1)}
+  @keyframes pmDrUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+  .pm-dr-b{padding:12px 14px 18px}
+}
+
+</style>
+</head>
+<body>
+<div class="pg" id="pgRoot">
+  <div class="pg-h">
+    <div>
+      <h1>圓展教育科技有限公司｜v5 扁平操作面 primitive</h1>
+      <p>六個 primitive 的真實渲染（CSS 與 JS 直接讀自 <code>src/components/yuanzhan/v5/pm-primitives.*</code>）。
+         左欄是三份專案模組提案裡的卡片牆現況，右欄是同一份資料改成扁平操作面之後。資料取自 01.共好玟化、03.幸福文齡、10.AI SSOT、12.摸摸寵物。</p>
+    </div>
+    <span class="sp"></span>
+    <div class="tbtn">
+      <button type="button" id="thBlack" class="on" onclick="setTheme('black')">黑</button>
+      <button type="button" id="thWhite" onclick="setTheme('white')">白</button>
+    </div>
+  </div>
+  <div id="pmMount"></div>
+  <div class="foot">
+    規格：ARC-043 · PLN-075 §S1.5 · ARC-012 §2／§5／§7 ·
+    機檢：<code>pnpm ui:nested-card:check</code> ·
+    本頁無任何外部請求，色值全部來自 company-theme.ts 的 V5_PALETTES。
+  </div>
+</div>
+<script>
+/* ---- Shadow DOM 替身：primitive 原始碼預期的 root / doc / shadow / getById / esc / svg ---- */
+const root = document.getElementById('pgRoot');
+const doc = document;
+const shadow = document;
+const controller = new AbortController();
+const getById = id => root.querySelector('[id="' + CSS.escape(String(id)) + '"]');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const I = {
+  journal: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5.5A1.5 1.5 0 0 1 4 17.5z"/><path d="M8 7h7M8 11h7M8 15h4"/>',
+  timeline: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.4" fill="currentColor" stroke="none"/>',
+  desk: '<path d="M3 12h4l2-6 3 13 3-9 2 2h4"/>',
+  project: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  money: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>',
+  capacity: '<path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/>',
+  commit: '<path d="M9 11l2.5 2.5L16 9"/><path d="M5 4h14a1 1 0 0 1 1 1v15l-4-2-4 2-4-2-4 2V5a1 1 0 0 1 1-1z"/>',
+  file: '<path d="M6 3h7l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M13 3v5h5"/>',
+  issue: '<circle cx="12" cy="12" r="8"/><path d="M12 8v5M12 16h.01"/>',
+  txn: '<path d="M4 8h16M4 8l4-4M20 16H4M20 16l-4 4"/>',
+  goto: '<path d="M7 17 17 7M9 7h8v8"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  pen: '<path d="M4 20h4L20 8l-4-4L4 16z"/>',
+  trash: '<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>',
+  star: '<path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.4l6-.8z"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  chart: '<path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>',
+  bell: '<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  warn: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  dot: '<circle cx="12" cy="12" r="8" fill="currentColor" stroke="none"/>',
+  diamond: '<path d="M12 3 3 12l9 9 9-9Z"/>',
+  arrowin: '<path d="m7 7 10 10"/><path d="M17 7v10H7"/>',
+  chevronLeft: '<path d="m15 6-6 6 6 6"/>',
+  chevronRight: '<path d="m9 6 6 6-6 6"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  at: '<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
+  message: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  rotate: '<path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  sort: '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  paperclip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  grip: '<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z"/><circle cx="12" cy="13" r="3"/>',
+  layers: '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
+  skip: '<path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+  table: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+  card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  maximize: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  checkCircle: '<circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/>'
+};
+const svg = (k, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"${w ? ` style="width:${w}px;height:${w}px"` : ''}>${I[k] || ''}</svg>`;
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  getById('thBlack').classList.toggle('on', t === 'black');
+  getById('thWhite').classList.toggle('on', t === 'white');
+}
+</script>
+<script>
+/* ==================================================================
+   pm-* 扁平操作面 primitive（規格：ARC-043、PLN-075 §S1.5 D）
+
+   為什麼需要這一層：
+     v5 工作台是 Shadow DOM ＋ vanilla JS，**無法 import React 元件**。
+     既有的 src/components/owneros/insight-rail.tsx、detail-drawer.tsx 與死程式碼
+     src/components/yuanzhan/primitives.tsx 的 RecordRows／.yz-row，只能移植「形狀
+     與互動慣例」，不能複用程式碼；react-aria／motion／cmdk／vaul 在 v5 內同樣用不上
+     （claude/nested-card-decoupling-research.md §1.1）。所以這裡是手寫的 vanilla 版。
+
+   六個 primitive 與它們取代的東西（PLN-075 §S1.5 C 對照表）：
+     pmRail     一行數字列          ← 統計卡牆
+     pmRow(s)   扁平列              ← 清單卡
+     pmTable    可排序／篩選／鍵盤導覽 ← 資料卡牆（ARC-012 primary surface 首選）
+     pmTrack    期／階段水平軌       ← 階段卡
+     pmTimeline 一條線＋節點         ← 活動卡牆（容器不得是卡）
+     pmDrawer   細節抽屜            ← 把細節攤平在長卡裡
+
+   硬規定（AGENTS.md §12.1）：
+     - 圖示一律 svg(name, size)，不用 emoji、不寫字面 <svg>。
+     - 顏色一律 var(--token, fallback)，token 在 company-theme.ts 的 V5_PALETTES。
+     - 樣式全在 pm-primitives.css；這裡不寫 inline style 的色值。
+
+   互動回呼的慣例：
+     Shadow DOM 的 inline handler 會被 generator 編成閉包，但「把一段 JS 字串塞進
+     attribute」不可行（會被當成識別字編譯）。所以每個有互動的 primitive 都吃一個
+     穩定的 opts.id，回呼函式存在 PM 登記表裡，markup 只帶 id 與 row key。
+     id 必須在同一個檢視內穩定，重繪後排序／摺疊狀態才留得住。
+   ================================================================== */
+
+const PM = { t: {}, tr: {}, tl: {}, rows: {}, drawer: null };
+
+const pmArr = v => (Array.isArray(v) ? v : []);
+const pmTone = t => (['good', 'warn', 'crit', 'pri'].includes(t) ? t : '');
+
+/* ------------------------------------------------------------------
+   1) pmRail(items, opts) —— 一行數字列，無外框，取代統計卡牆
+   items: [{ label, value, unit?, tone?: good|warn|crit, note? }]
+   opts:  { bare?: 底線也不要 }
+   ------------------------------------------------------------------ */
+function pmRail(items, opts) {
+  const o = opts || {};
+  const body = pmArr(items).map(i => `<div class="pm-rail-i ${pmTone(i.tone)}">
+   <span class="pm-rail-k">${esc(i.label == null ? '' : i.label)}</span>
+   <span class="pm-rail-v">${esc(i.value == null ? '—' : i.value)}${i.unit ? `<span class="pm-rail-u">${esc(i.unit)}</span>` : ''}</span>
+   ${i.note ? `<span class="pm-rail-n">${esc(i.note)}</span>` : ''}
+  </div>`).join('');
+  return `<div class="pm-rail ${o.bare ? 'bare' : ''}" role="group" aria-label="${esc(o.label || '重點數字')}">${body}</div>`;
+}
+
+/* ------------------------------------------------------------------
+   2) pmRow / pmRows —— 扁平列，取代清單卡
+   item: { key?, eyebrow?, title, summary?, meta?: [{text, tone?}], go?: 顯示跳轉箭頭 }
+   pmRows(items, { id, onPick }) 整段可點；單獨用 pmRow(item) 則是靜態一列。
+   ------------------------------------------------------------------ */
+function pmRowMeta(meta) {
+  return pmArr(meta).map(m => {
+    if (m == null) return '';
+    const t = typeof m === 'string' ? { text: m } : m;
+    return t.chip === false
+      ? `<span>${esc(t.text)}</span>`
+      : `<span class="pm-chip ${pmTone(t.tone)}">${esc(t.text)}</span>`;
+  }).join('');
+}
+
+function pmRow(item, pick) {
+  const it = item || {};
+  const inner = `${it.eyebrow ? `<span class="pm-eyebrow">${esc(it.eyebrow)}</span>` : ''}
+   <span class="pm-row-t">${esc(it.title == null ? '' : it.title)}</span>
+   ${it.summary ? `<span class="pm-row-s">${esc(it.summary)}</span>` : ''}`;
+  const main = pick
+    ? `<button type="button" class="pm-row-main" onclick="pmRowsPick('${pick.id}','${esc(pick.key)}')">${inner}</button>`
+    : `<div class="pm-row-main pm-row-static">${inner}</div>`;
+  return `<div class="pm-row">${main}
+   <div class="pm-row-meta">${pmRowMeta(it.meta)}${it.go ? `<span class="pm-row-go">${svg('chevronRight')}</span>` : ''}</div>
+  </div>`;
+}
+
+function pmRows(items, opts) {
+  const o = opts || {};
+  const id = o.id || 'pmrows';
+  PM.rows[id] = { onPick: o.onPick };
+  const list = pmArr(items);
+  if (!list.length) return `<div class="pm-tempty">${esc(o.empty || '目前沒有項目')}</div>`;
+  return `<div class="pm-rows" id="${id}">${list.map((it, n) =>
+    pmRow(it, o.onPick ? { id, key: it.key == null ? String(n) : String(it.key) } : null)
+  ).join('')}</div>`;
+}
+
+function pmRowsPick(id, key) {
+  const st = PM.rows[id];
+  if (st && st.onPick) st.onPick(key);
+}
+
+/* ------------------------------------------------------------------
+   3) pmTable(cols, rows, opts) —— 可排序／可篩選／鍵盤可導覽的表格
+   cols: [{ k, label, align?: 'num'|'mono', get?(row), sortBy?(row), w? }]
+   opts: { id, onPick?(key), rowKey?(row), segments?: [{label, test?(row)}],
+           search?: boolean, searchIn?(row) -> string, empty?, foot? }
+   ------------------------------------------------------------------ */
+function pmTable(cols, rows, opts) {
+  const o = opts || {};
+  const id = o.id || ('pmt-' + pmArr(cols).map(c => c.k).join('_'));
+  const prev = PM.t[id] || {};
+  const st = PM.t[id] = {
+    id, cols: pmArr(cols), rows: pmArr(rows), opts: o,
+    sort: prev.sort || (o.sort ? { k: o.sort.k, dir: o.sort.dir || 'asc' } : null),
+    seg: prev.seg == null ? (o.seg || 0) : prev.seg,
+    q: prev.q || '',
+    cur: prev.cur || null,
+  };
+  return `<div class="pm-table" id="${id}" onkeydown="pmTableKey(event,'${id}')">${pmTableInner(st)}</div>`;
+}
+
+function pmCell(c, row) {
+  const v = c.get ? c.get(row) : row[c.k];
+  return v == null ? '' : String(v);
+}
+
+function pmSortVal(c, row) {
+  if (c.sortBy) return c.sortBy(row);
+  const v = c.get ? c.get(row) : row[c.k];
+  return v == null ? '' : v;
+}
+
+function pmTableView(st) {
+  const o = st.opts;
+  let list = st.rows.slice();
+  const seg = pmArr(o.segments)[st.seg];
+  if (seg && seg.test) list = list.filter(seg.test);
+  const q = String(st.q || '').trim().toLowerCase();
+  if (q) {
+    list = list.filter(r => {
+      const hay = o.searchIn ? o.searchIn(r) : st.cols.map(c => pmCell(c, r)).join(' ');
+      return String(hay).toLowerCase().includes(q);
+    });
+  }
+  if (st.sort) {
+    const c = st.cols.find(x => x.k === st.sort.k);
+    if (c) {
+      const num = c.align === 'num';
+      const sign = st.sort.dir === 'desc' ? -1 : 1;
+      list.sort((a, b) => {
+        const x = pmSortVal(c, a), y = pmSortVal(c, b);
+        if (num) return sign * ((Number(x) || 0) - (Number(y) || 0));
+        return sign * String(x).localeCompare(String(y), 'zh-Hant');
+      });
+    }
+  }
+  return list;
+}
+
+function pmTableInner(st) {
+  const o = st.opts;
+  const list = pmTableView(st);
+  const rowKey = r => String(o.rowKey ? o.rowKey(r) : (r.id == null ? '' : r.id));
+  const segs = pmArr(o.segments);
+  const bar = (segs.length || o.search)
+    ? `<div class="pm-table-bar">
+      ${segs.length ? `<div class="pm-tseg" role="tablist">${segs.map((s, i) =>
+        `<button type="button" role="tab" aria-selected="${i === st.seg}" class="${i === st.seg ? 'on' : ''}" onclick="pmTableSeg('${st.id}',${i})">${esc(s.label)}</button>`
+      ).join('')}</div>` : ''}
+      ${o.search ? `<label class="pm-tsearch">${svg('search')}<input type="search" value="${esc(st.q)}" placeholder="${esc(o.searchLabel || '篩選')}" aria-label="${esc(o.searchLabel || '篩選表格')}" oninput="pmTableQuery('${st.id}',this.value)"></label>` : ''}
+      <span class="pm-sp"></span>
+      <span class="pm-tcount">${list.length} / ${st.rows.length}</span>
+     </div>`
+    : '';
+  const head = st.cols.map(c => {
+    const sorted = st.sort && st.sort.k === c.k;
+    const aria = sorted ? ` aria-sort="${st.sort.dir === 'desc' ? 'descending' : 'ascending'}"` : '';
+    // 排序方向用同一顆 chevron 轉向表示（CSS rotate），不另外塞箭頭字形。
+    const dir = sorted ? (st.sort.dir === 'desc' ? ' down' : ' up') : '';
+    const mark = sorted ? svg('chevronRight') : svg('sort');
+    return c.sortable === false
+      ? `<th class="plain ${c.align || ''}" scope="col">${esc(c.label)}</th>`
+      : `<th class="${c.align || ''}"${aria} scope="col"><button type="button" onclick="pmTableSort('${st.id}','${c.k}')">${esc(c.label)}<span class="pm-sort${dir}">${mark}</span></button></th>`;
+  }).join('');
+  const body = list.length
+    ? list.map((r, i) => {
+      const k = rowKey(r);
+      const sel = st.cur != null && st.cur === k;
+      const tab = i === 0 ? 0 : -1;
+      const click = o.onPick ? ` onclick="pmTablePick('${st.id}','${esc(k)}')"` : '';
+      return `<tr data-k="${esc(k)}" tabindex="${tab}" aria-selected="${sel}"${click}>${st.cols.map(c =>
+        `<td class="${c.align || ''} ${c.dim ? 'dim' : ''}">${esc(pmCell(c, r))}</td>`
+      ).join('')}</tr>`;
+    }).join('')
+    : `<tr><td class="pm-tempty" colspan="${st.cols.length}">${esc(o.empty || '沒有符合條件的資料')}</td></tr>`;
+  return `${bar}<div class="pm-tscroll"><table class="pm-t"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${o.foot ? `<div class="pm-tfoot">${esc(o.foot)}</div>` : ''}`;
+}
+
+function pmTablePaint(st, focusSearch) {
+  const box = getById(st.id);
+  if (!box) return;
+  box.innerHTML = pmTableInner(st);
+  if (!focusSearch) return;
+  const input = box.querySelector('.pm-tsearch input');
+  if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+}
+
+function pmTableSort(id, k) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.sort = st.sort && st.sort.k === k
+    ? (st.sort.dir === 'asc' ? { k, dir: 'desc' } : null)
+    : { k, dir: 'asc' };
+  pmTablePaint(st);
+}
+
+function pmTableSeg(id, i) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.seg = i;
+  pmTablePaint(st);
+}
+
+function pmTableQuery(id, v) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.q = v;
+  pmTablePaint(st, true);
+}
+
+function pmTablePick(id, key) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.cur = key;
+  const row = st.rows.find(r => String(st.opts.rowKey ? st.opts.rowKey(r) : r.id) === String(key));
+  if (st.opts.onPick) st.opts.onPick(key, row);
+  const box = getById(id);
+  if (box) box.querySelectorAll('tbody tr[data-k]').forEach(tr =>
+    tr.setAttribute('aria-selected', String(tr.dataset.k === String(key))));
+}
+
+/** 鍵盤導覽：↑↓ 移動焦點（roving tabindex）、Home/End 跳頭尾、Enter／空白鍵開啟。 */
+function pmTableKey(e, id) {
+  const box = getById(id);
+  if (!box) return;
+  const rows = [...box.querySelectorAll('tbody tr[data-k]')];
+  if (!rows.length) return;
+  const at = rows.indexOf(shadow.activeElement);
+  const go = n => {
+    const t = rows[Math.max(0, Math.min(rows.length - 1, n))];
+    if (!t) return;
+    rows.forEach(r => { r.tabIndex = -1; });
+    t.tabIndex = 0;
+    t.focus();
+    e.preventDefault();
+  };
+  if (e.key === 'ArrowDown') return go(at < 0 ? 0 : at + 1);
+  if (e.key === 'ArrowUp') return go(at < 0 ? 0 : at - 1);
+  if (e.key === 'Home') return go(0);
+  if (e.key === 'End') return go(rows.length - 1);
+  if ((e.key === 'Enter' || e.key === ' ') && at >= 0) {
+    e.preventDefault();
+    pmTablePick(id, rows[at].dataset.k);
+  }
+}
+
+/* ------------------------------------------------------------------
+   4) pmTrack(cycles, opts) —— 期／階段水平軌，取代階段卡
+   cycles: [{ no?, title, meta?, stages: [{ key?, label, meta?, state? }] }]
+   state: done | now | late | todo（預設 todo）；支援多期與「執行→驗收」重複。
+   opts: { id, onPick?(stageKey, cycleIndex) }
+   ------------------------------------------------------------------ */
+const PM_STAGE_ICON = { done: 'check', now: 'dot', late: 'warn', todo: 'clock' };
+
+function pmTrack(cycles, opts) {
+  const o = opts || {};
+  const id = o.id || 'pmtrack';
+  PM.tr[id] = { onPick: o.onPick, cycles: pmArr(cycles) };
+  const body = pmArr(cycles).map((c, ci) => {
+    const stages = pmArr(c.stages).map((s, si) => {
+      const state = PM_STAGE_ICON[s.state] ? s.state : 'todo';
+      const key = s.key == null ? ci + '.' + si : s.key;
+      const inner = `<span class="pm-stage-k">${svg(PM_STAGE_ICON[state])}${esc(s.label == null ? '' : s.label)}</span>
+       ${s.meta ? `<span class="pm-stage-m">${esc(s.meta)}</span>` : ''}`;
+      return o.onPick
+        ? `<button type="button" class="pm-stage ${state}" onclick="pmTrackPick('${id}','${esc(key)}',${ci})">${inner}</button>`
+        : `<div class="pm-stage ${state}">${inner}</div>`;
+    }).join('');
+    return `<div class="pm-cycle">
+     <div class="pm-cycle-h">
+      ${c.no ? `<span class="pm-cycle-n">${esc(c.no)}</span>` : ''}
+      <span class="pm-cycle-t">${esc(c.title == null ? '' : c.title)}</span>
+      ${c.meta ? `<span class="pm-cycle-m">${esc(c.meta)}</span>` : ''}
+     </div>
+     <div class="pm-stages">${stages}</div>
+    </div>`;
+  }).join('');
+  return `<div class="pm-track" id="${id}">${body}</div>`;
+}
+
+function pmTrackPick(id, key, ci) {
+  const st = PM.tr[id];
+  if (st && st.onPick) st.onPick(key, ci);
+}
+
+/* ------------------------------------------------------------------
+   5) pmTimeline(events, opts) —— 一條線＋節點（Primer Timeline 形狀）
+   events: [{ key?, d, time?, title, summary?, tone?, fold? }]
+     fold 相同且相鄰的事件會摺疊成一行（同群事件），點一下展開。
+   opts: { id, onPick?(key), dayLabel?(d) -> [大字, 小字] }
+   容器只有一條左側髮絲線，沒有外框，也不是卡（PLN-075 §S1.5 C）。
+   ------------------------------------------------------------------ */
+function pmTimeline(events, opts) {
+  const o = opts || {};
+  const id = o.id || 'pmtl';
+  const prev = PM.tl[id] || {};
+  const st = PM.tl[id] = { id, events: pmArr(events), opts: o, open: prev.open || {} };
+  return `<div class="pm-timeline" id="${id}">${pmTimelineInner(st)}</div>`;
+}
+
+function pmTlNode(st, e, n) {
+  const key = e.key == null ? 'e' + n : String(e.key);
+  const inner = `<span class="pm-tl-t">${esc(e.title == null ? '' : e.title)}</span>
+   ${e.summary ? `<span class="pm-tl-s">${esc(e.summary)}</span>` : ''}`;
+  const main = st.opts.onPick
+    ? `<button type="button" class="pm-tl-main" onclick="pmTimelinePick('${st.id}','${esc(key)}')">${inner}</button>`
+    : `<div class="pm-tl-main">${inner}</div>`;
+  return `<div class="pm-tl-ev ${pmTone(e.tone)}">
+   <span class="pm-tl-dot" aria-hidden="true">${svg('dot')}</span>
+   ${main}
+   ${e.time ? `<span class="pm-tl-time">${esc(e.time)}</span>` : ''}
+  </div>`;
+}
+
+function pmTimelineInner(st) {
+  const days = [];
+  st.events.forEach(e => {
+    const d = String(e.d == null ? '' : e.d);
+    const last = days[days.length - 1];
+    if (last && last.d === d) last.items.push(e); else days.push({ d, items: [e] });
+  });
+  let seq = 0;
+  return days.map((day, di) => {
+    const label = st.opts.dayLabel ? st.opts.dayLabel(day.d) : [day.d.slice(5), day.d.slice(0, 4)];
+    // 相鄰同 fold 值的事件收成一組；單筆的 fold 不摺疊。
+    const groups = [];
+    day.items.forEach(e => {
+      const g = e.fold == null ? null : String(e.fold);
+      const last = groups[groups.length - 1];
+      if (g && last && last.fold === g) last.items.push(e); else groups.push({ fold: g, items: [e] });
+    });
+    const body = groups.map((g, gi) => {
+      if (!g.fold || g.items.length < 2) return g.items.map(e => pmTlNode(st, e, seq++)).join('');
+      const fkey = di + '_' + gi;
+      const open = !!st.open[fkey];
+      return `<div class="pm-tl-fold ${open ? 'open' : ''}">
+       <button type="button" aria-expanded="${open}" onclick="pmTimelineFold('${st.id}','${fkey}')">${svg('chevronRight')}${esc(g.fold)}　${g.items.length} 筆</button>
+       <div class="pm-tl-sub">${g.items.map(e => pmTlNode(st, e, seq++)).join('')}</div>
+      </div>`;
+    }).join('');
+    return `<div class="pm-tl-day">
+     <div class="pm-tl-date"><strong>${esc(label[0])}</strong><span>${esc(label[1])}</span></div>
+     <div class="pm-tl-line">${body}</div>
+    </div>`;
+  }).join('');
+}
+
+function pmTimelineFold(id, fkey) {
+  const st = PM.tl[id];
+  if (!st) return;
+  st.open[fkey] = !st.open[fkey];
+  const box = getById(id);
+  if (box) box.innerHTML = pmTimelineInner(st);
+}
+
+function pmTimelinePick(id, key) {
+  const st = PM.tl[id];
+  if (!st) return;
+  const e = st.events.find((x, n) => String(x.key == null ? 'e' + n : x.key) === String(key));
+  if (st.opts.onPick) st.opts.onPick(key, e);
+}
+
+/* ------------------------------------------------------------------
+   6) pmDrawer(cfg) —— 細節抽屜，取代「把細節攤平在長卡裡」
+   cfg: { crumb?, title, sub?, body: HTML 字串, actions?: HTML 字串, wide? }
+   三種關閉方式（移植 detail-drawer.tsx 的互動慣例）：Esc／點外面／✕。
+   抽屜是 position:fixed 的覆蓋層，不是頁面層級的卡片（ARC-012 §7 允許 drilldown）。
+   ------------------------------------------------------------------ */
+root.insertAdjacentHTML('beforeend', `<div class="pm-drawer-wrap" id="pmDrawerWrap" onclick="if(event.target===this)pmDrawerClose()">
+ <div class="pm-drawer" role="dialog" aria-modal="true" aria-labelledby="pmDrTitle">
+  <div class="pm-dr-h">
+   <div class="pm-dr-ht">
+    <div class="pm-dr-crumb" id="pmDrCrumb"></div>
+    <h3 id="pmDrTitle"></h3>
+    <p id="pmDrSub"></p>
+   </div>
+   <button class="pm-dr-x" type="button" id="pmDrClose" title="關閉（Esc）" aria-label="關閉詳情" onclick="pmDrawerClose()">${svg('x', 15)}</button>
+  </div>
+  <div class="pm-dr-b" id="pmDrBody"></div>
+  <div class="pm-dr-f" id="pmDrFoot"></div>
+ </div>
+</div>`);
+getById('pmDrawerWrap').inert = true;
+
+function pmDrawerOpen() {
+  const w = getById('pmDrawerWrap');
+  return !!w && w.classList.contains('on');
+}
+
+function pmDrawer(cfg) {
+  const c = cfg || {};
+  const w = getById('pmDrawerWrap');
+  if (!w) return;
+  if (!pmDrawerOpen()) PM.drawer = shadow.activeElement || PM.drawer;
+  getById('pmDrCrumb').textContent = c.crumb || '詳情';
+  getById('pmDrTitle').textContent = c.title || '';
+  const sub = getById('pmDrSub');
+  sub.textContent = c.sub || '';
+  sub.style.display = c.sub ? '' : 'none';
+  getById('pmDrBody').innerHTML = c.body || '';
+  const foot = getById('pmDrFoot');
+  foot.innerHTML = c.actions || '';
+  foot.style.display = c.actions ? '' : 'none';
+  w.querySelector('.pm-drawer').classList.toggle('wide', !!c.wide);
+  w.inert = false;
+  w.classList.add('on');
+  setTimeout(() => getById('pmDrClose')?.focus(), 0);
+}
+
+function pmDrawerClose() {
+  const w = getById('pmDrawerWrap');
+  if (!w || !w.classList.contains('on')) return;
+  w.classList.remove('on');
+  w.inert = true;
+  getById('pmDrBody').innerHTML = '';
+  if (PM.drawer && PM.drawer.isConnected) PM.drawer.focus();
+  PM.drawer = null;
+}
+
+/* Esc 在捕獲階段處理，但讓位給更上層的覆蓋層（表單視窗、破壞性確認、⌘K）：
+   那些疊在抽屜之上，Esc 應該先收掉最上面那一層。 */
+doc.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !pmDrawerOpen()) return;
+  if (getById('formModalWrap')?.classList.contains('on')) return;
+  if (root.querySelector('#modalWrap.on') || root.querySelector('#cmdkWrap.on') || root.querySelector('#summon.on')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  pmDrawerClose();
+}, { capture: true, signal: controller.signal });
+
+</script>
+<script>
+/* 真實專案資料（圓展教育科技有限公司，取自 PLN-075 的四個案例） */
+const P = {
+  gh: '01.共好玟化',
+  xf: '03.幸福文齡',
+  ai: '10.AI SSOT',
+  mm: '12.摸摸寵物',
+};
+
+const MONEY = n => 'NT$ ' + n.toLocaleString('en-US');
+
+/* ---------------- 1) pmRail ---------------- */
+const RAIL = [
+  { label: '進行中專案', value: 4 },
+  { label: '待收尾款', value: MONEY(182000), tone: 'crit', note: '01.共好玟化 86,000 已逾期 15 天' },
+  { label: '本月已入帳', value: MONEY(96000), tone: 'good' },
+  { label: '待整理檔案', value: 23, tone: 'warn' },
+  { label: '報價即將到期', value: 1, tone: 'warn', note: '12.摸摸寵物 10/30' },
+];
+
+/* ---------------- 2) pmRows ---------------- */
+const TODOS = [
+  {
+    key: 'gh-final',
+    eyebrow: '合約 · CT-2501 · ' + P.gh,
+    title: '已交付、尾款未收 ' + MONEY(86000),
+    summary: '9/18 驗收單已簽回，發票尚未開立；合約約定交付後 14 日內請款，今天已逾期 15 天。',
+    meta: [{ text: '逾期 15 天', tone: 'crit' }, { text: '待開發票', tone: 'warn' }, { text: '戴宇星', chip: false }],
+    go: true,
+  },
+  {
+    key: 'xf-c2',
+    eyebrow: '期程 · 二期執行中 · ' + P.xf,
+    title: '二期「長者數位陪伴」課程執行中，10/15 期中驗收',
+    summary: '6 場已完成 4 場；第 5 場講師待確認，驗收文件缺簽到表 2 份。',
+    meta: [{ text: '執行中', tone: 'pri' }, { text: '缺 2 份文件', tone: 'warn' }, { text: 'Lily', chip: false }],
+    go: true,
+  },
+  {
+    key: 'ai-min',
+    eyebrow: '會議 · 四件套 · ' + P.ai,
+    title: '10/01 架構會議：結論與待辦尚未回寫',
+    summary: '議程、逐字稿已歸檔；結論頁空白，三項待辦沒有負責人。',
+    meta: [{ text: '待補結論', tone: 'warn' }, { text: '議程/逐字稿 已歸檔', chip: false }],
+    go: true,
+  },
+  {
+    key: 'mm-quote',
+    eyebrow: '報價 · QT-2608 · ' + P.mm,
+    title: '報價 ' + MONEY(128000) + ' 於 2026-10-30 到期',
+    summary: '客戶兩週未回覆；到期後需重新核價（講師費已調整）。',
+    meta: [{ text: '27 天後到期', tone: 'warn' }, { text: '待客戶回覆', chip: false }],
+    go: true,
+  },
+];
+
+/* ---------------- 3) pmTable ---------------- */
+const RES = [
+  { id: 'R1', kind: '合約', proj: P.gh, title: '品牌課程設計委託合約', st: '已交付待收款', d: '2026-09-18', amt: 86000, own: '戴宇星' },
+  { id: 'R2', kind: '收款', proj: P.gh, title: '尾款發票（未開立）', st: '逾期', d: '2026-10-02', amt: 86000, own: '戴宇星' },
+  { id: 'R3', kind: '期程', proj: P.xf, title: '二期期中驗收', st: '執行中', d: '2026-10-15', amt: 0, own: 'Lily' },
+  { id: 'R4', kind: '檔案', proj: P.xf, title: '第 4 場簽到表（缺）', st: '待補件', d: '2026-09-27', amt: 0, own: 'Lily' },
+  { id: 'R5', kind: '會議', proj: P.ai, title: '架構會議 · 議程', st: '已歸檔', d: '2026-10-01', amt: 0, own: '戴宇星' },
+  { id: 'R6', kind: '會議', proj: P.ai, title: '架構會議 · 逐字稿', st: '已歸檔', d: '2026-10-01', amt: 0, own: '戴宇星' },
+  { id: 'R7', kind: '會議', proj: P.ai, title: '架構會議 · 結論', st: '待補件', d: '2026-10-01', amt: 0, own: '戴宇星' },
+  { id: 'R8', kind: '會議', proj: P.ai, title: '架構會議 · 待辦（3 項無負責人）', st: '待指派', d: '2026-10-01', amt: 0, own: '—' },
+  { id: 'R9', kind: '報價', proj: P.mm, title: '寵物照護線上課 · 報價單', st: '待客戶回覆', d: '2026-10-30', amt: 128000, own: 'Lily' },
+  { id: 'R10', kind: '收款', proj: P.xf, title: '二期首款', st: '已入帳', d: '2026-09-05', amt: 96000, own: '戴宇星' },
+];
+const PENDING = ['逾期', '待補件', '待指派', '待客戶回覆'];
+
+const COLS = [
+  { k: 'kind', label: '資源' },
+  { k: 'proj', label: '專案' },
+  { k: 'title', label: '項目' },
+  { k: 'st', label: '狀態' },
+  { k: 'd', label: '關鍵日期', align: 'mono' },
+  { k: 'amt', label: '金額', align: 'num', get: r => (r.amt ? MONEY(r.amt) : '—'), sortBy: r => r.amt },
+  { k: 'own', label: '負責', dim: true },
+];
+
+/* ---------------- 4) pmTrack ---------------- */
+const CYCLES = [
+  {
+    no: 'C1', title: P.gh + '｜一期 品牌課程設計', meta: '2026-06-01 → 2026-09-18 · 已交付',
+    stages: [
+      { key: 'gh1-x', label: '執行', meta: '6/01–9/10 完成', state: 'done' },
+      { key: 'gh1-v', label: '驗收', meta: '9/18 簽回', state: 'done' },
+      { key: 'gh1-p', label: '請款', meta: '逾期 15 天', state: 'late' },
+    ],
+  },
+  {
+    no: 'C2', title: P.xf + '｜一期 數位識讀', meta: '2026-03-01 → 2026-06-30 · 結案',
+    stages: [
+      { key: 'xf1-x', label: '執行', meta: '8/8 場完成', state: 'done' },
+      { key: 'xf1-v', label: '驗收', meta: '6/28 通過', state: 'done' },
+      { key: 'xf1-p', label: '請款', meta: '7/05 入帳', state: 'done' },
+    ],
+  },
+  {
+    no: 'C3', title: P.xf + '｜二期 長者數位陪伴', meta: '2026-08-01 → 2026-12-20 · 執行中',
+    stages: [
+      { key: 'xf2-x', label: '執行', meta: '4/6 場完成', state: 'now' },
+      { key: 'xf2-v', label: '期中驗收', meta: '10/15', state: 'todo' },
+      { key: 'xf2-x2', label: '執行（下半）', meta: '10/16–12/05', state: 'todo' },
+      { key: 'xf2-v2', label: '結案驗收', meta: '12/20', state: 'todo' },
+    ],
+  },
+];
+
+/* ---------------- 5) pmTimeline ---------------- */
+const EVENTS = [
+  { key: 'e1', d: '2026-10-02', time: '09:10', title: P.gh + '：尾款進入逾期', summary: '合約約定交付後 14 日內請款，今日起列為逾期案。', tone: 'crit' },
+  { key: 'e2', d: '2026-10-02', time: '14:30', title: P.mm + '：報價追蹤提醒', summary: '客戶兩週未回覆，28 天後報價到期。', tone: 'warn' },
+  { key: 'e3', d: '2026-10-01', time: '10:00', title: '架構會議 · 議程已歸檔', summary: 'AI SSOT 單一真相層第二次架構會議。', fold: P.ai + ' 會議四件套' },
+  { key: 'e4', d: '2026-10-01', time: '11:45', title: '架構會議 · 逐字稿已歸檔', summary: '92 分鐘，自動轉寫後人工校對。', fold: P.ai + ' 會議四件套' },
+  { key: 'e5', d: '2026-10-01', time: '11:46', title: '架構會議 · 結論頁建立（空白）', summary: '尚未填寫決議內容。', tone: 'warn', fold: P.ai + ' 會議四件套' },
+  { key: 'e6', d: '2026-10-01', time: '11:47', title: '架構會議 · 待辦三項（無負責人）', summary: '索引層契約、權限邊界、匯入試算。', tone: 'warn', fold: P.ai + ' 會議四件套' },
+  { key: 'e7', d: '2026-09-27', time: '16:20', title: P.xf + '：第 4 場完成，簽到表缺件', summary: '現場 18 人，簽到表 2 份未回收。', tone: 'warn' },
+  { key: 'e8', d: '2026-09-18', time: '15:00', title: P.gh + '：驗收單簽回', summary: '客戶代表簽回，交付完成。', tone: 'good' },
+];
+
+const DAYLBL = d => [d.slice(5).replace('-', '/'), d.slice(0, 4)];
+
+/* ---------------- 版面組裝 ---------------- */
+function cmp(id, no, title, lead, before, after, badNote, goodNote) {
+  return `<h2 class="sec" id="${id}"><em>${no}</em>${title}</h2>
+  <p class="lead">${lead}</p>
+  <div class="cmp">
+   <div class="bad"><h3>改造前 <b>卡片牆</b></h3>${before}<div class="dnote">${badNote}</div></div>
+   <div class="good"><h3>改造後 <b>扁平操作面</b></h3>${after}<div class="gnote">${goodNote}</div></div>
+  </div>`;
+}
+
+const beforeRail = `<div class="dwall">${RAIL.slice(0, 4).map(i =>
+  `<div class="dcard"><span>${i.label}</span><strong>${i.value}</strong></div>`).join('')}</div>`;
+
+const beforeRows = `<div class="dcard"><h4>跨資源待辦</h4>${TODOS.map(t =>
+  `<div class="dinner"><div class="e">${t.eyebrow}</div><div class="t">${t.title}</div><div class="s">${t.summary}</div>
+   <div class="m">${t.meta.map(m => `<span>${m.text}</span>`).join('')}</div></div>`).join('')}</div>`;
+
+const beforeTable = `<div class="dcard"><h4>五大資源</h4>${RES.slice(0, 5).map(r =>
+  `<div class="dinner"><div class="e">${r.kind} · ${r.proj}</div><div class="t">${r.title}</div>
+   <div class="m"><span>${r.st}</span><span>${r.d}</span><span>${r.amt ? MONEY(r.amt) : '—'}</span></div></div>`).join('')}
+  <div class="s" style="margin-top:9px">⋯ 另外 5 筆要再往下捲</div></div>`;
+
+const beforeTrack = `<div class="dcard"><h4>期 → 階段</h4><div class="dwall">${CYCLES[2].stages.map(s =>
+  `<div class="dcard"><span>${s.label}</span><strong style="font-size:12px">${s.meta}</strong></div>`).join('')}</div></div>`;
+
+const beforeTl = `<div class="dcard"><h4>活動時間流</h4>${EVENTS.slice(0, 5).map(e =>
+  `<div class="dinner"><div class="e">${e.d} ${e.time}</div><div class="t">${e.title}</div><div class="s">${e.summary}</div></div>`).join('')}</div>`;
+
+const beforeDr = `<div class="dcard"><h4>${P.gh}｜合約 CT-2501</h4>
+ <div class="dinner"><div class="e">合約金額</div><div class="t">${MONEY(286000)}（含首款 ${MONEY(200000)}）</div></div>
+ <div class="dinner"><div class="e">交付</div><div class="t">2026-09-18 驗收單簽回</div></div>
+ <div class="dinner"><div class="e">請款條件</div><div class="t">交付後 14 日內開立發票</div></div>
+ <div class="dinner"><div class="e">風險</div><div class="t">逾期 15 天，尚未開票</div></div>
+ <div class="dinner"><div class="e">相關檔案</div><div class="t">驗收單.pdf、課綱 v3.docx、結案簡報.pdf</div></div>
+ <div class="dinner"><div class="e">往來紀錄</div><div class="t">9/18 簽回 · 9/25 客戶詢問發票 · 10/02 列為逾期</div></div></div>`;
+
+function drawerBody() {
+  return `<div class="pm-sec"><h4>合約條件</h4>
+   <dl class="pm-kv">
+    <dt>合約編號</dt><dd>CT-2501</dd>
+    <dt>合約金額</dt><dd>${MONEY(286000)}</dd>
+    <dt>已收</dt><dd>${MONEY(200000)}（首款 6/05）</dd>
+    <dt>未收</dt><dd>${MONEY(86000)}</dd>
+    <dt>請款條件</dt><dd>交付後 14 日內開立發票</dd>
+   </dl></div>
+   <div class="pm-sec"><h4>目前風險</h4><p>驗收單 9/18 已簽回，發票尚未開立，今日起逾期 15 天。客戶 9/25 曾主動詢問發票。</p></div>
+   <div class="pm-sec"><h4>相關資源</h4>${pmRows([
+    { key: 'f1', eyebrow: '檔案 · PDF · 1.2 MB', title: '驗收單_共好玟化_20260918.pdf', meta: [{ text: '已歸檔', tone: 'good' }] },
+    { key: 'f2', eyebrow: '檔案 · DOCX · 340 KB', title: '品牌課程課綱 v3.docx', meta: [{ text: '最終版' }] },
+    { key: 'f3', eyebrow: '收款 · 未開立', title: '尾款發票', meta: [{ text: '逾期', tone: 'crit' }] },
+  ], { id: 'drRows' })}</div>`;
+}
+
+function openGhDrawer() {
+  pmDrawer({
+    crumb: P.gh + ' / 合約 / CT-2501',
+    title: '品牌課程設計委託合約',
+    sub: '已交付、尾款 ' + MONEY(86000) + ' 未收 · 逾期 15 天',
+    body: drawerBody(),
+    actions: `<button class="btn pri" type="button">開立發票</button><button class="btn" type="button">記錄催款</button><span class="pm-sp"></span><button class="btn" type="button" onclick="pmDrawerClose()">關閉</button>`,
+  });
+}
+
+getById('pmMount').innerHTML = [
+  cmp('s1', 'pmRail', '一行數字列，取代統計卡牆',
+    '提案 A 的「進度／錢／資源」三張並排卡、提案 C 頂部四張統計卡，都是等權重的卡片牆：第一個視窗被框線佔滿，但沒有任何一個數字被標出來要先看。改成一行數字列之後，異常值自己用語意色站出來。',
+    beforeRail, pmRail(RAIL),
+    '✗ 四個等權重外框 ＝ 四個同樣大聲的數字；沒有一個是「現在要看的」。',
+    '✓ 無外框、一行掃完；逾期與到期用 --danger／--warn 自己浮出來，還能掛一行說明。'),
+
+  cmp('s2', 'pmRow(s)', '扁平列，取代清單卡',
+    '提案 A 的「跨資源待辦」是容器卡包著數列 —— 外層卡 ＋ 內層列 ＝ 兩層。拿掉外層卡、把每一列做成 eyebrow／標題／摘要／右側 meta 的扁平列（形狀沿用死程式碼 primitives.tsx 的 .yz-row），同樣的資訊密度少掉一整層框。',
+    beforeRows, pmRows(TODOS, { id: 'todoRows', onPick: k => { if (k === 'gh-final') openGhDrawer(); } }),
+    '✗ 卡層級 2：容器卡裡每一則又是一張卡，框線比內容還多。',
+    '✓ 卡層級 0：只有髮絲線分列。點「01.共好玟化」那一列會開細節抽屜（第 6 節）。'),
+
+  cmp('s3', 'pmTable', '可排序／可篩選／鍵盤可導覽的表格',
+    'ARC-012 §2 把 table 列為 primary operation surface 的首選，§5 更直接寫 records 頁預設是 filterable table ＋ timeline drilldown。這裡把五大資源放進同一張表：分段篩選、全文篩選、點欄位標題排序、↑↓ 移動焦點、Enter 開啟。',
+    beforeTable,
+    pmTable(COLS, RES, {
+      id: 'resTable', search: true, searchLabel: '篩選資源／專案／項目',
+      sort: { k: 'd', dir: 'desc' },
+      segments: [
+        { label: '全部' },
+        { label: '待處理', test: r => PENDING.includes(r.st) },
+        { label: '有金額', test: r => r.amt > 0 },
+      ],
+      rowKey: r => r.id,
+      foot: '↑↓ 移動焦點 · Home/End 跳頭尾 · Enter 開啟 · 點欄位標題排序',
+      onPick: k => { if (k === 'R1' || k === 'R2') openGhDrawer(); },
+    }),
+    '✗ 一筆一張卡，十筆就要捲三個視窗，且無法排序或比較金額。',
+    '✓ 一屏看完十筆、可排序比較、可篩選、鍵盤全程可操作。'),
+
+  cmp('s4', 'pmTrack', '期／階段水平軌，取代階段卡',
+    '提案 C 把「期→階段」做成四個並排方框、外面再包一層卡 ＝ 兩層。stage 本身是 repeated items（ARC-012 允許），所以保留階段，拿掉外層容器卡，並把狀態畫在軌線上。支援多期與「執行→驗收」重複出現。',
+    beforeTrack, pmTrack(CYCLES, { id: 'track1', onPick: () => openGhDrawer() }),
+    '✗ 容器卡 ＋ 階段卡 ＝ 卡層級 2；而且只看得到一期。',
+    '✓ 三期一次看完，軌線顏色直接說完成／進行／逾期；階段是軌上的段落，不是卡。'),
+
+  cmp('s5', 'pmTimeline', '一條線＋節點，容器不得是卡',
+    '提案 B 的時間流是 timeline 容器卡 ＋ 每則事件卡 ＝ 兩層。改成 Primer Timeline 的形狀：日期在左、一條髮絲線貫穿、節點掛在線上；同群事件（10.AI SSOT 的會議四件套）摺疊成一行，點開才展開。',
+    beforeTl,
+    pmTimeline(EVENTS, { id: 'tl1', dayLabel: DAYLBL, onPick: () => openGhDrawer() }),
+    '✗ 容器卡包事件卡；同一場會議的四個產物各佔一張卡，洗掉其他事件。',
+    '✓ 容器只有一條線；會議四件套收成一行「4 筆」，點開才展開。'),
+
+  cmp('s6', 'pmDrawer', '細節抽屜，取代把細節攤平在長卡裡',
+    '移植 owneros/detail-drawer.tsx 的互動慣例（但不能複用程式碼：v5 是 Shadow DOM ＋ vanilla JS）。三種關閉方式：Esc／點抽屜外／右上 ✕。抽屜是 position:fixed 的覆蓋層，不是頁面層級的卡片；內部只用 .pm-sec 髮絲線分段，不再長出第二層卡。',
+    beforeDr,
+    `<p class="lead" style="margin:0 0 10px">摘要留在列上，細節進抽屜：</p>
+     ${pmRows([{ key: 'gh', eyebrow: '合約 · CT-2501 · ' + P.gh, title: '品牌課程設計委託合約', summary: '已交付、尾款 ' + MONEY(86000) + ' 未收。', meta: [{ text: '逾期 15 天', tone: 'crit' }], go: true }], { id: 'drTrigger', onPick: openGhDrawer })}
+     <div style="margin-top:12px"><button class="btn pri" type="button" onclick="openGhDrawer()">開啟細節抽屜</button></div>`,
+    '✗ 六段細節全部攤在一張長卡裡，列表的節奏被一張巨卡打斷。',
+    '✓ 列上只留一行摘要；細節在抽屜裡，Esc／點外／✕ 三種關閉都可用。'),
+].join('');
+
+</script>
+</body>
+</html>

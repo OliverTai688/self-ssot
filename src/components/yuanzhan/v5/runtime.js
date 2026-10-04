@@ -3251,11 +3251,42 @@ function focusB(id, off) {
     S.curBlock = id;
   };
 }
+/* 同一組 blocks 會同時長在兩處 DOM：日誌裡的物件卡片，和打開的獨立頁面（抽屜）。
+   舊版只掃 #doc，而且用 bOf() 解析每個 id —— bOf() 會被 BLKS_OVERRIDE 指到『目前有焦點的
+   那一個 section』，於是在抽屜裡寫「結論」時按一次 Enter，syncAll() 就從日誌卡片那一份
+   （還沒重畫、仍然是空的）DOM 把空字串抄回同一個區塊：剛打的字當場消失，接著按
+   「完成並結案」被判定成沒有寫結論，結案失敗。
+   改法：每個書寫面只對自己的 blocks 回寫，而且同一個 section 只認使用者正在寫的那一份。 */
+function docSecBlocksOf(el) {
+  if (!el || !el.dataset) return null;
+  const d = (DB.docObjects || []).find(x => x.id === el.dataset.docId);
+  const sec = d && d.secs && d.secs[Number(el.dataset.secIdx)];
+  return sec && docWritable(d) ? ensureSecBlocks(sec) : null;
+}
+/* 抽屜開著就以抽屜那一份為準：使用者打字的是它，日誌卡片那一份比 model 舊。 */
+function docSecSurface(docId, idx) {
+  const all = Array.from(root.querySelectorAll('[data-doc-sec]')).filter(h => h.dataset.docId === docId && h.dataset.secIdx === String(idx));
+  return all.find(h => h.closest('#drBody')) || all[0] || null;
+}
+function syncSurface(host, blocks) {
+  if (!host || !blocks) return;
+  const own = host.dataset && host.dataset.docSec ? host : null;
+  host.querySelectorAll('.eb-tx[data-id]').forEach(el => {
+    if (el.closest('[data-doc-sec]') !== own) return;
+    const b = blocks.find(x => x.id === el.dataset.id);
+    if (b && TEXTY(b.t)) b.text = el.innerText.replace(/\n$/, '');
+  });
+}
 function syncAll() {
   if (!canWriteJournal()) return;
-  root.querySelectorAll('#doc .eb-tx[data-id]').forEach(el => {
-    const b = bOf(el.dataset.id);
-    if (b && TEXTY(b.t)) b.text = el.innerText.replace(/\n$/, '');
+  syncSurface(root.querySelector('#doc'), jdoc().blocks);
+  const seen = new Set();
+  root.querySelectorAll('[data-doc-sec]').forEach(host => {
+    const key = host.dataset.docId + ':' + host.dataset.secIdx;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const live = docSecSurface(host.dataset.docId, host.dataset.secIdx);
+    syncSurface(live, docSecBlocksOf(live));
   });
 }
 
@@ -10898,6 +10929,74 @@ currentJournal = function () {
   return j;
 };
 
+/* ---- 獨立頁面（抽屜）裡的 Enter／Tab／Backspace ----
+ *
+ * 區塊引擎的每一次結構變更都以 render() 收尾，而 render() 只重畫 #inner。
+ * 獨立頁面是另一棵 DOM（#drBody），openDrawer 之後就不再跟著資料走：
+ * 在 Yesterday 欄位按 Enter，sec.blocks 裡確實多了一個區塊，畫面卻停在原地。
+ * 更糟的是 focusB 的 querySelector 會先掃到 #inner 裡那張行內卡片的同 id 區塊
+ * （#inner 在 #drawer 之前），游標因此被送到抽屜背後的日誌上 ——
+ * 使用者看到的就是「Enter 沒有反應，只能用 Shift+Enter」。
+ *
+ * 兩件事一起補：結構變更後重畫獨立頁面的正文區，並把游標限定在抽屜內。
+ * 只重畫 .doc-page-workspace 而不是整個抽屜，是為了不動到同一頁上的
+ * 標題（contenteditable）、議題欄位與留言草稿 —— 那些有自己的輸入狀態。 */
+function docPageDoc() {
+  const top = S.stack[S.stack.length - 1];
+  if (!top || top.type !== 'doc_object') return null;
+  return (DB.docObjects || []).find(d => d.id === top.id) || null;
+}
+function repaintDocPageBody() {
+  const doc = docPageDoc();
+  if (!doc) return;
+  const ws = root.querySelector('#drBody .doc-page-workspace');
+  if (!ws) return;
+  const meta = metaOf(doc);
+  // MutationObserver（見 runtime-prelude）會自動把新節點上的 data-v5-* 接回事件。
+  ws.innerHTML = doc.secs.map((sec, idx) => renderDocSectionBody(doc, sec, idx, meta)).join('');
+}
+const tplBaseRender = render;
+render = function (...args) {
+  if (!docPageDoc()) return tplBaseRender(...args);
+  // _afterRender（focusB 放的游標回復）必須等獨立頁面也重畫完才跑，
+  // 否則它找的是上一輪的節點。
+  const after = runtime._afterRender;
+  runtime._afterRender = null;
+  const out = tplBaseRender(...args);
+  repaintDocPageBody();
+  if (after) after();
+  return out;
+};
+const tplBaseFocusB = focusB;
+focusB = function (id, off) {
+  tplBaseFocusB(id, off);
+  if (!docPageDoc()) return;
+  runtime._afterRender = () => {
+    const scope = root.querySelector('#drBody') || root;
+    const el = scope.querySelector(`.eb[data-id="${id}"] .eb-tx`) || root.querySelector(`.eb[data-id="${id}"] .eb-tx`);
+    if (el) setCaret(el, off == null ? el.innerText.length : off);
+    S.curBlock = id;
+  };
+};
+
+/* 段落內容的保存。
+ *
+ * 物件的段落不走 commit()：打字只改 b.text，一個網路請求都不會發。而延遲保存
+ * （opTouch）當初只掛在 render() 後面，於是「打開獨立頁面 → 寫結論 → 關掉」
+ * 這條路徑從頭到尾沒有任何一次 render()，寫的東西就只留在記憶體裡，重新整理之後整段不見。
+ *
+ * opTouch() 本身是 1.5 秒的防抖＋與基準線比對，prototype 模式下直接 no-op，
+ * 掛在 docInput 上就是它註解裡寫的那個意思：打完字停下來就保存。
+ *
+ * syncAll 的段落回寫已經移進基礎實作（見 source-patches.mjs），這裡不再重複一份 ——
+ * 兩份各自用不同方式解析區塊，正是「在抽屜裡按 Enter 會把剛打的字抹掉」的來源。 */
+const tplBaseDocInput = docInput;
+docInput = function (e) {
+  tplBaseDocInput(e);
+  if (!canWriteJournal()) return;
+  opTouch();
+};
+
 /* 議題物件（提案 B）—— 把「今日議題」從一行上的旗標，升格成系統裡的一個物件。
  *
  * 為什麼是物件而不是把欄位長在 todayIssues 上：
@@ -11285,10 +11384,23 @@ function agCarryTo(id, day) {
     return [`延到 ${to}`, `提出於 ${st.bornDay}，已經帶過 ${st.carried.length} 次`];
   });
 }
+
+/* 結案與重新開啟都改變了頁尾該出現哪幾顆按鈕，但 commit() 的 render() 只重畫工作台，
+ * 抽屜的頁尾不在它的範圍裡 —— 不補這一下，結案成功之後畫面仍停在「完成並結案」，
+ * 看起來就像沒反應。 */
+function agRepaintPage(id) {
+  const stack = S.stack || [];
+  const top = stack[stack.length - 1];
+  if (top && top.type === 'doc_object' && top.id === id) paintDrawer();
+}
 function agComplete(id) {
   const d = agFind(id);
   if (!d) return;
   if (!agOwned(d)) return deny();
+  /* 按鈕是 mousedown 才讓焦點離開可編輯區的，最後一段文字（尤其注音組字剛結束那一下）
+   * 有機會還沒回寫到 model。讀結論之前先回寫一次，否則「剛打完就按結案」會被誤判成沒有結論，
+   * 而那一次誤判還會重畫獨立頁面，把畫面上看得到的字一起洗掉。 */
+  syncAll();
   if (!agConclusion(d)) {
     openDocPage(id);
     return toast('結案前先在「結論」寫下決定或下一步');
@@ -11299,6 +11411,7 @@ function agComplete(id) {
     d.updatedAt = Date.now();
     return ['議題結案，結論留在物件裡', '從收工檢查與右欄移除'];
   });
+  agRepaintPage(id);
 }
 function agReopen(id) {
   const d = agFind(id);
@@ -11310,6 +11423,7 @@ function agReopen(id) {
     d.updatedAt = Date.now();
     return ['重新開啟這個議題'];
   });
+  agRepaintPage(id);
 }
 
 /* ---------- 討論與附件 ---------- */
@@ -18645,6 +18759,3917 @@ root.addEventListener('paste', e => {
   capture: true,
   signal: controller.signal
 });
+
+/* ==================================================================
+   pm-* 扁平操作面 primitive（規格：ARC-043、PLN-075 §S1.5 D）
+
+   為什麼需要這一層：
+     v5 工作台是 Shadow DOM ＋ vanilla JS，**無法 import React 元件**。
+     既有的 src/components/owneros/insight-rail.tsx、detail-drawer.tsx 與死程式碼
+     src/components/yuanzhan/primitives.tsx 的 RecordRows／.yz-row，只能移植「形狀
+     與互動慣例」，不能複用程式碼；react-aria／motion／cmdk／vaul 在 v5 內同樣用不上
+     （claude/nested-card-decoupling-research.md §1.1）。所以這裡是手寫的 vanilla 版。
+
+   六個 primitive 與它們取代的東西（PLN-075 §S1.5 C 對照表）：
+     pmRail     一行數字列          ← 統計卡牆
+     pmRow(s)   扁平列              ← 清單卡
+     pmTable    可排序／篩選／鍵盤導覽 ← 資料卡牆（ARC-012 primary surface 首選）
+     pmTrack    期／階段水平軌       ← 階段卡
+     pmTimeline 一條線＋節點         ← 活動卡牆（容器不得是卡）
+     pmDrawer   細節抽屜            ← 把細節攤平在長卡裡
+
+   硬規定（AGENTS.md §12.1）：
+     - 圖示一律 svg(name, size)，不用 emoji、不寫字面 <svg>。
+     - 顏色一律 var(--token, fallback)，token 在 company-theme.ts 的 V5_PALETTES。
+     - 樣式全在 pm-primitives.css；這裡不寫 inline style 的色值。
+
+   互動回呼的慣例：
+     Shadow DOM 的 inline handler 會被 generator 編成閉包，但「把一段 JS 字串塞進
+     attribute」不可行（會被當成識別字編譯）。所以每個有互動的 primitive 都吃一個
+     穩定的 opts.id，回呼函式存在 PM 登記表裡，markup 只帶 id 與 row key。
+     id 必須在同一個檢視內穩定，重繪後排序／摺疊狀態才留得住。
+   ================================================================== */
+
+const PM = {
+  t: {},
+  tr: {},
+  tl: {},
+  rows: {},
+  drawer: null
+};
+const pmArr = v => Array.isArray(v) ? v : [];
+const pmTone = t => ['good', 'warn', 'crit', 'pri'].includes(t) ? t : '';
+
+/* ------------------------------------------------------------------
+   1) pmRail(items, opts) —— 一行數字列，無外框，取代統計卡牆
+   items: [{ label, value, unit?, tone?: good|warn|crit, note? }]
+   opts:  { bare?: 底線也不要 }
+   ------------------------------------------------------------------ */
+function pmRail(items, opts) {
+  const o = opts || {};
+  const body = pmArr(items).map(i => `<div class="pm-rail-i ${pmTone(i.tone)}">
+   <span class="pm-rail-k">${esc(i.label == null ? '' : i.label)}</span>
+   <span class="pm-rail-v">${esc(i.value == null ? '—' : i.value)}${i.unit ? `<span class="pm-rail-u">${esc(i.unit)}</span>` : ''}</span>
+   ${i.note ? `<span class="pm-rail-n">${esc(i.note)}</span>` : ''}
+  </div>`).join('');
+  return `<div class="pm-rail ${o.bare ? 'bare' : ''}" role="group" aria-label="${esc(o.label || '重點數字')}">${body}</div>`;
+}
+
+/* ------------------------------------------------------------------
+   2) pmRow / pmRows —— 扁平列，取代清單卡
+   item: { key?, eyebrow?, title, summary?, meta?: [{text, tone?}], go?: 顯示跳轉箭頭 }
+   pmRows(items, { id, onPick }) 整段可點；單獨用 pmRow(item) 則是靜態一列。
+   ------------------------------------------------------------------ */
+function pmRowMeta(meta) {
+  return pmArr(meta).map(m => {
+    if (m == null) return '';
+    const t = typeof m === 'string' ? {
+      text: m
+    } : m;
+    return t.chip === false ? `<span>${esc(t.text)}</span>` : `<span class="pm-chip ${pmTone(t.tone)}">${esc(t.text)}</span>`;
+  }).join('');
+}
+function pmRow(item, pick) {
+  const it = item || {};
+  const inner = `${it.eyebrow ? `<span class="pm-eyebrow">${esc(it.eyebrow)}</span>` : ''}
+   <span class="pm-row-t">${esc(it.title == null ? '' : it.title)}</span>
+   ${it.summary ? `<span class="pm-row-s">${esc(it.summary)}</span>` : ''}`;
+  const main = pick ? `<button type="button" class="pm-row-main" ${bind("click", (event, element) => {
+    pmRowsPick(pick.id, esc(pick.key));
+  })}>${inner}</button>` : `<div class="pm-row-main pm-row-static">${inner}</div>`;
+  return `<div class="pm-row">${main}
+   <div class="pm-row-meta">${pmRowMeta(it.meta)}${it.go ? `<span class="pm-row-go">${svg('chevronRight')}</span>` : ''}</div>
+  </div>`;
+}
+function pmRows(items, opts) {
+  const o = opts || {};
+  const id = o.id || 'pmrows';
+  PM.rows[id] = {
+    onPick: o.onPick
+  };
+  const list = pmArr(items);
+  if (!list.length) return `<div class="pm-tempty">${esc(o.empty || '目前沒有項目')}</div>`;
+  return `<div class="pm-rows" id="${id}">${list.map((it, n) => pmRow(it, o.onPick ? {
+    id,
+    key: it.key == null ? String(n) : String(it.key)
+  } : null)).join('')}</div>`;
+}
+function pmRowsPick(id, key) {
+  const st = PM.rows[id];
+  if (st && st.onPick) st.onPick(key);
+}
+
+/* ------------------------------------------------------------------
+   3) pmTable(cols, rows, opts) —— 可排序／可篩選／鍵盤可導覽的表格
+   cols: [{ k, label, align?: 'num'|'mono', get?(row), sortBy?(row), w? }]
+   opts: { id, onPick?(key), rowKey?(row), segments?: [{label, test?(row)}],
+           search?: boolean, searchIn?(row) -> string, empty?, foot? }
+   ------------------------------------------------------------------ */
+function pmTable(cols, rows, opts) {
+  const o = opts || {};
+  const id = o.id || 'pmt-' + pmArr(cols).map(c => c.k).join('_');
+  const prev = PM.t[id] || {};
+  const st = PM.t[id] = {
+    id,
+    cols: pmArr(cols),
+    rows: pmArr(rows),
+    opts: o,
+    sort: prev.sort || (o.sort ? {
+      k: o.sort.k,
+      dir: o.sort.dir || 'asc'
+    } : null),
+    seg: prev.seg == null ? o.seg || 0 : prev.seg,
+    q: prev.q || '',
+    cur: prev.cur || null
+  };
+  return `<div class="pm-table" id="${id}" ${bind("keydown", (event, element) => {
+    pmTableKey(event, id);
+  })}>${pmTableInner(st)}</div>`;
+}
+function pmCell(c, row) {
+  const v = c.get ? c.get(row) : row[c.k];
+  return v == null ? '' : String(v);
+}
+function pmSortVal(c, row) {
+  if (c.sortBy) return c.sortBy(row);
+  const v = c.get ? c.get(row) : row[c.k];
+  return v == null ? '' : v;
+}
+function pmTableView(st) {
+  const o = st.opts;
+  let list = st.rows.slice();
+  const seg = pmArr(o.segments)[st.seg];
+  if (seg && seg.test) list = list.filter(seg.test);
+  const q = String(st.q || '').trim().toLowerCase();
+  if (q) {
+    list = list.filter(r => {
+      const hay = o.searchIn ? o.searchIn(r) : st.cols.map(c => pmCell(c, r)).join(' ');
+      return String(hay).toLowerCase().includes(q);
+    });
+  }
+  if (st.sort) {
+    const c = st.cols.find(x => x.k === st.sort.k);
+    if (c) {
+      const num = c.align === 'num';
+      const sign = st.sort.dir === 'desc' ? -1 : 1;
+      list.sort((a, b) => {
+        const x = pmSortVal(c, a),
+          y = pmSortVal(c, b);
+        if (num) return sign * ((Number(x) || 0) - (Number(y) || 0));
+        return sign * String(x).localeCompare(String(y), 'zh-Hant');
+      });
+    }
+  }
+  return list;
+}
+function pmTableInner(st) {
+  const o = st.opts;
+  const list = pmTableView(st);
+  const rowKey = r => String(o.rowKey ? o.rowKey(r) : r.id == null ? '' : r.id);
+  const segs = pmArr(o.segments);
+  const bar = segs.length || o.search ? `<div class="pm-table-bar">
+      ${segs.length ? `<div class="pm-tseg" role="tablist">${segs.map((s, i) => `<button type="button" role="tab" aria-selected="${i === st.seg}" class="${i === st.seg ? 'on' : ''}" ${bind("click", (event, element) => {
+    pmTableSeg(st.id, i);
+  })}>${esc(s.label)}</button>`).join('')}</div>` : ''}
+      ${o.search ? `<label class="pm-tsearch">${svg('search')}<input type="search" value="${esc(st.q)}" placeholder="${esc(o.searchLabel || '篩選')}" aria-label="${esc(o.searchLabel || '篩選表格')}" ${bind("input", (event, element) => {
+    pmTableQuery(st.id, element.value);
+  })}></label>` : ''}
+      <span class="pm-sp"></span>
+      <span class="pm-tcount">${list.length} / ${st.rows.length}</span>
+     </div>` : '';
+  const head = st.cols.map(c => {
+    const sorted = st.sort && st.sort.k === c.k;
+    const aria = sorted ? ` aria-sort="${st.sort.dir === 'desc' ? 'descending' : 'ascending'}"` : '';
+    // 排序方向用同一顆 chevron 轉向表示（CSS rotate），不另外塞箭頭字形。
+    const dir = sorted ? st.sort.dir === 'desc' ? ' down' : ' up' : '';
+    const mark = sorted ? svg('chevronRight') : svg('sort');
+    return c.sortable === false ? `<th class="plain ${c.align || ''}" scope="col">${esc(c.label)}</th>` : `<th class="${c.align || ''}"${aria} scope="col"><button type="button" ${bind("click", (event, element) => {
+      pmTableSort(st.id, c.k);
+    })}>${esc(c.label)}<span class="pm-sort${dir}">${mark}</span></button></th>`;
+  }).join('');
+  const body = list.length ? list.map((r, i) => {
+    const k = rowKey(r);
+    const sel = st.cur != null && st.cur === k;
+    const tab = i === 0 ? 0 : -1;
+    const click = o.onPick ? ` ${bind("click", (event, element) => {
+      pmTablePick(st.id, esc(k));
+    })}` : '';
+    return `<tr data-k="${esc(k)}" tabindex="${tab}" aria-selected="${sel}"${click}>${st.cols.map(c => `<td class="${c.align || ''} ${c.dim ? 'dim' : ''}">${esc(pmCell(c, r))}</td>`).join('')}</tr>`;
+  }).join('') : `<tr><td class="pm-tempty" colspan="${st.cols.length}">${esc(o.empty || '沒有符合條件的資料')}</td></tr>`;
+  return `${bar}<div class="pm-tscroll"><table class="pm-t"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${o.foot ? `<div class="pm-tfoot">${esc(o.foot)}</div>` : ''}`;
+}
+function pmTablePaint(st, focusSearch) {
+  const box = getById(st.id);
+  if (!box) return;
+  box.innerHTML = pmTableInner(st);
+  if (!focusSearch) return;
+  const input = box.querySelector('.pm-tsearch input');
+  if (input) {
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+}
+function pmTableSort(id, k) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.sort = st.sort && st.sort.k === k ? st.sort.dir === 'asc' ? {
+    k,
+    dir: 'desc'
+  } : null : {
+    k,
+    dir: 'asc'
+  };
+  pmTablePaint(st);
+}
+function pmTableSeg(id, i) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.seg = i;
+  pmTablePaint(st);
+}
+function pmTableQuery(id, v) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.q = v;
+  pmTablePaint(st, true);
+}
+function pmTablePick(id, key) {
+  const st = PM.t[id];
+  if (!st) return;
+  st.cur = key;
+  const row = st.rows.find(r => String(st.opts.rowKey ? st.opts.rowKey(r) : r.id) === String(key));
+  if (st.opts.onPick) st.opts.onPick(key, row);
+  const box = getById(id);
+  if (box) box.querySelectorAll('tbody tr[data-k]').forEach(tr => tr.setAttribute('aria-selected', String(tr.dataset.k === String(key))));
+}
+
+/** 鍵盤導覽：↑↓ 移動焦點（roving tabindex）、Home/End 跳頭尾、Enter／空白鍵開啟。 */
+function pmTableKey(e, id) {
+  const box = getById(id);
+  if (!box) return;
+  const rows = [...box.querySelectorAll('tbody tr[data-k]')];
+  if (!rows.length) return;
+  const at = rows.indexOf(shadow.activeElement);
+  const go = n => {
+    const t = rows[Math.max(0, Math.min(rows.length - 1, n))];
+    if (!t) return;
+    rows.forEach(r => {
+      r.tabIndex = -1;
+    });
+    t.tabIndex = 0;
+    t.focus();
+    e.preventDefault();
+  };
+  if (e.key === 'ArrowDown') return go(at < 0 ? 0 : at + 1);
+  if (e.key === 'ArrowUp') return go(at < 0 ? 0 : at - 1);
+  if (e.key === 'Home') return go(0);
+  if (e.key === 'End') return go(rows.length - 1);
+  if ((e.key === 'Enter' || e.key === ' ') && at >= 0) {
+    e.preventDefault();
+    pmTablePick(id, rows[at].dataset.k);
+  }
+}
+
+/* ------------------------------------------------------------------
+   4) pmTrack(cycles, opts) —— 期／階段水平軌，取代階段卡
+   cycles: [{ no?, title, meta?, stages: [{ key?, label, meta?, state? }] }]
+   state: done | now | late | todo（預設 todo）；支援多期與「執行→驗收」重複。
+   opts: { id, onPick?(stageKey, cycleIndex) }
+   ------------------------------------------------------------------ */
+const PM_STAGE_ICON = {
+  done: 'check',
+  now: 'dot',
+  late: 'warn',
+  todo: 'clock'
+};
+function pmTrack(cycles, opts) {
+  const o = opts || {};
+  const id = o.id || 'pmtrack';
+  PM.tr[id] = {
+    onPick: o.onPick,
+    cycles: pmArr(cycles)
+  };
+  const body = pmArr(cycles).map((c, ci) => {
+    const stages = pmArr(c.stages).map((s, si) => {
+      const state = PM_STAGE_ICON[s.state] ? s.state : 'todo';
+      const key = s.key == null ? ci + '.' + si : s.key;
+      const inner = `<span class="pm-stage-k">${svg(PM_STAGE_ICON[state])}${esc(s.label == null ? '' : s.label)}</span>
+       ${s.meta ? `<span class="pm-stage-m">${esc(s.meta)}</span>` : ''}`;
+      return o.onPick ? `<button type="button" class="pm-stage ${state}" ${bind("click", (event, element) => {
+        pmTrackPick(id, esc(key), ci);
+      })}>${inner}</button>` : `<div class="pm-stage ${state}">${inner}</div>`;
+    }).join('');
+    return `<div class="pm-cycle">
+     <div class="pm-cycle-h">
+      ${c.no ? `<span class="pm-cycle-n">${esc(c.no)}</span>` : ''}
+      <span class="pm-cycle-t">${esc(c.title == null ? '' : c.title)}</span>
+      ${c.meta ? `<span class="pm-cycle-m">${esc(c.meta)}</span>` : ''}
+     </div>
+     <div class="pm-stages">${stages}</div>
+    </div>`;
+  }).join('');
+  return `<div class="pm-track" id="${id}">${body}</div>`;
+}
+function pmTrackPick(id, key, ci) {
+  const st = PM.tr[id];
+  if (st && st.onPick) st.onPick(key, ci);
+}
+
+/* ------------------------------------------------------------------
+   5) pmTimeline(events, opts) —— 一條線＋節點（Primer Timeline 形狀）
+   events: [{ key?, d, time?, title, summary?, tone?, fold? }]
+     fold 相同且相鄰的事件會摺疊成一行（同群事件），點一下展開。
+   opts: { id, onPick?(key), dayLabel?(d) -> [大字, 小字] }
+   容器只有一條左側髮絲線，沒有外框，也不是卡（PLN-075 §S1.5 C）。
+   ------------------------------------------------------------------ */
+function pmTimeline(events, opts) {
+  const o = opts || {};
+  const id = o.id || 'pmtl';
+  const prev = PM.tl[id] || {};
+  const st = PM.tl[id] = {
+    id,
+    events: pmArr(events),
+    opts: o,
+    open: prev.open || {}
+  };
+  return `<div class="pm-timeline" id="${id}">${pmTimelineInner(st)}</div>`;
+}
+function pmTlNode(st, e, n) {
+  const key = e.key == null ? 'e' + n : String(e.key);
+  const inner = `<span class="pm-tl-t">${esc(e.title == null ? '' : e.title)}</span>
+   ${e.summary ? `<span class="pm-tl-s">${esc(e.summary)}</span>` : ''}`;
+  const main = st.opts.onPick ? `<button type="button" class="pm-tl-main" ${bind("click", (event, element) => {
+    pmTimelinePick(st.id, esc(key));
+  })}>${inner}</button>` : `<div class="pm-tl-main">${inner}</div>`;
+  return `<div class="pm-tl-ev ${pmTone(e.tone)}">
+   <span class="pm-tl-dot" aria-hidden="true">${svg('dot')}</span>
+   ${main}
+   ${e.time ? `<span class="pm-tl-time">${esc(e.time)}</span>` : ''}
+  </div>`;
+}
+function pmTimelineInner(st) {
+  const days = [];
+  st.events.forEach(e => {
+    const d = String(e.d == null ? '' : e.d);
+    const last = days[days.length - 1];
+    if (last && last.d === d) last.items.push(e);else days.push({
+      d,
+      items: [e]
+    });
+  });
+  let seq = 0;
+  return days.map((day, di) => {
+    const label = st.opts.dayLabel ? st.opts.dayLabel(day.d) : [day.d.slice(5), day.d.slice(0, 4)];
+    // 相鄰同 fold 值的事件收成一組；單筆的 fold 不摺疊。
+    const groups = [];
+    day.items.forEach(e => {
+      const g = e.fold == null ? null : String(e.fold);
+      const last = groups[groups.length - 1];
+      if (g && last && last.fold === g) last.items.push(e);else groups.push({
+        fold: g,
+        items: [e]
+      });
+    });
+    const body = groups.map((g, gi) => {
+      if (!g.fold || g.items.length < 2) return g.items.map(e => pmTlNode(st, e, seq++)).join('');
+      const fkey = di + '_' + gi;
+      const open = !!st.open[fkey];
+      return `<div class="pm-tl-fold ${open ? 'open' : ''}">
+       <button type="button" aria-expanded="${open}" ${bind("click", (event, element) => {
+        pmTimelineFold(st.id, fkey);
+      })}>${svg('chevronRight')}${esc(g.fold)}　${g.items.length} 筆</button>
+       <div class="pm-tl-sub">${g.items.map(e => pmTlNode(st, e, seq++)).join('')}</div>
+      </div>`;
+    }).join('');
+    return `<div class="pm-tl-day">
+     <div class="pm-tl-date"><strong>${esc(label[0])}</strong><span>${esc(label[1])}</span></div>
+     <div class="pm-tl-line">${body}</div>
+    </div>`;
+  }).join('');
+}
+function pmTimelineFold(id, fkey) {
+  const st = PM.tl[id];
+  if (!st) return;
+  st.open[fkey] = !st.open[fkey];
+  const box = getById(id);
+  if (box) box.innerHTML = pmTimelineInner(st);
+}
+function pmTimelinePick(id, key) {
+  const st = PM.tl[id];
+  if (!st) return;
+  const e = st.events.find((x, n) => String(x.key == null ? 'e' + n : x.key) === String(key));
+  if (st.opts.onPick) st.opts.onPick(key, e);
+}
+
+/* ------------------------------------------------------------------
+   6) pmDrawer(cfg) —— 細節抽屜，取代「把細節攤平在長卡裡」
+   cfg: { crumb?, title, sub?, body: HTML 字串, actions?: HTML 字串, wide? }
+   三種關閉方式（移植 detail-drawer.tsx 的互動慣例）：Esc／點外面／✕。
+   抽屜是 position:fixed 的覆蓋層，不是頁面層級的卡片（ARC-012 §7 允許 drilldown）。
+   ------------------------------------------------------------------ */
+root.insertAdjacentHTML('beforeend', `<div class="pm-drawer-wrap" id="pmDrawerWrap" ${bind("click", (event, element) => {
+  if (event.target === element) pmDrawerClose();
+})}>
+ <div class="pm-drawer" role="dialog" aria-modal="true" aria-labelledby="pmDrTitle">
+  <div class="pm-dr-h">
+   <div class="pm-dr-ht">
+    <div class="pm-dr-crumb" id="pmDrCrumb"></div>
+    <h3 id="pmDrTitle"></h3>
+    <p id="pmDrSub"></p>
+   </div>
+   <button class="pm-dr-x" type="button" id="pmDrClose" title="關閉（Esc）" aria-label="關閉詳情" ${bind("click", (event, element) => {
+  pmDrawerClose();
+})}>${svg('x', 15)}</button>
+  </div>
+  <div class="pm-dr-b" id="pmDrBody"></div>
+  <div class="pm-dr-f" id="pmDrFoot"></div>
+ </div>
+</div>`);
+getById('pmDrawerWrap').inert = true;
+function pmDrawerOpen() {
+  const w = getById('pmDrawerWrap');
+  return !!w && w.classList.contains('on');
+}
+function pmDrawer(cfg) {
+  const c = cfg || {};
+  const w = getById('pmDrawerWrap');
+  if (!w) return;
+  if (!pmDrawerOpen()) PM.drawer = shadow.activeElement || PM.drawer;
+  getById('pmDrCrumb').textContent = c.crumb || '詳情';
+  getById('pmDrTitle').textContent = c.title || '';
+  const sub = getById('pmDrSub');
+  sub.textContent = c.sub || '';
+  sub.style.display = c.sub ? '' : 'none';
+  getById('pmDrBody').innerHTML = c.body || '';
+  const foot = getById('pmDrFoot');
+  foot.innerHTML = c.actions || '';
+  foot.style.display = c.actions ? '' : 'none';
+  w.querySelector('.pm-drawer').classList.toggle('wide', !!c.wide);
+  w.inert = false;
+  w.classList.add('on');
+  setTimeout(() => getById('pmDrClose')?.focus(), 0);
+}
+function pmDrawerClose() {
+  const w = getById('pmDrawerWrap');
+  if (!w || !w.classList.contains('on')) return;
+  w.classList.remove('on');
+  w.inert = true;
+  getById('pmDrBody').innerHTML = '';
+  if (PM.drawer && PM.drawer.isConnected) PM.drawer.focus();
+  PM.drawer = null;
+}
+
+/* Esc 在捕獲階段處理，但讓位給更上層的覆蓋層（表單視窗、破壞性確認、⌘K）：
+   那些疊在抽屜之上，Esc 應該先收掉最上面那一層。 */
+doc.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !pmDrawerOpen()) return;
+  if (getById('formModalWrap')?.classList.contains('on')) return;
+  if (root.querySelector('#modalWrap.on') || root.querySelector('#cmdkWrap.on') || root.querySelector('#summon.on')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  pmDrawerClose();
+}, {
+  capture: true,
+  signal: controller.signal
+});
+
+/* ==================================================================
+   專案 · 總覽（PLN-075 S3 Wave 3a）
+
+   上半回答「現在長什麼樣」：期階梯 ＋ 跨資源待辦（提案 A）。
+   下半回答「發生了什麼」：時間流（提案 B）。
+
+   版面照 ARC-012 五層、ARC-043 的 primitive：一行數字列、水平軌、扁平列、一條線＋節點。
+   沒有任何一個區塊是卡片容器（PLN-075 §S1.5 C 的對照表）。
+   ================================================================== */
+
+var PMV = PMV || {};
+function pmTrackData(p) {
+  return pmCycles(p.id).map(c => ({
+    no: 'C' + c.ordinal,
+    title: pmCycleName(c) + (c.title ? '｜' + c.title : ''),
+    meta: [[c.startOn, c.endOn].filter(Boolean).join(' → '), PM_CYCLE_ST[c.status] || ''].filter(Boolean).join(' · '),
+    stages: pmStages(c.id).map(ph => ({
+      key: ph.id,
+      label: ph.label,
+      meta: pmStageMeta(ph),
+      state: pmStageState(ph)
+    }))
+  })).filter(c => c.stages.length);
+}
+
+/** 跨資源待辦：各資源裡「現在需要人處理」的東西，收成同一張清單。 */
+function pmAttention(p) {
+  const out = [];
+  const tasks = pmTasks(p.id);
+  const soon = dadd(TODAY, 7);
+  tasks.filter(t => pmIsReview(t) && t.reviewResult === 'IN_REVIEW').forEach(t => out.push({
+    key: 'plan:' + t.id,
+    eyebrow: '計劃 · 審核任務',
+    title: t.t,
+    summary: '等 ' + pmWho(t.reviewer) + ' 審核' + (t.due ? '，期限 ' + t.due : ''),
+    meta: [{
+      text: '待審',
+      tone: 'warn'
+    }],
+    go: true
+  }));
+  tasks.filter(t => pmIsReview(t) && t.reviewResult === 'CHANGES_REQUESTED').forEach(t => out.push({
+    key: 'plan:' + t.id,
+    eyebrow: '計劃 · 審核任務',
+    title: t.t,
+    summary: '退回原因：' + (t.reviewNote || '未填'),
+    meta: [{
+      text: '已退回',
+      tone: 'crit'
+    }],
+    go: true
+  }));
+  tasks.filter(t => !pmIsReview(t) && t.st !== 'Done' && t.due && t.due <= soon).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5).forEach(t => out.push({
+    key: 'plan:' + t.id,
+    eyebrow: '計劃 · TODO',
+    title: t.t,
+    summary: pmWho(t.owner) + ' · 期限 ' + t.due,
+    meta: [t.due < TODAY ? {
+      text: '逾期 ' + ddiff(t.due, TODAY) + ' 日',
+      tone: 'crit'
+    } : {
+      text: t.due.slice(5),
+      tone: ''
+    }],
+    go: true
+  }));
+  pmMilestones(p.id).filter(m => m.state !== 'done' && m.dueOn && m.dueOn <= soon).sort((a, b) => a.dueOn.localeCompare(b.dueOn)).forEach(m => out.push({
+    key: 'plan:' + m.id,
+    eyebrow: '計劃 · 里程碑',
+    title: m.title,
+    summary: m.accept ? '驗收方式：' + m.accept : '尚未寫驗收方式',
+    meta: [m.dueOn < TODAY ? {
+      text: '逾期 ' + ddiff(m.dueOn, TODAY) + ' 日',
+      tone: 'crit'
+    } : {
+      text: m.dueOn.slice(5),
+      tone: 'pri'
+    }],
+    go: true
+  }));
+  const unfiled = pmUnfiled(p.id);
+  if (unfiled.length) out.push({
+    key: 'drive:inbox',
+    eyebrow: '檔案 · 收件匣',
+    title: unfiled.length + ' 個檔案待整理',
+    summary: unfiled.slice(0, 3).map(a => a.name).join('、') + (unfiled.length > 3 ? ' …' : ''),
+    meta: [{
+      text: '待整理',
+      tone: 'warn'
+    }],
+    go: true
+  });
+  const meetings = pmMeetings(p.id);
+  meetings.filter(o => o.onDate <= TODAY && !o.recap).forEach(o => out.push({
+    key: 'meeting:' + o.id,
+    eyebrow: '會議 · ' + o.onDate,
+    title: o.title,
+    summary: '開完了但還沒寫結論',
+    meta: [{
+      text: '缺結論',
+      tone: 'warn'
+    }],
+    go: true
+  }));
+  const next = meetings.filter(o => o.onDate > TODAY).sort((a, b) => a.onDate.localeCompare(b.onDate))[0];
+  if (next) out.push({
+    key: 'meeting:' + next.id,
+    eyebrow: '會議 · 下一場',
+    title: next.title,
+    summary: [next.onDate, next.at, next.place].filter(Boolean).join(' · '),
+    meta: [{
+      text: ddiff(TODAY, next.onDate) + ' 日後',
+      tone: 'pri'
+    }],
+    go: true
+  });
+  return out;
+}
+function pmAttentionPick(key) {
+  const at = String(key).indexOf(':');
+  const tab = key.slice(0, at),
+    id = key.slice(at + 1);
+  if (tab === 'drive') {
+    const inbox = pmInbox(S.proj);
+    return pmJump('drive', 'tree', '總覽', inbox ? {
+      folder: inbox.id
+    } : null);
+  }
+  if (tab === 'meeting') return pmJump('meeting', null, '總覽', {
+    meeting: id
+  });
+  return pmJump('plan', 'tree', '總覽');
+}
+
+/** 五大資源的入口。LINE 本階段不做（OD-H），以停用狀態呈現，不假裝可用。 */
+function pmResources(p) {
+  const files = pmAssets(p.id).length,
+    unfiled = pmUnfiled(p.id).length;
+  const msgs = pmChannels(p.id).reduce((n, c) => n + pmMessages(c.id).length, 0);
+  const ms = pmMilestones(p.id);
+  const items = [['chat', 'room', 'message', '專案聊天室', msgs ? msgs + ' 則訊息' : '尚未開啟'], ['drive', 'tree', 'folder', '雲端硬碟', pmRoot(p.id) ? files + ' 個檔案' + (unfiled ? ' · ' + unfiled + ' 待整理' : '') : '尚未啟用'], ['plan', 'tree', 'flag', '專案工作區', pmCycles(p.id).length ? pmCycles(p.id).length + ' 期 · ' + ms.length + ' 里程碑' : '尚未分期'], ['meeting', '', 'calendar', '會議資料區', pmMeetings(p.id).length ? pmMeetings(p.id).length + ' 場會議' : '尚無會議']];
+  return `<div class="pm-res" role="list">${items.map(i => `<button type="button" role="listitem" class="pm-res-i" ${bind("click", (event, element) => {
+    pmJump(i[0], i[1], '總覽');
+  })}>${svg(i[2], 14)}<span class="pm-res-t">${i[3]}</span><span class="pm-res-m">${esc(i[4])}</span></button>`).join('')}<div role="listitem" class="pm-res-i off" aria-disabled="true">${svg('lock', 14)}<span class="pm-res-t">LINE 群導入</span><span class="pm-res-m">本階段未開放</span></div></div>`;
+}
+
+/**
+ * 時間流。入流規則（提案 B）：一則＝一個對外看得見的事。
+ * 單則聊天訊息不進流，對話一天收成一則；同一天的多個上傳收成一組。
+ */
+function pmFlow(p) {
+  const ev = [];
+  pmCycles(p.id).forEach(c => {
+    if (c.startOn) ev.push({
+      key: 'plan:' + c.id,
+      d: c.startOn,
+      title: pmCycleName(c) + '啟動' + (c.title ? '｜' + c.title : ''),
+      tone: 'pri'
+    });
+  });
+  pmMilestones(p.id).filter(m => m.dueOn).forEach(m => ev.push({
+    key: 'plan:' + m.id,
+    d: m.dueOn,
+    title: '里程碑 · ' + m.title,
+    summary: m.accept || '',
+    tone: m.state === 'done' ? 'good' : m.dueOn < TODAY ? 'crit' : 'pri'
+  }));
+  pmMeetings(p.id).forEach(o => ev.push({
+    key: 'meeting:' + o.id,
+    d: o.onDate,
+    title: '會議 · ' + o.title,
+    time: o.at || '',
+    summary: o.recap ? '結論：' + pmCut(o.recap, 80) : o.onDate <= TODAY ? '尚未寫結論' : '',
+    tone: o.onDate <= TODAY && !o.recap ? 'warn' : ''
+  }));
+  pmTasks(p.id).filter(t => t.st === 'Done' && t.done).forEach(t => ev.push({
+    key: 'plan:' + t.id,
+    d: t.done,
+    title: t.t,
+    fold: '完成的工作',
+    tone: 'good'
+  }));
+  pmAssets(p.id).forEach(a => ev.push({
+    key: 'drive:' + (a.folderId || ''),
+    d: a.day || pmDay(a.bornAt),
+    title: a.name,
+    fold: '檔案上傳'
+  }));
+  pmChannels(p.id).forEach(c => {
+    const byDay = {};
+    pmMessages(c.id).forEach(m => {
+      const d = pmDay(m.at);
+      (byDay[d] = byDay[d] || []).push(m);
+    });
+    Object.keys(byDay).forEach(d => {
+      const list = byDay[d],
+        last = list[list.length - 1];
+      ev.push({
+        key: 'chat:' + c.id,
+        d,
+        title: '對話 · ' + c.name + '　' + list.length + ' 則',
+        summary: pmWho(last.w) + '：' + pmCut(last.text, 60)
+      });
+    });
+  });
+  // 既有的關鍵時間。已經遷成里程碑的那幾筆（同一天、同名）不重複列一次。
+  const msKeys = new Set(pmMilestones(p.id).map(m => m.dueOn + '|' + m.title));
+  spineForProject(p.id).filter(e => !msKeys.has(e.d + '|' + e.t)).forEach(e => ev.push({
+    key: 'event:' + e.id,
+    d: e.d,
+    title: e.t,
+    summary: e.derived || ''
+  }));
+  return ev.filter(e => e.d).sort((a, b) => b.d.localeCompare(a.d) || String(a.fold || '').localeCompare(String(b.fold || ''))).slice(0, 80);
+}
+function pmFlowPick(key) {
+  const at = String(key).indexOf(':');
+  const tab = key.slice(0, at),
+    id = key.slice(at + 1);
+  if (tab === 'event') return openDrawer('event', id);
+  if (tab === 'drive') return pmJump('drive', 'tree', '總覽', id ? {
+    folder: id
+  } : null);
+  if (tab === 'meeting') return pmJump('meeting', null, '總覽', {
+    meeting: id
+  });
+  if (tab === 'chat') return pmJump('chat', 'room', '總覽', {
+    channel: id
+  });
+  return pmJump('plan', 'tree', '總覽');
+}
+PMV.overview = function (p) {
+  if (!p) return '';
+  const tasks = pmTasks(p.id);
+  const todo = tasks.filter(t => !pmIsReview(t) && t.st !== 'Done');
+  const late = todo.filter(t => t.due && t.due < TODAY).length;
+  const reviewing = tasks.filter(t => pmIsReview(t) && t.reviewResult === 'IN_REVIEW').length;
+  const ms = pmMilestones(p.id);
+  const unfiled = pmUnfiled(p.id).length;
+  const cur = pmCurrentStage(p.id);
+  const goal = (DB.goals || []).find(g => g.id === p.goal);
+  const rail = pmRail([{
+    label: '狀態',
+    value: p.status || '—'
+  }, {
+    label: '目前階段',
+    value: cur ? pmCycleName(cur.cycle) + ' · ' + cur.stage.label : '未分期',
+    tone: cur && cur.state === 'late' ? 'crit' : '',
+    note: cur && cur.state === 'late' ? '階段已過期，仍有里程碑未達成' : ''
+  }, {
+    label: '里程碑',
+    value: ms.filter(m => m.state === 'done').length + ' / ' + ms.length
+  }, {
+    label: '待辦',
+    value: todo.length,
+    tone: late ? 'crit' : '',
+    note: late ? late + ' 件逾期' : ''
+  }, {
+    label: '待審',
+    value: reviewing,
+    tone: reviewing ? 'warn' : ''
+  }, {
+    label: '待整理檔案',
+    value: unfiled,
+    tone: unfiled ? 'warn' : ''
+  }, {
+    label: '可分配毛利',
+    value: nt(gross(p.id)),
+    unit: 'NT$'
+  }, ...(goal ? [{
+    label: '對齊目標',
+    value: goal.pct + '%',
+    note: goal.t
+  }] : [])], {
+    label: '專案重點數字'
+  });
+  const track = pmTrackData(p);
+  const trackBlock = pmBlock('期階梯', track.length ? '提案 → 接案 → 執行 → 驗收 → 結案；二期之後執行與驗收各再出現一次' : '', track.length ? pmTrack(track, {
+    id: 'pmOvTrack',
+    onPick: () => pmJump('plan', 'tree', '總覽')
+  }) : pmEmpty('這個專案還沒有分期。分期之後，這裡會畫出每一期走到哪個階段。', `<button class="btn pri" ${bind("click", (event, element) => {
+    pmJump('plan', 'tree', '總覽');
+  })}>${svg('plus')} 到計劃建立第一期</button>`), track.length ? `<button class="btn sm" ${bind("click", (event, element) => {
+    pmJump('plan', 'tree', '總覽');
+  })}>計劃</button>` : '');
+  const attention = pmAttention(p);
+  const attentionBlock = pmBlock('跨資源待辦', attention.length ? attention.length + ' 件需要處理' : '', pmRows(attention, {
+    id: 'pmOvTodo',
+    onPick: pmAttentionPick,
+    empty: '目前沒有需要處理的事：沒有待審、逾期、待整理或缺結論的項目。'
+  }));
+  const delivery = p.delivery || [];
+  const deliveryBlock = pmBlock('交付標準', delivery.length ? delivery.length + ' 項' : '', delivery.length ? `<div class="pm-rows">${delivery.map((d, i) => `<div class="pm-row"><div class="pm-row-main pm-row-static"><span class="pm-row-t">${esc(d)}</span></div><div class="pm-row-meta">${mini('trash', (event, element) => {
+    delDelivery(p.id, i);
+  }, 'dgr')}</div></div>`).join('')}</div>` : pmEmpty('尚未確認交付標準。沒有交付標準，驗收時就沒有對照的依據。'), `<button class="btn sm" ${bind("click", (event, element) => {
+    addDelivery(p.id);
+  })}>${svg('plus')} 交付標準</button>`);
+  const flow = pmFlow(p);
+  const flowBlock = pmBlock('時間流', '這個案子到今天為止發生了什麼', flow.length ? `<div data-pm-surface="primary">${pmTimeline(flow, {
+    id: 'pmOvFlow',
+    onPick: pmFlowPick
+  })}</div>` : pmEmpty('還沒有任何事件。里程碑、會議、檔案上傳與對話都會依日期出現在這裡。'));
+  return rail + trackBlock + attentionBlock + pmBlock('五大資源', '', pmResources(p)) + deliveryBlock + flowBlock;
+};
+
+/* ==================================================================
+   專案 · 計劃（PLN-075 S3 Wave 3a）
+
+   四層：期 → 階段 → 里程碑 → 任務。任務有兩種 kind：TODO 與審核
+   （同一張表，不是兩張；審核多了審核人、結果、退回原因）。
+
+   「期」是真的一層，不是平面 enum：二期帶著自己的起訖與狀態，執行→驗收在
+   每一期各出現一次（PLN-075 §S1 硬性約束 2）。
+
+   階層用縮排與左側髮絲線表示，沒有一層是卡片（ARC-043 §5）。
+   所有寫入走 commit()（ARC-042）；期、階段、里程碑、任務分別落在
+   phaseCycles／phases／milestones／issues 四個集合。
+   ================================================================== */
+
+var PMV = PMV || {};
+const PM_REVIEW = {
+  PENDING: {
+    label: '未送審',
+    tone: ''
+  },
+  IN_REVIEW: {
+    label: '審核中',
+    tone: 'warn'
+  },
+  PASSED: {
+    label: '已通過',
+    tone: 'good'
+  },
+  CHANGES_REQUESTED: {
+    label: '已退回',
+    tone: 'crit'
+  },
+  WAIVED: {
+    label: '免審',
+    tone: ''
+  }
+};
+const PM_STATE_LABEL = {
+  done: '已完成',
+  now: '進行中',
+  late: '逾期',
+  todo: '未開始'
+};
+const PM_STATE_TONE = {
+  done: 'good',
+  now: 'pri',
+  late: 'crit',
+  todo: ''
+};
+
+/* ---------- 期 ---------- */
+
+/**
+ * 把一期的起訖依比例切給各階段，先排一版日期（之後每個階段都能改）。
+ * 階段的狀態是由日期推導的，所以新建的階段不能沒有日期。
+ */
+const PM_STAGE_PLANS = {
+  five: [['PROPOSAL', 0.1], ['CONTRACT', 0.1], ['EXECUTION', 0.5], ['ACCEPTANCE', 0.2], ['CLOSING', 0.1]],
+  // 續期不再提案與接案：執行 → 驗收 → 結案
+  repeat: [['EXECUTION', 0.65], ['ACCEPTANCE', 0.25], ['CLOSING', 0.1]]
+};
+function pmSplitStages(plan, startOn, endOn) {
+  const total = Math.max(plan.length, ddiff(startOn, endOn) + 1);
+  let cursor = 0;
+  return plan.map(([kind, share], i) => {
+    const rest = plan.length - 1 - i;
+    const len = rest === 0 ? total - cursor : Math.max(1, Math.min(total - cursor - rest, Math.round(total * share)));
+    const span = {
+      kind,
+      startOn: dadd(startOn, cursor),
+      endOn: dadd(startOn, cursor + len - 1)
+    };
+    cursor += len;
+    return span;
+  });
+}
+function formPmCycle(id) {
+  const p = P(S.proj);
+  if (!p) return;
+  const e = id ? pmCycle(id) : null;
+  const cycles = pmCycles(p.id);
+  const nextNo = cycles.reduce((n, c) => Math.max(n, c.ordinal), 0) + 1;
+  const prev = cycles[cycles.length - 1];
+  const start = prev && prev.endOn ? dadd(prev.endOn, 1) : /^\d{4}-\d{2}-\d{2}$/.test(p.start || '') && !cycles.length ? p.start : TODAY;
+  openForm({
+    crumb: e ? pmCycleName(e) : '新的一期',
+    title: e ? '編輯' + pmCycleName(e) : '新增一期',
+    sub: '一期＝一個交付週期，通常對應一份合約。二期、三期各自有起訖與狀態',
+    fields: [{
+      k: 'title',
+      label: '名稱（可留空）',
+      ph: '例如：第二次修改需求'
+    }, {
+      k: 'startOn',
+      label: '開始',
+      type: 'date',
+      req: true,
+      half: true
+    }, {
+      k: 'endOn',
+      label: '結束',
+      type: 'date',
+      req: true,
+      half: true
+    }, {
+      k: 'status',
+      label: '狀態',
+      type: 'chips',
+      req: true,
+      opts: Object.keys(PM_CYCLE_ST).map(k => [k, PM_CYCLE_ST[k]])
+    }, {
+      k: 'budget',
+      label: '這一期的預算（可留空）',
+      type: 'number',
+      hint: '留空＝還沒編預算，與「預算是 0」不同'
+    }, ...(e ? [] : [{
+      k: 'stages',
+      label: '階段',
+      type: 'chips',
+      req: true,
+      opts: [['five', '提案→接案→執行→驗收→結案'], ['repeat', '執行→驗收→結案（續期）'], ['none', '先不建，之後自己加']],
+      hint: '日期會依這一期的起訖先排一版，之後每個階段都可以改'
+    }]), {
+      k: 'note',
+      label: '備註',
+      type: 'textarea',
+      rows: 2
+    }],
+    values: e ? {
+      title: e.title || '',
+      startOn: e.startOn || '',
+      endOn: e.endOn || '',
+      status: e.status || 'PLANNED',
+      budget: e.budget == null ? '' : String(e.budget),
+      note: e.note || ''
+    } : {
+      title: '',
+      startOn: start,
+      endOn: dadd(start, 89),
+      status: 'ACTIVE',
+      budget: '',
+      stages: cycles.length ? 'repeat' : 'five',
+      note: ''
+    },
+    effects: ['計劃分頁多一期，總覽的期階梯同步', '階段同時出現在營運 · 甘特'],
+    onDelete: e ? () => confirmDelete('期', pmCycleName(e), '底下的階段不會被刪除，會回到「未分期」。', () => {
+      commit('delete', '期', pmCycleName(e), () => {
+        DB.phaseCycles = DB.phaseCycles.filter(c => c.id !== e.id);
+        DB.phases.forEach(ph => {
+          if (ph.cycleId === e.id) ph.cycleId = '';
+        });
+        return ['底下的階段改為未分期'];
+      });
+      closeDrawer();
+    }) : null,
+    onSave: v => {
+      if (v.endOn < v.startOn) throw Error('結束日不能早於開始日');
+      const budget = v.budget === '' ? null : Math.trunc(Number(v.budget));
+      if (e) {
+        commit('update', '期', pmCycleName(e), () => {
+          Object.assign(e, {
+            title: v.title,
+            startOn: v.startOn,
+            endOn: v.endOn,
+            status: v.status,
+            note: v.note
+          });
+          if (budget == null) delete e.budget;else e.budget = budget;
+          return ['期階梯已更新'];
+        });
+        return;
+      }
+      const cid = nid('CYC');
+      const row = {
+        id: cid,
+        projectId: p.id,
+        ordinal: nextNo,
+        title: v.title,
+        contractId: '',
+        startOn: v.startOn,
+        endOn: v.endOn,
+        status: v.status,
+        note: v.note
+      };
+      if (budget != null) row.budget = budget;
+      commit('create', '期', pmCycleName(row), () => {
+        DB.phaseCycles.push(row);
+        if (v.stages === 'none') return ['先建了一個沒有階段的期'];
+        const spans = pmSplitStages(PM_STAGE_PLANS[v.stages] || PM_STAGE_PLANS.five, v.startOn, v.endOn);
+        spans.forEach((s, i) => DB.phases.push({
+          id: nid('PH'),
+          projectId: p.id,
+          phase: PM_STAGE_PHASE[s.kind],
+          label: PM_STAGE[s.kind],
+          startOn: s.startOn,
+          endOn: s.endOn,
+          cycleId: cid,
+          ordinal: i + 1,
+          stageKind: s.kind
+        }));
+        return [`建立 <b>${spans.length}</b> 個階段`, '日期依起訖先排了一版，可以逐個調整'];
+      });
+    }
+  });
+}
+
+/* ---------- 階段 ---------- */
+function formPmStage(id, cycleId) {
+  const p = P(S.proj);
+  if (!p) return;
+  const e = id ? pmPhase(id) : null;
+  const cycles = pmCycles(p.id);
+  const cid = e ? e.cycleId || '' : cycleId || (cycles[cycles.length - 1] || {}).id || '';
+  const cyc = pmCycle(cid);
+  const last = cyc ? pmStages(cyc.id).slice(-1)[0] : null;
+  const start = last && last.endOn ? dadd(last.endOn, 1) : cyc && cyc.startOn || TODAY;
+  openForm({
+    crumb: e ? '階段 · ' + e.label : '新階段',
+    title: e ? '編輯階段' : '新增階段',
+    sub: '階段的狀態由起訖日與底下的里程碑推導：過了結束日而里程碑沒達成就是逾期',
+    fields: [{
+      k: 'stageKind',
+      label: '種類',
+      type: 'chips',
+      req: true,
+      opts: Object.keys(PM_STAGE).map(k => [k, PM_STAGE[k]])
+    }, {
+      k: 'label',
+      label: '顯示名稱',
+      req: true,
+      hint: '預設跟種類同名；同一期內執行與驗收可以各出現不只一次'
+    }, {
+      k: 'cycleId',
+      label: '屬於哪一期',
+      type: 'select',
+      opts: [['', '（未分期）'], ...cycles.map(c => [c.id, pmCycleName(c) + (c.title ? '｜' + c.title : '')])]
+    }, {
+      k: 'startOn',
+      label: '開始',
+      type: 'date',
+      req: true,
+      half: true
+    }, {
+      k: 'endOn',
+      label: '結束',
+      type: 'date',
+      req: true,
+      half: true
+    }],
+    values: e ? {
+      stageKind: e.stageKind || 'CUSTOM',
+      label: e.label || '',
+      cycleId: e.cycleId || '',
+      startOn: e.startOn || '',
+      endOn: e.endOn || ''
+    } : {
+      stageKind: 'EXECUTION',
+      label: PM_STAGE.EXECUTION,
+      cycleId: cid,
+      startOn: start,
+      endOn: dadd(start, 13)
+    },
+    onChange: () => {
+      // 還沒自己改過名稱的話，名稱跟著種類走。
+      const kind = fVal('stageKind'),
+        el = getById('f_label');
+      if (el && Object.values(PM_STAGE).includes(el.value)) el.value = PM_STAGE[kind] || el.value;
+    },
+    effects: ['期階梯與營運 · 甘特同步'],
+    onDelete: e ? () => confirmDelete('階段', e.label, '底下的里程碑不會被刪除，會回到「未分階段」。', () => {
+      commit('delete', '階段', e.label, () => {
+        DB.phases = DB.phases.filter(ph => ph.id !== e.id);
+        DB.milestones.forEach(m => {
+          if (m.phaseId === e.id) m.phaseId = '';
+        });
+        return ['底下的里程碑改為未分階段'];
+      });
+      closeDrawer();
+    }) : null,
+    onSave: v => {
+      if (v.endOn < v.startOn) throw Error('結束日不能早於開始日');
+      const body = {
+        stageKind: v.stageKind,
+        label: v.label,
+        phase: PM_STAGE_PHASE[v.stageKind] || 'execution',
+        cycleId: v.cycleId,
+        startOn: v.startOn,
+        endOn: v.endOn
+      };
+      if (e) {
+        commit('update', '階段', v.label, () => {
+          const moved = e.cycleId !== v.cycleId;
+          Object.assign(e, body);
+          if (moved) e.ordinal = pmStages(v.cycleId).length;
+          return ['期階梯已更新'];
+        });
+      } else {
+        commit('create', '階段', v.label, () => {
+          DB.phases.push({
+            id: nid('PH'),
+            projectId: p.id,
+            ordinal: pmStages(v.cycleId).length + 1,
+            ...body
+          });
+          return ['期階梯多一個階段'];
+        });
+      }
+    }
+  });
+}
+
+/** 「完成這個階段」：把結束日收在昨天，下一個階段從今天開始。 */
+function pmStageClose(id) {
+  const ph = pmPhase(id);
+  if (!ph) return;
+  const open = pmMsOf(ph.id).filter(m => m.state !== 'done');
+  if (open.length) return toast(`還有 <b>${open.length}</b> 個里程碑沒達成，先把它們標成已達成或移到別的階段`);
+  const next = pmStages(ph.cycleId).find(x => (x.ordinal || 0) > (ph.ordinal || 0));
+  commit('update', '階段', ph.label, () => {
+    const end = dadd(TODAY, -1);
+    ph.endOn = end < ph.startOn ? ph.startOn : end;
+    if (ph.startOn > ph.endOn) ph.startOn = ph.endOn;
+    const eff = [`<b>${esc(ph.label)}</b> 標為完成`];
+    if (next && next.startOn > TODAY) {
+      next.startOn = TODAY;
+      if (next.endOn < TODAY) next.endOn = TODAY;
+      eff.push(`<b>${esc(next.label)}</b> 從今天開始`);
+    }
+    return eff;
+  });
+}
+
+/* ---------- 里程碑 ---------- */
+function pmStageOptions(pid) {
+  const out = [['', '（未分階段）']];
+  pmCycles(pid).forEach(c => pmStages(c.id).forEach(ph => out.push([ph.id, pmCycleName(c) + ' › ' + ph.label])));
+  DB.phases.filter(ph => ph.projectId === pid && !ph.cycleId).forEach(ph => out.push([ph.id, '未分期 › ' + ph.label]));
+  return out;
+}
+function formPmMilestone(id, phaseId) {
+  const p = P(S.proj);
+  if (!p) return;
+  const e = id ? MS(id) : null;
+  if (e && !opGuard(e)) return;
+  const folders = pmFolders(p.id).filter(f => f.kind !== 'ROOT' && f.kind !== 'INBOX');
+  openForm({
+    crumb: e ? '里程碑 · ' + e.id : '新里程碑',
+    title: e ? '編輯里程碑' : '新增里程碑',
+    sub: '里程碑是對外承諾的交付點；填了日期才會出現在日曆與甘特上',
+    fields: [{
+      k: 'title',
+      label: '名稱',
+      req: true,
+      ph: '例如：M04 網站資源一版'
+    }, {
+      k: 'dueOn',
+      label: '目標日',
+      type: 'date',
+      half: true,
+      hint: '留空＝日期待補，不進日曆'
+    }, {
+      k: 'accept',
+      label: '驗收方式',
+      half: true
+    }, {
+      k: 'phaseId',
+      label: '屬於哪個階段',
+      type: 'select',
+      opts: pmStageOptions(p.id)
+    }, {
+      k: 'state',
+      label: '狀態',
+      type: 'chips',
+      opts: [['open', '進行中'], ['done', '已達成']]
+    }, {
+      k: 'folderId',
+      label: '交付夾',
+      type: 'select',
+      opts: [['', '（不連結）'], ...folders.map(f => [f.id, pmTrail(f).slice(1).map(x => x.name).join(' / ')])],
+      hint: '這是連結不是搬移：資料夾留在硬碟原本的位置'
+    }, {
+      k: 'remind',
+      label: '提醒',
+      type: 'select',
+      opts: opRemindOpts
+    }],
+    values: e ? {
+      title: e.title,
+      dueOn: e.dueOn || '',
+      accept: e.accept || '',
+      phaseId: e.phaseId || '',
+      state: e.state || 'open',
+      folderId: e.folderId || '',
+      remind: e.remind || '前 3 日'
+    } : {
+      title: '',
+      dueOn: '',
+      accept: '',
+      phaseId: phaseId || '',
+      state: 'open',
+      folderId: '',
+      remind: '前 3 日'
+    },
+    effects: ['計劃的階層與總覽的時間流同步', '有日期的里程碑會出現在營運 · 日曆與甘特'],
+    onDelete: e ? () => confirmDelete('里程碑', e.title, '底下的任務不會被刪除，會回到「未掛里程碑」。', () => {
+      commit('delete', '里程碑', e.title, () => {
+        DB.milestones = DB.milestones.filter(m => m.id !== e.id);
+        DB.objectives = (DB.objectives || []).filter(o => o.milestoneId !== e.id);
+        DB.issues.forEach(i => {
+          if (i.msId === e.id) i.msId = '';
+        });
+        return ['底下的任務改為未掛里程碑', '日曆與甘特移除該節點'];
+      });
+      closeDrawer();
+    }) : null,
+    onSave: v => {
+      const body = {
+        title: v.title,
+        dueOn: v.dueOn,
+        accept: v.accept,
+        phaseId: v.phaseId,
+        state: v.state,
+        folderId: v.folderId,
+        remind: v.remind
+      };
+      if (e) {
+        commit('update', '里程碑', v.title, () => {
+          Object.assign(e, body);
+          return [v.dueOn ? `日曆 <b>${v.dueOn}</b> 的位置已更新` : '日期待補，暫不進日曆'];
+        });
+      } else {
+        commit('create', '里程碑', v.title, () => {
+          DB.milestones.push({
+            id: nid('MS'),
+            projectId: p.id,
+            derivedFrom: '',
+            author: DB.me,
+            ...body
+          });
+          return [v.dueOn ? `日曆 <b>${v.dueOn}</b> 新增里程碑` : '日期待補，暫不進日曆'];
+        });
+      }
+    }
+  });
+}
+function pmMsToggle(id) {
+  const m = MS(id);
+  if (!m || !opGuard(m)) return;
+  commit('update', '里程碑', m.title, () => {
+    m.state = m.state === 'done' ? 'open' : 'done';
+    return [m.state === 'done' ? '標為已達成' : '改回進行中'];
+  });
+}
+
+/* ---------- 任務（TODO ／ 審核） ---------- */
+
+/**
+ * preset: { kind?, msId?, t?, exp?, after?(issue) }
+ * after 讓「訊息→任務」「會議待辦→任務」在同一次 commit 裡把來源那一頭也標上。
+ */
+function formPmTask(id, preset) {
+  const p = P(S.proj);
+  if (!p) return;
+  const e = id ? ISS(id) : null;
+  if (e && !editable(e) && !isOwner()) return deny();
+  const pre = preset || {};
+  const msOpts = [['', '（不掛里程碑）'], ...pmMilestones(p.id).map(m => [m.id, m.title])];
+  openForm({
+    crumb: e ? e.id : '新任務',
+    title: e ? '編輯任務' : '新增任務',
+    sub: pre.from ? '來源：' + pre.from : 'TODO 是要做的事；審核任務多一個審核人，要通過才算完成',
+    fields: [{
+      k: 't',
+      label: '標題',
+      req: true,
+      ph: '這件事要完成什麼'
+    }, {
+      k: 'kind',
+      label: '種類',
+      type: 'chips',
+      req: true,
+      opts: [['TODO', 'TODO'], ['REVIEW', '審核任務']]
+    }, {
+      k: 'msId',
+      label: '掛在哪個里程碑',
+      type: 'select',
+      opts: msOpts
+    }, {
+      k: 'owner',
+      label: '負責人',
+      type: 'select',
+      req: true,
+      half: true,
+      opts: PEOPLE_OPTS()
+    }, {
+      k: 'reviewer',
+      label: '審核人',
+      type: 'select',
+      half: true,
+      opts: [['', '（TODO 不需要）'], ...PEOPLE_OPTS()],
+      hint: '審核任務才需要'
+    }, {
+      k: 'due',
+      label: '期限',
+      type: 'date',
+      half: true
+    }, {
+      k: 'size',
+      label: 'Size',
+      type: 'chips',
+      half: true,
+      opts: ['S', 'M', 'L']
+    }, {
+      k: 'exp',
+      label: '完成的樣子',
+      type: 'textarea',
+      rows: 2,
+      ph: '另一個人看到什麼，算完成'
+    }],
+    values: e ? {
+      t: e.t,
+      kind: pmIsReview(e) ? 'REVIEW' : 'TODO',
+      msId: e.msId || '',
+      owner: e.owner || DB.me,
+      reviewer: e.reviewer || '',
+      due: e.due || '',
+      size: e.size || 'M',
+      exp: e.exp || ''
+    } : {
+      t: pre.t || '',
+      kind: pre.kind || 'TODO',
+      msId: pre.msId || '',
+      owner: DB.me,
+      reviewer: '',
+      due: '',
+      size: 'M',
+      exp: pre.exp || ''
+    },
+    effects: ['計劃的階層與「工作」子視圖同步', '同時計入工作台與容量統計'],
+    onDelete: e ? () => delIssue(e.id) : null,
+    onSave: v => {
+      if (v.kind === 'REVIEW' && !v.reviewer) throw Error('審核任務需要指定審核人');
+      if (e) {
+        commit('update', '任務', v.t, () => {
+          const wasReview = pmIsReview(e);
+          Object.assign(e, {
+            t: v.t,
+            kind: v.kind,
+            msId: v.msId,
+            owner: v.owner,
+            reviewer: v.kind === 'REVIEW' ? v.reviewer : '',
+            due: v.due,
+            size: v.size,
+            exp: v.exp
+          });
+          if (v.kind === 'REVIEW' && !wasReview) e.reviewResult = 'PENDING';
+          if (v.kind !== 'REVIEW') {
+            e.reviewResult = '';
+            e.reviewNote = '';
+            e.reviewedAt = 0;
+          }
+          return ['計劃階層已更新'];
+        });
+        return;
+      }
+      const it = {
+        id: nid('ISS'),
+        t: v.t,
+        p: p.id,
+        owner: v.owner,
+        size: v.size,
+        pri: 3,
+        st: 'Todo',
+        created: TODAY,
+        started: '',
+        done: '',
+        blocker: '',
+        exp: v.exp,
+        ev: 0,
+        rel: [],
+        cf: {},
+        sub: [],
+        due: v.due,
+        kind: v.kind,
+        msId: v.msId,
+        reviewer: v.kind === 'REVIEW' ? v.reviewer : '',
+        reviewResult: v.kind === 'REVIEW' ? 'PENDING' : '',
+        reviewNote: '',
+        reviewedAt: 0
+      };
+      commit('create', v.kind === 'REVIEW' ? '審核任務' : 'TODO', v.t, () => {
+        DB.issues.unshift(it);
+        const eff = [`專案工作數 → <b>${pmTasks(p.id).length}</b>`];
+        if (pre.after) eff.push(...(pre.after(it) || []));
+        return eff;
+      });
+    }
+  });
+}
+
+/** 勾掉一個 TODO，或把它拉回來。 */
+function pmTaskToggle(id) {
+  const t = ISS(id);
+  if (!t) return;
+  if (!progressable(t)) return deny();
+  commit('update', 'TODO', t.t, () => {
+    if (t.st === 'Done') {
+      t.st = 'Doing';
+      t.done = '';
+      return ['改回進行中'];
+    }
+    t.st = 'Done';
+    if (!t.started) t.started = TODAY;
+    t.done = TODAY;
+    return ['標為完成', ...effFlow()];
+  });
+}
+
+/** 審核流程：送審 → 通過／退回 → （退回後）重新送審。 */
+function pmReview(id, action) {
+  const t = ISS(id);
+  if (!t) return;
+  const mine = t.owner === DB.me || isOwner();
+  const reviewer = t.reviewer === DB.me || isOwner();
+  if (action === 'submit') {
+    if (!mine) return deny();
+    return commit('update', '審核任務', t.t, () => {
+      t.reviewResult = 'IN_REVIEW';
+      t.st = 'Review';
+      if (!t.started) t.started = TODAY;
+      return [`送給 <b>${esc(pmWho(t.reviewer))}</b> 審核`];
+    });
+  }
+  if (!reviewer) return deny();
+  if (action === 'pass') {
+    return commit('update', '審核任務', t.t, () => {
+      t.reviewResult = 'PASSED';
+      t.reviewedAt = Date.now();
+      t.reviewNote = '';
+      t.st = 'Done';
+      t.done = TODAY;
+      return ['審核通過，任務完成', ...effFlow()];
+    });
+  }
+  if (action === 'reject') {
+    openForm({
+      crumb: t.id,
+      title: '退回',
+      sub: esc(t.t),
+      saveLabel: '退回',
+      fields: [{
+        k: 'note',
+        label: '退回原因',
+        type: 'textarea',
+        rows: 3,
+        req: true,
+        ph: '要改什麼、改到什麼程度才會通過'
+      }],
+      values: {
+        note: ''
+      },
+      effects: ['任務回到負責人手上，狀態改為進行中', '退回原因會顯示在這一列，直到重新送審'],
+      onSave: v => {
+        commit('update', '審核任務', t.t, () => {
+          t.reviewResult = 'CHANGES_REQUESTED';
+          t.reviewedAt = Date.now();
+          t.reviewNote = v.note;
+          t.st = 'Doing';
+          t.done = '';
+          return [`退回給 <b>${esc(pmWho(t.owner))}</b>`];
+        });
+      }
+    });
+  }
+}
+
+/* ---------- 版面 ---------- */
+function pmTaskRow(t) {
+  const review = pmIsReview(t);
+  const done = t.st === 'Done';
+  const late = !done && t.due && t.due < TODAY;
+  const rv = PM_REVIEW[t.reviewResult] || PM_REVIEW.PENDING;
+  const acts = [];
+  if (review) {
+    if (t.reviewResult === 'IN_REVIEW') {
+      acts.push(`<button class="btn sm" ${bind("click", (event, element) => {
+        pmReview(t.id, 'pass');
+      })}>${svg('check')} 通過</button>`);
+      acts.push(`<button class="btn sm" ${bind("click", (event, element) => {
+        pmReview(t.id, 'reject');
+      })}>${svg('undo')} 退回</button>`);
+    } else if (t.reviewResult !== 'PASSED') {
+      acts.push(`<button class="btn sm" ${bind("click", (event, element) => {
+        pmReview(t.id, 'submit');
+      })}>${svg('send')} ${t.reviewResult === 'CHANGES_REQUESTED' ? '重新送審' : '送審'}</button>`);
+    }
+  }
+  return `<div class="pm-pl-task ${done ? 'done' : ''}">
+    ${review ? `<span class="pm-pl-kind" title="審核任務">${svg('checkCircle', 14)}</span>` : `<button type="button" class="pm-pl-check ${done ? 'on' : ''}" aria-pressed="${done}" title="${done ? '改回進行中' : '標為完成'}" ${bind("click", (event, element) => {
+    pmTaskToggle(t.id);
+  })}>${done ? svg('check', 11) : ''}</button>`}
+    <button type="button" class="pm-pl-t" ${bind("click", (event, element) => {
+    openDrawer('issue', t.id);
+  })}>${esc(t.t)}</button>
+    <span class="pm-pl-m">
+      ${review ? `<span class="pm-chip ${rv.tone}">${rv.label}</span><span class="pm-pl-who">審核人 ${esc(pmWho(t.reviewer))}</span>` : stChip(t.st)}
+      ${t.due ? `<span class="pm-pl-due ${late ? 'late' : ''}">${t.due.slice(5)}</span>` : ''}
+      ${pmAv(t.owner)}
+      ${acts.join('')}
+      ${mini('pen', (event, element) => {
+    formPmTask(t.id);
+  })}
+    </span>
+    ${review && t.reviewResult === 'CHANGES_REQUESTED' && t.reviewNote ? `<div class="pm-pl-note">${svg('undo', 11)}<span>${esc(t.reviewNote)}</span></div>` : ''}
+    ${review && t.reviewResult === 'PASSED' && t.reviewedAt ? `<div class="pm-pl-note ok">${svg('check', 11)}<span>${pmDay(t.reviewedAt)} 通過</span></div>` : ''}
+  </div>`;
+}
+function pmMsBlock(m) {
+  const tasks = pmTasksOf(m.id);
+  const done = tasks.filter(t => t.st === 'Done').length;
+  const late = m.state !== 'done' && m.dueOn && m.dueOn < TODAY;
+  const folder = m.folderId ? pmFolder(m.folderId) : null;
+  return `<div class="pm-pl-ms">
+    <div class="pm-pl-ms-h">
+      <button type="button" class="pm-pl-dia ${m.state === 'done' ? 'done' : ''}" aria-pressed="${m.state === 'done'}" title="${m.state === 'done' ? '改回進行中' : '標為已達成'}" ${bind("click", (event, element) => {
+    pmMsToggle(m.id);
+  })}>${svg('diamond', 12)}</button>
+      <button type="button" class="pm-pl-t strong" ${bind("click", (event, element) => {
+    formPmMilestone(m.id);
+  })}>${esc(m.title)}</button>
+      <span class="pm-pl-m">
+        <span class="pm-pl-due ${late ? 'late' : ''}">${m.dueOn || '日期待補'}</span>
+        ${late ? '<span class="pm-chip crit">逾期</span>' : ''}
+        ${m.derivedFrom ? `<span class="pm-chip">${svg('lock', 10)} ${esc(m.derivedFrom)}</span>` : ''}
+        ${folder ? `<button type="button" class="pm-chip pri pm-chip-btn" ${bind("click", (event, element) => {
+    pmJump('drive', 'tree', '計劃', {
+      folder: folder.id
+    });
+  })}>${svg('folder', 10)} 交付夾</button>` : ''}
+        <span class="pm-pl-cnt">${done}/${tasks.length}</span>
+        <button class="btn sm" ${bind("click", (event, element) => {
+    formPmTask(null, {
+      msId: m.id
+    });
+  })}>${svg('plus')} 任務</button>
+      </span>
+    </div>
+    ${m.accept ? `<div class="pm-pl-accept">驗收方式：${esc(m.accept)}</div>` : ''}
+    ${tasks.length ? tasks.map(pmTaskRow).join('') : '<div class="pm-pl-none">還沒有任務</div>'}
+  </div>`;
+}
+function pmStageBlock(ph) {
+  const st = pmStageState(ph);
+  const ms = pmMsOf(ph.id);
+  return `<div class="pm-pl-stage ${st}">
+    <div class="pm-pl-stage-h">
+      <span class="pm-pl-st">${svg(PM_STAGE_ICON[st])}</span>
+      <button type="button" class="pm-pl-t strong" ${bind("click", (event, element) => {
+    formPmStage(ph.id);
+  })}>${esc(ph.label)}</button>
+      <span class="pm-chip ${PM_STATE_TONE[st]}">${PM_STATE_LABEL[st]}</span>
+      <span class="pm-pl-m">
+        <span class="pm-pl-due">${[ph.startOn, ph.endOn].filter(Boolean).map(d => d.slice(5)).join(' → ')}</span>
+        ${st === 'now' || st === 'late' ? `<button class="btn sm" ${bind("click", (event, element) => {
+    pmStageClose(ph.id);
+  })}>${svg('check')} 完成這個階段</button>` : ''}
+        <button class="btn sm" ${bind("click", (event, element) => {
+    formPmMilestone(null, ph.id);
+  })}>${svg('plus')} 里程碑</button>
+      </span>
+    </div>
+    ${ms.length ? ms.map(pmMsBlock).join('') : '<div class="pm-pl-none">這個階段還沒有里程碑</div>'}
+  </div>`;
+}
+function pmCycleBlock(c) {
+  const stages = pmStages(c.id);
+  const open = S.pmFold['cyc:' + c.id] !== true;
+  const tone = c.status === 'ACTIVE' ? 'pri' : c.status === 'ACCEPTED' || c.status === 'CLOSED' ? 'good' : '';
+  return `<section class="pm-pl-cycle">
+    <div class="pm-pl-cycle-h">
+      <button type="button" class="pm-pl-fold ${open ? 'open' : ''}" aria-expanded="${open}" aria-label="收合或展開這一期" ${bind("click", (event, element) => {
+    pmFoldToggle("cyc:" + c.id);
+  })}>${svg('chevronRight', 13)}</button>
+      <span class="pm-cycle-n">C${c.ordinal}</span>
+      <button type="button" class="pm-pl-t strong" ${bind("click", (event, element) => {
+    formPmCycle(c.id);
+  })}>${esc(pmCycleName(c) + (c.title ? '｜' + c.title : ''))}</button>
+      <span class="pm-chip ${tone}">${PM_CYCLE_ST[c.status] || c.status}</span>
+      <span class="pm-pl-m">
+        <span class="pm-pl-due">${[c.startOn, c.endOn].filter(Boolean).join(' → ')}</span>
+        ${c.budget != null ? `<span class="pm-pl-who">預算 ${nt(c.budget)}</span>` : ''}
+        <button class="btn sm" ${bind("click", (event, element) => {
+    formPmStage(null, c.id);
+  })}>${svg('plus')} 階段</button>
+      </span>
+    </div>
+    ${open ? stages.length ? stages.map(pmStageBlock).join('') : '<div class="pm-pl-none">這一期還沒有階段</div>' : ''}
+  </section>`;
+}
+function pmFoldToggle(key) {
+  S.pmFold[key] = S.pmFold[key] !== true;
+  render();
+}
+PMV.plan = function (p) {
+  if (!p) return '';
+  const cycles = pmCycles(p.id);
+  const tasks = pmTasks(p.id);
+  const ms = pmMilestones(p.id);
+  const stageIds = new Set(DB.phases.filter(ph => ph.projectId === p.id).map(ph => ph.id));
+  const looseStages = DB.phases.filter(ph => ph.projectId === p.id && !ph.cycleId);
+  const looseMs = ms.filter(m => !m.phaseId || !stageIds.has(m.phaseId));
+  const msIds = new Set(ms.map(m => m.id));
+  const looseTasks = tasks.filter(t => !t.msId || !msIds.has(t.msId));
+  const reviews = tasks.filter(pmIsReview);
+  const rail = pmRail([{
+    label: '期',
+    value: cycles.length
+  }, {
+    label: '階段',
+    value: cycles.reduce((n, c) => n + pmStages(c.id).length, 0) + looseStages.length
+  }, {
+    label: '里程碑',
+    value: ms.filter(m => m.state === 'done').length + ' / ' + ms.length
+  }, {
+    label: 'TODO',
+    value: tasks.filter(t => !pmIsReview(t) && t.st !== 'Done').length,
+    note: '未完成'
+  }, {
+    label: '審核中',
+    value: reviews.filter(t => t.reviewResult === 'IN_REVIEW').length,
+    tone: reviews.some(t => t.reviewResult === 'IN_REVIEW') ? 'warn' : ''
+  }, {
+    label: '已退回',
+    value: reviews.filter(t => t.reviewResult === 'CHANGES_REQUESTED').length,
+    tone: reviews.some(t => t.reviewResult === 'CHANGES_REQUESTED') ? 'crit' : ''
+  }], {
+    label: '計劃重點數字'
+  });
+  const bar = `<div class="pm-bar">
+    <button class="btn pri" ${bind("click", (event, element) => {
+    formPmCycle();
+  })}>${svg('plus')} 新增一期</button>
+    <button class="btn" ${bind("click", (event, element) => {
+    formPmStage();
+  })}>${svg('plus')} 階段</button>
+    <button class="btn" ${bind("click", (event, element) => {
+    formPmMilestone();
+  })}>${svg('plus')} 里程碑</button>
+    <button class="btn" ${bind("click", (event, element) => {
+    formPmTask(null, {
+      kind: 'TODO'
+    });
+  })}>${svg('plus')} TODO</button>
+    <button class="btn" ${bind("click", (event, element) => {
+    formPmTask(null, {
+      kind: 'REVIEW'
+    });
+  })}>${svg('plus')} 審核任務</button>
+  </div>`;
+  const tree = cycles.length ? cycles.map(pmCycleBlock).join('') : pmEmpty('還沒有分期。建立第一期時可以一次帶出「提案 → 接案 → 執行 → 驗收 → 結案」五個階段。', `<button class="btn pri" ${bind("click", (event, element) => {
+    formPmCycle();
+  })}>${svg('plus')} 建立第一期</button>`);
+  const loose = [];
+  if (looseStages.length) {
+    loose.push(pmBlock('未分期的階段', looseStages.length + ' 個', looseStages.map(pmStageBlock).join('')));
+  }
+  if (looseMs.length) {
+    loose.push(pmBlock('未分階段的里程碑', looseMs.length + ' 個', looseMs.map(pmMsBlock).join('')));
+  }
+  if (looseTasks.length) {
+    loose.push(pmBlock('未掛里程碑的任務', looseTasks.length + ' 件', looseTasks.slice(0, 12).map(pmTaskRow).join('') + (looseTasks.length > 12 ? `<div class="pm-pl-none">還有 ${looseTasks.length - 12} 件，在「工作」子視圖看全部</div>` : ''), `<button class="btn sm" ${bind("click", (event, element) => {
+      pmGo('plan', 'work');
+    })}>看全部工作</button>`));
+  }
+  return rail + bar + `<div class="pm-pl" data-pm-surface="primary">${tree}</div>` + loose.join('');
+};
+
+/* ==================================================================
+   專案 · 檔案（PLN-075 S3 Wave 3b · 提案 C 的資源樹）
+
+   左：一棵資料夾樹。右：選到的那一夾 —— 屬性、子資料夾、檔案表。
+   樹只在這個分頁內，窄螢幕收到主欄上方，不是模組級的常駐側欄（INTEGRATION-DECISION §3）。
+
+   收件匣是樹上 kind='INBOX' 的**真資料夾**，不是另一個分頁、也不是旗標：
+   分散上傳先落這裡，整理＝只改檔案的 folderId／filedAt，R2 上的 bytes 一個都不動。
+
+   寫入路徑（INTEGRATION-DECISION §6）：
+     資料夾樹的 CRUD  → commit()，落在 folders 集合，走 diff 佇列
+     檔案 bytes 與歸檔 → /api/company/operating/drive 的 route handler（預簽網址）
+   ================================================================== */
+
+var PMV = PMV || {};
+const PM_FOLDER_KINDS = ['GENERIC', 'PROPOSAL', 'CONTRACT', 'MILESTONE', 'MEETING', 'SHARED', 'INTERNAL', 'REVISION', 'MATERIAL', 'FINANCE'];
+
+/* ---------- 規則（伺服器同樣強制；這裡是為了在送出前就說得出理由） ---------- */
+const pmNorm = s => String(s || '').normalize('NFC').trim().toLowerCase();
+function pmNameProblem(parentId, name, selfId) {
+  const n = String(name || '').trim();
+  if (!n) return '請輸入名稱';
+  if (n.length > 120) return '名稱最多 120 個字';
+  if (/[\\/]/.test(n)) return '名稱不能包含斜線';
+  if (pmChildren(parentId).some(f => f.id !== selfId && pmNorm(f.name) === pmNorm(n))) return '這個資料夾裡已經有「' + n + '」';
+  return '';
+}
+/** 祖先鏈裡最嚴的那一級；子資料夾不能比它寬。 */
+function pmVisFloor(folder) {
+  return pmTrail(folder).reduce((rank, f) => Math.max(rank, (PM_VIS[f.visibility] || PM_VIS.INTERNAL_ONLY).rank), 0);
+}
+function pmVisOptions(parent, kind) {
+  const floor = parent ? pmVisFloor(parent) : 0;
+  return Object.keys(PM_VIS).filter(k => PM_VIS[k].rank >= floor).filter(k => !(k === 'CLIENT_VISIBLE' && PM_NO_CLIENT.includes(kind))).map(k => [k, PM_VIS[k].label]);
+}
+const pmNoIndex = folder => pmTrail(folder).some(f => f.visibility === 'RESTRICTED_NO_INDEX');
+const pmFolderIcon = f => f.kind === 'INBOX' ? 'inbox' : f.kind === 'ROOT' ? 'layers' : f.kind === 'MEETING' ? 'calendar' : f.kind === 'MILESTONE' ? 'flag' : 'folder';
+const pmPathLabel = f => pmTrail(f).slice(1).map(x => x.name).join(' / ') || f.name;
+/**
+ * 「整理到哪裡」的選單：對客戶可見的資料夾排到最後並標出來。
+ * 預設選項不能是客戶看得到的地方 —— 手滑一下就把內部檔案放出去了。
+ */
+function pmFilingOptions(folders) {
+  const client = f => pmTrail(f).every(x => x.visibility === 'CLIENT_VISIBLE' || x.kind === 'ROOT') && f.visibility === 'CLIENT_VISIBLE';
+  return [...folders.filter(f => !client(f)), ...folders.filter(client)].map(f => [f.id, pmPathLabel(f) + (client(f) ? '　（客戶可見）' : '')]);
+}
+
+/* ---------- 啟用 ---------- */
+
+/**
+ * 預設樹長成 Owner 已經在用的樣子：[共用]、開案前、專案啟動［正式資料］、
+ * 里程碑交付（底下放 YYYYMMDD_Mnn_<名稱>）、會議（底下放 YYYYMMDD <事件>）、
+ * 修改需求（下一期的入口）、(僅內部)。
+ */
+function pmDriveEnable(mode) {
+  const p = P(S.proj);
+  if (!p || pmRoot(p.id)) return;
+  commit('create', '專案硬碟', p.t, () => {
+    let order = 0;
+    const mk = (parentId, kind, name, visibility) => {
+      const f = {
+        id: nid('FLD'),
+        projectId: p.id,
+        parentId,
+        kind,
+        name,
+        visibility: visibility || 'INTERNAL_ONLY',
+        sortOrder: kind === 'INBOX' || kind === 'ROOT' ? 0 : order += 10,
+        isSystem: kind === 'ROOT' || kind === 'INBOX',
+        space: 'team',
+        author: DB.me,
+        note: '',
+        createdAt: Date.now()
+      };
+      DB.folders.push(f);
+      return f.id;
+    };
+    const top = mk('', 'ROOT', '專案硬碟');
+    const inbox = mk(top, 'INBOX', '收件匣');
+    pmSel(p.id).folder = inbox;
+    if (mode !== 'full') return ['建立專案硬碟與收件匣'];
+    mk(top, 'SHARED', '[共用] 共用資料夾', 'CLIENT_VISIBLE');
+    mk(top, 'PROPOSAL', '開案前');
+    const start = mk(top, 'GENERIC', '專案啟動［正式資料］');
+    mk(start, 'CONTRACT', '合約與報價');
+    mk(top, 'GENERIC', '里程碑交付');
+    mk(top, 'GENERIC', '會議');
+    mk(top, 'REVISION', '修改需求');
+    mk(top, 'MATERIAL', '素材');
+    mk(top, 'INTERNAL', '(僅內部)');
+    pmSel(p.id).folder = top;
+    return ['建立專案硬碟、收件匣與預設資料夾', '只有「[共用]」對客戶可見，其餘一律僅內部'];
+  });
+}
+
+/* ---------- 資料夾 CRUD ---------- */
+function pmFolderPick(id) {
+  const f = pmFolder(id);
+  if (!f) return;
+  pmSel(f.projectId).folder = id;
+  S.pmFold['fld:' + id] = true;
+  render();
+}
+function pmTreeToggle(id, open) {
+  S.pmFold['fld:' + id] = !open;
+  render();
+}
+function formPmFolder(parentId, preset) {
+  const parent = pmFolder(parentId);
+  if (!parent) return;
+  if (parent.kind === 'INBOX') return toast('收件匣底下不放資料夾；請在別的位置建立，再把檔案整理過去');
+  if (pmTrail(parent).length >= 12) return toast('資料夾最多 12 層');
+  const pre = preset || {};
+  openForm({
+    crumb: pmPathLabel(parent),
+    title: '新增資料夾',
+    sub: '建立在「' + esc(parent.name) + '」底下',
+    fields: [{
+      k: 'name',
+      label: '名稱',
+      req: true,
+      ph: '例如：20261015 期中會議'
+    }, {
+      k: 'kind',
+      label: '用途',
+      type: 'select',
+      opts: PM_FOLDER_KINDS.map(k => [k, PM_KIND[k]]),
+      hint: '合約與「僅內部」兩種用途永遠不能設為客戶可見'
+    }, {
+      k: 'visibility',
+      label: '可見性',
+      type: 'chips',
+      req: true,
+      opts: pmVisOptions(parent, pre.kind || 'GENERIC'),
+      hint: '不能比上層更寬。最高敏感＝不建立全文索引，搜尋也找不到內容'
+    }],
+    values: {
+      name: pre.name || '',
+      kind: pre.kind || 'GENERIC',
+      visibility: parent.visibility === 'CLIENT_VISIBLE' ? 'INTERNAL_ONLY' : parent.visibility
+    },
+    effects: ['資料夾樹多一個節點', '上傳可以直接指定到這裡'],
+    onSave: v => {
+      const bad = pmNameProblem(parent.id, v.name);
+      if (bad) throw Error(bad);
+      if (v.visibility === 'CLIENT_VISIBLE' && PM_NO_CLIENT.includes(v.kind)) throw Error('這種用途的資料夾不能設為客戶可見');
+      if ((PM_VIS[v.visibility] || PM_VIS.INTERNAL_ONLY).rank < pmVisFloor(parent)) throw Error('可見性不能比上層資料夾更寬');
+      const id = nid('FLD');
+      commit('create', '資料夾', v.name.trim(), () => {
+        DB.folders.push({
+          id,
+          projectId: parent.projectId,
+          parentId: parent.id,
+          kind: v.kind,
+          name: v.name.trim(),
+          visibility: v.visibility,
+          sortOrder: pmChildren(parent.id).reduce((m, f) => Math.max(m, f.sortOrder || 0), 0) + 10,
+          isSystem: false,
+          space: 'team',
+          author: DB.me,
+          note: '',
+          createdAt: Date.now()
+        });
+        pmSel(parent.projectId).folder = id;
+        S.pmFold['fld:' + parent.id] = true;
+        return ['建立在 <b>' + esc(pmPathLabel(parent)) + '</b> 底下'];
+      });
+      if (pre.after) pre.after(id);
+    }
+  });
+}
+function formPmFolderEdit(id) {
+  const f = pmFolder(id);
+  if (!f) return;
+  if (f.isSystem) return toast('系統資料夾不能改名或刪除');
+  const parent = pmFolder(f.parentId);
+  openForm({
+    crumb: pmPathLabel(f),
+    title: '資料夾設定',
+    sub: '改名與可見性。搬移位置請用「搬移」',
+    fields: [{
+      k: 'name',
+      label: '名稱',
+      req: true
+    }, {
+      k: 'visibility',
+      label: '可見性',
+      type: 'chips',
+      req: true,
+      opts: pmVisOptions(parent, f.kind),
+      hint: '調得更嚴時，底下比它寬的資料夾會一起收緊'
+    }, {
+      k: 'note',
+      label: '備註',
+      type: 'textarea',
+      rows: 2
+    }],
+    values: {
+      name: f.name,
+      visibility: f.visibility,
+      note: f.note || ''
+    },
+    effects: ['檔案本體不會被移動或重新命名', '改成最高敏感後，夾內檔案不再建立全文索引'],
+    onDelete: () => pmFolderDelete(f.id),
+    onSave: v => {
+      const bad = pmNameProblem(f.parentId, v.name, f.id);
+      if (bad) throw Error(bad);
+      commit('update', '資料夾', v.name.trim(), () => {
+        const eff = [];
+        if (f.name !== v.name.trim()) {
+          eff.push(`改名為 <b>${esc(v.name.trim())}</b>`);
+          f.name = v.name.trim();
+        }
+        f.note = v.note;
+        if (f.visibility !== v.visibility) {
+          f.visibility = v.visibility;
+          const rank = PM_VIS[v.visibility].rank;
+          const tightened = pmDescendants(f.id).filter(c => (PM_VIS[c.visibility] || PM_VIS.INTERNAL_ONLY).rank < rank);
+          tightened.forEach(c => {
+            c.visibility = v.visibility;
+          });
+          eff.push(`可見性 → <b>${PM_VIS[v.visibility].label}</b>` + (tightened.length ? `，底下 ${tightened.length} 個資料夾一起收緊` : ''));
+        }
+        return eff.length ? eff : ['備註已更新'];
+      });
+    }
+  });
+}
+function formPmFolderMove(id) {
+  const f = pmFolder(id);
+  if (!f) return;
+  if (f.isSystem) return toast('系統資料夾不能搬移');
+  const banned = new Set([f.id, ...pmDescendants(f.id).map(x => x.id)]);
+  const targets = pmFolders(f.projectId).filter(x => !banned.has(x.id) && x.kind !== 'INBOX' && x.id !== f.parentId);
+  if (!targets.length) return toast('沒有可以搬過去的位置');
+  openForm({
+    crumb: pmPathLabel(f),
+    title: '搬移資料夾',
+    sub: '整棵子樹一起搬；檔案本體不動',
+    fields: [{
+      k: 'parentId',
+      label: '搬到哪裡',
+      type: 'select',
+      req: true,
+      opts: targets.map(x => [x.id, x.kind === 'ROOT' ? '專案硬碟（最上層）' : pmPathLabel(x)])
+    }],
+    values: {
+      parentId: targets[0].id
+    },
+    effects: ['只改資料夾的位置，R2 上的檔案不會被複製或刪除', '可見性不會因為搬移而變寬'],
+    onSave: v => {
+      const target = pmFolder(v.parentId);
+      if (!target) throw Error('找不到目標資料夾');
+      const bad = pmNameProblem(target.id, f.name, f.id);
+      if (bad) throw Error(bad);
+      const depth = pmTrail(target).length + 1 + pmDescendants(f.id).reduce((m, x) => Math.max(m, pmTrail(x).length - pmTrail(f).length), 0);
+      if (depth > 13) throw Error('搬過去會超過 12 層');
+      commit('update', '資料夾', f.name, () => {
+        f.parentId = target.id;
+        f.sortOrder = pmChildren(target.id).reduce((m, x) => Math.max(m, x.sortOrder || 0), 0) + 10;
+        const floor = pmVisFloor(target);
+        const key = Object.keys(PM_VIS).find(k => PM_VIS[k].rank === floor);
+        const tightened = [f, ...pmDescendants(f.id)].filter(x => (PM_VIS[x.visibility] || PM_VIS.INTERNAL_ONLY).rank < floor);
+        tightened.forEach(x => {
+          x.visibility = key;
+        });
+        S.pmFold['fld:' + target.id] = true;
+        return ['搬到 <b>' + esc(target.kind === 'ROOT' ? '專案硬碟' : pmPathLabel(target)) + '</b>', ...(tightened.length ? [`${tightened.length} 個資料夾的可見性跟著新位置收緊`] : [])];
+      });
+    }
+  });
+}
+function pmFolderDelete(id) {
+  const f = pmFolder(id);
+  if (!f) return;
+  if (f.isSystem) return toast('系統資料夾不能刪除');
+  if (pmChildren(f.id).length || pmAssetsIn(f.id).length) return toast('資料夾裡還有東西；先把檔案與子資料夾搬走再刪');
+  const meeting = DB.occasions.find(o => o.folderId === f.id);
+  const linkedMs = DB.milestones.filter(m => m.folderId === f.id);
+  const ripple = [meeting ? `會議「${esc(meeting.title)}」的資料夾連結會被解除` : '', linkedMs.length ? `${linkedMs.length} 個里程碑的交付夾連結會被解除` : ''].filter(Boolean).join('<br>');
+  confirmDelete('資料夾', f.name, ripple, () => {
+    commit('delete', '資料夾', f.name, () => {
+      DB.folders = DB.folders.filter(x => x.id !== f.id);
+      if (meeting) meeting.folderId = '';
+      linkedMs.forEach(m => {
+        m.folderId = '';
+      });
+      pmSel(f.projectId).folder = f.parentId;
+      return ['資料夾樹移除該節點'];
+    });
+    closeDrawer();
+  });
+}
+
+/* ---------- 檔案：上傳、歸檔、下載 ---------- */
+const PM_UP = {
+  name: '',
+  pct: 0,
+  left: 0
+};
+function pmUpPaint() {
+  const el = getById('pmUpState');
+  if (!el) return;
+  el.textContent = PM_UP.name ? '上傳中　' + PM_UP.name + '　' + PM_UP.pct + '%' + (PM_UP.left > 1 ? '　（還有 ' + (PM_UP.left - 1) + ' 個）' : '') : '';
+  el.hidden = !PM_UP.name;
+}
+async function pmUploadOne(p, folderId, file) {
+  const verdict = astClassify({
+    name: file.name,
+    bytes: file.size,
+    mimeType: file.type
+  });
+  if (!verdict.ok) throw Error(verdict.error);
+  const target = pmFolder(folderId) || pmInbox(p.id);
+  if (!target) throw Error('這個專案還沒有啟用專案硬碟');
+  // 直接丟進指定資料夾＝已整理；落進收件匣＝待整理。
+  const filed = target.kind !== 'INBOX';
+  const now = Date.now();
+  const row = {
+    id: '',
+    assetId: '',
+    name: file.name,
+    kind: verdict.kind,
+    objectKey: '',
+    bytes: file.size,
+    mime: file.type || '',
+    status: 'ready',
+    space: 'team',
+    author: DB.me,
+    day: pmDay(now),
+    bornAt: now,
+    text: '',
+    projectId: p.id,
+    folderId: target.id,
+    filedAt: filed ? now : 0
+  };
+  if (OP_LIVE) {
+    // 目標資料夾可能才剛建、還在佇列裡；伺服器找不到它就會拒絕這次上傳。
+    await pmSaved();
+    const endpoint = '/api/company/operating/drive/uploads';
+    const signed = await pmApi(endpoint, {
+      method: 'POST',
+      body: {
+        projectId: p.id,
+        name: file.name,
+        contentType: file.type || null,
+        bytes: file.size,
+        ...(filed ? {
+          folderId: target.id
+        } : {})
+      }
+    });
+    try {
+      await astPut(signed.uploadUrl, file, pct => {
+        PM_UP.pct = pct;
+        pmUpPaint();
+      });
+      await pmApi(endpoint, {
+        method: 'PATCH',
+        body: {
+          projectId: p.id,
+          assetId: signed.assetId
+        }
+      });
+    } catch (e) {
+      // 沒 finalize 的列會停在 uploading，24 小時後才被孤兒清理收走；失敗就直接回報。
+      await pmApi(endpoint, {
+        method: 'PATCH',
+        body: {
+          projectId: p.id,
+          assetId: signed.assetId,
+          outcome: 'failed'
+        }
+      }).catch(() => {});
+      throw e;
+    }
+    Object.assign(row, {
+      id: signed.refCode,
+      assetId: signed.assetId,
+      objectKey: signed.objectKey,
+      kind: signed.kind || verdict.kind
+    });
+  } else {
+    row.id = nid('AST');
+    row.local = true;
+  }
+  DB.assets.unshift(row);
+  audit('檔案', row.name, '上傳', '', 1);
+  return row;
+}
+async function pmUploadFiles(p, folderId, files) {
+  const done = [];
+  PM_UP.left = files.length;
+  for (const file of files) {
+    PM_UP.name = file.name;
+    PM_UP.pct = 0;
+    pmUpPaint();
+    try {
+      done.push(await pmUploadOne(p, folderId, file));
+    } catch (e) {
+      toast(`<b>${esc(file.name)}</b> 沒有上傳：${esc(e && e.message ? e.message : '上傳失敗')}`);
+    }
+    PM_UP.left -= 1;
+  }
+  PM_UP.name = '';
+  pmUpPaint();
+  return done;
+}
+function pmUploadPick(folderId, after) {
+  const p = P(S.proj);
+  if (!p) return;
+  const input = doc.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+  input.setAttribute('aria-label', '選擇要上傳的檔案');
+  input.style.display = 'none';
+  root.append(input);
+  input.onchange = async () => {
+    const files = [...(input.files || [])];
+    input.remove();
+    if (!files.length) return;
+    const done = await pmUploadFiles(p, folderId, files);
+    if (!active) return;
+    if (done.length) {
+      const target = pmFolder(folderId) || pmInbox(p.id);
+      toast(`已上傳 <b>${done.length}</b> 個檔案到「${esc(target ? target.name : '收件匣')}」` + (OP_LIVE ? '' : '　<span style="color:var(--text-3)">· 預覽模式不保存</span>'));
+    }
+    if (after) after(done);
+    render();
+  };
+  input.click();
+}
+
+/** 歸檔＝只改 folderId／filedAt。R2 上的 bytes 不動，所以搬一萬個檔也只是資料列的更新。 */
+async function pmFileAsset(rid, folderId) {
+  const a = astOf(rid),
+    target = pmFolder(folderId);
+  if (!a || !target) throw Error('找不到檔案或資料夾');
+  if (a.folderId === target.id) return a;
+  if (OP_LIVE && a.assetId) {
+    await pmSaved();
+    await pmApi('/api/company/operating/drive', {
+      method: 'PATCH',
+      body: {
+        action: 'file',
+        assetId: a.assetId,
+        folderId: target.id
+      }
+    });
+  }
+  a.folderId = target.id;
+  a.projectId = target.projectId;
+  a.filedAt = target.kind === 'INBOX' ? 0 : Date.now();
+  audit('檔案', a.name, '歸檔', '', target.name);
+  return a;
+}
+async function pmAssetMove(rid) {
+  const sel = getById('pmMoveTo');
+  const target = sel ? pmFolder(sel.value) : null;
+  if (!target) return toast('先選一個資料夾');
+  try {
+    await pmFileAsset(rid, target.id);
+    pmDrawerClose();
+    render();
+    toast(`已整理到「<b>${esc(pmPathLabel(target))}</b>」　<span style="color:var(--text-3)">· 檔案本體沒有移動</span>`);
+  } catch (e) {
+    toast(esc(e && e.message ? e.message : '整理失敗'));
+  }
+}
+function formPmFileAll(fromId) {
+  const from = pmFolder(fromId);
+  if (!from) return;
+  const list = pmAssetsIn(from.id);
+  if (!list.length) return toast('這裡沒有檔案');
+  const targets = pmFolders(from.projectId).filter(f => f.id !== from.id && f.kind !== 'ROOT' && f.kind !== 'INBOX');
+  if (!targets.length) return toast('先建立一個資料夾，才有地方可以整理過去');
+  openForm({
+    crumb: pmPathLabel(from),
+    title: '整理全部 ' + list.length + ' 個檔案',
+    sub: '一次搬到同一個資料夾；要分開放的話，請逐個點開檔案整理',
+    saveLabel: '整理',
+    fields: [{
+      k: 'folderId',
+      label: '搬到哪裡',
+      type: 'select',
+      req: true,
+      opts: pmFilingOptions(targets)
+    }],
+    values: {
+      folderId: pmFilingOptions(targets)[0][0]
+    },
+    effects: ['只改檔案的位置紀錄，R2 上的檔案本體不動'],
+    onSave: v => {
+      (async () => {
+        let ok = 0;
+        for (const a of list) {
+          try {
+            await pmFileAsset(a.id, v.folderId);
+            ok += 1;
+          } catch (e) {
+            toast(`<b>${esc(a.name)}</b>：${esc(e && e.message ? e.message : '整理失敗')}`);
+          }
+        }
+        if (!active) return;
+        render();
+        const target = pmFolder(v.folderId);
+        if (ok) toast(`已整理 <b>${ok}</b> 個檔案到「${esc(target ? pmPathLabel(target) : '')}」`);
+      })();
+    }
+  });
+}
+async function pmAssetOpen(rid) {
+  const a = astOf(rid);
+  if (!a) return;
+  if (!OP_LIVE || !a.objectKey) return toast('預覽模式的示範檔案沒有實體內容');
+  try {
+    const out = await pmApi('/api/company/operating/drive/uploads?projectId=' + encodeURIComponent(a.projectId) + '&key=' + encodeURIComponent(a.objectKey));
+    window.open(out.downloadUrl, '_blank', 'noopener');
+  } catch (e) {
+    toast(esc(e && e.message ? e.message : '取得檔案失敗'));
+  }
+}
+function pmAssetCopy(rid) {
+  if (navigator.clipboard) navigator.clipboard.writeText(rid).then(() => toast('已複製參考碼 <b>' + esc(rid) + '</b>'), () => toast('無法複製'));
+}
+function pmAssetDrawer(rid) {
+  const a = astOf(rid);
+  if (!a) return;
+  const here = pmFolder(a.folderId);
+  const targets = pmFolders(a.projectId).filter(f => f.kind !== 'ROOT' && f.id !== a.folderId);
+  const noIndex = here ? pmNoIndex(here) : false;
+  pmDrawer({
+    crumb: (here ? pmPathLabel(here) : '專案硬碟') + ' / ' + a.id,
+    title: a.name,
+    sub: a.filedAt ? '已整理' : '待整理 · 還在收件匣',
+    body: `<div class="pm-sec"><h4>檔案</h4><dl class="pm-kv">
+        <dt>參考碼</dt><dd>${esc(a.id)}</dd>
+        <dt>類型</dt><dd>${esc(AST_LABELS[a.kind] || a.kind || '—')}</dd>
+        <dt>大小</dt><dd>${astSize(a.bytes)}</dd>
+        <dt>上傳者</dt><dd>${esc(pmWho(a.author))}</dd>
+        <dt>上傳時間</dt><dd>${esc(a.day || pmDay(a.bornAt))} ${pmClock(a.bornAt)}</dd>
+        <dt>位置</dt><dd>${esc(here ? pmPathLabel(here) : '—')}</dd>
+        <dt>全文索引</dt><dd>${noIndex ? '不建立（最高敏感）' : '可建立'}</dd>
+      </dl></div>
+      <div class="pm-sec"><h4>整理到別的資料夾</h4>
+        ${targets.length ? `<div class="pm-move"><select id="pmMoveTo" aria-label="目標資料夾">${pmFilingOptions(targets).map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('')}</select>
+             <button class="btn pri" ${bind("click", (event, element) => {
+      pmAssetMove(a.id);
+    })}>搬到這裡</button></div>
+             <p class="pm-dim">只改位置紀錄；檔案本體不會被複製、移動或重新命名。</p>` : '<p class="pm-dim">還沒有別的資料夾可以整理過去。</p>'}
+      </div>`,
+    actions: `<button class="btn pri" ${bind("click", (event, element) => {
+      pmAssetOpen(a.id);
+    })}>${svg('download', 13)} 下載</button>
+      <button class="btn" ${bind("click", (event, element) => {
+      pmAssetCopy(a.id);
+    })}>${svg('copy', 13)} 複製參考碼</button>`
+  });
+}
+
+/* ---------- 版面 ---------- */
+function pmTreeNode(f, depth, curId, trail) {
+  const kids = pmChildren(f.id);
+  const explicit = S.pmFold['fld:' + f.id];
+  const open = explicit === undefined ? depth === 0 || trail.has(f.id) : explicit;
+  const n = pmAssetsIn(f.id).length;
+  const vis = f.visibility === 'CLIENT_VISIBLE' ? `<span class="pm-tr-v pri" title="客戶可見">${svg('goto', 10)}</span>` : f.visibility === 'RESTRICTED_NO_INDEX' ? `<span class="pm-tr-v crit" title="最高敏感 · 不建索引">${svg('lock', 10)}</span>` : '';
+  return `<div class="pm-tr-row ${f.id === curId ? 'on' : ''}" style="--d:${depth}">
+      ${kids.length ? `<button type="button" class="pm-tr-tw ${open ? 'open' : ''}" aria-expanded="${open}" aria-label="展開或收合" ${bind("click", (event, element) => {
+    pmTreeToggle(f.id, open);
+  })}>${svg('chevronRight', 11)}</button>` : '<span class="pm-tr-tw"></span>'}
+      <button type="button" class="pm-tr-name" aria-current="${f.id === curId}" ${bind("click", (event, element) => {
+    pmFolderPick(f.id);
+  })}>${svg(pmFolderIcon(f), 13)}<span>${esc(f.name)}</span></button>
+      ${vis}${n ? `<span class="pm-tr-n ${f.kind === 'INBOX' ? 'warn' : ''}">${n}</span>` : ''}
+    </div>${open ? kids.map(k => pmTreeNode(k, depth + 1, curId, trail)).join('') : ''}`;
+}
+function pmFolderMain(p, f) {
+  const trail = pmTrail(f);
+  const kids = pmChildren(f.id);
+  const files = pmAssetsIn(f.id);
+  const vis = PM_VIS[f.visibility] || PM_VIS.INTERNAL_ONLY;
+  const meeting = DB.occasions.find(o => o.folderId === f.id);
+  const linkedMs = DB.milestones.filter(m => m.folderId === f.id);
+  const inbox = f.kind === 'INBOX';
+  const crumb = `<nav class="pm-crumb" aria-label="位置">${trail.map((x, i) => i === trail.length - 1 ? `<span aria-current="page">${esc(x.name)}</span>` : `<button type="button" ${bind("click", (event, element) => {
+    pmFolderPick(x.id);
+  })}>${esc(x.name)}</button>${svg('chevronRight', 10)}`).join('')}</nav>`;
+  const acts = [];
+  if (!inbox) acts.push(`<button class="btn" ${bind("click", (event, element) => {
+    formPmFolder(f.id);
+  })}>${svg('plus')} 資料夾</button>`);
+  acts.push(`<button class="btn pri" ${bind("click", (event, element) => {
+    pmUploadPick(f.id);
+  })}>${svg('plus')} 上傳</button>`);
+  if (inbox && files.length) acts.push(`<button class="btn" ${bind("click", (event, element) => {
+    formPmFileAll(f.id);
+  })}>${svg('arrowRight')} 整理全部</button>`);
+  if (!f.isSystem) {
+    acts.push(`<button class="btn" ${bind("click", (event, element) => {
+      formPmFolderEdit(f.id);
+    })}>${svg('pen')} 設定</button>`);
+    acts.push(`<button class="btn" ${bind("click", (event, element) => {
+      formPmFolderMove(f.id);
+    })}>${svg('arrowin')} 搬移</button>`);
+  }
+  const head = `<div class="pm-dv-h">
+      <h3>${svg(pmFolderIcon(f), 15)}<span>${esc(f.name)}</span></h3>
+      <span class="pm-chip">${PM_KIND[f.kind] || f.kind}</span>
+      <span class="pm-chip ${vis.tone}">${f.visibility === 'RESTRICTED_NO_INDEX' ? svg('lock', 10) + ' ' : ''}${vis.label}</span>
+      <span class="pm-sp"></span>
+      <div class="pm-bar tight">${acts.join('')}</div>
+    </div>
+    <div class="pm-up" id="pmUpState" role="status" aria-live="polite" hidden></div>`;
+  const notes = [];
+  if (inbox) notes.push(`<p class="pm-hint">${svg('inbox', 12)}<span>分散上傳的檔案先落在這裡。整理＝把它指到正確的資料夾；檔案本體不會被移動。</span></p>`);
+  if (pmNoIndex(f)) notes.push(`<p class="pm-hint crit">${svg('lock', 12)}<span>這裡的檔案不建立全文索引：資料夾權限擋不住全文搜尋，所以敏感內容連索引都不留。</span></p>`);
+  if (meeting) notes.push(`<p class="pm-hint">${svg('calendar', 12)}<span>這是會議「${esc(meeting.title)}」（${meeting.onDate}）的資料夾。</span><button type="button" class="pm-link" ${bind("click", (event, element) => {
+    pmJump('meeting', null, '檔案', {
+      meeting: meeting.id
+    });
+  })}>看會議屬性</button></p>`);
+  linkedMs.forEach(m => notes.push(`<p class="pm-hint">${svg('flag', 12)}<span>里程碑「${esc(m.title)}」的交付夾。</span><button type="button" class="pm-link" ${bind("click", (event, element) => {
+    pmJump('plan', 'tree', '檔案');
+  })}>看計劃</button></p>`));
+  const sub = kids.length ? pmBlock('資料夾', kids.length + ' 個', pmRows(kids.map(k => ({
+    key: k.id,
+    title: k.name,
+    eyebrow: PM_KIND[k.kind] || '',
+    meta: [...(k.visibility === 'CLIENT_VISIBLE' ? [{
+      text: '客戶可見',
+      tone: 'pri'
+    }] : k.visibility === 'RESTRICTED_NO_INDEX' ? [{
+      text: '不建索引',
+      tone: 'crit'
+    }] : []), {
+      text: pmAssetsIn(k.id).length + ' 檔',
+      chip: false
+    }],
+    go: true
+  })), {
+    id: 'pmDvKids',
+    onPick: pmFolderPick
+  })) : '';
+  const table = pmTable([{
+    k: 'name',
+    label: '名稱'
+  }, {
+    k: 'kind',
+    label: '類型',
+    get: r => AST_LABELS[r.kind] || r.kind || '—',
+    dim: true
+  }, {
+    k: 'bytes',
+    label: '大小',
+    align: 'num',
+    get: r => astSize(r.bytes),
+    sortBy: r => r.bytes || 0
+  }, {
+    k: 'author',
+    label: '上傳者',
+    get: r => pmWho(r.author),
+    dim: true
+  }, {
+    k: 'day',
+    label: '日期',
+    align: 'mono',
+    get: r => r.day || pmDay(r.bornAt)
+  }, {
+    k: 'id',
+    label: '參考碼',
+    align: 'mono',
+    dim: true
+  }], files, {
+    id: 'pmDvFiles:' + f.id,
+    search: files.length > 6,
+    searchLabel: '篩選檔名',
+    sort: {
+      k: 'day',
+      dir: 'desc'
+    },
+    rowKey: r => r.id,
+    onPick: key => pmAssetDrawer(key),
+    empty: inbox ? '收件匣是空的 —— 沒有待整理的檔案。' : '這個資料夾還沒有檔案。',
+    foot: files.length ? '↑↓ 移動焦點 · Enter 開啟檔案' + (inbox ? ' · 點開後可以整理到別的資料夾' : '') : ''
+  });
+  return crumb + head + notes.join('') + sub + pmBlock(inbox ? '待整理' : '檔案', files.length ? files.length + ' 個' : '', `<div data-pm-surface="primary">${table}</div>`);
+}
+PMV.drive = function (p) {
+  if (!p) return '';
+  const top = pmRoot(p.id);
+  if (!top) {
+    return pmEmpty('這個專案還沒有專案硬碟。啟用之後會有一個收件匣（分散上傳先落這裡）與一棵可以自己整理的資料夾樹。', `<button class="btn pri" ${bind("click", (event, element) => {
+      pmDriveEnable('full');
+    })}>${svg('plus')} 啟用並建立預設資料夾</button>
+       <button class="btn" ${bind("click", (event, element) => {
+      pmDriveEnable('min');
+    })}>只建立收件匣</button>`) + `<p class="pm-dim pm-center">預設資料夾：[共用] 共用資料夾 · 開案前 · 專案啟動［正式資料］· 里程碑交付 · 會議 · 修改需求 · 素材 · (僅內部)</p>`;
+  }
+  const sel = pmSel(p.id);
+  let cur = pmFolder(sel.folder);
+  if (!cur || cur.projectId !== p.id) cur = top;
+  const folders = pmFolders(p.id);
+  const assets = pmAssets(p.id);
+  const unfiled = pmUnfiled(p.id).length;
+  const rail = pmRail([{
+    label: '檔案',
+    value: assets.length
+  }, {
+    label: '待整理',
+    value: unfiled,
+    tone: unfiled ? 'warn' : '',
+    note: unfiled ? '在收件匣' : ''
+  }, {
+    label: '資料夾',
+    value: folders.length - 1
+  }, {
+    label: '客戶可見',
+    value: folders.filter(f => f.visibility === 'CLIENT_VISIBLE').length,
+    unit: '夾'
+  }, {
+    label: '最高敏感',
+    value: folders.filter(f => f.visibility === 'RESTRICTED_NO_INDEX').length,
+    unit: '夾'
+  }, {
+    label: '容量',
+    value: astSize(assets.reduce((n, a) => n + (a.bytes || 0), 0))
+  }], {
+    label: '專案硬碟重點數字'
+  });
+  const trail = new Set(pmTrail(cur).map(f => f.id));
+  return rail + `<div class="pm-dv">
+    <nav class="pm-dv-tree" aria-label="資料夾樹">${pmTreeNode(top, 0, cur.id, trail)}</nav>
+    <div class="pm-dv-main">${pmFolderMain(p, cur)}</div>
+  </div>`;
+};
+
+/* ==================================================================
+   專案 · 會議（PLN-075 S3 Wave 3b）
+
+   時間序清單 ＋ 會議資料夾視圖。一個資料夾＝一場會議（OD-D）：
+   資料面是既有的 occasions 集合加上 folderId（1:1）、cautions、guests，
+   沒有另開一張會議表。
+
+   四個屬性跟著資料夾走：參與者／產生時間／結論（recap）／注意事項（cautions）。
+   結論是「這場會議產出了什麼」，注意事項是「下一次要先知道的前提」，兩者分開。
+
+   夾內的四件套：錄音檔／逐字稿／完整紀錄／摘要。分類依檔案類型與檔名判斷
+   （沒有另存欄位），所以照 Owner 既有的檔名慣例命名就會落到對的格子。
+
+   兩條升級路徑在這裡：會議待辦 → 任務、結論 → 決議。
+   ================================================================== */
+
+var PMV = PMV || {};
+const PM_KIT = [['audio', '錄音檔', a => a.kind === 'audio' || a.kind === 'video' || /錄音|錄影|recording/i.test(a.name)], ['transcript', '逐字稿', a => /逐字稿|transcript/i.test(a.name)], ['minutes', '完整紀錄', a => /完整紀錄|完整記錄|會議紀錄|會議記錄|minutes/i.test(a.name)], ['summary', '摘要', a => /摘要|summary/i.test(a.name)]];
+/** 一個檔只落一格，依四件套的順序判斷；都不像的歸到「其他」。 */
+function pmKitOf(a) {
+  const hit = PM_KIT.find(k => k[2](a));
+  return hit ? hit[0] : 'other';
+}
+function pmKitState(o) {
+  const files = o.folderId ? pmAssetsIn(o.folderId) : [];
+  const have = PM_KIT.filter(k => files.some(a => pmKitOf(a) === k[0])).length;
+  return {
+    files,
+    have
+  };
+}
+const pmMeetingPeople = o => [...(o.actorIds || []).map(pmWho), ...String(o.guests || '').split(/[,，、]/).map(s => s.trim()).filter(Boolean)];
+function pmMeetingPick(id) {
+  const o = OCC(id);
+  if (!o) return;
+  pmSel(o.projectId).meeting = id;
+  render();
+}
+
+/** 會議資料夾放在「會議」底下；沒有那個資料夾就放在硬碟最上層。 */
+function pmMeetingParent(pid) {
+  const top = pmRoot(pid);
+  if (!top) return null;
+  return pmChildren(top.id).find(f => f.name === '會議') || top;
+}
+
+/** withFolder：從「建立資料夾」按進來時，預設就幫這場既有的會議建資料夾。 */
+function formPmMeeting(id, withFolder) {
+  const p = P(S.proj);
+  if (!p) return;
+  const e = id ? OCC(id) : null;
+  if (e && !opGuard(e)) return;
+  const canFolder = !!pmRoot(p.id) && !(e && e.folderId);
+  openForm({
+    crumb: e ? '會議 · ' + e.id : '新會議',
+    title: e ? '編輯會議' : '新增會議',
+    sub: '一場會議＝一個資料夾；參與者、結論與注意事項跟著資料夾走',
+    fields: [{
+      k: 'title',
+      label: '會議名稱',
+      req: true,
+      ph: '例如：期中檢視'
+    }, {
+      k: 'onDate',
+      label: '日期',
+      type: 'date',
+      req: true,
+      half: true
+    }, {
+      k: 'at',
+      label: '時間',
+      half: true,
+      ph: '14:00–15:30'
+    }, {
+      k: 'actors',
+      label: '內部參與者',
+      type: 'mchips',
+      opts: PEOPLE_OPTS()
+    }, {
+      k: 'guests',
+      label: '外部參與者',
+      ph: '客戶窗口、顧問…，用頓號分開'
+    }, {
+      k: 'place',
+      label: '地點',
+      ph: '客戶會議室／線上'
+    }, {
+      k: 'recap',
+      label: '結論',
+      type: 'textarea',
+      rows: 3,
+      ph: '這場會議決定了什麼、產出了什麼'
+    }, {
+      k: 'cautions',
+      label: '注意事項',
+      type: 'textarea',
+      rows: 2,
+      ph: '下一次開會前要先知道的前提、對方的禁忌、還沒解的問題'
+    }, ...(canFolder ? [{
+      k: 'folder',
+      label: '會議資料夾',
+      type: 'chips',
+      opts: [['yes', '建立資料夾'], ['no', '先不建']],
+      hint: '資料夾名稱會是「YYYYMMDD 會議名稱」，放在硬碟的「會議」底下'
+    }] : [])],
+    values: e ? {
+      title: e.title,
+      onDate: e.onDate,
+      at: e.at || '',
+      actors: (e.actorIds || []).join(','),
+      guests: e.guests || '',
+      place: e.place || '',
+      recap: e.recap || '',
+      cautions: e.cautions || '',
+      folder: withFolder ? 'yes' : 'no'
+    } : {
+      title: '',
+      onDate: TODAY,
+      at: '',
+      actors: DB.me,
+      guests: '',
+      place: '',
+      recap: '',
+      cautions: '',
+      folder: 'yes'
+    },
+    effects: ['會議分頁的時間序與總覽的時間流同步', '同時出現在營運 · 日曆'],
+    onDelete: e ? () => confirmDelete('會議', e.title, e.folderId ? '會議資料夾與裡面的檔案不會被刪除，只解除連結。' : '', () => {
+      commit('delete', '會議', e.title, () => {
+        DB.occasions = DB.occasions.filter(o => o.id !== e.id);
+        return ['時間序與日曆移除這場會議'];
+      });
+      closeDrawer();
+    }) : null,
+    onSave: v => {
+      const body = {
+        title: v.title,
+        onDate: v.onDate,
+        endOn: v.onDate,
+        at: v.at,
+        place: v.place,
+        actorIds: String(v.actors || '').split(',').map(s => s.trim()).filter(Boolean),
+        guests: v.guests,
+        recap: v.recap,
+        cautions: v.cautions
+      };
+      const wantFolder = canFolder && v.folder === 'yes';
+      const parent = wantFolder ? pmMeetingParent(p.id) : null;
+      const folderName = v.onDate.replace(/-/g, '') + ' ' + v.title.trim();
+      if (parent) {
+        const bad = pmNameProblem(parent.id, folderName);
+        if (bad) throw Error('會議資料夾：' + bad);
+      }
+      const makeFolder = () => {
+        if (!parent) return '';
+        const fid = nid('FLD');
+        DB.folders.push({
+          id: fid,
+          projectId: p.id,
+          parentId: parent.id,
+          kind: 'MEETING',
+          name: folderName,
+          visibility: Object.keys(PM_VIS).find(k => PM_VIS[k].rank === Math.max(1, pmVisFloor(parent))) || 'INTERNAL_ONLY',
+          sortOrder: pmChildren(parent.id).reduce((m, f) => Math.max(m, f.sortOrder || 0), 0) + 10,
+          isSystem: false,
+          space: 'team',
+          author: DB.me,
+          note: '',
+          createdAt: Date.now()
+        });
+        return fid;
+      };
+      if (e) {
+        commit('update', '會議', v.title, () => {
+          Object.assign(e, body);
+          const fid = makeFolder();
+          if (fid) e.folderId = fid;
+          return fid ? ['會議資料夾已建立並連結'] : ['會議屬性已更新'];
+        });
+        return;
+      }
+      const oid = nid('OC');
+      commit('create', '會議', v.title, () => {
+        const fid = makeFolder();
+        DB.occasions.push({
+          id: oid,
+          cat: '客戶會議',
+          projectId: p.id,
+          star: false,
+          prep: [],
+          media: [],
+          derivedFrom: '',
+          remind: '前 1 日',
+          author: DB.me,
+          folderId: fid,
+          createdAt: Date.now(),
+          ...body
+        });
+        pmSel(p.id).meeting = oid;
+        return [`時間序 <b>${v.onDate}</b> 新增會議`, ...(fid ? ['會議資料夾已建立'] : [])];
+      });
+    }
+  });
+}
+
+/** 把一個既有的資料夾連成這場會議的資料夾（1:1）。 */
+function formPmMeetingLink(id) {
+  const o = OCC(id);
+  if (!o) return;
+  const taken = new Set(DB.occasions.filter(x => x.folderId && x.id !== o.id).map(x => x.folderId));
+  const options = pmFolders(o.projectId).filter(f => f.kind !== 'ROOT' && f.kind !== 'INBOX' && !taken.has(f.id));
+  if (!options.length) return toast('沒有可以連結的資料夾；可以在編輯會議時直接建立一個');
+  openForm({
+    crumb: o.title,
+    title: '連結會議資料夾',
+    sub: '一個資料夾只能對一場會議',
+    fields: [{
+      k: 'folderId',
+      label: '資料夾',
+      type: 'select',
+      req: true,
+      opts: options.map(f => [f.id, pmPathLabel(f)])
+    }],
+    values: {
+      folderId: (options.find(f => f.kind === 'MEETING') || options[0]).id
+    },
+    onSave: v => commit('update', '會議', o.title, () => {
+      o.folderId = v.folderId;
+      return ['會議資料夾已連結'];
+    })
+  });
+}
+
+/* ---------- 會議待辦 → 任務 ---------- */
+function pmMeetingTodoAdd(id) {
+  const o = OCC(id);
+  const input = getById('pmMtTodo');
+  const text = input ? input.value.trim() : '';
+  if (!o || !text) return;
+  commit('update', '會議待辦', pmCut(text, 24), () => {
+    o.prep = [...(Array.isArray(o.prep) ? o.prep : []), {
+      id: nid('PT'),
+      t: text,
+      done: false,
+      issueId: ''
+    }];
+    return ['記在這場會議底下；需要追蹤時可以轉成任務'];
+  });
+}
+function pmMeetingTodoKey(event, id) {
+  if (event.key !== 'Enter' || event.isComposing) return;
+  event.preventDefault();
+  pmMeetingTodoAdd(id);
+}
+function pmMeetingTodoToggle(id, tid) {
+  const o = OCC(id);
+  const item = o && (o.prep || []).find(x => x.id === tid);
+  if (!item) return;
+  commit('update', '會議待辦', pmCut(item.t, 24), () => {
+    o.prep = o.prep.map(x => x.id === tid ? {
+      ...x,
+      done: !x.done
+    } : x);
+    return [item.done ? '改回未完成' : '標為完成'];
+  });
+}
+function pmMeetingTodoDrop(id, tid) {
+  const o = OCC(id);
+  const item = o && (o.prep || []).find(x => x.id === tid);
+  if (!item) return;
+  commit('delete', '會議待辦', pmCut(item.t, 24), () => {
+    o.prep = o.prep.filter(x => x.id !== tid);
+    return item.issueId ? ['已轉出的任務不受影響'] : [];
+  });
+}
+/** 升級路徑：會議待辦 → 任務。任務建好的同一次 commit 裡，把待辦標上任務編號。 */
+function pmMeetingTodoPromote(id, tid) {
+  const o = OCC(id);
+  const item = o && (o.prep || []).find(x => x.id === tid);
+  if (!item) return;
+  formPmTask(null, {
+    t: item.t,
+    exp: '來自會議「' + o.title + '」（' + o.onDate + '）',
+    from: '會議待辦 · ' + o.title,
+    after: issue => {
+      o.prep = o.prep.map(x => x.id === tid ? {
+        ...x,
+        issueId: issue.id
+      } : x);
+      return ['會議待辦已連到這個任務'];
+    }
+  });
+}
+
+/** 升級路徑：結論 → 決議。決議帳本多一列，並在會議上記下決議編號。 */
+function pmMeetingDecide(id) {
+  const o = OCC(id);
+  if (!o) return;
+  if (!o.recap) return toast('先寫下這場會議的結論，才有東西可以轉成決議');
+  openForm({
+    crumb: o.title,
+    title: '結論轉成決議',
+    sub: '決議會進入決策帳本，之後被推翻也會保留當時的脈絡',
+    saveLabel: '建立決議',
+    fields: [{
+      k: 't',
+      label: '決議',
+      req: true
+    }, {
+      k: 'ctx',
+      label: '脈絡',
+      type: 'textarea',
+      rows: 2
+    }, {
+      k: 'ev',
+      label: '依據',
+      type: 'textarea',
+      rows: 3
+    }],
+    values: {
+      t: pmCut(o.recap, 60),
+      ctx: '會議「' + o.title + '」（' + o.onDate + '）',
+      ev: o.recap
+    },
+    effects: ['決策帳本 +1 列', '會議上標記已轉決議'],
+    onSave: v => {
+      const did = nid('D');
+      commit('create', '決策', v.t, () => {
+        DB.decisions.unshift({
+          id: did,
+          t: v.t,
+          st: '現行',
+          ctx: v.ctx,
+          ev: v.ev,
+          body: v.ev,
+          owner: DB.me,
+          date: o.onDate,
+          d: o.onDate,
+          sup: '',
+          author: DB.me
+        });
+        // 記在待辦那一包裡：occasions 沒有專屬欄位，而這個標記只給畫面看。
+        o.prep = [...(Array.isArray(o.prep) ? o.prep : []).filter(x => x.kind !== 'decision'), {
+          id: nid('PT'),
+          kind: 'decision',
+          t: v.t,
+          decisionId: did,
+          done: true
+        }];
+        return ['決策帳本 +1 列', '會議標記為已轉決議'];
+      });
+    }
+  });
+}
+
+/* ---------- 版面 ---------- */
+function pmMeetingDetail(p, o) {
+  const kit = pmKitState(o);
+  const folder = o.folderId ? pmFolder(o.folderId) : null;
+  const people = pmMeetingPeople(o);
+  const todos = (Array.isArray(o.prep) ? o.prep : []).filter(x => x.kind !== 'decision');
+  const decided = (Array.isArray(o.prep) ? o.prep : []).find(x => x.kind === 'decision');
+  const born = o.createdAt ? pmDay(o.createdAt) + ' ' + pmClock(o.createdAt) : '—';
+  const head = `<div class="pm-dv-h">
+      <h3>${svg('calendar', 15)}<span>${esc(o.title)}</span></h3>
+      <span class="pm-chip">${esc(o.onDate)}${o.at ? ' · ' + esc(o.at) : ''}</span>
+      <span class="pm-sp"></span>
+      <div class="pm-bar tight">
+        <button class="btn" ${bind("click", (event, element) => {
+    formPmMeeting(o.id);
+  })}>${svg('pen')} 編輯</button>
+        ${folder ? `<button class="btn" ${bind("click", (event, element) => {
+    pmJump('drive', 'tree', '會議', {
+      folder: folder.id
+    });
+  })}>${svg('folder')} 開資料夾</button>` : ''}
+      </div>
+    </div>`;
+  const attrs = `<dl class="pm-attr">
+      <div><dt>參與者</dt><dd>${people.length ? people.map(n => `<span class="pm-chip">${esc(n)}</span>`).join(' ') : '<span class="pm-dim">未填</span>'}</dd></div>
+      <div><dt>產生時間</dt><dd class="mono">${esc(born)}</dd></div>
+      <div><dt>結論</dt><dd>${o.recap ? esc(o.recap) : '<span class="pm-dim">還沒寫結論</span>'}
+        ${o.recap ? decided ? `<span class="pm-chip good">${svg('check', 10)} 已轉決議 ${esc(decided.decisionId || '')}</span>` : `<button type="button" class="pm-link" ${bind("click", (event, element) => {
+    pmMeetingDecide(o.id);
+  })}>轉成決議</button>` : ''}</dd></div>
+      <div><dt>注意事項</dt><dd>${o.cautions ? esc(o.cautions) : '<span class="pm-dim">沒有特別要注意的事</span>'}</dd></div>
+    </dl>`;
+  const kitBody = folder ? `<div class="pm-kit">${PM_KIT.map(k => {
+    const list = kit.files.filter(a => pmKitOf(a) === k[0]);
+    return `<div class="pm-kit-i ${list.length ? 'has' : ''}">
+          <span class="pm-kit-k">${svg(list.length ? 'check' : 'clock', 12)}${k[1]}</span>
+          ${list.length ? list.map(a => `<button type="button" class="pm-kit-f" ${bind("click", (event, element) => {
+      pmAssetDrawer(a.id);
+    })}>${esc(a.name)}</button>`).join('') : '<span class="pm-dim">還沒有</span>'}
+        </div>`;
+  }).join('')}</div>
+      ${kit.files.filter(a => pmKitOf(a) === 'other').length ? `<p class="pm-dim">其他 ${kit.files.filter(a => pmKitOf(a) === 'other').length} 個檔案在資料夾裡。</p>` : ''}` : pmEmpty('這場會議還沒有資料夾。', pmRoot(p.id) ? `<button class="btn pri" ${bind("click", (event, element) => {
+    formPmMeeting(o.id, true);
+  })}>${svg('plus')} 建立資料夾</button><button class="btn" ${bind("click", (event, element) => {
+    formPmMeetingLink(o.id);
+  })}>連結既有資料夾</button>` : `<button class="btn" ${bind("click", (event, element) => {
+    pmJump('drive', 'tree', '會議');
+  })}>先到檔案分頁啟用專案硬碟</button>`);
+  const todoBody = `<div class="pm-todo">
+      ${todos.map(x => `<div class="pm-todo-i ${x.done ? 'done' : ''}">
+        <button type="button" class="pm-pl-check ${x.done ? 'on' : ''}" aria-pressed="${!!x.done}" title="${x.done ? '改回未完成' : '標為完成'}" ${bind("click", (event, element) => {
+    pmMeetingTodoToggle(o.id, x.id);
+  })}>${x.done ? svg('check', 11) : ''}</button>
+        <span class="pm-todo-t">${esc(x.t)}</span>
+        ${x.issueId ? `<button type="button" class="pm-chip pri pm-chip-btn" ${bind("click", (event, element) => {
+    openDrawer('issue', x.issueId);
+  })}>${svg('goto', 10)} 已轉任務</button>` : `<button class="btn sm" ${bind("click", (event, element) => {
+    pmMeetingTodoPromote(o.id, x.id);
+  })}>${svg('arrowRight')} 轉任務</button>`}
+        ${mini('trash', (event, element) => {
+    pmMeetingTodoDrop(o.id, x.id);
+  }, 'dgr')}
+      </div>`).join('')}
+      <div class="pm-todo-add">
+        <input id="pmMtTodo" type="text" aria-label="新增會議待辦" placeholder="記下這場會議的待辦，按 Enter 新增" ${bind("keydown", (event, element) => {
+    pmMeetingTodoKey(event, o.id);
+  })}>
+        <button class="btn sm" ${bind("click", (event, element) => {
+    pmMeetingTodoAdd(o.id);
+  })}>${svg('plus')} 新增</button>
+      </div>
+    </div>`;
+  return head + attrs + pmBlock('會議四件套', folder ? kit.have + ' / 4' : '', kitBody, folder ? `<button class="btn sm" ${bind("click", (event, element) => {
+    pmUploadPick(folder.id);
+  })}>${svg('plus')} 上傳到這場會議</button>` : '') + pmBlock('會議待辦', todos.length ? todos.filter(x => !x.done).length + ' 件未完成' : '', todoBody);
+}
+PMV.meeting = function (p) {
+  if (!p) return '';
+  const meetings = pmMeetings(p.id);
+  const add = `<button class="btn pri" ${bind("click", (event, element) => {
+    formPmMeeting();
+  })}>${svg('plus')} 新增會議</button>`;
+  if (!meetings.length) {
+    return pmEmpty('這個專案還沒有會議紀錄。每場會議是一個資料夾，帶著參與者、產生時間、結論與注意事項。', add);
+  }
+  const sel = pmSel(p.id);
+  const cur = meetings.find(o => o.id === sel.meeting) || meetings[0];
+  const past = meetings.filter(o => o.onDate <= TODAY);
+  const rail = pmRail([{
+    label: '會議',
+    value: meetings.length,
+    unit: '場'
+  }, {
+    label: '缺結論',
+    value: past.filter(o => !o.recap).length,
+    tone: past.some(o => !o.recap) ? 'warn' : ''
+  }, {
+    label: '四件套齊全',
+    value: meetings.filter(o => pmKitState(o).have === 4).length + ' / ' + meetings.length
+  }, {
+    label: '未完成待辦',
+    value: meetings.reduce((n, o) => n + (Array.isArray(o.prep) ? o.prep : []).filter(x => x.kind !== 'decision' && !x.done).length, 0)
+  }, {
+    label: '下一場',
+    value: (meetings.filter(o => o.onDate > TODAY).sort((a, b) => a.onDate.localeCompare(b.onDate))[0] || {}).onDate || '—'
+  }], {
+    label: '會議重點數字'
+  });
+  let month = '';
+  const list = meetings.map(o => {
+    const m = o.onDate.slice(0, 7);
+    const sep = m !== month ? `<div class="pm-mt-month">${m.slice(0, 4)} 年 ${Number(m.slice(5))} 月</div>` : '';
+    month = m;
+    const kit = pmKitState(o);
+    return sep + `<button type="button" class="pm-mt-i ${o.id === cur.id ? 'on' : ''}" aria-current="${o.id === cur.id}" ${bind("click", (event, element) => {
+      pmMeetingPick(o.id);
+    })}>
+        <span class="pm-mt-d">${o.onDate.slice(5)}</span>
+        <span class="pm-mt-t">${esc(o.title)}</span>
+        <span class="pm-mt-m">
+          ${o.onDate > TODAY ? '<span class="pm-chip pri">未開</span>' : o.recap ? '' : '<span class="pm-chip warn">缺結論</span>'}
+          ${o.folderId ? `<span class="pm-mt-k">${kit.have}/4</span>` : ''}
+        </span>
+      </button>`;
+  }).join('');
+  return rail + `<div class="pm-bar">${add}</div><div class="pm-dv">
+    <nav class="pm-dv-tree pm-mt-list" aria-label="會議時間序">${list}</nav>
+    <div class="pm-dv-main">${pmMeetingDetail(p, cur)}</div>
+  </div>`;
+};
+
+/* ==================================================================
+   專案 · 對話（PLN-075 S3 Wave 3b）
+
+   每個專案有自己的聊天室：頻道（chatChannels）＋ 一列一訊息（chatMessages，OD-F）。
+   既有的 OperatingThread（議題串）不動，留在同一個分頁的「議題串」子視圖。
+
+   附件與其他入口走同一條路落進收件匣：上傳到專案硬碟、不指定資料夾，
+   所以它是待整理（filedAt 為空），之後在檔案分頁整理到正確位置。
+   訊息只記參考碼（meta.assets），不帶 bytes。
+
+   升級路徑：訊息 → 任務。
+
+   LINE 群導入本階段不做（OD-H）：以停用狀態的入口呈現，不假裝可用。
+   ================================================================== */
+
+var PMV = PMV || {};
+const PM_CH_KIND = {
+  MAIN: '主頻道',
+  TOPIC: '主題',
+  LINE_MIRROR: 'LINE 鏡射',
+  CLIENT: '客戶'
+};
+function pmChatOpen() {
+  const p = P(S.proj);
+  if (!p || pmChannels(p.id).length) return;
+  const cid = nid('CH');
+  commit('create', '聊天室', p.t, () => {
+    DB.chatChannels.push({
+      id: cid,
+      projectId: p.id,
+      kind: 'MAIN',
+      name: '專案主頻道',
+      topic: '',
+      readOnly: false,
+      archived: false,
+      sortOrder: 0,
+      dropFolderId: '',
+      author: DB.me
+    });
+    pmSel(p.id).channel = cid;
+    return ['這個專案有了自己的聊天室'];
+  });
+}
+function formPmChannel(id) {
+  const p = P(S.proj);
+  if (!p) return;
+  const e = id ? DB.chatChannels.find(c => c.id === id) : null;
+  openForm({
+    crumb: e ? '頻道 · ' + e.name : '新頻道',
+    title: e ? '頻道設定' : '新增主題頻道',
+    sub: '主頻道放日常往來；主題頻道把一件事的討論收在一起',
+    fields: [{
+      k: 'name',
+      label: '名稱',
+      req: true,
+      ph: '例如：驗收'
+    }, {
+      k: 'topic',
+      label: '這個頻道談什麼',
+      ph: '一句話說明'
+    }],
+    values: e ? {
+      name: e.name,
+      topic: e.topic || ''
+    } : {
+      name: '',
+      topic: ''
+    },
+    onDelete: e && e.kind !== 'MAIN' ? () => confirmDelete('頻道', e.name, '訊息會保留在資料庫裡，但這個頻道不再出現在清單上。', () => {
+      commit('delete', '頻道', e.name, () => {
+        // 只移除頻道。訊息不跟著刪：伺服器端頻道是軟刪，而一次送出上百列刪除
+        // 會撞到單次變更的筆數上限。沒有頻道的訊息本來就不會被畫出來。
+        DB.chatChannels = DB.chatChannels.filter(c => c.id !== e.id);
+        pmSel(p.id).channel = '';
+        return ['頻道清單移除這個頻道'];
+      });
+      closeDrawer();
+    }) : null,
+    onSave: v => {
+      const name = v.name.trim();
+      if (pmChannels(p.id).some(c => c.id !== (e && e.id) && c.name === name)) throw Error('已經有同名的頻道');
+      if (e) {
+        commit('update', '頻道', name, () => {
+          Object.assign(e, {
+            name,
+            topic: v.topic
+          });
+          return ['頻道資訊已更新'];
+        });
+        return;
+      }
+      const cid = nid('CH');
+      commit('create', '頻道', name, () => {
+        DB.chatChannels.push({
+          id: cid,
+          projectId: p.id,
+          kind: 'TOPIC',
+          name,
+          topic: v.topic,
+          readOnly: false,
+          archived: false,
+          sortOrder: pmChannels(p.id).reduce((m, c) => Math.max(m, c.sortOrder || 0), 0) + 10,
+          dropFolderId: '',
+          author: DB.me
+        });
+        pmSel(p.id).channel = cid;
+        return ['頻道清單多一個主題頻道'];
+      });
+    }
+  });
+}
+function pmChannelPick(id) {
+  const c = DB.chatChannels.find(x => x.id === id);
+  if (!c) return;
+  pmSel(c.projectId).channel = id;
+  runtime._afterRender = pmChatSettle;
+  render();
+}
+
+/** 重繪之後：訊息列捲到最底、輸入框拿回焦點。 */
+function pmChatSettle() {
+  const box = getById('pmChatLog');
+  if (box) box.scrollTop = box.scrollHeight;
+  const input = getById('pmChatInput');
+  if (input) {
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+}
+function pmChatDraft(cid, value) {
+  S.pmDraft[cid] = value;
+}
+const PM_CHAT_FILES = {};
+function pmChatAttach(cid) {
+  const c = DB.chatChannels.find(x => x.id === cid);
+  const p = c ? P(c.projectId) : null;
+  if (!p) return;
+  if (!pmRoot(p.id)) return toast('附件會落進專案硬碟的收件匣；請先到「檔案」分頁啟用專案硬碟');
+  // 不指定資料夾 → 落進收件匣（待整理）。
+  pmUploadPick('', done => {
+    if (!done.length) return;
+    PM_CHAT_FILES[cid] = [...(PM_CHAT_FILES[cid] || []), ...done.map(a => a.id)];
+    runtime._afterRender = pmChatSettle;
+  });
+}
+function pmChatDetach(cid, rid) {
+  PM_CHAT_FILES[cid] = (PM_CHAT_FILES[cid] || []).filter(x => x !== rid);
+  runtime._afterRender = pmChatSettle;
+  render();
+}
+function pmChatSend(cid) {
+  const c = DB.chatChannels.find(x => x.id === cid);
+  if (!c) return;
+  if (c.readOnly) return toast('這個頻道是唯讀的');
+  const input = getById('pmChatInput');
+  const text = (input ? input.value : S.pmDraft[cid] || '').trim();
+  const files = PM_CHAT_FILES[cid] || [];
+  if (!text && !files.length) return;
+  const row = {
+    id: nid('MSG'),
+    channelId: cid,
+    w: DB.me,
+    origin: 'APP',
+    text,
+    type: files.length && !text ? 'file' : 'text',
+    at: Date.now(),
+    mentions: [],
+    meta: files.length ? {
+      assets: files
+    } : {}
+  };
+  S.pmDraft[cid] = '';
+  PM_CHAT_FILES[cid] = [];
+  runtime._afterRender = pmChatSettle;
+  // 每送一則就跳一次通知是干擾；寫入仍然走 commit()。
+  pmQuiet(() => commit('create', '訊息', pmCut(text || '附件', 24), () => {
+    DB.chatMessages.push(row);
+    return [];
+  }));
+}
+function pmChatKey(event, cid) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  pmChatSend(cid);
+}
+function pmChatDrop(mid) {
+  const m = DB.chatMessages.find(x => x.id === mid);
+  if (!m) return;
+  if (m.w !== DB.me) return deny();
+  confirmDelete('訊息', pmCut(m.text || '附件', 30), m.meta && m.meta.taskId ? '已轉出的任務不受影響。' : '', () => {
+    runtime._afterRender = pmChatSettle;
+    commit('delete', '訊息', pmCut(m.text || '附件', 24), () => {
+      DB.chatMessages = DB.chatMessages.filter(x => x.id !== mid);
+      return [];
+    });
+  });
+}
+
+/** 升級路徑：訊息 → 任務。任務建好的同一次 commit 裡，把訊息標上任務編號。 */
+function pmChatPromote(mid) {
+  const m = DB.chatMessages.find(x => x.id === mid);
+  if (!m) return;
+  const c = DB.chatChannels.find(x => x.id === m.channelId);
+  formPmTask(null, {
+    t: pmCut(m.text, 60),
+    exp: m.text,
+    from: '對話 · ' + (c ? c.name : '') + ' · ' + pmWho(m.w),
+    after: issue => {
+      m.meta = {
+        ...(m.meta || {}),
+        taskId: issue.id
+      };
+      return ['這則訊息已連到任務'];
+    }
+  });
+}
+function pmChatMsg(m) {
+  const meta = m.meta || {};
+  const files = (meta.assets || []).map(rid => astOf(rid)).filter(Boolean);
+  const mine = m.w === DB.me;
+  return `<div class="pm-msg ${mine ? 'mine' : ''}">
+    <span class="pm-msg-av">${pmAv(m.w) || `<span class="av">${esc(String(m.authorName || m.w || '?').slice(0, 1))}</span>`}</span>
+    <div class="pm-msg-b">
+      <div class="pm-msg-h"><b>${esc(m.authorName || pmWho(m.w))}</b><span>${pmClock(m.at)}</span>${m.origin && m.origin !== 'APP' ? `<span class="pm-chip">${esc(m.origin)}</span>` : ''}</div>
+      ${m.text ? `<div class="pm-msg-t">${esc(m.text)}</div>` : ''}
+      ${files.length ? `<div class="pm-msg-f">${files.map(a => `<button type="button" class="pm-chip pm-chip-btn" ${bind("click", (event, element) => {
+    pmAssetDrawer(a.id);
+  })}>${svg('paperclip', 10)} ${esc(a.name)}</button>`).join('')}</div>` : ''}
+      ${meta.taskId ? `<div class="pm-msg-f"><button type="button" class="pm-chip pri pm-chip-btn" ${bind("click", (event, element) => {
+    openDrawer('issue', meta.taskId);
+  })}>${svg('goto', 10)} 已轉任務</button></div>` : ''}
+    </div>
+    <span class="pm-msg-a">
+      ${meta.taskId ? '' : mini('flag', (event, element) => {
+    pmChatPromote(m.id);
+  })}
+      ${mine ? mini('trash', (event, element) => {
+    pmChatDrop(m.id);
+  }, 'dgr') : ''}
+    </span>
+  </div>`;
+}
+function pmChatRoom(p, c) {
+  const msgs = pmMessages(c.id);
+  let day = '';
+  const log = msgs.map(m => {
+    const d = pmDay(m.at);
+    const sep = d !== day ? `<div class="pm-msg-day"><span>${d}</span></div>` : '';
+    day = d;
+    return sep + pmChatMsg(m);
+  }).join('');
+  const pending = (PM_CHAT_FILES[c.id] || []).map(rid => astOf(rid)).filter(Boolean);
+  return `<div class="pm-dv-h">
+      <h3>${svg('hash', 15)}<span>${esc(c.name)}</span></h3>
+      <span class="pm-chip">${PM_CH_KIND[c.kind] || c.kind}</span>
+      ${c.topic ? `<span class="pm-dim">${esc(c.topic)}</span>` : ''}
+      <span class="pm-sp"></span>
+      <div class="pm-bar tight"><button class="btn" ${bind("click", (event, element) => {
+    formPmChannel(c.id);
+  })}>${svg('pen')} 設定</button></div>
+    </div>
+    <div class="pm-chat-log" id="pmChatLog" data-pm-surface="primary" role="log" aria-label="訊息">
+      ${log || pmEmpty('這個頻道還沒有訊息。')}
+    </div>
+    <div class="pm-up" id="pmUpState" role="status" aria-live="polite" hidden></div>
+    ${c.readOnly ? '<p class="pm-hint">這個頻道是唯讀的，不能從這裡發訊息。</p>' : `<div class="pm-chat-in">
+      ${pending.length ? `<div class="pm-msg-f">${pending.map(a => `<span class="pm-chip">${svg('paperclip', 10)} ${esc(a.name)}<button type="button" class="pm-chip-x" aria-label="移除附件" ${bind("click", (event, element) => {
+    pmChatDetach(c.id, a.id);
+  })}>${svg('x', 10)}</button></span>`).join('')}</div>` : ''}
+      <div class="pm-chat-row">
+        <button type="button" class="pm-chat-ic" title="附件（先進收件匣）" aria-label="加入附件" ${bind("click", (event, element) => {
+    pmChatAttach(c.id);
+  })}>${svg('paperclip', 15)}</button>
+        <textarea id="pmChatInput" rows="2" aria-label="輸入訊息" placeholder="輸入訊息　Enter 送出 · Shift+Enter 換行" ${bind("input", (event, element) => {
+    pmChatDraft(c.id, element.value);
+  })} ${bind("keydown", (event, element) => {
+    pmChatKey(event, c.id);
+  })}>${esc(S.pmDraft[c.id] || '')}</textarea>
+        <button class="btn pri" ${bind("click", (event, element) => {
+    pmChatSend(c.id);
+  })}>${svg('send')} 送出</button>
+      </div>
+    </div>`}`;
+}
+PMV.chat = function (p) {
+  if (!p) return '';
+  const channels = pmChannels(p.id);
+  if (!channels.length) {
+    return pmEmpty('這個專案還沒有聊天室。開啟之後會有一個主頻道，之後可以再加主題頻道。', `<button class="btn pri" ${bind("click", (event, element) => {
+      pmChatOpen();
+    })}>${svg('message')} 開啟專案聊天室</button>`);
+  }
+  const sel = pmSel(p.id);
+  const cur = channels.find(c => c.id === sel.channel) || channels[0];
+  const list = channels.map(c => {
+    const msgs = pmMessages(c.id);
+    const last = msgs[msgs.length - 1];
+    return `<button type="button" class="pm-mt-i ${c.id === cur.id ? 'on' : ''}" aria-current="${c.id === cur.id}" ${bind("click", (event, element) => {
+      pmChannelPick(c.id);
+    })}>
+        <span class="pm-mt-d">${svg('hash', 12)}</span>
+        <span class="pm-mt-t">${esc(c.name)}<small>${last ? esc(pmWho(last.w) + '：' + pmCut(last.text || '附件', 22)) : '還沒有訊息'}</small></span>
+        <span class="pm-mt-m"><span class="pm-mt-k">${msgs.length}</span></span>
+      </button>`;
+  }).join('');
+  return `<div class="pm-dv pm-chat">
+    <nav class="pm-dv-tree pm-mt-list" aria-label="頻道">
+      ${list}
+      <button type="button" class="pm-mt-i add" ${bind("click", (event, element) => {
+    formPmChannel();
+  })}><span class="pm-mt-d">${svg('plus', 12)}</span><span class="pm-mt-t">新增主題頻道</span></button>
+      <div class="pm-mt-i off" aria-disabled="true"><span class="pm-mt-d">${svg('lock', 12)}</span><span class="pm-mt-t">LINE 群導入<small>本階段未開放</small></span></div>
+    </nav>
+    <div class="pm-dv-main">${pmChatRoom(p, cur)}</div>
+  </div>`;
+};
+
+/* ==================================================================
+   專案模組外殼（PLN-075 S3 · INTEGRATION-DECISION §5）
+
+   已批准的整合：A 的分頁外殼 ＋ C 的資源樹（檔案／會議分頁內）＋ B 的時間流（總覽下半）。
+
+   分頁：0 總覽 / 1 計劃 / 2 檔案 / 3 會議 / 4 對話 / 5 財務
+   原本是：0 總覽 / 1 工作 / 2 對話 / 3 Evidence Repo / 4 財務 / 5 里程碑
+
+   「工作」「Evidence Repo」「里程碑」「議題串」沒有被刪掉，它們降為分頁內的子視圖：
+   舊 index 的 nav('project', n) 仍然走得到原本那一面，只是落在新的分頁底下。
+
+   這個檔**最後載入**（generator 的 EXTENSIONS 順序），所以它包住的 VIEWS.project
+   是所有既有擴充都疊完之後的那一個。做法與 operating-converge.source.js 的
+   「覆寫 VIEWS.project ＋ 改 proj.tabs」相同，不碰 runtime.js、不加 source-patches。
+
+   契約（五個 view 檔照它寫）：
+     PMV.<name>(p) 回傳 HTML 字串；name ∈ overview / plan / drive / meeting / chat
+     view 不畫分頁列、不畫專案選擇器；導覽一律 pmGo(tab, sub) / pmJump(tab, sub, label)，
+     不可用 nav('project', n)（那條路吃的是舊 index）。
+   ================================================================== */
+
+var PMV = PMV || {};
+const PM_TABS = [['overview', '總覽'], ['plan', '計劃'], ['drive', '檔案'], ['meeting', '會議'], ['chat', '對話'], ['finance', '財務']];
+/** 舊 index → 新 index。訊號、指令面板與其他模組的連結都還在用舊的。 */
+const PM_LEGACY = {
+  0: 0,
+  1: 1,
+  2: 4,
+  3: 2,
+  4: 5,
+  5: 1
+};
+/** 舊 index 落到新分頁時要開哪個子視圖。 */
+const PM_LEGACY_SUB = {
+  1: 'work',
+  2: 'threads',
+  3: 'evidence',
+  5: 'milestone'
+};
+const PM_SUBS = {
+  plan: [['tree', '期 · 階段 · 里程碑'], ['work', '工作'], ['milestone', '里程碑 · 目標']],
+  drive: [['tree', '專案硬碟'], ['evidence', 'Evidence Repo']],
+  chat: [['room', '聊天室'], ['threads', '議題串']]
+};
+/** 子視圖 → 既有 VIEWS.project 的舊 index。 */
+const PM_SUB_LEGACY = {
+  work: 1,
+  milestone: 5,
+  evidence: 3,
+  threads: 2
+};
+['folders', 'phaseCycles', 'chatChannels', 'chatMessages', 'assets', 'phases', 'milestones', 'occasions'].forEach(k => {
+  if (!Array.isArray(DB[k])) DB[k] = [];
+});
+S.pmSub = S.pmSub || {};
+S.pmBack = S.pmBack || [];
+S.pmSel = S.pmSel || {};
+S.pmDraft = S.pmDraft || {};
+S.pmFold = S.pmFold || {};
+const pmWb = WB.find(w => w.id === 'project');
+if (pmWb) {
+  pmWb.tabs = PM_TABS.map(t => t[1]);
+  pmWb.rule = '主操作面：期階梯、資源樹、時間序、對話';
+}
+
+/* ---------- 導覽 ---------- */
+function pmIdx(key) {
+  return Math.max(0, PM_TABS.findIndex(t => t[0] === key));
+}
+function pmKey() {
+  return (PM_TABS[S.tab] || PM_TABS[0])[0];
+}
+function pmSubsOf(key) {
+  const list = PM_SUBS[key] || [];
+  // 里程碑 · 目標那一面是收斂後才有的分頁；legacy 模式沒有它。
+  return opConverged() ? list : list.filter(s => s[0] !== 'milestone');
+}
+function pmSub(key) {
+  const list = pmSubsOf(key);
+  const cur = S.pmSub[key];
+  return list.some(s => s[0] === cur) ? cur : list[0] ? list[0][0] : '';
+}
+/** 每個專案各自記得選到哪個資料夾／會議／頻道。 */
+function pmSel(pid) {
+  if (!S.pmSel[pid]) S.pmSel[pid] = {};
+  return S.pmSel[pid];
+}
+const pmBaseRedirect = opRedirect;
+opRedirect = (wb, tab) => {
+  const r = pmBaseRedirect(wb, tab);
+  if (r[0] === 'project') {
+    const old = r[1] || 0;
+    const next = old in PM_LEGACY ? PM_LEGACY[old] : 0;
+    if (PM_LEGACY_SUB[old]) S.pmSub[PM_TABS[next][0]] = PM_LEGACY_SUB[old];
+    S.pmBack = [];
+    r[1] = next;
+  }
+  return r;
+};
+
+/** 模組內導覽。不經過 opRedirect：新 index 不能再被當成舊 index 轉一次。 */
+function pmGo(tab, sub, patch) {
+  const idx = typeof tab === 'number' ? tab : pmIdx(tab);
+  if (sub) S.pmSub[PM_TABS[idx][0]] = sub;
+  if (patch && P(S.proj)) Object.assign(pmSel(S.proj), patch);
+  saveJournalDraft();
+  S.wb = 'project';
+  S.tab = idx;
+  closeDrawer(true);
+  pmDrawerClose();
+  renderRail();
+  render();
+  const surface = $('#surface');
+  if (surface) surface.scrollTop = 0;
+}
+
+/** 跨分頁跳轉並留下回返脈絡；Esc 或回返列可以退回來，可堆疊。 */
+function pmJump(tab, sub, label, patch) {
+  const key = pmKey();
+  S.pmBack.push({
+    tab: S.tab,
+    sub: S.pmSub[key] || '',
+    label: label || (PM_TABS[S.tab] || PM_TABS[0])[1]
+  });
+  if (S.pmBack.length > 8) S.pmBack.shift();
+  pmGo(tab, sub, patch);
+}
+function pmBack() {
+  const b = S.pmBack.pop();
+  if (!b) return;
+  pmGo(b.tab, b.sub || null);
+}
+
+/** 分頁列。按分頁＝換了主題，回返脈絡不再成立。 */
+function pmTab(i) {
+  S.pmBack = [];
+  // 從分頁列進來一律落在主視圖；「工作」「Evidence Repo」「議題串」是往下一層才去的地方。
+  delete S.pmSub[PM_TABS[i][0]];
+  pmGo(i);
+}
+
+/* ---------- 共用工具 ---------- */
+const pmPad = n => String(n).padStart(2, '0');
+function pmDay(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  return d.getFullYear() + '-' + pmPad(d.getMonth() + 1) + '-' + pmPad(d.getDate());
+}
+function pmClock(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  return pmPad(d.getHours()) + ':' + pmPad(d.getMinutes());
+}
+const pmWho = k => k && DB.people[k] ? DB.people[k].n : k || '未指定';
+function pmAv(k) {
+  const who = DB.people[k];
+  return who ? `<span class="av ${who.cls}" title="${esc(who.n)}">${esc(who.s)}</span>` : '';
+}
+const pmCut = (s, n) => {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n) + '…' : t;
+};
+
+/** 走 commit() 但不跳通知：聊天訊息每送一則就跳一次「新增 訊息」是干擾，不是回饋。 */
+function pmQuiet(run) {
+  const keep = toast;
+  toast = () => {};
+  try {
+    return run();
+  } finally {
+    toast = keep;
+  }
+}
+
+/**
+ * 等寫入佇列送完。上傳與歸檔走 route handler，它們要找的資料夾可能還躺在佇列裡：
+ * 不等的話伺服器會回「找不到資料夾」，或者自己再建一組 ROOT／INBOX。
+ */
+function pmSaved() {
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    const tick = () => {
+      if (!OP_LIVE || !OP_QUEUE.length && !OP_SENDING) return resolve();
+      if (OP_STATUS === 'error' || OP_STATUS === 'conflict') return reject(Error('前一筆變更尚未保存，請稍後再試'));
+      if (Date.now() - t0 > 12000) return reject(Error('保存逾時，請稍後再試'));
+      setTimeout(tick, 160);
+    };
+    tick();
+  });
+}
+async function pmApi(url, init) {
+  const res = await fetch(url, init && init.body ? {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(init.body)
+  } : init);
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw Error(payload.error || '操作失敗（HTTP ' + res.status + '）');
+  return payload;
+}
+
+/** 區塊標題：一條底部髮絲線，不是卡片。 */
+function pmBlock(title, sub, body, act) {
+  return `<section class="pm-block">
+    <div class="pm-block-h"><h3>${title}</h3>${sub ? `<span class="pm-block-s">${sub}</span>` : ''}<span class="pm-sp"></span>${act || ''}</div>
+    ${body}
+  </section>`;
+}
+function pmEmpty(text, act) {
+  return `<div class="pm-empty"><p>${text}</p>${act ? `<div class="pm-empty-a">${act}</div>` : ''}</div>`;
+}
+
+/* ---------- 資料存取（五個 view 共用） ---------- */
+const PM_VIS = {
+  CLIENT_VISIBLE: {
+    label: '客戶可見',
+    rank: 0,
+    tone: 'pri'
+  },
+  INTERNAL_ONLY: {
+    label: '僅內部',
+    rank: 1,
+    tone: ''
+  },
+  RESTRICTED_NO_INDEX: {
+    label: '最高敏感 · 不建索引',
+    rank: 2,
+    tone: 'crit'
+  }
+};
+const PM_KIND = {
+  ROOT: '專案硬碟',
+  INBOX: '收件匣',
+  GENERIC: '一般',
+  PROPOSAL: '開案前',
+  CONTRACT: '合約',
+  MILESTONE: '里程碑交付',
+  MEETING: '會議',
+  SHARED: '對客戶共用',
+  INTERNAL: '僅內部',
+  REVISION: '修改需求',
+  MATERIAL: '素材',
+  FINANCE: '專案財務',
+  CHAT_DROP: '聊天室附件',
+  LINE_DROP: 'LINE 媒體'
+};
+/** 這幾種資料夾永遠不可能對客戶可見；伺服器同樣強制（toFolderVisibility）。 */
+const PM_NO_CLIENT = ['CONTRACT', 'INTERNAL'];
+const pmFolder = id => DB.folders.find(f => f.id === id) || null;
+const pmFolders = pid => DB.folders.filter(f => f.projectId === pid);
+const pmRoot = pid => DB.folders.find(f => f.projectId === pid && f.kind === 'ROOT') || null;
+const pmInbox = pid => DB.folders.find(f => f.projectId === pid && f.kind === 'INBOX') || null;
+function pmChildren(fid) {
+  return DB.folders.filter(f => f.parentId === fid).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || String(a.name).localeCompare(String(b.name), 'zh-Hant'));
+}
+/** 由根到自己的祖先鏈（含自己）。 */
+function pmTrail(f) {
+  const out = [];
+  let cur = f,
+    guard = 0;
+  while (cur && guard++ < 20) {
+    out.unshift(cur);
+    cur = cur.parentId ? pmFolder(cur.parentId) : null;
+  }
+  return out;
+}
+function pmDescendants(fid) {
+  const out = [];
+  const walk = id => pmChildren(id).forEach(c => {
+    out.push(c);
+    walk(c.id);
+  });
+  walk(fid);
+  return out;
+}
+const pmAssets = pid => DB.assets.filter(a => a.projectId === pid && a.status !== 'failed');
+const pmAssetsIn = fid => DB.assets.filter(a => a.folderId === fid && a.status !== 'failed');
+function pmUnfiled(pid) {
+  const inbox = pmInbox(pid);
+  return pmAssets(pid).filter(a => !a.filedAt || inbox && a.folderId === inbox.id);
+}
+const pmCycles = pid => DB.phaseCycles.filter(c => c.projectId === pid).sort((a, b) => a.ordinal - b.ordinal);
+const pmCycle = id => DB.phaseCycles.find(c => c.id === id) || null;
+const pmPhase = id => DB.phases.find(x => x.id === id) || null;
+function pmStages(cycleId) {
+  return DB.phases.filter(ph => ph.cycleId === cycleId).sort((a, b) => (a.ordinal || 0) - (b.ordinal || 0) || String(a.startOn).localeCompare(String(b.startOn)));
+}
+const pmMilestones = pid => DB.milestones.filter(m => m.projectId === pid);
+const pmMsOf = phaseId => DB.milestones.filter(m => m.phaseId === phaseId).sort((a, b) => (a.dueOn || '9999').localeCompare(b.dueOn || '9999'));
+const pmTasks = pid => DB.issues.filter(i => i.p === pid);
+const pmTasksOf = msId => DB.issues.filter(i => i.msId === msId);
+const pmIsReview = t => String(t.kind || '').toUpperCase() === 'REVIEW';
+const pmMeetings = pid => DB.occasions.filter(o => o.projectId === pid).sort((a, b) => String(b.onDate).localeCompare(String(a.onDate)));
+const pmChannels = pid => DB.chatChannels.filter(c => c.projectId === pid && !c.archived).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+const pmMessages = cid => DB.chatMessages.filter(m => m.channelId === cid).sort((a, b) => (a.at || 0) - (b.at || 0));
+const PM_ORD = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+const pmCycleName = c => (PM_ORD[c.ordinal] || c.ordinal) + '期';
+const PM_CYCLE_ST = {
+  PLANNED: '規劃中',
+  ACTIVE: '進行中',
+  ACCEPTED: '已驗收',
+  CLOSED: '已結案',
+  CANCELLED: '已取消'
+};
+const PM_STAGE = {
+  PROPOSAL: '提案',
+  CONTRACT: '接案',
+  EXECUTION: '執行',
+  ACCEPTANCE: '驗收',
+  CLOSING: '結案',
+  CUSTOM: '自訂'
+};
+/** stageKind → 既有 phases 集合的 phase 詞彙（營運甘特讀它）。 */
+const PM_STAGE_PHASE = {
+  PROPOSAL: 'discovery',
+  CONTRACT: 'planning',
+  EXECUTION: 'execution',
+  ACCEPTANCE: 'review',
+  CLOSING: 'maintenance',
+  CUSTOM: 'execution'
+};
+
+/**
+ * 階段的狀態由日期與里程碑推導，不另存。
+ * 階段表沒有狀態欄，存一份就會和它的來源（起訖日、里程碑達成）不一致。
+ */
+function pmStageState(ph) {
+  const open = pmMsOf(ph.id).filter(m => m.state !== 'done').length;
+  if (ph.endOn && ph.endOn < TODAY) return open ? 'late' : 'done';
+  if (ph.startOn && ph.startOn <= TODAY) return 'now';
+  return 'todo';
+}
+function pmStageMeta(ph) {
+  const ms = pmMsOf(ph.id);
+  const done = ms.filter(m => m.state === 'done').length;
+  const span = ph.endOn ? '至 ' + ph.endOn.slice(5) : '';
+  return [ms.length ? done + '/' + ms.length + ' 里程碑' : '', span].filter(Boolean).join(' · ');
+}
+/** 目前走到哪：第一個進行中或逾期的階段；都沒有就是最後一個已完成的。 */
+function pmCurrentStage(pid) {
+  let last = null;
+  for (const c of pmCycles(pid)) {
+    for (const ph of pmStages(c.id)) {
+      const st = pmStageState(ph);
+      if (st === 'now' || st === 'late') return {
+        cycle: c,
+        stage: ph,
+        state: st
+      };
+      if (st === 'done') last = {
+        cycle: c,
+        stage: ph,
+        state: st
+      };
+    }
+  }
+  return last;
+}
+
+/* ---------- 外殼 ---------- */
+let PM_NO_PICKER = false;
+const pmBasePicker = projPicker;
+/** 專案選擇器由外殼統一畫一次；既有子視圖自己那一份在這裡收掉。 */
+projPicker = function () {
+  return PM_NO_PICKER ? '' : pmBasePicker();
+};
+const pmPrevProject = VIEWS.project;
+function pmLegacy(oldTab) {
+  PM_NO_PICKER = true;
+  try {
+    return pmPrevProject(oldTab);
+  } finally {
+    PM_NO_PICKER = false;
+  }
+}
+function pmHead(key) {
+  const subs = pmSubsOf(key);
+  const cur = pmSub(key);
+  const last = S.pmBack[S.pmBack.length - 1];
+  const back = last ? `<button type="button" class="pm-back" ${bind("click", (event, element) => {
+    pmBack();
+  })}>${svg('chevronLeft')}<span>回到 ${esc(last.label)}</span><kbd>Esc</kbd></button>` : '';
+  const subnav = subs.length > 1 ? `<div class="pm-subnav" role="tablist" aria-label="子視圖">${subs.map(s => `<button type="button" role="tab" aria-selected="${s[0] === cur}" class="${s[0] === cur ? 'on' : ''}" ${bind("click", (event, element) => {
+    pmGo(key, s[0]);
+  })}>${s[1]}</button>`).join('')}</div>` : '';
+  return `<div class="pm-head">${back}${pmBasePicker()}${subnav}</div>`;
+}
+VIEWS.project = tab => {
+  // 沒有專案時沿用既有的空狀態（它自己帶「建立第一個專案」）。
+  if (!DB.projects.length) return pmPrevProject(0);
+  const p = P(S.proj);
+  const key = (PM_TABS[tab] || PM_TABS[0])[0];
+  const head = pmHead(key);
+  if (key === 'finance') return head + pmLegacy(4);
+  const sub = pmSub(key);
+  if (sub in PM_SUB_LEGACY) return head + pmLegacy(PM_SUB_LEGACY[sub]);
+  const view = PMV[key];
+  return head + `<div class="pm-view pm-view-${key}">${view ? view(p) : ''}</div>`;
+};
+
+/** 分頁上的數字：只放「需要處理」的量，不放總數。 */
+function pmTabBadge(key, p) {
+  if (!p) return 0;
+  if (key === 'plan') return pmTasks(p.id).filter(t => pmIsReview(t) && t.reviewResult === 'IN_REVIEW').length;
+  if (key === 'drive') return pmUnfiled(p.id).length;
+  if (key === 'meeting') return pmMeetings(p.id).filter(o => o.onDate <= TODAY && !o.recap).length;
+  return 0;
+}
+function pmPaintTabs() {
+  const tabs = $('#tabs');
+  if (!tabs || S.wb !== 'project') return;
+  const p = P(S.proj);
+  tabs.innerHTML = PM_TABS.map((t, i) => {
+    const n = pmTabBadge(t[0], p);
+    return `<button type="button" class="tab ${S.tab === i ? 'on' : ''}" ${bind("click", (event, element) => {
+      pmTab(i);
+    })}>${t[1]}${n ? `<i class="pm-tab-n">${n}</i>` : ''}</button>`;
+  }).join('');
+}
+const pmBaseEnhance = enhanceView;
+enhanceView = function () {
+  pmBaseEnhance();
+  pmPaintTabs();
+};
+
+/* Esc 退回上一個脈絡。任何覆蓋層開著、或正在輸入時不動：那些地方的 Esc 各有主人。 */
+doc.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || S.wb !== 'project' || !S.pmBack.length) return;
+  if (pmDrawerOpen() || S.stack.length) return;
+  if (getById('formModalWrap')?.classList.contains('on')) return;
+  if (root.querySelector('#modalWrap.on') || root.querySelector('#cmdkWrap.on') || root.querySelector('#summon.on')) return;
+  const at = shadow.activeElement;
+  if (at && /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName)) return;
+  e.preventDefault();
+  pmBack();
+}, {
+  signal: controller.signal
+});
+
+/* ---------- prototype 模式的示範資料 ----------
+   database 模式一列都不產生：那邊只會有使用者自己建立的資料。
+   形狀照 Owner 既有的資料夾慣例（[共用]、開案前、YYYYMMDD_Mnn_、YYYYMMDD <事件>、(僅內部)）。 */
+function pmSeedDemo() {
+  if (OP_LIVE || DB.folders.length || !DB.projects.length) return;
+  const stamp = d => new Date(d + 'T09:30:00').getTime();
+  const mk = (pid, tag) => {
+    const id = n => 'FLD-' + tag + '-' + n;
+    const f = (n, parent, kind, name, visibility, sortOrder) => ({
+      id: id(n),
+      projectId: pid,
+      parentId: parent ? id(parent) : '',
+      kind,
+      name,
+      visibility: visibility || 'INTERNAL_ONLY',
+      sortOrder,
+      isSystem: kind === 'ROOT' || kind === 'INBOX',
+      space: 'team',
+      author: 'yz',
+      note: '',
+      createdAt: stamp('2026-08-04')
+    });
+    return {
+      id,
+      f
+    };
+  };
+  const a = DB.projects[0];
+  const A = mk(a.id, 'A');
+  DB.folders.push(A.f('root', null, 'ROOT', '專案硬碟', 'INTERNAL_ONLY', 0), A.f('inbox', 'root', 'INBOX', '收件匣', 'INTERNAL_ONLY', 0), A.f('shared', 'root', 'SHARED', '[共用] 共用資料夾', 'CLIENT_VISIBLE', 10), A.f('pre', 'root', 'PROPOSAL', '開案前', 'INTERNAL_ONLY', 20), A.f('start', 'root', 'GENERIC', '專案啟動［正式資料］', 'INTERNAL_ONLY', 30), A.f('contract', 'start', 'CONTRACT', '合約與報價', 'INTERNAL_ONLY', 10), A.f('ms', 'root', 'GENERIC', '里程碑交付', 'INTERNAL_ONLY', 40), A.f('m01', 'ms', 'MILESTONE', '20260815_M01_帳號盤點', 'INTERNAL_ONLY', 10), A.f('m02', 'ms', 'MILESTONE', '20260905_M02_全員導入', 'INTERNAL_ONLY', 20), A.f('meet', 'root', 'GENERIC', '會議', 'INTERNAL_ONLY', 50), A.f('mt1', 'meet', 'MEETING', '20260806 啟動會議', 'INTERNAL_ONLY', 10), A.f('mt2', 'meet', 'MEETING', '20260908 驗收前確認', 'INTERNAL_ONLY', 20), A.f('rev', 'root', 'REVISION', '修改需求', 'INTERNAL_ONLY', 60), A.f('internal', 'root', 'INTERNAL', '(僅內部)', 'INTERNAL_ONLY', 70), A.f('secret', 'internal', 'INTERNAL', '帳號與金鑰', 'RESTRICTED_NO_INDEX', 10));
+  const asset = (n, name, kind, bytes, folder, day, filed) => ({
+    id: 'AST-DEMO-' + n,
+    assetId: '',
+    name,
+    kind,
+    objectKey: '',
+    bytes,
+    mime: '',
+    status: 'ready',
+    space: 'team',
+    author: 'lily',
+    day,
+    bornAt: stamp(day),
+    text: '',
+    local: true,
+    projectId: a.id,
+    folderId: A.id(folder),
+    filedAt: filed ? stamp(day) : 0
+  });
+  DB.assets.push(asset(1, '客戶提供_組織圖.png', 'image', 412000, 'inbox', '2026-09-10', false), asset(2, '導入後問卷回收.xlsx', 'sheet', 88000, 'inbox', '2026-09-11', false), asset(3, '報價單_回簽.pdf', 'pdf', 640000, 'contract', '2026-08-02', true), asset(4, '帳號盤點表_v2.xlsx', 'sheet', 120000, 'm01', '2026-08-15', true), asset(5, '20260806_啟動會議_錄音.m4a', 'audio', 18400000, 'mt1', '2026-08-06', true), asset(6, '20260806_啟動會議_逐字稿.md', 'doc', 42000, 'mt1', '2026-08-06', true), asset(7, '20260806_啟動會議_完整紀錄.md', 'doc', 16000, 'mt1', '2026-08-06', true), asset(8, '20260806_啟動會議_摘要.md', 'doc', 3200, 'mt1', '2026-08-06', true), asset(9, '20260908_驗收前確認_摘要.md', 'doc', 2800, 'mt2', '2026-09-08', true));
+  DB.phaseCycles.push({
+    id: 'CYC-A-1',
+    projectId: a.id,
+    ordinal: 1,
+    title: '',
+    contractId: '',
+    startOn: '2026-07-20',
+    endOn: '2026-09-28',
+    status: 'ACTIVE',
+    note: ''
+  });
+  const stage = (n, kind, startOn, endOn) => ({
+    id: 'PH-A-' + n,
+    projectId: a.id,
+    phase: PM_STAGE_PHASE[kind],
+    label: PM_STAGE[kind],
+    startOn,
+    endOn,
+    cycleId: 'CYC-A-1',
+    ordinal: n,
+    stageKind: kind
+  });
+  DB.phases.push(stage(1, 'PROPOSAL', '2026-07-20', '2026-07-31'), stage(2, 'CONTRACT', '2026-08-01', '2026-08-03'), stage(3, 'EXECUTION', '2026-08-04', '2026-09-05'), stage(4, 'ACCEPTANCE', '2026-09-06', '2026-09-28'), stage(5, 'CLOSING', '2026-09-29', '2026-10-05'));
+  DB.milestones.push({
+    id: 'MS-A-1',
+    projectId: a.id,
+    phaseId: 'PH-A-3',
+    title: 'M01 帳號盤點',
+    dueOn: '2026-08-15',
+    accept: '盤點表客戶簽認',
+    state: 'done',
+    remind: '前 3 日',
+    folderId: A.id('m01'),
+    derivedFrom: ''
+  }, {
+    id: 'MS-A-2',
+    projectId: a.id,
+    phaseId: 'PH-A-3',
+    title: 'M02 全員導入',
+    dueOn: '2026-09-05',
+    accept: '28 帳號可登入',
+    state: 'done',
+    remind: '前 3 日',
+    folderId: A.id('m02'),
+    derivedFrom: ''
+  }, {
+    id: 'MS-A-3',
+    projectId: a.id,
+    phaseId: 'PH-A-4',
+    title: 'M03 內部驗收',
+    dueOn: '2026-09-28',
+    accept: '14 日內無重大問題',
+    state: 'open',
+    remind: '前 3 日',
+    folderId: '',
+    derivedFrom: ''
+  });
+  const task = (n, t, extra) => ({
+    id: 'ISS-PM-' + n,
+    t,
+    p: a.id,
+    owner: 'lily',
+    size: 'S',
+    pri: 3,
+    st: 'Todo',
+    created: '2026-09-08',
+    started: '',
+    done: '',
+    blocker: '',
+    exp: '',
+    ev: 0,
+    rel: [],
+    cf: {},
+    sub: [],
+    author: 'yz',
+    kind: 'TODO',
+    msId: 'MS-A-3',
+    ...extra
+  });
+  DB.issues.push(task(1, '彙整導入後 30 日成效數據', {
+    due: '2026-09-20',
+    st: 'Doing',
+    started: '2026-09-09'
+  }), task(2, '驗收報告送審', {
+    kind: 'REVIEW',
+    reviewer: 'yz',
+    reviewResult: 'IN_REVIEW',
+    st: 'Review',
+    due: '2026-09-18',
+    started: '2026-09-10'
+  }), task(3, '教育訓練簡報定稿', {
+    kind: 'REVIEW',
+    reviewer: 'yz',
+    reviewResult: 'CHANGES_REQUESTED',
+    reviewNote: '第 3 節的權限示意圖與實際設定不一致，請對齊後重送',
+    reviewedAt: stamp('2026-09-11'),
+    st: 'Doing',
+    due: '2026-09-16',
+    started: '2026-09-07'
+  }));
+  DB.occasions.push({
+    id: 'OC-PM-1',
+    title: '啟動會議',
+    cat: '客戶會議',
+    onDate: '2026-08-06',
+    endOn: '2026-08-06',
+    at: '14:00–15:30',
+    place: '客戶會議室',
+    actorIds: ['yz', 'lily'],
+    guests: '柏翰 陳經理、資訊窗口',
+    projectId: a.id,
+    star: false,
+    prep: [],
+    media: [],
+    derivedFrom: '',
+    remind: '前 1 日',
+    author: 'yz',
+    folderId: A.id('mt1'),
+    recap: '確認 28 個帳號分三批導入；教育訓練排在第二批之後。',
+    cautions: '客戶週五不開會；資訊窗口只收 email。',
+    createdAt: stamp('2026-08-06')
+  }, {
+    id: 'OC-PM-2',
+    title: '驗收前確認',
+    cat: '客戶會議',
+    onDate: '2026-09-08',
+    endOn: '2026-09-08',
+    at: '10:00–11:00',
+    place: '線上',
+    actorIds: ['lily'],
+    guests: '柏翰 陳經理',
+    projectId: a.id,
+    star: false,
+    prep: [{
+      id: 'PT-1',
+      t: '補寄導入後問卷連結',
+      done: false,
+      issueId: ''
+    }],
+    media: [],
+    derivedFrom: '',
+    remind: '前 1 日',
+    author: 'lily',
+    folderId: A.id('mt2'),
+    recap: '',
+    cautions: '',
+    createdAt: stamp('2026-09-08')
+  });
+  DB.chatChannels.push({
+    id: 'CH-A-1',
+    projectId: a.id,
+    kind: 'MAIN',
+    name: '專案主頻道',
+    topic: '',
+    readOnly: false,
+    archived: false,
+    sortOrder: 0,
+    dropFolderId: '',
+    author: 'yz'
+  }, {
+    id: 'CH-A-2',
+    projectId: a.id,
+    kind: 'TOPIC',
+    name: '驗收',
+    topic: '驗收文件與問題追蹤',
+    readOnly: false,
+    archived: false,
+    sortOrder: 10,
+    dropFolderId: '',
+    author: 'yz'
+  });
+  const msg = (n, w, day, time, text, meta) => ({
+    id: 'MSG-A-' + n,
+    channelId: 'CH-A-1',
+    w,
+    origin: 'APP',
+    text,
+    type: 'text',
+    at: new Date(day + 'T' + time + ':00').getTime(),
+    mentions: [],
+    meta: meta || {}
+  });
+  DB.chatMessages.push(msg(1, 'lily', '2026-09-10', '10:12', '客戶傳了新的組織圖，我先丟進收件匣。', {
+    assets: ['AST-DEMO-1']
+  }), msg(2, 'yz', '2026-09-10', '10:20', '好，驗收報告裡的帳號數要跟這一版對齊。'), msg(3, 'lily', '2026-09-11', '16:40', '問卷回收 21/28，剩下的我週一再催一次。'), msg(4, 'yz', '2026-09-12', '09:05', '驗收報告我今天看，下午回你。'));
+
+  // 第二個專案只放「期」：展示一個案子可以有二期，執行→驗收各出現一次。
+  const b = DB.projects[1];
+  if (!b) return;
+  DB.phaseCycles.push({
+    id: 'CYC-B-1',
+    projectId: b.id,
+    ordinal: 1,
+    title: '',
+    contractId: '',
+    startOn: '2026-07-15',
+    endOn: '2026-09-05',
+    status: 'ACCEPTED',
+    note: ''
+  }, {
+    id: 'CYC-B-2',
+    projectId: b.id,
+    ordinal: 2,
+    title: '第二次修改需求',
+    contractId: '',
+    startOn: '2026-09-06',
+    endOn: '2026-11-30',
+    status: 'ACTIVE',
+    note: ''
+  });
+  const bs = (c, n, kind, startOn, endOn) => ({
+    id: 'PH-B-' + c + n,
+    projectId: b.id,
+    phase: PM_STAGE_PHASE[kind],
+    label: PM_STAGE[kind],
+    startOn,
+    endOn,
+    cycleId: 'CYC-B-' + c,
+    ordinal: n,
+    stageKind: kind
+  });
+  DB.phases.push(bs(1, 1, 'PROPOSAL', '2026-07-15', '2026-07-20'), bs(1, 2, 'CONTRACT', '2026-07-21', '2026-07-24'), bs(1, 3, 'EXECUTION', '2026-07-25', '2026-08-25'), bs(1, 4, 'ACCEPTANCE', '2026-08-26', '2026-09-05'), bs(2, 1, 'EXECUTION', '2026-09-06', '2026-11-10'), bs(2, 2, 'ACCEPTANCE', '2026-11-11', '2026-11-25'), bs(2, 3, 'CLOSING', '2026-11-26', '2026-11-30'));
+}
+pmSeedDemo();
 paintUser();
 renderRail();
 render();

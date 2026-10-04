@@ -1,0 +1,1547 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提案 C · 雙欄資源樹</title>
+<!--
+  ============================================================================
+  提案 C：雙欄資源樹（Resource Tree）
+  圓展教育科技有限公司 · 專案模組五大資源 · S1 三提案之一
+  依據：PLN-075 / RES-033（OD-D、OD-E 定案）/ DESIGN_project-five-resource-architecture
+       / MIG_workspace-inventory-and-migration-plan（§1.5 de-facto 慣例）
+  單一自包含檔案，無 build、無 CDN、無網路請求。狀態只在記憶體。
+  ============================================================================
+  七條硬性約束的落點（搜尋 "約束#" 可逐條定位）：
+   約束#1 視覺語言  → <style> :root token 區塊、.row/.card 尺寸註解
+   約束#2 「期」這一層 → data.plan（期→階段→里程碑→任務）、renderPlan()、.cyc 區塊
+   約束#3 收件匣真資料夾 → kind:'INBOX' 的真節點 n_p01_inbox 等、renderInbox()、doMove()
+   約束#4 會議資料夾四屬性 → kind:'MEETING' + meta.meeting、renderMeeting() 屬性框
+   約束#5 internal 標示   → vis / sens 欄位、.lock 徽章、「敏感與可見性」視圖
+   約束#6 Owner 既有慣例  → data.nodes 全部用 0_工作區 真實名稱（[共用]／YYYYMMDD_Mnn_／
+                            開案前／專案啟動［正式資料］／(僅內部)／修改需求／會議四件套）
+   約束#7 LINE 停用       → mount m_line（disabled）、renderLine() 只說明不假裝
+  ============================================================================
+-->
+<style>
+/* ==========================================================================
+   約束#1：不新增與 v5 衝突的視覺語言。
+   以下 token 名稱與色值逐一取自 src/lib/theme/company-theme.ts 的 V5_PALETTES
+   （BLACK = v5 預設深色；WHITE = 亮色佈景）。排版尺度沿用 styles.ts 的慣例：
+   主要字級 11–12.5px、次級 10–10.5px、圓角 4–8px、等寬字用 --mono。
+   本原型不引入任何 v5 沒有的色票、字體或圓角級距。
+   ========================================================================== */
+:root{
+  --bg:#0a0c0f; --surface:#111418; --surface-2:#161a20; --surface-3:#1d232b; --surface-4:#242b34;
+  --border:#232931; --border-2:#333b45; --border-3:#465060;
+  --text:#e9ecf1; --text-2:#99a2af; --text-3:#626b77;
+  --pri:#6cb6ff; --pri-bg:#11212e; --pri-br:#2d5a7d;
+  --ok:#5fd09a; --ok-bg:#0f2620;
+  --warn:#f2b95e; --warn-bg:#2a2111;
+  --danger:#ef8a82; --danger-bg:#2b1614;
+  --info:#a78bf5; --info-bg:#1c1830;
+  --teal:#4fcfc0; --teal-bg:#0d2724;
+  --grid:#252c35; --axis:#39414c;
+  --avatar-bg:#2b3440;
+  --av-yz-bg:#2b4a63; --av-yz-fg:#9ecbf5;
+  --av-lily-bg:#3d3357; --av-lily-fg:#c4a2f5;
+  --hover-overlay:rgba(255,255,255,.045);
+  --scroll-thumb:#2a313a; --scroll-thumb-hover:#3a424d;
+  --shadow:0 18px 44px rgba(0,0,0,.55);
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Noto Sans TC",
+         "Microsoft JhengHei",Helvetica,Arial,sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f1f2f5; --surface-3:#e7e9ed; --surface-4:#dcdfe4;
+  --border:#e3e5e9; --border-2:#cfd3d8; --border-3:#aeb5bd;
+  --text:#16181c; --text-2:#555b64; --text-3:#8a9099;
+  --pri:#2563eb; --pri-bg:#eaf1fe; --pri-br:#bcd0f8;
+  --ok:#15803d; --ok-bg:#e8f6ed;
+  --warn:#b45309; --warn-bg:#fdf2e0;
+  --danger:#dc2626; --danger-bg:#fdeaea;
+  --info:#6d3fd4; --info-bg:#f0ebfd;
+  --teal:#0f766e; --teal-bg:#e4f5f3;
+  --grid:#ebedf0; --axis:#c3c8ce;
+  --avatar-bg:#e2e8f0;
+  --av-yz-bg:#dbeafe; --av-yz-fg:#1d4ed8;
+  --av-lily-bg:#f3e8ff; --av-lily-fg:#7e22ce;
+  --hover-overlay:rgba(0,0,0,.035);
+  --scroll-thumb:#cfd3d8; --scroll-thumb-hover:#aeb5bd;
+  --shadow:0 14px 36px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text)}
+body{font:12px/1.55 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}
+::-webkit-scrollbar-track{background:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,select{font:inherit;color:inherit}
+a{color:var(--pri);text-decoration:none}
+.m{font-family:var(--mono)}
+
+/* ── 應用外殼（鏡像 v5 topbar 的尺度：高 46px、12.5px 字） ───────────────── */
+.tb{height:46px;display:flex;align-items:center;gap:12px;padding:0 14px;
+    background:var(--surface);border-bottom:1px solid var(--border);
+    position:sticky;top:0;z-index:40}
+.tb .logo{width:17px;height:17px;border-radius:5px;background:linear-gradient(135deg,var(--pri),var(--info));flex:none}
+.tb .nm{font-size:12.5px;font-weight:650;letter-spacing:.2px;white-space:nowrap}
+.tb .sub{font-size:10.5px;color:var(--text-3)}
+.tb .sp{flex:1}
+.tb .sbox{flex:1;max-width:420px;height:26px;border:1px solid var(--border-2);border-radius:7px;
+    background:var(--surface-2);display:flex;align-items:center;gap:7px;padding:0 9px;
+    font-size:11.5px;color:var(--text-3)}
+.tb .kbd{margin-left:auto;font:9.5px var(--mono);border:1px solid var(--border-2);
+    border-radius:4px;padding:1px 4px;color:var(--text-3)}
+.avatar{width:21px;height:21px;border-radius:6px;background:var(--av-yz-bg);color:var(--av-yz-fg);
+    display:grid;place-items:center;font-size:10px;font-weight:700;flex:none}
+.themebtn{height:25px;border:1px solid var(--border-2);border-radius:6px;padding:0 9px;
+    font-size:10.5px;color:var(--text-2);background:var(--surface-2)}
+.themebtn:hover{background:var(--surface-3);color:var(--text)}
+
+/* ── 提案說明條 ─────────────────────────────────────────────────────────── */
+.note{display:flex;gap:12px;align-items:flex-start;padding:9px 14px;
+    background:var(--pri-bg);border-bottom:1px solid var(--pri-br)}
+.note .tag{flex:none;font:10px/1 var(--mono);font-weight:700;letter-spacing:.6px;
+    background:var(--pri);color:var(--bg);border-radius:5px;padding:5px 7px;margin-top:1px}
+:root[data-theme="light"] .note .tag{color:#fff}
+.note .txt{font-size:11.5px;color:var(--text-2);line-height:1.65}
+.note .txt b{color:var(--text);font-weight:650}
+.note .txt .w{color:var(--warn)}
+
+/* ── 專案頁首與分頁 ─────────────────────────────────────────────────────── */
+.phd{padding:11px 14px 0;background:var(--bg)}
+.phd .t1{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.phd h1{font-size:16px;font-weight:700;letter-spacing:.3px}
+.phd .q{font-size:10.5px;color:var(--text-3)}
+.tabs{display:flex;gap:2px;margin-top:9px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:7px 11px;font-size:11.5px;color:var(--text-3);border-bottom:2px solid transparent;
+     white-space:nowrap;border-radius:5px 5px 0 0}
+.tab:hover{color:var(--text-2);background:var(--hover-overlay)}
+.tab.on{color:var(--text);border-bottom-color:var(--pri);font-weight:600}
+.tab .nb{display:inline-block;margin-left:5px;font:9px/1 var(--mono);background:var(--surface-3);
+     color:var(--text-2);border-radius:4px;padding:2px 4px}
+.tab.on .nb{background:var(--pri-bg);color:var(--pri)}
+
+/* ── 專案切換 chips ─────────────────────────────────────────────────────── */
+.chips{display:flex;gap:6px;padding:9px 14px;overflow-x:auto;background:var(--bg);
+    border-bottom:1px solid var(--border)}
+.chip{flex:none;display:flex;align-items:center;gap:6px;height:27px;padding:0 9px;
+    border:1px solid var(--border-2);border-radius:7px;background:var(--surface);
+    font-size:11px;color:var(--text-2);white-space:nowrap}
+.chip:hover{background:var(--surface-2);color:var(--text)}
+.chip.on{background:var(--surface-3);border-color:var(--border-3);color:var(--text);font-weight:600}
+.chip .no{font:10px var(--mono);color:var(--text-3)}
+.chip.on .no{color:var(--pri)}
+.chip .dot{width:5px;height:5px;border-radius:50%;flex:none}
+
+/* ── 雙欄 ──────────────────────────────────────────────────────────────── */
+.wrap{display:grid;grid-template-columns:286px 1fr;gap:0;align-items:stretch;
+      min-height:calc(100vh - 190px)}
+body.collapsed .wrap{grid-template-columns:0 1fr}
+.aside{border-right:1px solid var(--border);background:var(--surface);
+    display:flex;flex-direction:column;overflow:hidden;position:relative}
+body.collapsed .aside{display:none}
+.main{min-width:0;background:var(--bg);display:flex;flex-direction:column}
+
+/* ── 左欄：樹 ──────────────────────────────────────────────────────────── */
+.ahd{display:flex;align-items:center;gap:6px;padding:8px 9px;border-bottom:1px solid var(--border)}
+.ahd .ti{font-size:10px;font-weight:700;letter-spacing:.8px;color:var(--text-3);text-transform:uppercase}
+.ahd .sp{flex:1}
+.ico-btn{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--text-3)}
+.ico-btn:hover{background:var(--surface-3);color:var(--text)}
+.tree{flex:1;overflow:auto;padding:5px 0 14px}
+.sec{padding:9px 10px 3px;font-size:9.5px;font-weight:700;letter-spacing:.9px;color:var(--text-3);
+     text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.sec .hint{font-weight:400;letter-spacing:0;text-transform:none;font-size:9.5px;color:var(--text-3);opacity:.75}
+.sec:not(:first-child){margin-top:4px;border-top:1px solid var(--border);padding-top:9px}
+
+/* 樹的列高 26px、縮排 14px/階 — 與 deliverable-tree.tsx（py-1.5 / 16px per depth）同級 */
+.row{display:flex;align-items:center;gap:5px;min-height:26px;padding:1px 8px 1px 6px;
+     font-size:11.5px;color:var(--text-2);cursor:pointer;user-select:none;position:relative}
+.row:hover{background:var(--hover-overlay);color:var(--text)}
+.row.on{background:var(--pri-bg);color:var(--text)}
+.row.on::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:2px;background:var(--pri);border-radius:0 2px 2px 0}
+.row.drop{background:var(--ok-bg);box-shadow:inset 0 0 0 1px var(--ok)}
+.row.dis{opacity:.45;cursor:default}
+.row.dis:hover{background:none;color:var(--text-2)}
+.row .car{width:12px;height:12px;flex:none;display:grid;place-items:center;color:var(--text-3);
+          transition:transform .12s}
+.row .car.open{transform:rotate(90deg)}
+.row .gl{width:14px;flex:none;display:grid;place-items:center}
+.row .lb{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.sysf .lb{font-weight:600}
+.row .ct{font:9.5px var(--mono);color:var(--text-3);flex:none}
+.row .act{display:none;gap:1px;flex:none}
+.row:hover .act{display:flex}
+.row .act .ico-btn{width:19px;height:19px}
+.pill{flex:none;font:9px/1 var(--mono);border-radius:4px;padding:2.5px 4px;font-weight:700;letter-spacing:.3px}
+.pill.inbox{background:var(--warn-bg);color:var(--warn)}
+.pill.cli{background:var(--teal-bg);color:var(--teal)}
+.pill.int{background:var(--surface-3);color:var(--text-3)}
+.pill.sec2{background:var(--danger-bg);color:var(--danger)}
+.pill.ms{background:var(--pri-bg);color:var(--pri)}
+.pill.dup{background:var(--info-bg);color:var(--info)}
+.pill.big{background:var(--warn-bg);color:var(--warn)}
+.ren{height:20px;flex:1;min-width:0;background:var(--surface-3);border:1px solid var(--pri);
+     border-radius:4px;padding:0 5px;font-size:11.5px;outline:none}
+.afoot{border-top:1px solid var(--border);padding:7px 9px;display:flex;gap:6px;flex-wrap:wrap;
+    background:var(--surface-2)}
+.btn{height:25px;padding:0 9px;border:1px solid var(--border-2);border-radius:6px;
+     background:var(--surface);font-size:10.5px;color:var(--text-2);display:inline-flex;
+     align-items:center;gap:5px;white-space:nowrap}
+.btn:hover{background:var(--surface-3);color:var(--text);border-color:var(--border-3)}
+.btn.pri{background:var(--pri-bg);border-color:var(--pri-br);color:var(--pri);font-weight:600}
+.btn.pri:hover{background:var(--pri-br);color:var(--text)}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.btn[disabled]:hover{background:var(--surface);color:var(--text-2);border-color:var(--border-2)}
+
+/* ── 右欄 ──────────────────────────────────────────────────────────────── */
+.mhd{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);
+     background:var(--surface);flex-wrap:wrap;position:sticky;top:46px;z-index:20}
+.crumb{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3);
+       flex:1;min-width:0;flex-wrap:wrap}
+.crumb b{color:var(--text);font-weight:650;font-size:12.5px}
+.crumb .sl{color:var(--text-3);opacity:.5}
+.body{padding:14px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.card>.h{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid var(--border)}
+.card>.h .t{font-size:12px;font-weight:650}
+.card>.h .s{font-size:10.5px;color:var(--text-3)}
+.card>.h .sp{flex:1}
+.card>.c{padding:11px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+
+/* 表格：沿用 v5 的 11.5px / 細線分隔 */
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+td{overflow:hidden}
+th{font-size:9.5px;font-weight:700;letter-spacing:.7px;color:var(--text-3);text-transform:uppercase;
+   text-align:left;padding:7px 9px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{font-size:11.5px;padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--hover-overlay)}
+tbody tr.sel{background:var(--pri-bg)}
+td.r,th.r{text-align:right}
+.fname{display:flex;align-items:center;gap:7px;min-width:0}
+.fname .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cb{width:13px;height:13px;accent-color:var(--pri);cursor:pointer}
+.lock{display:inline-flex;align-items:center;gap:3px;font:9px/1 var(--mono);font-weight:700;
+      border-radius:4px;padding:3px 4px}
+.lock.i{background:var(--surface-3);color:var(--text-3)}
+.lock.c{background:var(--teal-bg);color:var(--teal)}
+.lock.s{background:var(--danger-bg);color:var(--danger)}
+
+/* 屬性框（會議） */
+.attrs{display:grid;grid-template-columns:86px 1fr;gap:0}
+.attrs .k{font-size:10.5px;color:var(--text-3);padding:8px 10px;border-bottom:1px solid var(--border)}
+.attrs .v{font-size:11.5px;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+.attrs .k:nth-last-child(2),.attrs .v:last-child{border-bottom:0}
+.attrs .v.em{color:var(--text-3)}
+.attrs .v .edit{opacity:0;font-size:9.5px;color:var(--pri);margin-left:6px}
+.attrs .v:hover .edit{opacity:1}
+.who{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border:1px solid var(--border);
+     border-radius:20px;padding:2px 7px 2px 3px;font-size:10.5px;margin:2px 4px 2px 0}
+.who i{width:15px;height:15px;border-radius:50%;display:grid;place-items:center;font-size:8.5px;
+      font-weight:700;font-style:normal;background:var(--avatar-bg);color:var(--text-2)}
+.who.ext i{background:var(--warn-bg);color:var(--warn)}
+
+/* 期／階段 ribbon（約束#2） */
+.cyc{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.cyc+.cyc{margin-top:9px}
+.cyc .ch{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface-2);
+         border-bottom:1px solid var(--border);flex-wrap:wrap}
+.cyc .ch .ord{font:10px var(--mono);font-weight:700;background:var(--pri-bg);color:var(--pri);
+         border-radius:5px;padding:3px 6px}
+.cyc.future .ch .ord{background:var(--surface-3);color:var(--text-3)}
+.cyc .ch .tt{font-size:12px;font-weight:650}
+.cyc .ch .mt{font-size:10.5px;color:var(--text-3)}
+.cyc .ch .sp{flex:1}
+.stages{display:flex;gap:0;padding:10px;overflow-x:auto}
+.stg{flex:1;min-width:112px;border:1px solid var(--border);border-radius:6px;padding:7px 8px;
+     background:var(--surface-2);position:relative}
+.stg+.stg{margin-left:7px}
+.stg::before{content:"";position:absolute;left:-7px;top:50%;width:7px;height:1px;background:var(--border-2)}
+.stg:first-child::before{display:none}
+.stg .sk{font:9px var(--mono);letter-spacing:.5px;color:var(--text-3)}
+.stg .sn{font-size:11.5px;font-weight:600;margin-top:2px}
+.stg .sd{font:9.5px var(--mono);color:var(--text-3);margin-top:3px}
+.stg.done{border-color:var(--ok);background:var(--ok-bg)}
+.stg.done .sn{color:var(--ok)}
+.stg.doing{border-color:var(--pri);background:var(--pri-bg);box-shadow:0 0 0 1px var(--pri-br)}
+.stg.doing .sn{color:var(--pri)}
+.stg.late{border-color:var(--danger);background:var(--danger-bg)}
+.stg.late .sn{color:var(--danger)}
+.stg.plan{opacity:.6;border-style:dashed}
+.mlist{border-top:1px solid var(--border)}
+.mrow{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--border);font-size:11.5px}
+.mrow:last-child{border-bottom:0}
+.mrow:hover{background:var(--hover-overlay)}
+.mrow .dm{width:9px;height:9px;flex:none;transform:rotate(45deg);border-radius:2px;background:var(--warn)}
+.mrow .dm.ok{background:var(--ok)}
+.mrow .dm.pl{background:var(--surface-4);box-shadow:inset 0 0 0 1px var(--border-3)}
+.mrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .dt{font:10px var(--mono);color:var(--text-3);flex:none}
+.mrow .lk{font:9.5px var(--mono);color:var(--pri);flex:none}
+.tsk{display:flex;align-items:center;gap:7px;padding:5px 11px 5px 32px;font-size:11px;color:var(--text-2);
+     border-bottom:1px solid var(--border)}
+.tsk:last-child{border-bottom:0}
+.tsk .kd{font:9px/1 var(--mono);font-weight:700;border-radius:4px;padding:3px 4px;flex:none}
+.tsk .kd.todo{background:var(--surface-3);color:var(--text-3)}
+.tsk .kd.rev{background:var(--info-bg);color:var(--info)}
+.tsk .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tsk .st{font:9.5px var(--mono);color:var(--text-3);flex:none}
+
+/* 聊天 */
+.msgs{display:flex;flex-direction:column;gap:9px;padding:11px;max-height:440px;overflow:auto}
+.msg{display:flex;gap:8px}
+.msg .av{width:23px;height:23px;border-radius:7px;flex:none;display:grid;place-items:center;
+         font-size:9.5px;font-weight:700;background:var(--av-yz-bg);color:var(--av-yz-fg)}
+.msg.l .av{background:var(--av-lily-bg);color:var(--av-lily-fg)}
+.msg .bd{flex:1;min-width:0}
+.msg .mh{display:flex;gap:7px;align-items:baseline;font-size:10px;color:var(--text-3)}
+.msg .mh b{font-size:11px;color:var(--text-2);font-weight:650}
+.msg .tx{font-size:11.5px;margin-top:2px;line-height:1.65}
+.msg .at{margin-top:5px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-2);
+         border-radius:6px;padding:5px 8px;background:var(--surface-2);font-size:11px}
+.msg .up{margin-top:5px;font-size:10.5px;color:var(--text-3)}
+.comp{border-top:1px solid var(--border);padding:9px 11px;display:flex;gap:7px;align-items:center}
+.comp input{flex:1;height:28px;background:var(--surface-2);border:1px solid var(--border-2);
+            border-radius:7px;padding:0 9px;font-size:11.5px;outline:none}
+.comp input:focus{border-color:var(--pri)}
+
+/* 其他 */
+.kv{display:flex;flex-direction:column;gap:3px}
+.kv .k{font-size:9.5px;letter-spacing:.6px;color:var(--text-3);text-transform:uppercase}
+.kv .v{font-size:17px;font-weight:700;font-family:var(--mono)}
+.kv .v.sm{font-size:12.5px;font-weight:600;font-family:var(--sans)}
+.kv .v.w{color:var(--warn)} .kv .v.d{color:var(--danger)} .kv .v.o{color:var(--ok)} .kv .v.p{color:var(--pri)}
+.banner{display:flex;gap:9px;align-items:flex-start;padding:9px 11px;border-radius:7px;font-size:11.5px;line-height:1.6}
+.banner.w{background:var(--warn-bg);border:1px solid var(--warn);color:var(--text)}
+.banner.d{background:var(--danger-bg);border:1px solid var(--danger);color:var(--text)}
+.banner.i{background:var(--info-bg);border:1px solid var(--info);color:var(--text)}
+.banner.n{background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)}
+.banner b{font-weight:650;color:var(--text)}
+.banner .ic{flex:none;margin-top:1px}
+.todo{font-size:10.5px;color:var(--text-3);font-style:italic}
+.sep{height:1px;background:var(--border);margin:3px 0}
+.note-sm{font-size:10.5px;color:var(--text-3);line-height:1.65}
+.note-sm code{font:10px var(--mono);background:var(--surface-2);border:1px solid var(--border);
+   border-radius:4px;padding:1px 4px;color:var(--text-2)}
+.tl{position:relative;padding-left:16px}
+.tl::before{content:"";position:absolute;left:4px;top:4px;bottom:4px;width:1px;background:var(--border-2)}
+.tl .ti{position:relative;padding:8px 0}
+.tl .ti::before{content:"";position:absolute;left:-15px;top:13px;width:7px;height:7px;border-radius:50%;
+   background:var(--surface);box-shadow:0 0 0 1px var(--border-3)}
+.tl .ti.hit::before{background:var(--pri);box-shadow:0 0 0 2px var(--pri-bg)}
+.tl .td{font:10px var(--mono);color:var(--text-3)}
+.tl .tt{font-size:12px;font-weight:650;margin-top:1px}
+.tl .ts{font-size:10.5px;color:var(--text-2);margin-top:2px}
+
+/* Modal / toast */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:90;
+    align-items:center;justify-content:center;padding:16px}
+.ov.on{display:flex}
+.modal{width:100%;max-width:420px;max-height:84vh;display:flex;flex-direction:column;
+   background:var(--surface);border:1px solid var(--border-2);border-radius:10px;box-shadow:var(--shadow)}
+.modal .h{padding:11px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.modal .h .t{font-size:12.5px;font-weight:650;flex:1}
+.modal .c{padding:9px;overflow:auto;flex:1}
+.modal .f{padding:9px 13px;border-top:1px solid var(--border);display:flex;gap:7px;justify-content:flex-end}
+.pick{display:flex;align-items:center;gap:6px;min-height:26px;padding:2px 7px;border-radius:5px;
+      font-size:11.5px;color:var(--text-2);cursor:pointer}
+.pick:hover{background:var(--hover-overlay);color:var(--text)}
+.pick.on{background:var(--pri-bg);color:var(--text)}
+.pick.no{opacity:.35;cursor:not-allowed}
+.pick.no:hover{background:none}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(18px);
+   background:var(--surface-3);border:1px solid var(--border-3);border-radius:8px;
+   padding:9px 14px;font-size:11.5px;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+   transition:opacity .18s,transform .18s;z-index:95;max-width:min(92vw,520px)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast .sub{font-size:10px;color:var(--text-3);margin-top:2px}
+
+.fab{display:none}
+/* ── 窄螢幕：左欄變抽屜，不橫向滾動 ─────────────────────────────────────── */
+@media (max-width:960px){
+  .wrap{grid-template-columns:1fr}
+  .aside{position:fixed;left:0;top:0;bottom:0;width:min(302px,88vw);z-index:70;
+         box-shadow:var(--shadow);transform:translateX(-104%);transition:transform .2s}
+  body.drawer .aside{transform:translateX(0)}
+  body.drawer::after{content:"";position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60}
+  body.collapsed .aside{display:flex}
+  .fab{display:inline-flex}
+  .mhd{position:static}
+  .body{padding:11px}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .stages{flex-direction:column}
+  .stg+.stg{margin-left:0;margin-top:7px}
+  .stg::before{left:50%;top:-7px;width:1px;height:7px}
+  .card>div>table{min-width:560px}
+  .card>table{min-width:560px}
+  .card{overflow-x:auto}
+}
+@media (max-width:520px){
+  .phd h1{font-size:14px}
+  .note{flex-direction:column;gap:7px}
+  .attrs{grid-template-columns:1fr}
+  .attrs .k{padding-bottom:0;border-bottom:0}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════ 應用外殼（鏡像 v5 工作台 topbar，約束#1） ════════ -->
+<div class="tb">
+  <button class="ico-btn fab" id="fab" aria-label="開啟資源樹">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+  </button>
+  <div class="logo"></div>
+  <div class="nm">圓展 Operating System</div>
+  <div class="sub m">v5 · two-person</div>
+  <div class="sbox"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>搜尋、新增或執行動作…<span class="kbd">⌘K</span></div>
+  <div class="sp"></div>
+  <button class="themebtn" id="themebtn">◐ 佈景</button>
+  <div class="avatar">宇</div>
+</div>
+
+<!-- ════════ 提案說明條 ════════ -->
+<div class="note">
+  <div class="tag">提案 C</div>
+  <div class="txt">
+    <b>雙欄資源樹</b>　主張：專案的五大資源共用<b>一棵以 <span class="m">parentId</span> 為骨幹的統一資源樹</b> ——
+    雲端硬碟資料夾與會議資料夾是同一棵樹的不同 <span class="m">kind</span>，收件匣是樹上一個真的資料夾，
+    Owner 現有的 <span class="m">[共用]／YYYYMMDD_Mnn_／會議四件套</span> 慣例一比一照搬進系統。<br>
+    <span class="w">刻意的取捨：</span>它是 v5 裡唯一的 IDE 式雙欄。代價換來的是多層 CRUD 與拖放整理最直覺；
+    為了不把版面語言撕裂，雙欄<b>只在專案的「資源」這一分頁內生效</b>，左欄隨時可收起退回單欄，
+    且色票、字級、列高全部沿用既有 token。
+  </div>
+</div>
+
+<!-- ════════ 專案頁首 ════════ -->
+<div class="phd">
+  <div class="t1">
+    <h1>專案</h1>
+    <span class="q">「這個案子怎麼推、怎麼收尾」</span>
+    <span class="q m" id="wsname">· 圓展教育科技有限公司</span>
+  </div>
+  <!-- 與 v5 既有六分頁的關係：對話／Evidence Repo／里程碑 三個分頁收斂進「資源」，
+       總覽與財務維持單欄不變 —— 這是「版面語言差異」的第一道解法。 -->
+  <div class="tabs">
+    <button class="tab">總覽</button>
+    <button class="tab on">資源<span class="nb">5</span></button>
+    <button class="tab">財務</button>
+    <button class="tab">設定</button>
+  </div>
+</div>
+
+<!-- ════════ 專案切換 ════════ -->
+<div class="chips" id="chips"></div>
+
+<!-- ════════ 雙欄 ════════ -->
+<div class="wrap">
+  <!-- ──────── 左欄：統一資源樹 ──────── -->
+  <aside class="aside">
+    <div class="ahd">
+      <div class="ti">資源樹</div>
+      <div class="sp"></div>
+      <button class="ico-btn" id="newfolder" title="在選取的資料夾下新增子資料夾">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.6 4.2a1 1 0 0 1 1-1h3l1.3 1.6h6.5a1 1 0 0 1 1 1v6.4a1 1 0 0 1-1 1h-10.8a1 1 0 0 1-1-1z"/><path d="M8 7.3v3.4M6.3 9h3.4"/></svg>
+      </button>
+      <button class="ico-btn" id="collapse" title="收起左欄（單欄模式）">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2.8" width="12" height="10.4" rx="1.4"/><path d="M6.2 2.8v10.4"/></svg>
+      </button>
+    </div>
+    <div class="tree" id="tree"></div>
+    <div class="afoot">
+      <button class="btn pri" id="upload">↑ 上傳到收件匣</button>
+      <button class="btn" id="newmeeting">＋ 會議</button>
+    </div>
+  </aside>
+
+  <!-- ──────── 右欄：內容區 ──────── -->
+  <main class="main">
+    <div class="mhd">
+      <div class="crumb" id="crumb"></div>
+      <div id="mact" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <div class="body" id="pane"></div>
+  </main>
+</div>
+
+<!-- ════════ 搬移對話框 ════════ -->
+<div class="ov" id="ov">
+  <div class="modal">
+    <div class="h">
+      <div class="t" id="ovt">搬移到…</div>
+      <button class="ico-btn" onclick="closeOv()">✕</button>
+    </div>
+    <div class="c" id="ovc"></div>
+    <div class="f">
+      <button class="btn" onclick="closeOv()">取消</button>
+      <button class="btn pri" id="ovok">搬移</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===========================================================================
+   資料層
+   —— 全部取自 docs/2_agent-input/generated/project-migration-plan/
+      MIG_workspace-inventory-and-migration-plan.md 的實測盤點。
+      沒有可靠數字的欄位一律寫「待補」，不編造金額。
+   =========================================================================== */
+
+/* ── 節點型別（統一樹）────────────────────────────────────────────────────
+   t:'mount'  掛載點。不是資料夾，沒有 parentId 語意（聊天室／規劃／LINE）
+   t:'folder' 真資料夾。ProjectFolder，kind 決定行為與右欄版面
+   t:'file'   OperatingAsset（folderId 指向所在資料夾）
+   t:'view'   同一棵樹的篩選視圖，不是第四個儲存體
+
+   folder kind：ROOT INBOX GENERIC MEETING SHARED INTERNAL MILESTONE
+                REVISION MATERIAL FINANCE PROPOSAL CONTRACT CHAT_DROP LINE_DROP
+   vis：'client'（CLIENT_VISIBLE）｜'internal'（預設）
+   sens：0 一般　1 內部敏感（禁 client_visible）　2 最高敏感（不建全文索引）
+   ──────────────────────────────────────────────────────────────────────── */
+
+const PROJECTS = [
+  {id:'p01', no:'01', name:'共好玟化網站', client:'共好玟化', ref:'PRJ-2026-001', tier:3,
+   stage:'ACCEPTANCE', round:1, color:'var(--warn)',
+   head:'已交付・尾款未收，二期待啟動',
+   src:'0_工作區/01.共好玟化網站 - 3'},
+  {id:'p03', no:'03', name:'幸福文齡網站', client:'梁文齡／豐盛之翼學院', ref:'PRJ-2026-003', tier:3,
+   stage:'EXECUTING', round:2, color:'var(--pri)',
+   head:'執行中・第二期（第二次修改）',
+   src:'0_工作區/03. 幸福文齡網站 - 3'},
+  {id:'p05', no:'05', name:'金流商城申請', client:'圓展內部／新屋愛鄉協會', ref:'PRJ-2026-005', tier:5,
+   stage:'CLOSED', round:1, color:'var(--text-3)',
+   head:'(a) 綠界金流已申請通過・(b) 協會案協辦中',
+   src:'0_工作區/05. 金流商城申請 - 5'},
+  {id:'p08', no:'08', name:'大考中心AI報告生成', client:'財團法人大學入學考試中心基金會', ref:'PRJ-2026-008', tier:3,
+   stage:'PROPOSING', round:1, color:'var(--info)',
+   head:'提案中・提案日期 115 年 9 月',
+   src:'0_工作區/08. 大考中心AI報告生成 -3'},
+  {id:'p10', no:'10', name:'AI SSOT 會計與工商登記', client:'又帆（會計師）', ref:'PRJ-2026-011', tier:null,
+   stage:'PROPOSING', round:1, color:'var(--teal)',
+   head:'需求訪談完成・未報價',
+   src:'0_工作區/10.AI SSOT 會計與工商登記 又帆'},
+  {id:'p12', no:'12', name:'摸摸寵物營運系統', client:'摸摸寵物', ref:'PRJ-2026-012', tier:null,
+   stage:'PROPOSING', round:1, color:'var(--danger)',
+   head:'報價有效期 2026-10-30（逾期回標準價 150,000）',
+   src:'0_工作區/12. 摸摸寵物營運系統'},
+];
+
+/* 節點扁平表。id / pid / proj / t / kind / name / ... */
+let NODES = [
+
+/* ════════════ 01. 共好玟化網站 ════════════ */
+{id:'p01_root', pid:null, proj:'p01', t:'folder', kind:'ROOT', name:'01.共好玟化網站 - 3', open:true, sys:true},
+
+/* 約束#3：收件匣是樹上一個真的資料夾（role/kind = INBOX，isSystem），不是另一個分頁 */
+{id:'p01_inbox', pid:'p01_root', proj:'p01', t:'folder', kind:'INBOX', name:'收件匣', sys:true, open:true},
+{id:'f_i1', pid:'p01_inbox', proj:'p01', t:'file', name:'IMG_4821.HEIC', ext:'jpg', size:'3.1 MB', mt:'2026-10-01', vis:'internal', sens:0, note:'手機拍照上傳・未指定資料夾'},
+{id:'f_i2', pid:'p01_inbox', proj:'p01', t:'file', name:'截圖 10-02 14:31.png', ext:'png', size:'840 KB', mt:'2026-10-02', vis:'internal', sens:0, note:'⌘V 貼上・自動命名'},
+{id:'f_i3', pid:'p01_inbox', proj:'p01', t:'file', name:'Sitemap第二次修改需求確認.pdf', ext:'pdf', size:'1.2 MB', mt:'2026-10-02', vis:'internal', sens:0, note:'聊天室附件・建議歸到「修改需求」'},
+
+/* 約束#6：Owner 既有慣例「開案前」→「專案啟動［正式資料］」 */
+{id:'p01_pre', pid:'p01_root', proj:'p01', t:'folder', kind:'PROPOSAL', name:'開案前', open:false, role:'提案'},
+{id:'f_a1', pid:'p01_pre', proj:'p01', t:'file', name:'圓展教育科技報價單_ESG網站.docx', ext:'docx', size:'112 KB', mt:'2026-02-18', vis:'internal', sens:1},
+{id:'f_a2', pid:'p01_pre', proj:'p01', t:'file', name:'圓展教育科技報價單_ESG網站_回簽.pdf', ext:'pdf', size:'2.4 MB', mt:'2026-03-25', vis:'internal', sens:1, ms:'M02', note:'回簽文件＝CONTRACTED 的判定依據'},
+
+{id:'p01_fmt', pid:'p01_root', proj:'p01', t:'folder', kind:'GENERIC', name:'專案啟動［正式資料］', open:true, role:'里程碑交付'},
+/* 約束#6：YYYYMMDD_Mnn_<名稱> ＝ 現成的里程碑序列，不必發明 */
+{id:'f_m1', pid:'p01_fmt', proj:'p01', t:'file', name:'20260304_M01_網站需求書.docx', ext:'docx', size:'286 KB', mt:'2026-03-04', vis:'internal', sens:0, ms:'M01'},
+{id:'f_m2', pid:'p01_fmt', proj:'p01', t:'file', name:'20260325_M02_網站需求書_回簽.pdf', ext:'pdf', size:'3.1 MB', mt:'2026-03-25', vis:'internal', sens:1, ms:'M02'},
+{id:'f_m3', pid:'p01_fmt', proj:'p01', t:'file', name:'20260325_M03_對焦完成_訪談紀要.docx', ext:'docx', size:'94 KB', mt:'2026-03-25', vis:'internal', sens:0, ms:'M03'},
+{id:'p01_m04', pid:'p01_fmt', proj:'p01', t:'folder', kind:'MILESTONE', name:'20260411_M04_網站資源一版', ms:'M04', open:false},
+{id:'f_c1', pid:'p01_m04', proj:'p01', t:'file', name:'01_品牌故事 的副本.docx', ext:'docx', size:'48 KB', mt:'2026-04-11', vis:'internal', sens:0, dup:'g1'},
+{id:'f_c2', pid:'p01_m04', proj:'p01', t:'file', name:'02_服務介紹 的副本.docx', ext:'docx', size:'52 KB', mt:'2026-04-11', vis:'internal', sens:0, dup:'g2'},
+{id:'f_c3', pid:'p01_m04', proj:'p01', t:'file', name:'03_ESG 承諾 的副本.docx', ext:'docx', size:'61 KB', mt:'2026-04-11', vis:'internal', sens:0, dup:'g3'},
+{id:'f_c4', pid:'p01_m04', proj:'p01', t:'file', name:'04_團隊介紹 的副本.docx', ext:'docx', size:'44 KB', mt:'2026-04-11', vis:'internal', sens:0, dup:'g4'},
+{id:'f_c5', pid:'p01_m04', proj:'p01', t:'file', name:'05_案例彙整 的副本.docx', ext:'docx', size:'71 KB', mt:'2026-04-11', vis:'internal', sens:0, dup:'g5'},
+{id:'f_c6', pid:'p01_m04', proj:'p01', t:'file', name:'06_聯絡方式 的副本.docx', ext:'docx', size:'33 KB', mt:'2026-04-11', vis:'internal', sens:0, dup:'g6'},
+{id:'f_fin', pid:'p01_fmt', proj:'p01', t:'file', name:'專案財務.xlsx', ext:'xlsx', size:'14 KB', mt:'2026-09-02', vis:'internal', sens:1, note:'整批 202 檔中唯一的財務台帳；收款狀態欄空白 ≠ 未收（M3 待 Owner 逐列確認）'},
+
+/* 約束#6：`[共用] …` ＝ 對客戶那一層；約束#5：這一層才是 client_visible */
+{id:'p01_shr', pid:'p01_root', proj:'p01', t:'folder', kind:'SHARED', name:'[共用] 官網專案＿共好玟化 X 圓展', vis:'client', open:true},
+{id:'p01_shr1', pid:'p01_shr', proj:'p01', t:'folder', kind:'GENERIC', name:'01.確認文案（客戶回覆用）', vis:'client', open:false},
+{id:'f_s1', pid:'p01_shr1', proj:'p01', t:'file', name:'01_品牌故事.docx', ext:'docx', size:'48 KB', mt:'2026-04-11', vis:'client', sens:0, dup:'g1'},
+{id:'f_s2', pid:'p01_shr1', proj:'p01', t:'file', name:'02_服務介紹.docx', ext:'docx', size:'52 KB', mt:'2026-04-11', vis:'client', sens:0, dup:'g2'},
+{id:'f_s3', pid:'p01_shr1', proj:'p01', t:'file', name:'03_ESG 承諾.docx', ext:'docx', size:'61 KB', mt:'2026-04-11', vis:'client', sens:0, dup:'g3'},
+{id:'f_s4', pid:'p01_shr1', proj:'p01', t:'file', name:'04_團隊介紹.docx', ext:'docx', size:'44 KB', mt:'2026-04-11', vis:'client', sens:0, dup:'g4'},
+{id:'f_s5', pid:'p01_shr1', proj:'p01', t:'file', name:'05_案例彙整.docx', ext:'docx', size:'71 KB', mt:'2026-04-11', vis:'client', sens:0, dup:'g5'},
+{id:'f_s6', pid:'p01_shr1', proj:'p01', t:'file', name:'06_聯絡方式.docx', ext:'docx', size:'33 KB', mt:'2026-04-11', vis:'client', sens:0, dup:'g6'},
+{id:'f_s7', pid:'p01_shr', proj:'p01', t:'file', name:'訪談_0812.pdf', ext:'pdf', size:'1.8 MB', mt:'2026-08-12', vis:'client', sens:0, dup:'g7'},
+
+/* 約束#6：「修改需求」＝二期入口 */
+{id:'p01_rev', pid:'p01_root', proj:'p01', t:'folder', kind:'REVISION', name:'修改需求', open:false,
+ note:'二期入口。按右欄的「開啟二期」會建一列 ProjectPhaseCycle{ordinal:2}，本資料夾自動綁上去。'},
+{id:'f_r1', pid:'p01_rev', proj:'p01', t:'file', name:'Sitemap第一次修改需求確認20260808.pdf', ext:'pdf', size:'920 KB', mt:'2026-08-08', vis:'internal', sens:0},
+
+/* 一場會議＝一個資料夾（01 的會議檔目前是散的，示意補建一個空會議夾） */
+{id:'p01_mtgs', pid:'p01_root', proj:'p01', t:'folder', kind:'GENERIC', name:'會議', open:false},
+{id:'p01_mt1', pid:'p01_mtgs', proj:'p01', t:'folder', kind:'MEETING', name:'20260301 專案啟動會議', open:false,
+ meeting:{at:'2026-03-01 14:00', place:'線上（Google Meet）', mode:'online',
+   inside:[['宇','戴宇星']], outside:'共好玟化 窗口（姓名待補）',
+   summary:'確認網站範圍與八步時程，第一期分兩次付款。',
+   caution:'付款分兩期是在 LINE 上談定的，正式合約未載明（M5：LINE 群對應尚未導入，本案有口頭約定未入系統）。',
+   items:[['確認 Sitemap 版本','已轉任務'],['報價單回簽','已完成 M02']]}},
+
+/* 約束#7：LINE 僅以停用狀態的入口呈現，且在樹上有一個預留落點（灰階、不可選） */
+{id:'p01_line', pid:'p01_root', proj:'p01', t:'folder', kind:'LINE_DROP', name:'LINE 群媒體（未啟用）', disabled:true},
+
+/* ════════════ 03. 幸福文齡網站 ════════════ */
+{id:'p03_root', pid:null, proj:'p03', t:'folder', kind:'ROOT', name:'03. 幸福文齡網站 - 3', open:true, sys:true},
+{id:'p03_inbox', pid:'p03_root', proj:'p03', t:'folder', kind:'INBOX', name:'收件匣', sys:true, open:true},
+{id:'f3_i1', pid:'p03_inbox', proj:'p03', t:'file', name:'IMG_0921.jpg', ext:'jpg', size:'4.6 MB', mt:'2026-09-21', vis:'internal', sens:0, note:'未判定是形象照還是證書，等整理'},
+{id:'p03_mat', pid:'p03_root', proj:'p03', t:'folder', kind:'MATERIAL', name:'網站素材庫', open:true},
+{id:'p03_logo', pid:'p03_mat', proj:'p03', t:'folder', kind:'GENERIC', name:'Logo / logo', open:false,
+ note:'4 個 .svg 是客戶品牌向量原稿。現行白名單 EXPLICIT_DENY（SVG 可內嵌腳本）→ OD-G：只對匯入路徑放寬，並強制 Content-Disposition: attachment。'},
+{id:'f3_l1', pid:'p03_logo', proj:'p03', t:'file', name:'wenling-logo-primary.svg', ext:'svg', size:'12 KB', mt:'2026-06-02', vis:'client', sens:0, deny:true},
+{id:'f3_l2', pid:'p03_logo', proj:'p03', t:'file', name:'wenling-logo-mono.svg', ext:'svg', size:'9 KB', mt:'2026-06-02', vis:'client', sens:0, deny:true},
+{id:'f3_l3', pid:'p03_logo', proj:'p03', t:'file', name:'wenling-mark.svg', ext:'svg', size:'7 KB', mt:'2026-06-02', vis:'client', sens:0, deny:true},
+{id:'f3_l4', pid:'p03_logo', proj:'p03', t:'file', name:'wenling-wordmark.svg', ext:'svg', size:'11 KB', mt:'2026-06-02', vis:'client', sens:0, deny:true},
+{id:'p03_cert', pid:'p03_mat', proj:'p03', t:'folder', kind:'INTERNAL', name:'證書們（如果有想放網站上）', open:false, sens:1,
+ note:'40+ 份第三方個人的學歷與證照。資料夾名「如果有想放網站上」＝連客戶自己都還沒決定要不要公開 → 一律 internal，且不可被設為 client_visible。'},
+{id:'f3_c1', pid:'p03_cert', proj:'p03', t:'file', name:'梁文齡_金錢靈氣三階證書.pdf', ext:'pdf', size:'1.1 MB', mt:'2026-06-14', vis:'internal', sens:1},
+{id:'f3_c2', pid:'p03_cert', proj:'p03', t:'file', name:'梁文齡_台大畢業證書.jpg', ext:'jpg', size:'2.3 MB', mt:'2026-06-14', vis:'internal', sens:1},
+{id:'f3_c3', pid:'p03_cert', proj:'p03', t:'file', name:'商標註冊證.pdf', ext:'pdf', size:'640 KB', mt:'2026-06-14', vis:'internal', sens:1},
+{id:'f3_c9', pid:'p03_cert', proj:'p03', t:'file', name:'…另 40 份（本原型節錄）', ext:'more', size:'—', mt:'—', vis:'internal', sens:1, ghost:true},
+{id:'p03_port', pid:'p03_mat', proj:'p03', t:'folder', kind:'INTERNAL', name:'形象照 / Keila・合作夥伴', open:false, sens:1,
+ note:'第三方個人肖像。內部可見，對外使用需個別授權。'},
+{id:'p03_rev', pid:'p03_root', proj:'p03', t:'folder', kind:'REVISION', name:'第二次修改需求', open:true,
+ note:'此資料夾已綁定「期 2」。一版已上線（yzedtech-wenling.vercel.app）。'},
+{id:'f3_r1', pid:'p03_rev', proj:'p03', t:'file', name:'第二次修改需求.pptx', ext:'pptx', size:'340 KB', mt:'2026-09-19', vis:'internal', sens:0},
+{id:'f3_r2', pid:'p03_rev', proj:'p03', t:'file', name:'豐盛之翼學院官網第二次修改需求書.md', ext:'md', size:'18 KB', mt:'2026-09-19', vis:'internal', sens:0},
+{id:'p03_line', pid:'p03_root', proj:'p03', t:'folder', kind:'LINE_DROP', name:'LINE 群媒體（未啟用）', disabled:true},
+
+/* ════════════ 05. 金流商城申請 ════════════ */
+{id:'p05_root', pid:null, proj:'p05', t:'folder', kind:'ROOT', name:'05. 金流商城申請 - 5', open:true, sys:true},
+{id:'p05_inbox', pid:'p05_root', proj:'p05', t:'folder', kind:'INBOX', name:'收件匣', sys:true, open:false},
+{id:'p05_z1', pid:'p05_root', proj:'p05', t:'folder', kind:'INTERNAL', name:'圓展商城資料區域', open:true, sens:1},
+{id:'f5_x', pid:'p05_z1', proj:'p05', t:'file', name:'商城專案資訊.docx', ext:'docx', size:'36 KB', mt:'2026-01-27', vis:'internal', sens:2,
+ note:'最高敏感：內含兩組明文帳號與密碼。匯入前必須由 Owner 把憑證移到密碼管理器；本列強制 noIndex（不建 extractedText），否則任何有席位的人搜「密碼」就看得到。'},
+{id:'f5_a', pid:'p05_z1', proj:'p05', t:'file', name:'6_負責人身份證-正面.jpg', ext:'jpg', size:'1.9 MB', mt:'2026-01-27', vis:'internal', sens:1},
+{id:'f5_b', pid:'p05_z1', proj:'p05', t:'file', name:'6_負責人身分證-反面.jpg', ext:'jpg', size:'1.8 MB', mt:'2026-01-27', vis:'internal', sens:1},
+{id:'f5_c', pid:'p05_z1', proj:'p05', t:'file', name:'5_稅籍資料證明文件-國稅公文.pdf', ext:'pdf', size:'720 KB', mt:'2026-01-27', vis:'internal', sens:1},
+{id:'f5_d', pid:'p05_z1', proj:'p05', t:'file', name:'7_公司登記表新地址_20260127.pdf', ext:'pdf', size:'1.1 MB', mt:'2026-01-27', vis:'internal', sens:1},
+{id:'p05_z2', pid:'p05_root', proj:'p05', t:'folder', kind:'GENERIC', name:'新屋愛鄉協會資料區', open:false,
+ note:'此子樹其實是另一個主體（新屋愛鄉協會／統編 66982469）。匯入 wizard 要能把它拆成第二個專案。'},
+{id:'f5_e', pid:'p05_z2', proj:'p05', t:'file', name:'新屋愛鄉協會申請所需文件.docx', ext:'docx', size:'52 KB', mt:'2026-02-10', vis:'internal', sens:0},
+
+/* ════════════ 08. 大考中心 ════════════ */
+{id:'p08_root', pid:null, proj:'p08', t:'folder', kind:'ROOT', name:'08. 大考中心AI報告生成 -3', open:true, sys:true},
+{id:'p08_inbox', pid:'p08_root', proj:'p08', t:'folder', kind:'INBOX', name:'收件匣', sys:true, open:false},
+{id:'p08_mt', pid:'p08_root', proj:'p08', t:'folder', kind:'MEETING', name:'20260904 生涯研討會討論', open:true,
+ meeting:{at:'2026-09-04（時刻待補）', place:'待補', mode:'onsite',
+   inside:[['宇','戴宇星']], outside:'區老師（單位待補）、研討會與會者（名單待補）',
+   summary:'待補 —— 錄音尚未轉錄（音訊轉錄排 P3）。',
+   caution:'75.8 MiB 單檔 > multipart 門檻 64 MiB，且 multipart 續傳尚未實作；本階段以伺服器端單次 PutObject 匯入。播放需要延長下載 TTL，5 分鐘會播到一半 403。',
+   items:[]}},
+{id:'f8_1', pid:'p08_mt', proj:'p08', t:'file', name:'20260904_生涯研討會討論.mp3', ext:'mp3', size:'75.8 MiB', mt:'2026-09-04', vis:'internal', sens:1, big:true, four:'錄音'},
+{id:'p08_pp', pid:'p08_root', proj:'p08', t:'folder', kind:'PROPOSAL', name:'提案', open:false},
+{id:'f8_2', pid:'p08_pp', proj:'p08', t:'file', name:'生涯興趣量表AI解釋系統建構案_提案書.docx', ext:'docx', size:'1.4 MB', mt:'2026-09-15', vis:'internal', sens:1},
+
+/* ════════════ 10. AI SSOT 會計與工商登記（唯一真的做出會議四件套） ════════════ */
+{id:'p10_root', pid:null, proj:'p10', t:'folder', kind:'ROOT', name:'10.AI SSOT 會計與工商登記 又帆', open:true, sys:true},
+{id:'p10_inbox', pid:'p10_root', proj:'p10', t:'folder', kind:'INBOX', name:'收件匣', sys:true, open:false},
+{id:'p10_mtg', pid:'p10_root', proj:'p10', t:'folder', kind:'GENERIC', name:'會議', open:true},
+/* 約束#4：一個資料夾＝一場會議，四個屬性跟著資料夾走 */
+{id:'p10_m1', pid:'p10_mtg', proj:'p10', t:'folder', kind:'MEETING', name:'20260717 第一次需求對談', open:true,
+ meeting:{at:'2026-07-17 14:00（結束時刻待補）', place:'又帆事務所', mode:'onsite',
+   inside:[['宇','戴宇星']], outside:'又帆（會計師）',
+   summary:'推薦方案 B：以「工商登記案件」為 SSOT 的案件工作台；先跑通單一流程再談擴充。',
+   caution:'摘要為 AI 自動產出、尚未校對，不得作為專案欄位來源（AI 摘要被當成權威資料是已登記的風險）。五項行動項目的負責人與期限皆「待確認」。報價與人日估算尚未產出。',
+   items:[['盤點工商登記案件的必要欄位','未指派'],
+          ['確認既有系統的匯出格式','未指派'],
+          ['估算人日與報價','未指派'],
+          ['決定與 11（跨專業）是否同一客戶群','未指派'],
+          ['排第二次對談','未指派']]}},
+{id:'f10_1', pid:'p10_m1', proj:'p10', t:'file', name:'2026-07-17_AI_SSOT_會計與工商登記討論_會議錄音檔.m4a', ext:'m4a', size:'42.6 MiB', mt:'2026-07-17', vis:'internal', sens:1, four:'錄音'},
+{id:'f10_2', pid:'p10_m1', proj:'p10', t:'file', name:'2026-07-17_AI_SSOT_會計與工商登記討論_逐字稿.txt', ext:'txt', size:'41 KB', mt:'2026-07-17', vis:'internal', sens:1, four:'逐字稿', note:'逐字稿包含與會者未經審閱的發言 → 限 Owner'},
+{id:'f10_3', pid:'p10_m1', proj:'p10', t:'file', name:'2026-07-17_AI_SSOT_會計與工商登記討論_完整會議記錄.md', ext:'md', size:'22 KB', mt:'2026-07-17', vis:'internal', sens:0, four:'完整紀錄'},
+{id:'f10_4', pid:'p10_m1', proj:'p10', t:'file', name:'2026-07-17_AI_SSOT_會計與工商登記討論_摘要.md', ext:'md', size:'8 KB', mt:'2026-07-17', vis:'internal', sens:0, four:'摘要'},
+{id:'f10_5', pid:'p10_m1', proj:'p10', t:'file', name:'2026-07-17_AI_SSOT_會計與工商登記討論_決策分析.md', ext:'md', size:'11 KB', mt:'2026-07-18', vis:'internal', sens:0, four:'其他'},
+{id:'p10_pp', pid:'p10_root', proj:'p10', t:'folder', kind:'PROPOSAL', name:'提案', open:false},
+{id:'p10_line', pid:'p10_root', proj:'p10', t:'folder', kind:'LINE_DROP', name:'LINE 群媒體（未啟用）', disabled:true},
+
+/* ════════════ 12. 摸摸寵物 ════════════ */
+{id:'p12_root', pid:null, proj:'p12', t:'folder', kind:'ROOT', name:'12. 摸摸寵物營運系統', open:true, sys:true},
+{id:'p12_inbox', pid:'p12_root', proj:'p12', t:'folder', kind:'INBOX', name:'收件匣', sys:true, open:true},
+{id:'f12_i', pid:'p12_inbox', proj:'p12', t:'file', name:'門市平面圖_手繪.jpg', ext:'jpg', size:'2.2 MB', mt:'2026-09-30', vis:'internal', sens:0},
+{id:'p12_pp', pid:'p12_root', proj:'p12', t:'folder', kind:'PROPOSAL', name:'提案', open:true},
+{id:'f12_1', pid:'p12_pp', proj:'p12', t:'file', name:'建置方案與報價_摸摸寵物_單店後台導入.docx', ext:'docx', size:'248 KB', mt:'2026-09-30', vis:'internal', sens:1,
+ note:'含成本組成佔比與折扣交換邏輯 → internal，禁 client_visible。報價有效期 2026-10-30。'},
+{id:'p12_shr', pid:'p12_root', proj:'p12', t:'folder', kind:'SHARED', name:'摸摸寵物營運系統專案共用資料夾', vis:'client', open:false},
+];
+
+/* ── 掛載點：聊天室 / 規劃 / LINE。它們不是資料夾（見設計文件 §「非檔案資源」） ── */
+const MOUNTS = [
+  {id:'m_chat', icon:'chat', name:'專案聊天室', sub:'一列一訊息'},
+  {id:'m_plan', icon:'plan', name:'里程碑規劃', sub:'期 → 階段 → 里程碑 → 任務'},
+  {id:'m_line', icon:'line', name:'LINE 群導入', sub:'本階段停用', disabled:true},
+];
+const VIEWS = [
+  {id:'v_mtg',  icon:'cal',  name:'會議（時間序）', sub:"kind='MEETING' ORDER BY heldAt DESC"},
+  {id:'v_cli',  icon:'eye',  name:'客戶可見的全部', sub:"visibility='client_visible'"},
+  {id:'v_sens', icon:'lock', name:'敏感與可見性',   sub:'sens ≥ 1'},
+  {id:'v_dup',  icon:'dup',  name:'內容重複組',     sub:'contentHash 相同'},
+];
+
+/* ── 期 → 階段 → 里程碑 → 任務（約束#2）────────────────────────────────── */
+const PLAN = {
+ p01:[
+  {ord:1, title:'一期', contract:'回簽報價單（合約編號待補）', budget:'135,000（未稅）',
+   stages:[
+    {k:'PROPOSAL',  n:'提案',        d:'2026-02-18 → 2026-03-03', s:'done'},
+    {k:'CONTRACT',  n:'接案（合約）', d:'2026-03-04 → 2026-03-25', s:'done'},
+    {k:'EXECUTION', n:'執行（一期）', d:'2026-03-26 → 2026-04-12', s:'done'},
+    {k:'ACCEPTANCE',n:'驗收（一期）', d:'2026-04-12 → 待補',       s:'doing'},
+   ],
+   ms:[
+    {t:'M01 網站需求書確認',   d:'2026-03-04', s:'ok', folder:'p01_fmt'},
+    {t:'M02 需求書回簽／首期款', d:'2026-03-25', s:'ok', folder:'p01_fmt',
+     tasks:[['REVIEW','首期款 33,750 已到帳（2026-04-02）','已通過']]},
+    {t:'M03 訪談對焦完成',     d:'2026-03-25', s:'ok', folder:'p01_fmt'},
+    {t:'M04 網站資源一版',     d:'2026-04-11', s:'ok', folder:'p01_m04'},
+    {t:'M05 Figma 設計稿',     d:'完成日待補', s:'ok', tpl:true},
+    {t:'M06 前端開發',         d:'完成日待補', s:'ok', tpl:true},
+    {t:'M07 部署與 SEO',       d:'2026-04-12 交付', s:'ok', tpl:true},
+    {t:'M08 驗收／尾款',       d:'日期待補',   s:'doing',
+     tasks:[['TODO','向客戶發出尾款請款','未開始'],
+            ['REVIEW','第一期之二與第二期是否已收款（xlsx 狀態欄空白 ≠ 未收）','待確認']]},
+    {t:'M09 一年維護起算',     d:'起算日待補', s:'plan', tpl:true},
+   ]},
+  {ord:2, title:'二期（官網第二版）', contract:'是否另立合約待 Owner 決定（M9）', budget:'待補', future:true,
+   stages:[
+    {k:'CONTRACT',  n:'追加合約（二期）', d:'待補', s:'plan'},
+    {k:'EXECUTION', n:'執行（二期）',     d:'待補', s:'plan'},
+    {k:'ACCEPTANCE',n:'驗收（二期）',     d:'待補', s:'plan'},
+    {k:'CLOSING',   n:'結案',             d:'待補', s:'plan'},
+   ],
+   ms:[{t:'入口資料夾：修改需求／Sitemap第一次修改需求確認20260808.pdf', d:'2026-08-08', s:'plan', folder:'p01_rev'}]},
+ ],
+ p03:[
+  {ord:1, title:'一期（官網建置）', contract:'幸運療癒師_官網報價規格書', budget:'待補',
+   stages:[
+    {k:'PROPOSAL',  n:'提案',        d:'待補', s:'done'},
+    {k:'CONTRACT',  n:'接案（合約）', d:'待補', s:'done'},
+    {k:'EXECUTION', n:'執行（一期）', d:'待補', s:'done'},
+    {k:'ACCEPTANCE',n:'驗收（一期）', d:'驗收日待補', s:'done'},
+   ],
+   ms:[{t:'一版上線（yzedtech-wenling.vercel.app）', d:'上線日待補', s:'ok'}]},
+  {ord:2, title:'二期（第二次修改）', contract:'二期報價與金額待補（只找到一期報價規格書）', budget:'待補',
+   stages:[
+    {k:'CONTRACT',  n:'追加合約（二期）', d:'待補',               s:'late'},
+    {k:'EXECUTION', n:'執行（二期）',     d:'2026-09-19 → 待補',  s:'doing'},
+    {k:'ACCEPTANCE',n:'驗收（二期）',     d:'待補',               s:'plan'},
+    {k:'CLOSING',   n:'結案',             d:'待補',               s:'plan'},
+   ],
+   ms:[
+    {t:'第二次修改需求書確認', d:'2026-09-19', s:'ok', folder:'p03_rev'},
+    {t:'87 個素材檔確認哪些已上站', d:'待補', s:'doing', folder:'p03_mat',
+     tasks:[['TODO','逐檔標記已上站／未上站','未開始'],
+            ['REVIEW','證書們是否取得公開授權（客戶自己也還沒決定）','阻擋中']]},
+   ]},
+ ],
+};
+PLAN.p05=[{ord:1,title:'一期（已結案）',contract:'—',budget:'—',
+  stages:[{k:'PROPOSAL',n:'提案',d:'—',s:'done'},{k:'EXECUTION',n:'執行',d:'—',s:'done'},
+          {k:'ACCEPTANCE',n:'驗收',d:'—',s:'done'},{k:'CLOSING',n:'結案',d:'已申請完成、通過',s:'done'}],
+  ms:[{t:'七項文件全部「（已完成）」',d:'2026-01-27',s:'ok',folder:'p05_z1'}]}];
+PLAN.p08=[{ord:1,title:'一期',contract:'尚未報價',budget:'待補',
+  stages:[{k:'PROPOSAL',n:'提案',d:'115 年 9 月送出',s:'doing'},{k:'CONTRACT',n:'接案（合約）',d:'待補',s:'plan'},
+          {k:'EXECUTION',n:'執行',d:'待補',s:'plan'},{k:'ACCEPTANCE',n:'驗收',d:'待補',s:'plan'}],
+  ms:[{t:'M01 需求訪談',d:'2026-09-04 研討會討論',s:'ok',folder:'p08_mt'},
+      {t:'M02 範圍與邊界文件',d:'待補',s:'plan'},{t:'M03 報價／合約',d:'待補',s:'plan'}]}];
+PLAN.p10=[{ord:1,title:'一期',contract:'尚未報價',budget:'待補',
+  stages:[{k:'PROPOSAL',n:'提案',d:'2026-07-17 →',s:'doing'},{k:'CONTRACT',n:'接案（合約）',d:'待補',s:'plan'},
+          {k:'EXECUTION',n:'執行',d:'待補',s:'plan'},{k:'ACCEPTANCE',n:'驗收',d:'待補',s:'plan'}],
+  ms:[{t:'M01 需求訪談',d:'2026-07-17',s:'ok',folder:'p10_m1',
+       tasks:[['TODO','估算人日與報價','未開始'],['TODO','決定與 11（跨專業）是否同一客戶群','未開始']]},
+      {t:'M02 範圍與邊界文件',d:'待補',s:'plan'},{t:'M03 報價／合約',d:'待補',s:'plan'}]}];
+PLAN.p12=[{ord:1,title:'一期（單店後台導入）',contract:'建置方案與報價（提案日 2026/9/30）',budget:'推薦方案三 120,000 ＋ 一年維護綁約',
+  stages:[{k:'PROPOSAL',n:'提案',d:'2026-09-30 → 2026-10-30（有效期）',s:'late'},
+          {k:'CONTRACT',n:'接案（合約）',d:'待補',s:'plan'},
+          {k:'EXECUTION',n:'執行（W1 起 12 週）',d:'待補',s:'plan'},
+          {k:'ACCEPTANCE',n:'驗收（保固 1 月）',d:'待補',s:'plan'}],
+  ms:[{t:'報價有效期截止（逾期回標準價 150,000）',d:'2026-10-30',s:'doing',
+       tasks:[['TODO','確認對方是否已回覆','未開始'],['REVIEW','逾期是否延期或重報','阻擋中']]}]}];
+
+/* 聊天（mock，示意一列一訊息 ＋ 附件落入收件匣） */
+const CHAT = {
+ p01:[
+  {w:'yz', n:'戴宇星', t:'09-28 10:12', x:'尾款的部分我先把請款單準備好，等 M08 的驗收單回簽再送。'},
+  {w:'lily', n:'Lily', t:'09-28 10:20', x:'專案財務.xlsx 裡第一期之二的狀態欄是空的，那是沒收還是忘了標？'},
+  {w:'yz', n:'戴宇星', t:'09-28 10:24', x:'要對一次。空白不等於未收，猜錯整個現金預測會偏移。'},
+  {w:'lily', n:'Lily', t:'10-02 14:31', x:'客戶傳了第二次修改的 Sitemap。', at:'Sitemap第二次修改需求確認.pdf',
+   up:'附件未指定資料夾 → 落在收件匣，filedAt = null'},
+ ],
+};
+['p03','p05','p08','p10','p12'].forEach(k=>CHAT[k]=[]);
+
+/* ===========================================================================
+   圖示（inline SVG，沿用 v5 icon 表的既有 key：folder / file / image / audio /
+   video / paperclip / download / lock…，不新增視覺語彙）
+   =========================================================================== */
+const SV=(d,o)=>'<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"'+(o||'')+'>'+d+'</svg>';
+const IC={
+ car:SV('<path d="M6 3.5 10.5 8 6 12.5"/>'),
+ folder:SV('<path d="M1.8 4.4a1 1 0 0 1 1-1h3L7 5h6.2a1 1 0 0 1 1 1v5.9a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1z"/>'),
+ folderOpen:SV('<path d="M1.8 12.4V4.4a1 1 0 0 1 1-1h3L7 5h6.2a1 1 0 0 1 1 1v1"/><path d="M1.8 12.4 3.6 7.3h11l-1.8 5.1z"/>'),
+ inbox:SV('<path d="M1.8 8.6h3.1l.9 1.7h4.4l.9-1.7h3.1"/><path d="M3.3 3.4h9.4l1.5 5.2v3.2a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1V8.6z"/>'),
+ mtg:SV('<rect x="2" y="3.2" width="12" height="10.4" rx="1.3"/><path d="M2 6.3h12M5.3 1.9v2.3M10.7 1.9v2.3"/><circle cx="8" cy="9.8" r="1.2"/>'),
+ shared:SV('<circle cx="5" cy="8" r="2"/><circle cx="11.6" cy="4.4" r="1.7"/><circle cx="11.6" cy="11.6" r="1.7"/><path d="M6.7 7 10 5.2M6.7 9l3.3 1.8"/>'),
+ lock:SV('<rect x="3.2" y="7" width="9.6" height="6.4" rx="1.2"/><path d="M5.4 7V5.2a2.6 2.6 0 0 1 5.2 0V7"/>'),
+ star:SV('<path d="M8 2.2 9.7 6l4 .4-3 2.7.9 3.9L8 11l-3.6 2 .9-3.9-3-2.7 4-.4z"/>'),
+ file:SV('<path d="M4 1.9h5l3 3v9.2H4z"/><path d="M9 1.9v3h3"/>'),
+ img:SV('<rect x="2" y="3" width="12" height="10" rx="1.2"/><circle cx="5.8" cy="6.4" r="1.1"/><path d="M2.4 11.6 6 8.3l2.4 2.1L10.6 8l3 3.4"/>'),
+ aud:SV('<path d="M9.6 2.4v8.2"/><circle cx="7.4" cy="11" r="2.2"/><path d="M9.6 2.4 13.6 3.6v2.2L9.6 4.6"/>'),
+ vid:SV('<rect x="1.8" y="4" width="8.6" height="8" rx="1.2"/><path d="M10.4 7.4 14.2 5.2v5.6l-3.8-2.2z"/>'),
+ chat:SV('<path d="M2 4.2a1.2 1.2 0 0 1 1.2-1.2h9.6A1.2 1.2 0 0 1 14 4.2v5.4a1.2 1.2 0 0 1-1.2 1.2H6.4L3.4 13.4v-2.6H3.2A1.2 1.2 0 0 1 2 9.6z"/>'),
+ plan:SV('<path d="M8 1.9 11.4 5.3 8 8.7 4.6 5.3z"/><path d="M3.2 10.4h9.6M3.2 13h6.4"/>'),
+ line:SV('<rect x="1.9" y="3" width="12.2" height="8.6" rx="2.4"/><path d="M5.4 13.6 7.6 11.6"/><path d="M4.6 6.2v3.1M4.6 6.2h1.9M4.6 7.8h1.5M8.6 9.3V6.2l2.3 3.1V6.2"/>'),
+ cal:SV('<rect x="2" y="3.2" width="12" height="10.4" rx="1.3"/><path d="M2 6.3h12M5.3 1.9v2.3M10.7 1.9v2.3"/>'),
+ eye:SV('<path d="M1.5 8S3.8 4 8 4s6.5 4 6.5 4-2.3 4-6.5 4-6.5-4-6.5-4z"/><circle cx="8" cy="8" r="1.9"/>'),
+ dup:SV('<rect x="2.2" y="2.2" width="8" height="8" rx="1.2"/><path d="M5.8 13.8h7a1 1 0 0 0 1-1v-7"/>'),
+ move:SV('<path d="M8 2.4v11.2M8 2.4 5.2 5.2M8 2.4l2.8 2.8"/>'),
+ edit:SV('<path d="M11.2 2.4 13.6 4.8 5.6 12.8 2.4 13.6l.8-3.2z"/>'),
+ plus:SV('<path d="M8 3.2v9.6M3.2 8h9.6"/>'),
+ warn:SV('<path d="M8 2.2 14.6 13.4H1.4z"/><path d="M8 6.4v3.2M8 11.4v.1"/>'),
+};
+function fIcon(ext){
+  if(['jpg','png','heic','svg'].includes(ext)) return IC.img;
+  if(['mp3','m4a'].includes(ext)) return IC.aud;
+  if(ext==='mp4') return IC.vid;
+  return IC.file;
+}
+function kIcon(n,open){
+  if(n.kind==='INBOX') return IC.inbox;
+  if(n.kind==='MEETING') return IC.mtg;
+  if(n.kind==='SHARED') return IC.shared;
+  if(n.kind==='INTERNAL') return IC.lock;
+  if(n.kind==='MILESTONE') return IC.star;
+  if(n.kind==='LINE_DROP') return IC.line;
+  return open?IC.folderOpen:IC.folder;
+}
+
+/* ===========================================================================
+   狀態與工具
+   =========================================================================== */
+let S={ proj:'p01', sel:'p01_root', checked:new Set(), renaming:null, seq:1 };
+const byId = id => NODES.find(n=>n.id===id);
+const kids = id => NODES.filter(n=>n.pid===id);
+const rootOf = p => p+'_root';
+const inboxOf = p => NODES.find(n=>n.proj===p && n.kind==='INBOX');
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function pathOf(id){const a=[];let n=byId(id);while(n){a.unshift(n);n=n.pid?byId(n.pid):null;}return a;}
+function subtreeFiles(id){
+  const out=[]; (function w(i){ kids(i).forEach(c=>{ if(c.t==='file') out.push(c); else w(c.id); }); })(id);
+  return out;
+}
+function allFiles(p){ return NODES.filter(n=>n.proj===p && n.t==='file'); }
+function proj(){ return PROJECTS.find(p=>p.id===S.proj); }
+
+let toastT;
+function toast(msg,sub){
+  const el=document.getElementById('toast');
+  el.innerHTML=esc(msg)+(sub?'<div class="sub">'+esc(sub)+'</div>':'');
+  el.classList.add('on'); clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('on'),3400);
+}
+
+/* ===========================================================================
+   左欄：樹
+   =========================================================================== */
+function renderChips(){
+  document.getElementById('chips').innerHTML = PROJECTS.map(p=>{
+    const inb = inboxOf(p.id); const n = inb?kids(inb.id).filter(x=>x.t==='file').length:0;
+    return '<button class="chip'+(p.id===S.proj?' on':'')+'" data-p="'+p.id+'">'+
+      '<span class="dot" style="background:'+p.color+'"></span>'+
+      '<span class="no">'+p.no+'</span>'+esc(p.name)+
+      (n?'<span class="pill inbox">'+n+'</span>':'')+'</button>';
+  }).join('') + '<button class="chip" style="opacity:.55">＋ 新專案</button>';
+  document.querySelectorAll('#chips .chip[data-p]').forEach(b=>b.onclick=()=>{
+    S.proj=b.dataset.p; S.sel=rootOf(S.proj); S.checked.clear(); renderAll();
+  });
+}
+
+function treeRow(n,depth){
+  const ch = kids(n.id).filter(c=>c.t==='folder');   /* 樹只畫資料夾；檔案在右欄 */
+  const hasCh = ch.length>0;
+  const open = !!n.open;
+  const isSel = S.sel===n.id;
+  const fileCount = n.t==='folder' ? kids(n.id).filter(c=>c.t==='file').length : 0;
+  let pills='';
+  if(n.kind==='INBOX'){ const c=kids(n.id).filter(x=>x.t==='file').length; pills+='<span class="pill inbox">待整理 '+c+'</span>'; }
+  if(n.vis==='client') pills+='<span class="pill cli">客戶可見</span>';
+  if(n.sens===1) pills+='<span class="pill int">內部</span>';
+  if(n.sens===2) pills+='<span class="pill sec2">最高敏感</span>';
+  if(n.ms) pills+='<span class="pill ms">'+n.ms+'</span>';
+
+  const renaming = S.renaming===n.id;
+  let h='<div class="row'+(isSel?' on':'')+(n.sys?' sysf':'')+(n.disabled?' dis':'')+'" '+
+      'data-id="'+n.id+'" style="padding-left:'+(6+depth*14)+'px"'+
+      (n.t==='folder'&&!n.disabled?' data-drop="1"':'')+'>';
+  h+= hasCh ? '<span class="car'+(open?' open':'')+'" data-car="'+n.id+'">'+IC.car+'</span>'
+            : '<span class="car"></span>';
+  h+= '<span class="gl" style="color:'+glColor(n)+'">'+kIcon(n,open)+'</span>';
+  h+= renaming
+      ? '<input class="ren" value="'+esc(n.name)+'" data-ren="'+n.id+'">'
+      : '<span class="lb" title="'+esc(n.name)+'">'+esc(n.name)+'</span>';
+  h+= pills;
+  if(!renaming && fileCount) h+='<span class="ct">'+fileCount+'</span>';
+  if(!renaming && !n.disabled && n.t==='folder'){
+    h+='<span class="act">';
+    h+='<button class="ico-btn" data-add="'+n.id+'" title="新增子資料夾">'+IC.plus+'</button>';
+    if(!n.sys) h+='<button class="ico-btn" data-rn="'+n.id+'" title="重新命名">'+IC.edit+'</button>';
+    h+='</span>';
+  }
+  h+='</div>';
+  if(hasCh && open) h += ch.map(c=>treeRow(c,depth+1)).join('');
+  return h;
+}
+function glColor(n){
+  if(n.kind==='INBOX') return 'var(--warn)';
+  if(n.kind==='MEETING') return 'var(--teal)';
+  if(n.kind==='SHARED') return 'var(--teal)';
+  if(n.kind==='INTERNAL') return 'var(--danger)';
+  if(n.kind==='MILESTONE') return 'var(--pri)';
+  if(n.kind==='LINE_DROP') return 'var(--text-3)';
+  if(n.kind==='ROOT') return 'var(--text-2)';
+  return 'var(--warn)';
+}
+
+function renderTree(){
+  const p=proj();
+  let h='';
+  /* ── 第一段：掛載點。不是資料夾（glyph 不是 ▸ folder） ───────────────── */
+  h+='<div class="sec">掛載點 <span class="hint">· 非資料夾</span></div>';
+  MOUNTS.forEach(m=>{
+    const dis=m.disabled;
+    h+='<div class="row'+(S.sel===m.id?' on':'')+(dis?' dis':'')+'" data-id="'+m.id+'" style="padding-left:6px">'+
+       '<span class="car"></span><span class="gl" style="color:'+(dis?'var(--text-3)':'var(--info)')+'">'+IC[m.icon]+'</span>'+
+       '<span class="lb">'+esc(m.name)+'</span>'+
+       (dis?'<span class="pill int">停用</span>':'')+
+       (m.id==='m_chat'&&(CHAT[S.proj]||[]).length?'<span class="ct">'+CHAT[S.proj].length+'</span>':'')+
+       (m.id==='m_plan'?'<span class="pill ms">期 '+(PLAN[S.proj]||[]).length+'</span>':'')+
+       '</div>';
+  });
+  /* ── 第二段：檔案（真資料夾樹，收件匣就在樹上） ───────────────────────── */
+  h+='<div class="sec">檔案 <span class="hint">· parentId 樹 · '+esc(p.src)+'</span></div>';
+  h+=treeRow(byId(rootOf(S.proj)),0);
+  /* ── 第三段：視圖（同一棵樹的篩選，不是第四個儲存體） ─────────────────── */
+  h+='<div class="sec">視圖 <span class="hint">· 同一棵樹的篩選</span></div>';
+  VIEWS.forEach(v=>{
+    h+='<div class="row'+(S.sel===v.id?' on':'')+'" data-id="'+v.id+'" style="padding-left:6px">'+
+       '<span class="car"></span><span class="gl" style="color:var(--text-3)">'+IC[v.icon]+'</span>'+
+       '<span class="lb">'+esc(v.name)+'</span></div>';
+  });
+  const tr=document.getElementById('tree'); tr.innerHTML=h;
+  bindTree(tr);
+}
+
+function bindTree(tr){
+  tr.querySelectorAll('.row').forEach(r=>{
+    const id=r.dataset.id;
+    if(!id) return;
+    r.onclick=e=>{
+      if(e.target.closest('[data-car]')){ const n=byId(id); if(n){n.open=!n.open; renderTree();} return; }
+      if(e.target.closest('[data-add]')||e.target.closest('[data-rn]')||e.target.closest('input')) return;
+      const n=byId(id);
+      if(n&&n.disabled){ S.sel='m_line'; renderAll(); return; }
+      if(MOUNTS.find(m=>m.id===id&&m.disabled)){ S.sel=id; renderAll(); return; }
+      S.sel=id; S.checked.clear(); renderAll();
+    };
+    /* 拖放目標：檔案列拖到資料夾列 → 搬移（只改 folderId，objectKey 不動） */
+    if(r.dataset.drop){
+      r.ondragover=e=>{e.preventDefault(); r.classList.add('drop');};
+      r.ondragleave=()=>r.classList.remove('drop');
+      r.ondrop=e=>{
+        e.preventDefault(); r.classList.remove('drop');
+        const fid=e.dataTransfer.getData('text/plain');
+        if(fid) doMove([fid], id);
+      };
+    }
+  });
+  tr.querySelectorAll('[data-car]').forEach(c=>c.onclick=e=>{
+    e.stopPropagation(); const n=byId(c.dataset.car); n.open=!n.open; renderTree();
+  });
+  tr.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{e.stopPropagation(); addFolder(b.dataset.add);});
+  tr.querySelectorAll('[data-rn]').forEach(b=>b.onclick=e=>{e.stopPropagation(); startRename(b.dataset.rn);});
+  const inp=tr.querySelector('[data-ren]');
+  if(inp){
+    inp.focus(); inp.select();
+    inp.onkeydown=e=>{
+      if(e.key==='Enter') commitRename(inp.dataset.ren, inp.value);
+      if(e.key==='Escape'){ S.renaming=null; renderTree(); }
+    };
+    inp.onblur=()=>commitRename(inp.dataset.ren, inp.value);
+  }
+}
+
+/* ── 流程 ①：新增資料夾 ───────────────────────────────────────────────── */
+function addFolder(parentId){
+  const par=byId(parentId);
+  if(!par||par.t!=='folder'){ toast('只能在資料夾底下新增'); return; }
+  if(par.kind==='LINE_DROP'){ toast('LINE 落點本階段停用'); return; }
+  const id='nf_'+(S.seq++);
+  let base='未命名資料夾', name=base, i=2;
+  while(kids(parentId).some(c=>c.name===name)) name=base+' '+(i++);
+  NODES.push({id, pid:parentId, proj:par.proj, t:'folder', kind:'GENERIC', name,
+    vis: par.vis==='client'?'client':'internal', sens: par.sens||0, open:true});
+  par.open=true; S.sel=id; S.renaming=id; renderAll();
+  toast('已新增資料夾','同層唯一性由 @@unique([parentId, nameNormalized]) 擋；繼承父層可見性 '+(par.vis==='client'?'client_visible':'internal'));
+}
+/* ── 流程 ②：重新命名 ─────────────────────────────────────────────────── */
+function startRename(id){
+  const n=byId(id);
+  if(n.sys){ toast('系統資料夾不可改名','ROOT 與 INBOX 的 isSystem = true'); return; }
+  S.renaming=id; renderTree();
+}
+function commitRename(id,val){
+  const n=byId(id); if(!n){S.renaming=null;renderTree();return;}
+  const v=(val||'').trim();
+  S.renaming=null;
+  if(!v||v===n.name){ renderAll(); return; }
+  if(kids(n.pid).some(c=>c.id!==id && c.name===v)){
+    toast('同層已有同名資料夾','被 @@unique([parentId, nameNormalized]) 擋下'); renderAll(); return;
+  }
+  const old=n.name; n.name=v; renderAll();
+  toast('已改名：'+old+' → '+v,'R2 不需要搬任何 bytes —— objectKey 不含路徑與檔名');
+}
+/* ── 流程 ③：搬移（收件匣 → 正確資料夾） ──────────────────────────────── */
+function doMove(fileIds, toId){
+  const to=byId(toId);
+  if(!to||to.t!=='folder'){ toast('目標不是資料夾'); return; }
+  if(to.kind==='LINE_DROP'||to.disabled){ toast('LINE 落點本階段停用'); return; }
+  let moved=0, filed=0;
+  fileIds.forEach(fid=>{
+    const f=byId(fid); if(!f||f.t!=='file') return;
+    const fromInbox = byId(f.pid) && byId(f.pid).kind==='INBOX';
+    f.pid=toId; moved++;
+    if(fromInbox && to.kind!=='INBOX'){ f.filed=true; filed++; }
+    /* 可見性跟著目標資料夾走：資料夾的 visibility 是授權來源，不是標籤 */
+    if(to.vis==='client' && f.sens>=1){
+      f.blocked=true;
+    } else if(to.vis==='client'){ f.vis='client'; }
+    else f.vis='internal';
+  });
+  to.open=true;
+  S.checked.clear();
+  renderAll();
+  const blocked = fileIds.map(byId).filter(f=>f&&f.blocked);
+  toast('已搬移 '+moved+' 個檔案到「'+to.name+'」',
+    (filed?'filedAt 已寫入（離開收件匣）· ':'')+'只更新 folderId，R2 的 objectKey 一個字都沒變'+
+    (blocked.length?' · '+blocked.length+' 個敏感檔拒絕轉為 client_visible':''));
+  blocked.forEach(f=>f.blocked=false);
+}
+function openMoveDialog(fileIds){
+  if(!fileIds.length){ toast('先選要搬的檔案'); return; }
+  document.getElementById('ovt').textContent='搬移 '+fileIds.length+' 個檔案到…';
+  const root=byId(rootOf(S.proj));
+  let h='<div class="note-sm" style="padding:4px 6px 8px">目標資料夾決定可見性。<code>kind=\'INTERNAL\'</code> 與合約類資料夾禁止被設為 client_visible。</div>';
+  (function w(n,d){
+    const bad = n.kind==='LINE_DROP'||n.disabled;
+    h+='<div class="pick'+(bad?' no':'')+'" '+(bad?'':'data-to="'+n.id+'"')+' style="padding-left:'+(6+d*14)+'px">'+
+       '<span class="gl" style="color:'+glColor(n)+'">'+kIcon(n,true)+'</span>'+esc(n.name)+
+       (n.vis==='client'?'<span class="pill cli">客戶可見</span>':'')+
+       (n.kind==='INBOX'?'<span class="pill inbox">收件匣</span>':'')+'</div>';
+    kids(n.id).filter(c=>c.t==='folder').forEach(c=>w(c,d+1));
+  })(root,0);
+  const ovc=document.getElementById('ovc'); ovc.innerHTML=h;
+  let target=null;
+  ovc.querySelectorAll('[data-to]').forEach(el=>el.onclick=()=>{
+    ovc.querySelectorAll('.pick').forEach(x=>x.classList.remove('on'));
+    el.classList.add('on'); target=el.dataset.to;
+  });
+  document.getElementById('ovok').onclick=()=>{
+    if(!target){ toast('先選一個目標資料夾'); return; }
+    doMove(fileIds, target); closeOv();
+  };
+  document.getElementById('ov').classList.add('on');
+}
+function closeOv(){ document.getElementById('ov').classList.remove('on'); }
+
+/* ===========================================================================
+   右欄
+   =========================================================================== */
+function renderCrumb(){
+  const el=document.getElementById('crumb'); const act=document.getElementById('mact');
+  const p=proj(); let h=''; act.innerHTML='';
+  const mount=MOUNTS.find(m=>m.id===S.sel), view=VIEWS.find(v=>v.id===S.sel);
+  if(mount){ h='<span>'+esc(p.no)+' '+esc(p.name)+'</span><span class="sl">/</span><b>'+esc(mount.name)+'</b><span class="sl">·</span><span class="m">'+esc(mount.sub)+'</span>'; }
+  else if(view){ h='<span>'+esc(p.no)+' '+esc(p.name)+'</span><span class="sl">/</span><b>'+esc(view.name)+'</b><span class="sl">·</span><span class="m">'+esc(view.sub)+'</span>'; }
+  else {
+    const pa=pathOf(S.sel);
+    h=pa.map((n,i)=> (i?'<span class="sl">/</span>':'') + (i===pa.length-1?'<b>'+esc(n.name)+'</b>':'<a href="#" data-cr="'+n.id+'">'+esc(n.name)+'</a>')).join('');
+    const n=byId(S.sel);
+    if(n&&n.t==='folder'&&!n.disabled){
+      act.innerHTML='<button class="btn" id="a-add">'+IC.plus+' 新增子資料夾</button>'+
+        (n.sys?'':'<button class="btn" id="a-rn">'+IC.edit+' 重新命名</button>');
+      const a=act.querySelector('#a-add'); if(a) a.onclick=()=>addFolder(n.id);
+      const b=act.querySelector('#a-rn'); if(b) b.onclick=()=>startRename(n.id);
+    }
+  }
+  el.innerHTML=h;
+  el.querySelectorAll('[data-cr]').forEach(a=>a.onclick=e=>{e.preventDefault(); S.sel=a.dataset.cr; S.checked.clear(); renderAll();});
+}
+
+function fileRows(list,{showPath=false}={}){
+  if(!list.length) return '<div class="body" style="padding:18px;color:var(--text-3);font-size:11.5px">這個資料夾目前是空的。</div>';
+  let h='<table><thead><tr><th style="width:26px"></th><th>名稱</th>'+
+    (showPath?'<th>位置</th>':'')+
+    '<th style="width:70px">型態</th><th class="r" style="width:76px">大小</th>'+
+    '<th style="width:96px">可見性</th><th style="width:72px">里程碑</th><th class="r" style="width:84px">更新</th></tr></thead><tbody>';
+  list.forEach(f=>{
+    const ck=S.checked.has(f.id);
+    h+='<tr class="'+(ck?'sel':'')+'" data-f="'+f.id+'"'+(f.ghost?'':' draggable="true"')+'>';
+    h+='<td>'+(f.ghost?'':'<input type="checkbox" class="cb" data-ck="'+f.id+'"'+(ck?' checked':'')+'>')+'</td>';
+    h+='<td><div class="fname"><span style="color:var(--text-3);flex:none">'+fIcon(f.ext)+'</span>'+
+       '<span class="lb" title="'+esc(f.name)+'">'+esc(f.name)+'</span>'+
+       (f.dup?'<span class="pill dup" title="與另一個檔內容完全相同（contentHash）">⧉ 重複</span>':'')+
+       (f.big?'<span class="pill big" title="超過 multipart 門檻 64 MiB">大檔</span>':'')+
+       (f.deny?'<span class="pill int" title="一般上傳白名單拒絕，只對匯入路徑放寬">匯入限定</span>':'')+
+       (f.four?'<span class="pill ms">'+esc(f.four)+'</span>':'')+
+       '</div>'+(f.note?'<div class="note-sm" style="margin-top:3px">'+esc(f.note)+'</div>':'')+'</td>';
+    if(showPath){ const pa=pathOf(f.id); h+='<td class="m" style="font-size:10px;color:var(--text-3)">'+esc(pa.slice(1,-1).map(x=>x.name).join(' / ')||'—')+'</td>'; }
+    h+='<td class="m" style="color:var(--text-3);font-size:10.5px">'+esc(f.ext==='more'?'—':f.ext)+'</td>';
+    h+='<td class="r m" style="font-size:10.5px">'+esc(f.size)+'</td>';
+    h+='<td>'+visBadge(f)+'</td>';
+    h+='<td>'+(f.ms?'<span class="pill ms">'+esc(f.ms)+'</span>':'<span style="color:var(--text-3)">—</span>')+'</td>';
+    h+='<td class="r m" style="font-size:10px;color:var(--text-3)">'+esc(f.mt)+'</td>';
+    h+='</tr>';
+  });
+  return h+'</tbody></table>';
+}
+/* 約束#5：每一列都說得出它是不是可以給客戶看，以及為什麼 */
+function visBadge(f){
+  if(f.sens===2) return '<span class="lock s">⛔ 最高敏感 · 不建索引</span>';
+  if(f.sens===1) return '<span class="lock i">🔒 內部 · 禁對客戶</span>';
+  if(f.vis==='client') return '<span class="lock c">◉ 客戶可見</span>';
+  return '<span class="lock i">內部</span>';
+}
+
+function bindFileTable(scope){
+  scope.querySelectorAll('[data-ck]').forEach(cb=>cb.onclick=e=>{
+    e.stopPropagation();
+    const id=cb.dataset.ck;
+    if(cb.checked) S.checked.add(id); else S.checked.delete(id);
+    renderPane();
+  });
+  scope.querySelectorAll('tr[data-f]').forEach(tr=>{
+    tr.ondragstart=e=>{ e.dataTransfer.setData('text/plain', tr.dataset.f); e.dataTransfer.effectAllowed='move'; };
+  });
+}
+
+function selToolbar(ids){
+  if(!ids.length) return '';
+  return '<div class="banner i" style="align-items:center">'+
+    '<b>已選 '+ids.length+' 個檔案</b>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btn pri" id="btn-move">'+IC.move+' 搬移到…</button>'+
+    '<button class="btn" id="btn-clear">清除</button></div>';
+}
+function bindSel(scope,ids){
+  const m=scope.querySelector('#btn-move'); if(m) m.onclick=()=>openMoveDialog(ids);
+  const c=scope.querySelector('#btn-clear'); if(c) c.onclick=()=>{S.checked.clear(); renderPane();};
+}
+
+/* ── 右欄主渲染 ───────────────────────────────────────────────────────── */
+function renderPane(){
+  const pane=document.getElementById('pane');
+  const p=proj();
+  let h='';
+  if(S.sel==='m_chat') h=renderChat();
+  else if(S.sel==='m_plan') h=renderPlan();
+  else if(S.sel==='m_line') h=renderLine();
+  else if(S.sel==='v_mtg') h=renderViewMeetings();
+  else if(S.sel==='v_cli') h=renderViewClient();
+  else if(S.sel==='v_sens') h=renderViewSens();
+  else if(S.sel==='v_dup') h=renderViewDup();
+  else {
+    const n=byId(S.sel);
+    if(!n) h='<div class="card"><div class="c">找不到節點</div></div>';
+    else if(n.kind==='ROOT') h=renderRoot(n);
+    else if(n.kind==='INBOX') h=renderInbox(n);
+    else if(n.kind==='MEETING') h=renderMeeting(n);
+    else if(n.kind==='LINE_DROP') h=renderLine();
+    else h=renderFolder(n);
+  }
+  pane.innerHTML=h;
+  bindFileTable(pane);
+  bindSel(pane, [...S.checked]);
+  pane.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{
+    const [fid,tid]=b.dataset.sg.split('|'); doMove([fid],tid);
+  });
+  pane.querySelectorAll('[data-go]').forEach(a=>a.onclick=e=>{
+    e.preventDefault(); const id=a.dataset.go;
+    pathOf(id).forEach(x=>{if(x.t==='folder') x.open=true;});
+    S.sel=id; S.checked.clear(); renderAll();
+  });
+  pane.querySelectorAll('[data-jump]').forEach(a=>a.onclick=e=>{e.preventDefault(); S.sel=a.dataset.jump; renderAll();});
+}
+
+/* ── 專案根：這是 C 的「總覽」，期 ribbon 在這裡第一眼就看得到 ──────────── */
+function renderRoot(n){
+  const p=proj();
+  const files=subtreeFiles(n.id).filter(f=>!f.ghost);
+  const inb=inboxOf(p.id), inbN=kids(inb.id).filter(x=>x.t==='file').length;
+  const cli=files.filter(f=>f.vis==='client'&&f.sens===0).length;
+  const sens=files.filter(f=>f.sens>=1).length;
+  const dup=files.filter(f=>f.dup).length;
+  const cyc=PLAN[p.id]||[];
+  let h='';
+  h+='<div class="grid3">'+
+     card('','<div class="kv"><div class="k">生命週期</div><div class="v sm p">'+esc(stageLabel(p.stage))+'</div><div class="note-sm">第 '+p.round+' 期'+(p.tier?' · priorityTier '+p.tier:'')+'</div></div>')+
+     card('','<div class="kv"><div class="k">待整理</div><div class="v '+(inbN?'w':'')+'">'+inbN+'</div><div class="note-sm">收件匣是樹上的真資料夾</div></div>')+
+     card('','<div class="kv"><div class="k">敏感 / 可給客戶</div><div class="v"><span class="d">'+sens+'</span> <span style="color:var(--text-3);font-size:12px">/</span> <span class="o">'+cli+'</span></div><div class="note-sm">預設 internal，共用夾才 client_visible</div></div>')+
+     card('','<div class="kv"><div class="k">內容重複</div><div class="v '+(dup?'p':'')+'">'+dup+'</div><div class="note-sm">刻意並存，不自動去重</div></div>')+
+     '</div>';
+  h+='<div class="banner n"><span class="ic" style="color:var(--text-3)">'+IC.folder+'</span><div>'+
+     '<b>'+esc(p.client)+'</b> · '+esc(p.head)+'<br>'+
+     '<span class="note-sm">來源：<code>'+esc(p.src)+'</code> · 系統鍵 <code>'+esc(p.ref)+'</code> · '+
+     'legacyFolderNo <code>'+esc(p.no)+'</code>（週會上就是用這個號在講話，所以 <code>@'+esc(p.no)+'</code> 必須搜得到）</span></div></div>';
+  /* 約束#2：期這一層在總覽就畫出來 */
+  h+='<div class="card"><div class="h"><span class="t">期 → 階段</span>'+
+      '<span class="s">ProjectPhaseCycle → ProjectPhaseNode。「現在走到哪」是推導的，不是存的。</span>'+
+      '<div class="sp"></div><button class="btn" data-jump="m_plan">看完整規劃 →</button></div><div class="c">'+
+      cyc.map(cycRibbon).join('')+'</div></div>';
+  h+='<div class="card"><div class="h"><span class="t">這個專案的資料夾（第一層）</span><span class="s">Owner 既有慣例一比一照搬</span></div>'+
+     '<div class="c" style="display:flex;flex-direction:column;gap:5px">'+
+     kids(n.id).filter(c=>c.t==='folder').map(c=>
+       '<a href="#" data-go="'+c.id+'" style="display:flex;align-items:center;gap:7px;padding:6px 7px;border:1px solid var(--border);border-radius:6px;color:var(--text)">'+
+       '<span style="color:'+glColor(c)+'">'+kIcon(c,false)+'</span><span style="flex:1">'+esc(c.name)+'</span>'+
+       (c.vis==='client'?'<span class="pill cli">客戶可見</span>':'')+
+       (c.sens===1?'<span class="pill int">內部</span>':'')+
+       (c.disabled?'<span class="pill int">停用</span>':'')+
+       '<span class="ct m" style="color:var(--text-3)">'+subtreeFiles(c.id).filter(f=>!f.ghost).length+' 檔</span></a>').join('')+
+     '</div></div>';
+  h+='<div class="note-sm">本原型為真實 <code>0_工作區</code> 結構的<b>節錄</b>。全量盤點：202 檔／417.41 MiB／51 夾／最深 5 層；型態 docx 58・pdf 48・jpg 49・png 21・mp3 1・m4a 2・xlsx 1。金額沒有可靠來源的一律寫「待補」。</div>';
+  return h;
+}
+function stageLabel(s){
+  return {PROPOSING:'提案 PROPOSING',CONTRACTED:'接案 CONTRACTED',EXECUTING:'執行 EXECUTING',
+          ACCEPTANCE:'驗收 ACCEPTANCE',CLOSED:'結案 CLOSED'}[s]||s;
+}
+function cycRibbon(c){
+  return '<div class="cyc'+(c.future?' future':'')+'">'+
+   '<div class="ch"><span class="ord">期 '+c.ord+'</span><span class="tt">'+esc(c.title)+'</span>'+
+   '<span class="mt">合約：'+esc(c.contract)+' · 預算：'+esc(c.budget)+'</span><div class="sp"></div>'+
+   (c.future?'<span class="pill int">待啟動</span>':'')+'</div>'+
+   '<div class="stages">'+c.stages.map(s=>
+     '<div class="stg '+s.s+'"><div class="sk">'+s.k+'</div><div class="sn">'+esc(s.n)+'</div><div class="sd">'+esc(s.d)+'</div></div>').join('')+
+   '</div></div>';
+}
+function card(title,inner,sub){
+  return '<div class="card">'+(title?'<div class="h"><span class="t">'+esc(title)+'</span>'+(sub?'<span class="s">'+esc(sub)+'</span>':'')+'</div>':'')+'<div class="c">'+inner+'</div></div>';
+}
+
+/* ── 約束#3：收件匣版面 —— 完整的「進收件匣 → 整理到正確資料夾」流程 ────── */
+function renderInbox(n){
+  const files=kids(n.id).filter(f=>f.t==='file');
+  const ids=[...S.checked].filter(id=>files.some(f=>f.id===id));
+  let h='';
+  h+='<div class="banner w"><span class="ic" style="color:var(--warn)">'+IC.inbox+'</span><div>'+
+     '<b>收件匣是這棵樹上的一個真資料夾</b>（<code>kind=\'INBOX\'</code>、<code>isSystem=true</code>），不是另一個分頁、不是 <code>folderId IS NULL</code> 的虛擬視圖。<br>'+
+     '任何沒有指定位置的上傳（手機拍照、⌘V、聊天室附件、會議錄音直傳、未來的 LINE 媒體）都落在這裡，<code>filedAt = null</code>。'+
+     '「整理」就是把 <code>folderId</code> 改掉並寫 <code>filedAt</code> —— <b>一個 byte 都不動</b>。</div></div>';
+  h+= selToolbar(ids);
+  h+='<div class="card"><div class="h"><span class="t">待整理</span><span class="s">'+files.length+' 個檔案 · 勾選後用「搬移到…」，或直接把列拖到左欄的資料夾上</span></div>'+fileRows(files)+'</div>';
+  /* 建議歸檔：依檔名慣例推，但一律要人按 */
+  const sug=files.map(f=>suggest(f)).filter(Boolean);
+  if(sug.length){
+    h+='<div class="card"><div class="h"><span class="t">建議歸檔</span><span class="s">依 Owner 既有的檔名慣例推測，一律要人按下才生效</span></div><div class="c" style="display:flex;flex-direction:column;gap:6px">'+
+      sug.map(s=>'<div style="display:flex;align-items:center;gap:8px;padding:6px 7px;border:1px solid var(--border);border-radius:6px">'+
+        '<span style="color:var(--text-3)">'+fIcon(s.f.ext)+'</span>'+
+        '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.f.name)+'</span>'+
+        '<span class="note-sm">→ '+esc(s.to.name)+'（'+esc(s.why)+'）</span>'+
+        '<button class="btn pri" data-sg="'+s.f.id+'|'+s.to.id+'">採用</button></div>').join('')+
+      '</div></div>';
+  }
+  h+='<div class="note-sm">對照現況：v5 的 Evidence Repo 是一個<b>扁平的 7 格固定目錄</b>（<code>01_contract/ … 06_retro/</code>），加不了第八格、改不了名字、放不進第二層。C 要取代的就是它。</div>';
+  return h;
+}
+function suggest(f){
+  const p=f.proj;
+  const find=k=>NODES.find(n=>n.proj===p&&n.kind===k&&n.t==='folder');
+  if(/修改需求|Sitemap/.test(f.name)){ const t=find('REVISION'); if(t) return {f,to:t,why:'檔名含「修改需求」＝二期入口'}; }
+  if(/^\d{8}_M\d\d_/.test(f.name)){ const t=NODES.find(n=>n.proj===p&&n.name==='專案啟動［正式資料］'); if(t) return {f,to:t,why:'YYYYMMDD_Mnn_ ＝ 里程碑交付序列'}; }
+  if(/報價|提案/.test(f.name)){ const t=find('PROPOSAL'); if(t) return {f,to:t,why:'檔名含「報價／提案」'}; }
+  if(/照片|平面圖|logo|形象|證書/i.test(f.name)){ const t=find('MATERIAL'); if(t) return {f,to:t,why:'影像素材'}; }
+  return null;
+}
+
+/* ── 約束#4：會議資料夾 —— 屬性 ＋ 夾內材料同時顯示 ──────────────────── */
+function renderMeeting(n){
+  const m=n.meeting||{};
+  const files=kids(n.id).filter(f=>f.t==='file');
+  const ids=[...S.checked].filter(id=>files.some(f=>f.id===id));
+  const four=['錄音','逐字稿','完整紀錄','摘要'];
+  let h='';
+  h+='<div class="banner n"><span class="ic" style="color:var(--teal)">'+IC.mtg+'</span><div>'+
+     '<b>一個資料夾＝一場會議。</b>四個屬性跟著<b>資料夾</b>走，存在以 <code>folderId</code> 為主鍵的 1:1 側表 '+
+     '<code>ProjectMeeting</code>（OD-D：擴充 <code>Occasion</code> ＋ <code>folderId?</code>，不另開第二套會議真相）。'+
+     '夾內可以放錄音／逐字稿／完整紀錄／摘要等多種材料，它們是一般 <code>OperatingAsset</code>，沒有特殊型別。</div></div>';
+  h+='<div class="grid2">';
+  /* 屬性框 —— 四個必要屬性 ＋ 地點／形式；每一格空著也要顯示「—」 */
+  h+='<div class="card"><div class="h"><span class="t">會議屬性</span><span class="s">每一格 inline 可編輯</span></div>'+
+     '<div class="attrs">'+
+       at('參與者', (m.inside||[]).map(x=>'<span class="who"><i>'+esc(x[0])+'</i>'+esc(x[1])+'</span>').join('')+
+                    (m.outside?'<span class="who ext"><i>外</i>'+esc(m.outside)+'</span>':''))+
+       at('產生時間', m.at)+
+       at('結論', m.summary)+
+       at('注意事項', m.caution)+
+       at('地點', m.place)+
+       at('形式', ({online:'線上',onsite:'實體',hybrid:'混合'})[m.mode]||m.mode)+
+     '</div></div>';
+  /* 待辦 → 任務 */
+  h+='<div class="card"><div class="h"><span class="t">會議待辦</span><span class="s">可一鍵升級成 ProjectTask（三條升級路徑之一）</span></div>'+
+     (m.items&&m.items.length
+      ? '<div>'+m.items.map(it=>'<div class="mrow"><span class="dm pl"></span><span class="nm">'+esc(it[0])+'</span>'+
+          '<span class="dt">'+esc(it[1])+'</span><button class="btn" style="height:21px;font-size:10px">→ 任務</button></div>').join('')+'</div>'
+      : '<div class="c note-sm">沒有待辦。空值顯示「—」而不是隱藏那一列 —— 否則使用者不知道這裡可以填。</div>')+
+     '<div class="c" style="border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap">'+
+       '<button class="btn">結論 → 決議（OperatingDecision）</button>'+
+       '<button class="btn">連結到行事曆 Occasion</button>'+
+     '</div></div>';
+  h+='</div>';
+  h+= selToolbar(ids);
+  /* 四件套完整度 */
+  const got=four.filter(k=>files.some(f=>f.four===k));
+  h+='<div class="card"><div class="h"><span class="t">夾內材料</span>'+
+     '<span class="s">會議四件套：'+four.map(k=>(got.includes(k)?'<span style="color:var(--ok)">✓'+k+'</span>':'<span style="color:var(--text-3)">○'+k+'</span>')).join(' · ')+'</span></div>'+
+     fileRows(files)+'</div>';
+  if(got.length===4) h+='<div class="banner n"><span class="ic" style="color:var(--ok)">✓</span><div>這是整份 <code>0_工作區</code> 裡<b>唯一真的做出四件套的一場會議</b>。其餘專案的會議檔是散的 —— 樹的形狀讓「散的」與「成套的」用同一種結構表達，不需要先補齊才能入系統。</div></div>';
+  return h;
+}
+function at(k,v){
+  const empty = !v || v==='待補';
+  return '<div class="k">'+esc(k)+'</div><div class="v'+(empty?' em':'')+'">'+
+    (v? (v.indexOf('<span')===0?v:esc(v)) : '—')+'<span class="edit">✎ 編輯</span></div>';
+}
+
+/* ── 一般資料夾 ───────────────────────────────────────────────────────── */
+function renderFolder(n){
+  const subs=kids(n.id).filter(c=>c.t==='folder');
+  const files=kids(n.id).filter(c=>c.t==='file');
+  const ids=[...S.checked].filter(id=>files.some(f=>f.id===id));
+  let h='';
+  if(n.note) h+='<div class="banner n"><span class="ic" style="color:var(--text-3)">'+IC.warn+'</span><div>'+esc(n.note)+'</div></div>';
+  if(n.vis==='client') h+='<div class="banner i"><span class="ic" style="color:var(--teal)">'+IC.eye+'</span><div><b>這個資料夾對客戶可見。</b>資料夾的 <code>visibility</code> 是授權的來源，不是標籤 —— 底下的檔案跟著它走，而敏感檔會被拒絕搬進來。對客戶的分享走 <code>Project.clientToken</code> ＋ 只讀視圖，不直接貼 R2 預簽網址（網址外流無法撤銷，token 可以）。</div></div>';
+  if(n.sens===1) h+='<div class="banner d"><span class="ic" style="color:var(--danger)">'+IC.lock+'</span><div><b>內部資料夾。</b><code>kind=\'INTERNAL\'</code> 與合約類資料夾<b>禁止</b>被設為 client_visible —— 這是 <code>06/20260724 (僅內部) 專案合作邊界文件.docx</code> 內文第一行「內部文件｜不得提供客戶」的規則版本。</div></div>';
+  if(subs.length){
+    h+='<div class="card"><div class="h"><span class="t">子資料夾</span><span class="s">'+subs.length+'</span></div><div class="c" style="display:flex;flex-direction:column;gap:5px">'+
+      subs.map(c=>'<a href="#" data-go="'+c.id+'" style="display:flex;align-items:center;gap:7px;padding:6px 7px;border:1px solid var(--border);border-radius:6px;color:var(--text)">'+
+      '<span style="color:'+glColor(c)+'">'+kIcon(c,false)+'</span><span style="flex:1">'+esc(c.name)+'</span>'+
+      (c.vis==='client'?'<span class="pill cli">客戶可見</span>':'')+(c.sens===1?'<span class="pill int">內部</span>':'')+
+      '<span class="ct m" style="color:var(--text-3)">'+subtreeFiles(c.id).filter(f=>!f.ghost).length+' 檔</span></a>').join('')+'</div></div>';
+  }
+  h+= selToolbar(ids);
+  h+='<div class="card"><div class="h"><span class="t">檔案</span><span class="s">'+files.length+' 個 · 可拖到左欄任一資料夾</span>'+
+      '<div class="sp"></div><span class="note-sm">objectKey = <code>operating/{ws}/project/{projectId}/{yyyy-mm}/{uuid}{ext}</code></span></div>'+
+      fileRows(files)+'</div>';
+  if(n.ms) h+='<div class="banner i"><span class="ic" style="color:var(--pri)">'+IC.star+'</span><div>這個資料夾綁定了里程碑 <b>'+esc(n.ms)+'</b>。綁定是<b>連結不是包含</b>：資料夾仍在它原來的父節點下，里程碑只是多拿到一個 <code>folderId</code>。<a href="#" data-jump="m_plan">到規劃看 →</a></div></div>';
+  return h;
+}
+
+/* ── 掛載點：聊天室 ───────────────────────────────────────────────────── */
+function renderChat(){
+  const ms=CHAT[S.proj]||[];
+  const inb=inboxOf(S.proj);
+  let h='';
+  h+='<div class="banner i"><span class="ic" style="color:var(--info)">'+IC.chat+'</span><div>'+
+     '<b>聊天室不是資料夾，所以它在樹的「掛載點」那一段，不在檔案那一段。</b>'+
+     '它是一條時間序訊息流（<code>ProjectChatMessage</code>，一列一訊息），沒有 <code>parentId</code>／<code>children</code> 的語意；'+
+     '硬塞進 <code>ProjectFolder</code> 就要為 99% 不是聊天室的資料夾加欄位。<br>'+
+     '但它<b>在檔案樹裡有一個真實落點</b>：貼在聊天室的附件沒有指定資料夾，所以落進'+
+     '<a href="#" data-go="'+inb.id+'">收件匣</a>（<code>origin=\'chat\'</code>、<code>filedAt=null</code>），和其他三道門一模一樣。</div></div>';
+  h+='<div class="card"><div class="h"><span class="t">專案聊天室</span><span class="s">'+ms.length+' 則 · 原型示意</span>'+
+     '<div class="sp"></div><button class="btn">訊息 → 任務</button></div>';
+  h+= ms.length? '<div class="msgs">'+ms.map(m=>
+      '<div class="msg '+(m.w==='lily'?'l':'')+'"><div class="av">'+esc(m.n[0])+'</div><div class="bd">'+
+      '<div class="mh"><b>'+esc(m.n)+'</b><span class="m">'+esc(m.t)+'</span></div>'+
+      '<div class="tx">'+esc(m.x)+'</div>'+
+      (m.at?'<div class="at">'+IC.file+esc(m.at)+'<a href="#" data-go="'+inb.id+'" style="font-size:10.5px">在收件匣 →</a></div>':'')+
+      (m.up?'<div class="up">'+esc(m.up)+'</div>':'')+
+      '</div></div>').join('')+'</div>'
+    : '<div class="c note-sm" style="padding:22px;text-align:center">這個專案還沒有訊息。</div>';
+  h+='<div class="comp"><input placeholder="寫點什麼…（原型不送出）"><button class="btn">'+IC.plus+' 附件</button><button class="btn pri">送出</button></div></div>';
+  return h;
+}
+
+/* ── 掛載點：規劃（約束#2 的主場） ────────────────────────────────────── */
+function renderPlan(){
+  const cyc=PLAN[S.proj]||[];
+  let h='';
+  h+='<div class="banner i"><span class="ic" style="color:var(--info)">'+IC.plan+'</span><div>'+
+     '<b>里程碑規劃也不是資料夾。</b>它是另一棵語意不同的樹（<code>期 → 階段 → 里程碑 → 任務</code>），'+
+     '所以同樣掛在「掛載點」那一段，用 ◆ 而不是 ▸ 的符號。<br>'+
+     '它和檔案樹的接點是<b>綁定</b>：<code>ProjectMilestone.folderId?</code> 讓 '+
+     '<code>20260411_M04_網站資源一版/</code> 成為 M04 的交付夾 —— 資料夾沒有被搬走，只是多一條 <code>⟶ M04</code>。</div></div>';
+  h+='<div class="note-sm">為什麼不能退化成平面 enum：Owner 的序列是 <code>執行 → 驗收 → 執行 → 驗收</code>。'+
+     '扁平 enum 說不出「這是第幾次執行」，而二期的預算、二期的合約、二期的驗收條件都不同。'+
+     '加三期＝插一列 <code>ProjectPhaseCycle{ordinal:3}</code> ＋ 一次 UPDATE 把 <code>CLOSING</code> 移過去，<b>不需要 migration、不需要改 enum</b>。</div>';
+  cyc.forEach(c=>{
+    h+=cycRibbon(c);
+    h+='<div class="card" style="margin-top:-6px"><div class="h"><span class="t">期 '+c.ord+' 的里程碑</span>'+
+       '<span class="s">'+c.ms.length+' 個</span><div class="sp"></div>'+
+       (c.future?'<button class="btn pri">＋ 開啟二期（建 ProjectPhaseCycle）</button>':'')+'</div><div class="mlist">';
+    c.ms.forEach(m=>{
+      h+='<div class="mrow"><span class="dm '+(m.s==='ok'?'ok':m.s==='plan'?'pl':'')+'"></span>'+
+         '<span class="nm">'+esc(m.t)+(m.tpl?' <span class="pill int">範本預填</span>':'')+'</span>'+
+         (m.folder?'<a class="lk" href="#" data-go="'+m.folder+'">⟶ 交付夾</a>':'')+
+         '<span class="dt">'+esc(m.d)+'</span></div>';
+      (m.tasks||[]).forEach(t=>{
+        h+='<div class="tsk"><span class="kd '+(t[0]==='REVIEW'?'rev':'todo')+'">'+(t[0]==='REVIEW'?'審核':'TODO')+'</span>'+
+           '<span class="nm">'+esc(t[1])+'</span><span class="st">'+esc(t[2])+'</span></div>';
+      });
+    });
+    h+='</div></div>';
+  });
+  h+='<div class="note-sm">「現在走到哪」<b>是推導的、不是存的</b>：最小的未完成 <code>(cycle.ordinal, stage.ordinal)</code>。存一個 <code>currentStageId</code> 會與各階段的 status 構成兩個真相。</div>';
+  return h;
+}
+
+/* ── 約束#7：LINE 只給停用的入口，不假裝可用 ─────────────────────────── */
+function renderLine(){
+  return '<div class="banner d"><span class="ic" style="color:var(--danger)">'+IC.warn+'</span><div>'+
+    '<b>LINE 群導入：本階段不實作（OD-H）。</b>這個入口刻意是停用狀態，沒有開關、沒有「連結 LINE」按鈕，'+
+    '因為按下去不會有任何事發生，而假的入口比沒有入口更糟。</div></div>'+
+  card('為什麼不是「還沒做」而是「做了也拿不回來」',
+    '<div style="display:flex;flex-direction:column;gap:7px;font-size:11.5px;line-height:1.7">'+
+    '<div>· <b>bot 加入前的歷史訊息技術上不可能取得。</b>LINE 官方文件：「There is no API available to get the text again after receiving the webhook.」也沒有列出歷史的 API。</div>'+
+    '<div>· <b>LINE Notify 已於 2025-03-31 終止服務</b>，不是選項。</div>'+
+    '<div>· 匯出的 <code>.txt</code> 只有文字，圖片在匯出檔是 <code>[照片]</code> 占位，bytes 永遠拿不回來。</div>'+
+    '<div>· 要做就需要一條<b>無認證的公開 webhook</b>（系統的第二條），屬 <code>AGENTS.md §11</code> 高風險，前置是先寫 <code>AUT-*</code> 政策文件並取得核准。</div>'+
+    '</div>')+
+  card('但樹上先留了位置',
+    '<div class="note-sm">每個專案的根層有一個灰階、不可選的 <code>LINE 群媒體（未啟用）</code> 節點（<code>kind=\'LINE_DROP\'</code>）。'+
+    '它現在只是一個佔位：等 P2 真的接上時，LINE 的媒體就落進它，而不是另造一棵樹、另寫一套上傳與授權。'+
+    '這也是「一棵樹」最實際的回報 —— 第四道門加進來時，<b>移動／改名／預覽／授權／孤兒清理一行都不用重寫</b>。</div>')+
+  '<div class="banner w"><span class="ic" style="color:var(--warn)">'+IC.warn+'</span><div>'+
+    '已登記的連帶風險：<code>01.共好玟化</code> 的 <code>專案財務.xlsx</code> 備註明寫「有用LINE訊息談好可以分兩期」——'+
+    '<b>合約變更發生在 LINE 裡，不在任何文件裡</b>。在 LINE 導入之前，系統必須在該專案上標示「本案有 LINE 上的口頭約定未入系統」（已標在該專案的會議「注意事項」）。</div></div>';
+}
+
+/* ── 視圖 ─────────────────────────────────────────────────────────────── */
+function renderViewMeetings(){
+  const ms=NODES.filter(n=>n.proj===S.proj&&n.kind==='MEETING');
+  let h='<div class="banner n"><span class="ic" style="color:var(--text-3)">'+IC.cal+'</span><div>'+
+    '「會議資料區」<b>不是第二個儲存體</b>，是同一棵樹的一個視圖：<code>kind=\'MEETING\' ORDER BY heldAt DESC</code>。'+
+    '會議夾可以被搬到樹上任何地方（例如整理到「二期／交付」底下），它仍然會出現在這個時間序裡。</div></div>';
+  if(!ms.length) return h+card('','<div class="note-sm">這個專案還沒有會議資料夾。左下角「＋ 會議」會在一次交易內建 <code>ProjectFolder{kind:MEETING}</code> 與 <code>ProjectMeeting</code> 側表。</div>');
+  h+='<div class="card"><div class="c"><div class="tl">'+ms.map(m=>{
+    const k=kids(m.id).filter(f=>f.t==='file');
+    return '<div class="ti hit"><div class="td">'+esc((m.meeting&&m.meeting.at)||'—')+'</div>'+
+      '<div class="tt"><a href="#" data-go="'+m.id+'">'+esc(m.name)+'</a></div>'+
+      '<div class="ts">'+esc((m.meeting&&m.meeting.summary)||'結論待補')+'</div>'+
+      '<div class="note-sm" style="margin-top:3px">材料 '+k.length+' 件 · '+
+      (m.meeting&&m.meeting.outside?'外部：'+esc(m.meeting.outside):'外部參與者待補')+'</div></div>';
+  }).join('')+'</div></div></div>';
+  return h;
+}
+function renderViewClient(){
+  const fs=allFiles(S.proj).filter(f=>f.vis==='client'&&f.sens===0&&!f.ghost);
+  return '<div class="banner i"><span class="ic" style="color:var(--teal)">'+IC.eye+'</span><div>'+
+    '<b>這是客戶會看到的全部。</b>來源是資料夾的 <code>visibility</code>，不是逐檔打勾 —— 逐檔打勾遲早會漏一個。'+
+    '分享走 <code>Project.clientToken</code> ＋ 只讀視圖。</div></div>'+
+    '<div class="card"><div class="h"><span class="t">客戶可見</span><span class="s">'+fs.length+' 個檔案</span></div>'+fileRows(fs,{showPath:true})+'</div>';
+}
+function renderViewSens(){
+  const s2=allFiles(S.proj).filter(f=>f.sens===2);
+  const s1=allFiles(S.proj).filter(f=>f.sens===1);
+  let h='<div class="banner d"><span class="ic" style="color:var(--danger)">'+IC.lock+'</span><div>'+
+   '<b>三級，不是兩級。</b>「客戶可見 / 內部」不夠用 —— 有一份檔案連<b>系統內部</b>都不該全文索引。</div></div>';
+  if(s2.length) h+='<div class="card"><div class="h"><span class="t">⛔ 最高敏感 · 不建全文索引</span><span class="s">'+s2.length+' 個</span></div>'+fileRows(s2,{showPath:true})+'</div>';
+  h+='<div class="card"><div class="h"><span class="t">🔒 內部 · 禁止對客戶可見</span><span class="s">'+s1.length+' 個</span></div>'+fileRows(s1,{showPath:true})+'</div>';
+  h+='<div class="note-sm">規則不是標籤：<code>kind=\'INTERNAL\'</code> 與合約類資料夾<b>拒絕</b>被設為 client_visible；'+
+     '把一個 <code>sens≥1</code> 的檔案拖進共用資料夾，搬移會成功但可見性維持 internal 並提示原因（請實際試一次）。'+
+     '憑證類（密碼、API key）<b>永不進系統</b>，一律在密碼管理器。</div>';
+  return h;
+}
+function renderViewDup(){
+  const fs=allFiles(S.proj).filter(f=>f.dup);
+  const g={}; fs.forEach(f=>{(g[f.dup]=g[f.dup]||[]).push(f);});
+  const ks=Object.keys(g);
+  let h='<div class="banner i"><span class="ic" style="color:var(--info)">'+IC.dup+'</span><div>'+
+   '<b>內容完全相同，但刻意不去重。</b>「對外共用」與「里程碑快照」是不同語意：刪掉任一份，'+
+   '「M04 當時交付了什麼」就查不到。以 <code>contentHash</code>（finalize 時由 HeadObject ETag 寫入）'+
+   '標示「與另 n 個檔內容相同」即可。</div></div>';
+  if(!ks.length) return h+card('','<div class="note-sm">這個專案沒有偵測到重複組。</div>');
+  h+='<div class="card"><div class="h"><span class="t">重複組</span><span class="s">'+ks.length+' 組 · 共 '+fs.length+' 檔</span></div><div class="c" style="display:flex;flex-direction:column;gap:8px">';
+  ks.forEach(k=>{
+    h+='<div style="border:1px solid var(--border);border-radius:6px;overflow:hidden">'+
+      g[k].map(f=>'<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-bottom:1px solid var(--border)">'+
+        '<span style="color:var(--text-3)">'+fIcon(f.ext)+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name)+'</span>'+
+        '<span class="note-sm m">'+esc(pathOf(f.id).slice(1,-1).map(x=>x.name).join(' / '))+'</span>'+visBadge(f)+'</div>').join('')+
+      '</div>';
+  });
+  h+='</div></div>';
+  h+='<div class="note-sm">實測：全部 6 組 12 個檔都在 <code>01.共好玟化網站</code>（本原型列出其中 6 組文案；另有一份訪談 PDF 重複）。這是「對外共用資料夾」與「對內正式歸檔」兩套並行造成的，<b>不是誤複製</b>。</div>';
+  return h;
+}
+
+/* ===========================================================================
+   啟動與全域互動
+   =========================================================================== */
+function renderAll(){ renderChips(); renderTree(); renderCrumb(); renderPane(); }
+
+document.getElementById('themebtn').onclick=()=>{
+  const r=document.documentElement;
+  r.dataset.theme = r.dataset.theme==='light' ? 'dark' : 'light';
+};
+document.getElementById('collapse').onclick=()=>{
+  document.body.classList.toggle('collapsed');
+  toast(document.body.classList.contains('collapsed')?'左欄已收起 · 單欄模式':'左欄已展開',
+        '麵包屑接手導覽。這是「雙欄與 v5 版面語言差異」的第二道解法。');
+};
+document.getElementById('fab').onclick=()=>document.body.classList.toggle('drawer');
+document.body.addEventListener('click',e=>{
+  if(document.body.classList.contains('drawer') && !e.target.closest('.aside') && !e.target.closest('#fab'))
+    document.body.classList.remove('drawer');
+});
+document.getElementById('newfolder').onclick=()=>{
+  const n=byId(S.sel);
+  addFolder(n&&n.t==='folder'&&!n.disabled ? n.id : rootOf(S.proj));
+};
+document.getElementById('upload').onclick=()=>{
+  const inb=inboxOf(S.proj);
+  const id='up_'+(S.seq++);
+  const d=new Date(), pad=x=>String(x).padStart(2,'0');
+  NODES.push({id, pid:inb.id, proj:S.proj, t:'file',
+    name:'截圖 '+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+'.png',
+    ext:'png', size:'1.1 MB', mt:d.toISOString().slice(0,10), vis:'internal', sens:0,
+    note:'新上傳 · 未指定資料夾 → folderId = INBOX，filedAt = null'});
+  inb.open=true; S.sel=inb.id; renderAll();
+  toast('已上傳到收件匣','截圖沒有檔名（瀏覽器給 image.png），自動改成「截圖 MM-DD HH:mm.png」—— 三個月後才分得出是哪一張');
+};
+document.getElementById('newmeeting').onclick=()=>{
+  const root=byId(rootOf(S.proj));
+  let par=NODES.find(n=>n.proj===S.proj&&n.name==='會議'&&n.t==='folder');
+  if(!par){
+    par={id:'mg_'+(S.seq++), pid:root.id, proj:S.proj, t:'folder', kind:'GENERIC', name:'會議', open:true};
+    NODES.push(par);
+  }
+  const d=new Date(), pad=x=>String(x).padStart(2,'0');
+  const stamp=d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+  const id='mt_'+(S.seq++);
+  NODES.push({id, pid:par.id, proj:S.proj, t:'folder', kind:'MEETING', name:stamp+' 新會議', open:true,
+    meeting:{at:d.toISOString().slice(0,16).replace('T',' '), place:'', mode:'onsite',
+      inside:[['宇','戴宇星']], outside:'', summary:'', caution:'', items:[]}});
+  par.open=true; root.open=true; S.sel=id; S.renaming=id; renderAll();
+  toast('已建立會議資料夾','一次交易內建 ProjectFolder{kind:MEETING} 與 ProjectMeeting 側表；檔名慣例沿用 YYYYMMDD <事件>');
+};
+document.getElementById('ov').onclick=e=>{ if(e.target.id==='ov') closeOv(); };
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ closeOv(); if(S.renaming){S.renaming=null;renderTree();} }
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='b'){ e.preventDefault(); document.getElementById('collapse').click(); }
+});
+
+renderAll();
+</script>
+</body>
+</html>

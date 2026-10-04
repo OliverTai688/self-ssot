@@ -94,6 +94,7 @@
 | [ARC-036_simplified-saas-operating-surface-design-pattern.md](../02_architecture-and-rules/ARC-036_simplified-saas-operating-surface-design-pattern.md) | Simplified SaaS operating surface design pattern for Gate A/B/C UI convergence: one primary job, command bar, resource index, detail/proposal pane, records/audit, settings/boundaries, concise copy, honest state language, and checker-backed follow-up tasks |
 | [ARC-037_owneros-core-surface-bff-view-model-contract.md](../02_architecture-and-rules/ARC-037_owneros-core-surface-bff-view-model-contract.md) | OwnerOS core surface BFF/view-model contract for `OWNEROS-BFF-001` and the `OWNEROS-UI-003` foundation: dashboard, AI Input, settings, and admin shared layout slots, UI-safe DTO boundaries, BFF invariants, NANDA posture, runtime-disabled flags, and checker-backed follow-up tasks |
 | [ARC-038_module-shell-tab-standardization.md](../02_architecture-and-rules/ARC-038_module-shell-tab-standardization.md) | Fixed 5-tab order for every `ModuleOperatingShell` module surface — 專案/檔案‧媒體/{module}AI/紀錄/邊界 — with the overview+operation merge, always-on library tab, per-module Agent tab label mapping (工作AI, 學術AI, 公司AI, 商會AI, 財務AI, 生活AI, 自我AI), and 設定→邊界 rename |
+| [ARC-043_v5-flat-operating-surface-primitives.md](../02_architecture-and-rules/ARC-043_v5-flat-operating-surface-primitives.md) | v5 Shadow-DOM 工作台（UI-088）的扁平操作面 primitive：pmRail／pmRow／pmTable／pmTrack／pmTimeline／pmDrawer 的 API、巢狀卡與色彩／圖示的禁止事項、`check-nested-card` 的六條規則與現況基線，以及 ARC-012 五層版面在 v5 內的對應 |
 | [AUT-001_source-intake-security-privacy.md](../02_architecture-and-rules/AUT-001_source-intake-security-privacy.md) | Source intake security and privacy policy |
 | [AUT-002_auth-runtime-strategy.md](../02_architecture-and-rules/AUT-002_auth-runtime-strategy.md) | Auth runtime strategy and fail-closed mock boundary |
 | [AUT-003_module-permission-source.md](../02_architecture-and-rules/AUT-003_module-permission-source.md) | Hybrid module permission source and UI-safe snapshot contract |
@@ -166,6 +167,7 @@
 | [PLN-069_saas-ui-convergence-schedule-and-governance-report.md](../05_execution-plans/PLN-069_saas-ui-convergence-schedule-and-governance-report.md) | Multi-stage SaaS UI convergence schedule with RBAC, AI governance, browser verification, and owner acceptance plan |
 | [PLN-070](../05_execution-plans/PLN-070_yuanzhan-team-ui-implementation-plan.md) | 圓展 UI 優先開發順序、範圍與雙模式任務 |
 | [PLN-071](../05_execution-plans/PLN-071_yuanzhan-account-and-private-launch-plan.md) | 三帳號 Email 六碼登入、我的帳號／公司管理與正式使用分期 |
+| [PLN-075](../05_execution-plans/PLN-075_project-module-five-resource-staged-build-plan.md) | 專案模組五大資源分階段建置計劃：記錄 S0 Owner 決策定案（OD-A=圓展教育科技有限公司、OD-B=v5 工作台轉真持久化、OD-D=擴充 Occasion、OD-E=OperatingAsset 為唯一家、OD-H=LINE 留 P2）；S1 三提案＋整合決策為硬性 Owner 批准 checkpoint，S2 P0 骨架、S3 P1 五大資源版面、S4 驗收報告；真實檔案遷移刻意移出另立 PLN |
 
 ## 06 Audits And Reports
 
@@ -238,6 +240,7 @@
 | [RPT-065_pln-069-saas-ui-convergence-completion-report.md](../06_audits-and-reports/RPT-065_pln-069-saas-ui-convergence-completion-report.md) | PLN-069 UI-L4 local protected SaaS interface convergence completion report with PersonalOS product summary, RBAC route/API inventory, and next development recommendations |
 | [RPT-066_simplified-saas-ui-handoff-report.md](../06_audits-and-reports/RPT-066_simplified-saas-ui-handoff-report.md) | Corrective Simplified SaaS UI handoff report reopening PLN-069 after owner UX rejection, with route-by-route redesign targets and prompt for Claude or the next UI agent |
 | [RPT-067_gate-loop-release-baseline-preflight.md](../06_audits-and-reports/RPT-067_gate-loop-release-baseline-preflight.md) | Paused Gate A/B/C release-baseline preflight, dedicated worktree contract, Owner-decision promotion, freshness reset, automation safety, and resume blockers |
+| [RPT-068_project-module-five-resource-acceptance-report.md](../06_audits-and-reports/RPT-068_project-module-five-resource-acceptance-report.md) | 專案模組五大資源（PLN-075）S3 建置結果與 S4 驗收報告：三案比較與選案理由、機檢與瀏覽器實測證據、對帳數據、已知限制、Owner 整合測試腳本 |
 
 ## 07 Research And Design
 
@@ -264,6 +267,7 @@
 | [RES-019_sub-module-upload-sync-and-origin-reference-research.md](../07_research-and-design/RES-019_sub-module-upload-sync-and-origin-reference-research.md) | Sub-module upload sync and origin-reference research: audits the owner's forward-looking ask (future task/discussion-thread uploads should sync to the central library with a backlink) and finds the exact gap already shipped in `add-project-dialog.tsx` (real upload UI, `parseProjectDocuments` silently discards file content); rejects a "sync-copy" model in favor of one canonical store plus an additive `LibraryAssetOriginContext` on `RES-016`'s existing `LibraryAssetModuleLink`; amends `ARC-012` §5A.1 from "no module upload" to "single source of truth, not single capture surface"; converts findings into backlog rows `MODLIB-008..012` |
 | [RES-029](../07_research-and-design/RES-029_yuanzhan-ui-phase-and-data-mode-research.md) | 工作日誌與雙模式接合的三輪研究 |
 | [RES-030](../07_research-and-design/RES-030_yuanzhan-ui-implementation-rounds.md) | 圓展全部情境三輪研究、元件與 UI-memory 實作契約 |
+| [RES-033](../07_research-and-design/RES-033_project-workspace-five-resource-integration-research.md) | 專案工作區五大資源整合研究（聊天室／雲端硬碟／里程碑期階段／LINE 導入／會議資料區）：合併三個獨立子任務（UI 截圖盤點、架構設計、真實專案 migrate），裁決三項報告間衝突，確認 P0 阻斷點為 `createProjectForProfile` 未寫 `workspaceId`；含 15 個真實專案的階段對應表、R2 key 策略、LINE 平台限制的誠實結論與 Owner 決策包 |
 
 ## 08 Acceptance And QA
 

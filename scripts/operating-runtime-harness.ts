@@ -83,6 +83,8 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 export async function mountAll(
   mode: 'showcase' | 'empty',
   runtimeModule?: string,
+  /** 掛載前改寫初始狀態（例如換成 database 模式並塞一份 store），預設不動。 */
+  prepare?: (state: Record<string, unknown>) => Record<string, unknown> | void,
 ): Promise<MountResult> {
   const dom = new JSDOM('<!doctype html><html><body></body></html>')
   installGlobals(dom)
@@ -98,7 +100,9 @@ export async function mountAll(
   const root = dom.window.document.createElement('div')
   root.className = 'v5-root'
   dom.window.document.body.appendChild(root)
-  const workbench = mountV5(root, JSON.parse(JSON.stringify(createV5State(mode))))
+  let state = JSON.parse(JSON.stringify(createV5State(mode))) as Record<string, unknown>
+  if (prepare) state = prepare(state) || state
+  const workbench = mountV5(root, state)
   await tick()
 
   const pages: PageSnapshot[] = []

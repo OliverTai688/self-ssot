@@ -294,10 +294,23 @@ function agCarryTo(id, day) {
   });
 }
 
+/* 結案與重新開啟都改變了頁尾該出現哪幾顆按鈕，但 commit() 的 render() 只重畫工作台，
+ * 抽屜的頁尾不在它的範圍裡 —— 不補這一下，結案成功之後畫面仍停在「完成並結案」，
+ * 看起來就像沒反應。 */
+function agRepaintPage(id) {
+  const stack = S.stack || [];
+  const top = stack[stack.length - 1];
+  if (top && top.type === 'doc_object' && top.id === id) paintDrawer();
+}
+
 function agComplete(id) {
   const d = agFind(id);
   if (!d) return;
   if (!agOwned(d)) return deny();
+  /* 按鈕是 mousedown 才讓焦點離開可編輯區的，最後一段文字（尤其注音組字剛結束那一下）
+   * 有機會還沒回寫到 model。讀結論之前先回寫一次，否則「剛打完就按結案」會被誤判成沒有結論，
+   * 而那一次誤判還會重畫獨立頁面，把畫面上看得到的字一起洗掉。 */
+  syncAll();
   if (!agConclusion(d)) {
     openDocPage(id);
     return toast('結案前先在「結論」寫下決定或下一步');
@@ -308,6 +321,7 @@ function agComplete(id) {
     d.updatedAt = Date.now();
     return ['議題結案，結論留在物件裡', '從收工檢查與右欄移除'];
   });
+  agRepaintPage(id);
 }
 
 function agReopen(id) {
@@ -320,6 +334,7 @@ function agReopen(id) {
     d.updatedAt = Date.now();
     return ['重新開啟這個議題'];
   });
+  agRepaintPage(id);
 }
 
 /* ---------- 討論與附件 ---------- */

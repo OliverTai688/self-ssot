@@ -521,3 +521,75 @@ currentJournal = function() {
   if (j) migrateLegacyTemplateBlocks(j);
   return j;
 };
+
+/* ---- 獨立頁面（抽屜）裡的 Enter／Tab／Backspace ----
+ *
+ * 區塊引擎的每一次結構變更都以 render() 收尾，而 render() 只重畫 #inner。
+ * 獨立頁面是另一棵 DOM（#drBody），openDrawer 之後就不再跟著資料走：
+ * 在 Yesterday 欄位按 Enter，sec.blocks 裡確實多了一個區塊，畫面卻停在原地。
+ * 更糟的是 focusB 的 querySelector 會先掃到 #inner 裡那張行內卡片的同 id 區塊
+ * （#inner 在 #drawer 之前），游標因此被送到抽屜背後的日誌上 ——
+ * 使用者看到的就是「Enter 沒有反應，只能用 Shift+Enter」。
+ *
+ * 兩件事一起補：結構變更後重畫獨立頁面的正文區，並把游標限定在抽屜內。
+ * 只重畫 .doc-page-workspace 而不是整個抽屜，是為了不動到同一頁上的
+ * 標題（contenteditable）、議題欄位與留言草稿 —— 那些有自己的輸入狀態。 */
+function docPageDoc() {
+  const top = S.stack[S.stack.length - 1];
+  if (!top || top.type !== 'doc_object') return null;
+  return (DB.docObjects || []).find(d => d.id === top.id) || null;
+}
+
+function repaintDocPageBody() {
+  const doc = docPageDoc();
+  if (!doc) return;
+  const ws = root.querySelector('#drBody .doc-page-workspace');
+  if (!ws) return;
+  const meta = metaOf(doc);
+  // MutationObserver（見 runtime-prelude）會自動把新節點上的 data-v5-* 接回事件。
+  ws.innerHTML = doc.secs.map((sec, idx) => renderDocSectionBody(doc, sec, idx, meta)).join('');
+}
+
+const tplBaseRender = render;
+render = function (...args) {
+  if (!docPageDoc()) return tplBaseRender(...args);
+  // _afterRender（focusB 放的游標回復）必須等獨立頁面也重畫完才跑，
+  // 否則它找的是上一輪的節點。
+  const after = runtime._afterRender;
+  runtime._afterRender = null;
+  const out = tplBaseRender(...args);
+  repaintDocPageBody();
+  if (after) after();
+  return out;
+};
+
+const tplBaseFocusB = focusB;
+focusB = function (id, off) {
+  tplBaseFocusB(id, off);
+  if (!docPageDoc()) return;
+  runtime._afterRender = () => {
+    const scope = root.querySelector('#drBody') || root;
+    const el = scope.querySelector(`.eb[data-id="${id}"] .eb-tx`) ||
+      root.querySelector(`.eb[data-id="${id}"] .eb-tx`);
+    if (el) setCaret(el, off == null ? el.innerText.length : off);
+    S.curBlock = id;
+  };
+};
+
+/* 段落內容的保存。
+ *
+ * 物件的段落不走 commit()：打字只改 b.text，一個網路請求都不會發。而延遲保存
+ * （opTouch）當初只掛在 render() 後面，於是「打開獨立頁面 → 寫結論 → 關掉」
+ * 這條路徑從頭到尾沒有任何一次 render()，寫的東西就只留在記憶體裡，重新整理之後整段不見。
+ *
+ * opTouch() 本身是 1.5 秒的防抖＋與基準線比對，prototype 模式下直接 no-op，
+ * 掛在 docInput 上就是它註解裡寫的那個意思：打完字停下來就保存。
+ *
+ * syncAll 的段落回寫已經移進基礎實作（見 source-patches.mjs），這裡不再重複一份 ——
+ * 兩份各自用不同方式解析區塊，正是「在抽屜裡按 Enter 會把剛打的字抹掉」的來源。 */
+const tplBaseDocInput = docInput;
+docInput = function (e) {
+  tplBaseDocInput(e);
+  if (!canWriteJournal()) return;
+  opTouch();
+};

@@ -1,0 +1,1696 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提案 A · 分頁延伸</title>
+<!--
+  提案 A：分頁延伸 — 專案模組五大資源原型
+  圓展教育科技有限公司 · 營運工作台 v5
+  依據 PLN-075 S1。單一自包含檔，無外部資源、無網路請求。
+  視覺 token 取自 src/lib/theme/company-theme.ts 的 V5_PALETTES（BLACK / WHITE），
+  字級、圓角、間距沿用 src/components/yuanzhan/v5/styles.ts 的既有慣例。
+
+  ── 七條硬性約束在本檔的落點（搜尋 [約束N] 可定位）──
+  [約束1] 視覺語言：:root token 表（本段下方）＋ .tabs/.card/.pill/.chip 全部對齊 v5
+  [約束2] 「期」：#tab-plan 的 .cyc-bar 與 renderPlan()；資料在 DB.*.cycles
+  [約束3] 收件匣＝真資料夾：DB folders 內 role:'inbox' 的那一列，與其他資料夾同一棵樹
+  [約束4] 會議資料夾四屬性：renderMeetingDetail() 的 .mt-attrs；屬性存在 folder 上（meta）
+  [約束5] internal 標示：visibility 欄位 ＋ .pill.int / .pill.cli ＋ 頁首可見性計數
+  [約束6] de-facto 慣例：DB 內的資料夾與檔名全部取自 0_工作區 實測清單
+  [約束7] LINE：#tab-chat 的 .src-tab.disabled，點擊只說明為何不可用
+-->
+<style>
+/* ===================== [約束1] v5 token 表 ===================== */
+:root{
+  --bg:#0a0c0f; --surface:#111418; --surface-2:#161a20; --surface-3:#1d232b; --surface-4:#242b34;
+  --border:#232931; --border-2:#333b45; --border-3:#465060;
+  --text:#e9ecf1; --text-2:#99a2af; --text-3:#626b77;
+  --pri:#6cb6ff; --pri-bg:#11212e; --pri-br:#2d5a7d; --pri-hover:#163044;
+  --ok:#5fd09a; --ok-bg:#0f2620;
+  --warn:#f2b95e; --warn-bg:#2a2111;
+  --danger:#ef8a82; --danger-bg:#2b1614; --danger-br:#5d2b26;
+  --info:#a78bf5; --info-bg:#1c1830;
+  --teal:#4fcfc0; --teal-bg:#0d2724;
+  --gold:#e0b25a;
+  --hover-overlay:rgba(255,255,255,.035);
+  --on-pri:#07121b;
+  --shadow:0 18px 44px rgba(0,0,0,.55);
+  --scroll-thumb:#2a313a;
+  --ag-over-bg:#2a1416; --ag-over-br:#5e2a2c; --ag-over-ink:#ff8a8c;
+  --ag-doing-bg:#0f1726; --ag-doing-br:#2c3a5c; --ag-doing-ink:#4ea1ff;
+  --ag-todo-bg:#161a20; --ag-todo-br:#333b45; --ag-todo-ink:#959fad;
+  --ag-done-bg:#10221a; --ag-done-br:#2a4a3a; --ag-done-ink:#5fd09a;
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --rail:78px; --rowpad:9px; --r:8px;
+}
+:root[data-theme="light"]{
+  --bg:#ffffff; --surface:#f7f7f8; --surface-2:#f0f1f3; --surface-3:#e7e9ec; --surface-4:#dee1e6;
+  --border:#e3e5e8; --border-2:#cfd3d8; --border-3:#aeb5bd;
+  --text:#16181c; --text-2:#555b64; --text-3:#8a9099;
+  --pri:#2563eb; --pri-bg:#eaf1fe; --pri-br:#bcd0f8; --pri-hover:#dbeafe;
+  --ok:#15803d; --ok-bg:#e8f6ed;
+  --warn:#b45309; --warn-bg:#fdf2e0;
+  --danger:#dc2626; --danger-bg:#fdeaea; --danger-br:#f3b4b4;
+  --info:#6d3fd4; --info-bg:#f0ebfd;
+  --teal:#0f766e; --teal-bg:#e4f5f3;
+  --gold:#a16207;
+  --hover-overlay:rgba(0,0,0,.035);
+  --on-pri:#ffffff;
+  --shadow:0 14px 36px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);
+  --scroll-thumb:#cfd3d8;
+  --ag-over-bg:#fdf6f4; --ag-over-br:#eed8d1; --ag-over-ink:#b0472d;
+  --ag-doing-bg:#eff6ff; --ag-doing-br:#bfdbfe; --ag-doing-ink:#1d4ed8;
+  --ag-todo-bg:#f4f4f6; --ag-todo-br:#e0e2e6; --ag-todo-ink:#5f6572;
+  --ag-done-bg:#f1f8f4; --ag-done-br:#cfe4d8; --ag-done-ink:#15803d;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+input,textarea,select{font:inherit;color:inherit}
+a{color:var(--pri);text-decoration:none}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+.mono{font-family:var(--mono)}
+
+/* ---------- shell ---------- */
+.app{display:flex;min-height:100vh}
+.rail{width:var(--rail);flex:0 0 var(--rail);background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:2px;position:sticky;top:0;height:100vh}
+.rail-i{width:56px;padding:9px 0;border-radius:var(--r);display:flex;flex-direction:column;align-items:center;gap:4px;
+  color:var(--text-3);font-size:10.5px;position:relative}
+.rail-i:hover{background:var(--hover-overlay);color:var(--text-2)}
+.rail-i.on{background:var(--pri-bg);color:var(--pri);box-shadow:inset 0 0 0 1px var(--pri-br)}
+.rail-i .bdg{position:absolute;top:3px;right:8px;min-width:15px;height:15px;border-radius:8px;background:var(--danger);
+  color:var(--on-pri);font-size:9.5px;line-height:15px;font-weight:700;text-align:center;padding:0 3px}
+.rail-sp{flex:1}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ---------- top ---------- */
+.top{height:46px;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--border);
+  background:var(--surface);position:sticky;top:0;z-index:40}
+.brand{display:flex;align-items:center;gap:8px;font-weight:650;font-size:13.5px;white-space:nowrap}
+.brand .sq{width:17px;height:17px;border-radius:5px;background:linear-gradient(135deg,var(--pri),var(--info))}
+.brand .v{font-family:var(--mono);font-size:10.5px;color:var(--text-3);font-weight:400}
+.topsearch{flex:1;max-width:560px;height:28px;border:1px solid var(--border-2);background:var(--surface-2);border-radius:7px;
+  display:flex;align-items:center;gap:7px;padding:0 9px;color:var(--text-3);font-size:12px;min-width:0}
+.topsearch span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kbd{margin-left:auto;font-family:var(--mono);font-size:9.5px;border:1px solid var(--border-2);border-radius:4px;padding:1px 4px;flex:0 0 auto}
+.toprt{display:flex;align-items:center;gap:7px;margin-left:auto}
+.who{display:flex;align-items:center;gap:6px;border:1px solid var(--border-2);border-radius:20px;padding:2px 9px 2px 3px;font-size:11.5px}
+.av{width:20px;height:20px;border-radius:50%;background:#2b4a63;color:#9ecbf5;font-size:10.5px;display:flex;align-items:center;justify-content:center;font-weight:650}
+:root[data-theme="light"] .av{background:#dbeafe;color:#1d4ed8}
+.who .role{font-family:var(--mono);font-size:9.5px;color:var(--text-3)}
+.tbtn{height:26px;padding:0 9px;border:1px solid var(--border-2);border-radius:6px;font-size:11.5px;color:var(--text-2);background:var(--surface-2)}
+.tbtn:hover{background:var(--surface-3);color:var(--text)}
+
+/* ---------- proposal banner ---------- */
+.pbanner{display:flex;gap:14px;align-items:flex-start;padding:10px 18px;background:var(--pri-bg);
+  border-bottom:1px solid var(--pri-br);font-size:11.5px;line-height:1.65;flex-wrap:wrap}
+.pbanner .tagA{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--on-pri);background:var(--pri);
+  border-radius:5px;padding:3px 8px;letter-spacing:.04em}
+.pbanner b{color:var(--text)}
+.pbanner .ln{color:var(--text-2);min-width:240px;flex:1}
+.pbanner .ln i{font-style:normal;color:var(--text-3);font-family:var(--mono);font-size:10px;display:block;letter-spacing:.05em;margin-bottom:1px}
+
+/* ---------- project header ---------- */
+.phead{padding:12px 18px 0;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:46px;z-index:30}
+.ptitle{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ptitle h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.ptitle .sub{font-size:11.5px;color:var(--text-3)}
+.ptitle .rc{font-family:var(--mono);font-size:10.5px;color:var(--text-3);border:1px solid var(--border-2);border-radius:4px;padding:1px 5px}
+.pmeta{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:11px;color:var(--text-3);flex-wrap:wrap}
+
+/* project switcher */
+.pswitch{display:flex;gap:5px;align-items:center;margin:9px 0 2px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin}
+.pchip{flex:0 0 auto;height:27px;padding:0 10px;border:1px solid var(--border-2);border-radius:7px;background:var(--surface-2);
+  font-size:11.5px;color:var(--text-2);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.pchip:hover{background:var(--surface-3);color:var(--text)}
+.pchip.on{background:var(--surface-4);color:var(--text);border-color:var(--border-3);font-weight:600}
+.pchip .no{font-family:var(--mono);font-size:10px;color:var(--text-3)}
+.pchip.on .no{color:var(--pri)}
+.pchip .dot{width:5px;height:5px;border-radius:50%}
+
+/* tabs */
+.tabs{display:flex;gap:2px;margin-top:8px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;padding:8px 13px 9px;font-size:13px;color:var(--text-3);border-bottom:2px solid transparent;
+  display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tab:hover{color:var(--text-2)}
+.tab.on{color:var(--text);border-bottom-color:var(--pri);font-weight:600}
+.tab .ct{font-family:var(--mono);font-size:9.5px;min-width:16px;height:16px;line-height:16px;text-align:center;
+  border-radius:8px;background:var(--surface-3);color:var(--text-2);padding:0 4px}
+.tab .ct.hot{background:var(--danger-bg);color:var(--danger)}
+.tab .ct.warn{background:var(--warn-bg);color:var(--warn)}
+
+/* ---------- return-context bar [關聯解法 M2] ---------- */
+.retbar{display:none;align-items:center;gap:9px;padding:6px 18px;background:var(--info-bg);
+  border-bottom:1px solid var(--border);font-size:11.5px;color:var(--text-2);position:sticky;top:46px;z-index:31}
+.retbar.show{display:flex}
+.retbar b{color:var(--text);font-weight:600}
+.retbar .back{margin-left:auto;border:1px solid var(--border-2);border-radius:6px;padding:2px 9px;font-size:11px;background:var(--surface-2)}
+.retbar .back:hover{background:var(--surface-3)}
+
+/* ---------- content ---------- */
+.body{padding:14px 18px 60px;flex:1}
+.grid{display:grid;gap:12px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+.g-drive{grid-template-columns:minmax(260px,330px) 1fr}
+.g-meet{grid-template-columns:minmax(230px,290px) 1fr}
+.g-chat{grid-template-columns:minmax(200px,250px) 1fr}
+.g-side{grid-template-columns:1fr minmax(280px,340px)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.ch{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ch h3{margin:0;font-size:12.5px;font-weight:650}
+.ch .note{font-size:10.5px;color:var(--text-3)}
+.ch .r{margin-left:auto;display:flex;gap:5px;align-items:center}
+.cb{padding:10px 12px}
+.cb.flush{padding:0}
+.sbtn{height:24px;padding:0 8px;border:1px solid var(--border-2);border-radius:6px;font-size:11px;color:var(--text-2);background:var(--surface-2);display:inline-flex;align-items:center;gap:4px}
+.sbtn:hover{background:var(--surface-3);color:var(--text)}
+.sbtn.pri{background:var(--pri-bg);border-color:var(--pri-br);color:var(--pri)}
+.sbtn.pri:hover{background:var(--pri-hover)}
+.sbtn:disabled{opacity:.45;cursor:not-allowed}
+
+.kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--text-3);font-size:10.5px;font-family:var(--mono);letter-spacing:.04em;text-transform:uppercase;padding-top:2px}
+.kv .v{text-align:right;min-width:0}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;line-height:1;padding:3px 6px;border-radius:5px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-2);white-space:nowrap}
+.pill.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.pill.dan{background:var(--danger-bg);border-color:var(--danger-br);color:var(--danger)}
+.pill.pri{background:var(--pri-bg);border-color:var(--pri-br);color:var(--pri)}
+.pill.info{background:var(--info-bg);border-color:var(--info);color:var(--info)}
+.pill.teal{background:var(--teal-bg);border-color:var(--teal);color:var(--teal)}
+.pill.gold{color:var(--gold);border-color:var(--gold)}
+/* [約束5] 可見性兩種標記 */
+.pill.int{background:var(--danger-bg);border-color:var(--danger-br);color:var(--danger);font-family:var(--mono)}
+.pill.cli{background:var(--teal-bg);border-color:var(--teal);color:var(--teal);font-family:var(--mono)}
+.pill.todo{background:var(--ag-todo-bg);border-color:var(--ag-todo-br);color:var(--ag-todo-ink)}
+.pill.doing{background:var(--ag-doing-bg);border-color:var(--ag-doing-br);color:var(--ag-doing-ink)}
+.pill.done{background:var(--ag-done-bg);border-color:var(--ag-done-br);color:var(--ag-done-ink)}
+.pill.over{background:var(--ag-over-bg);border-color:var(--ag-over-br);color:var(--ag-over-ink)}
+.muted{color:var(--text-3)}
+.tiny{font-size:10.5px}
+.hint{font-size:11px;color:var(--text-3);line-height:1.7}
+.hint b{color:var(--text-2);font-weight:600}
+.notebar{display:flex;gap:8px;align-items:flex-start;padding:9px 12px;border-left:2px solid var(--pri);
+  background:var(--surface-2);border-radius:0 6px 6px 0;font-size:11px;color:var(--text-2);line-height:1.7;margin-top:10px}
+.notebar.warn{border-left-color:var(--warn)}
+.notebar.dan{border-left-color:var(--danger)}
+.notebar b{color:var(--text)}
+.notebar span{min-width:0}
+code.mono{word-break:break-all;overflow-wrap:anywhere;font-size:.94em}
+
+/* ---------- [約束2] 期 / 階段 ---------- */
+.cyc-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);
+  background:var(--surface-2);overflow-x:auto;scrollbar-width:none}
+.cyc-bar::-webkit-scrollbar{display:none}
+.cyc{flex:0 0 auto;display:flex;align-items:center;gap:7px;border:1px solid var(--border-2);border-radius:7px;
+  padding:4px 10px;background:var(--surface);font-size:11.5px;color:var(--text-2)}
+.cyc:hover{border-color:var(--border-3);color:var(--text)}
+.cyc.on{border-color:var(--pri-br);background:var(--pri-bg);color:var(--pri);font-weight:650}
+.cyc .ord{font-family:var(--mono);font-size:10px;opacity:.8}
+.cyc-sep{color:var(--text-3);flex:0 0 auto}
+.stages{display:flex;align-items:stretch;gap:0;padding:11px 12px;overflow-x:auto;scrollbar-width:thin}
+.stg{flex:1 1 0;min-width:112px;border:1px solid var(--border-2);border-right-width:0;background:var(--surface-2);
+  padding:7px 10px;position:relative}
+.stg:first-child{border-radius:7px 0 0 7px}
+.stg:last-child{border-right-width:1px;border-radius:0 7px 7px 0}
+.stg .nm{font-size:12px;font-weight:650;display:flex;align-items:center;gap:5px}
+.stg .dt{font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:2px}
+.stg.done{background:var(--ag-done-bg);border-color:var(--ag-done-br)}
+.stg.done .nm{color:var(--ag-done-ink)}
+.stg.doing{background:var(--ag-doing-bg);border-color:var(--ag-doing-br);box-shadow:inset 0 -2px 0 var(--pri)}
+.stg.doing .nm{color:var(--ag-doing-ink)}
+.stg.todo .nm{color:var(--text-3)}
+.stg .rep{position:absolute;top:5px;right:7px;font-family:var(--mono);font-size:9px;color:var(--text-3)}
+
+/* 里程碑列 */
+.mrow{display:flex;align-items:center;gap:9px;padding:var(--rowpad) 12px;border-bottom:1px solid var(--border);font-size:12.5px;flex-wrap:wrap}
+.mrow:last-child{border-bottom:0}
+.mrow:hover{background:var(--hover-overlay)}
+.mrow .dia{color:var(--gold);flex:0 0 auto;display:flex}
+.mrow .nm{font-weight:600}
+.mrow .rt{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.trow{display:flex;align-items:center;gap:9px;padding:6px 12px 6px 36px;border-bottom:1px solid var(--border);font-size:12px}
+.trow:hover{background:var(--hover-overlay)}
+.trow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trow .who{border:0;padding:0;font-size:11px;color:var(--text-3)}
+
+/* ---------- 資料夾樹 ---------- */
+.tree{padding:5px 0;max-height:560px;overflow:auto}
+.tn{display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:12px;cursor:pointer;border-left:2px solid transparent}
+.tn:hover{background:var(--hover-overlay)}
+.tn.on{background:var(--pri-bg);border-left-color:var(--pri);color:var(--pri);font-weight:600}
+.tn .tw{width:12px;flex:0 0 12px;color:var(--text-3);display:flex;align-items:center;justify-content:center;font-size:9px}
+.tn .ico{flex:0 0 auto;display:flex;color:var(--text-3)}
+.tn.on .ico{color:var(--pri)}
+.tn .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tn .n{font-family:var(--mono);font-size:10px;color:var(--text-3)}
+.tn.inbox .ico{color:var(--warn)}
+.tn.inbox .lb{color:var(--warn)}
+.tn.inbox.on .lb,.tn.inbox.on .ico{color:var(--pri)}
+
+/* 檔案列 */
+.frow{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px}
+.frow:last-child{border-bottom:0}
+.frow:hover{background:var(--hover-overlay)}
+.frow .ext{font-family:var(--mono);font-size:9px;text-transform:uppercase;width:34px;flex:0 0 34px;text-align:center;
+  border:1px solid var(--border-2);border-radius:4px;padding:2px 0;color:var(--text-3);background:var(--surface-2)}
+.frow .fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .sz{font-family:var(--mono);font-size:10.5px;color:var(--text-3);flex:0 0 auto}
+.frow input[type=checkbox]{accent-color:var(--pri);width:13px;height:13px;flex:0 0 auto}
+.crumb{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-3);flex-wrap:wrap}
+.crumb b{color:var(--text-2);font-weight:600}
+
+/* ---------- [關聯解法 M1/M3] 引用晶片與懸停卡 ---------- */
+.ref{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:9.5px;line-height:1;
+  padding:3px 6px;border-radius:5px;border:1px dashed var(--border-3);color:var(--text-2);background:transparent;position:relative}
+.ref:hover{border-style:solid;border-color:var(--pri-br);background:var(--pri-bg);color:var(--pri)}
+.ref .ar{opacity:.6}
+.peek{position:fixed;z-index:120;width:290px;background:var(--surface-3);border:1px solid var(--border-3);
+  border-radius:var(--r);box-shadow:var(--shadow);padding:10px 11px;font-size:11.5px;display:none;pointer-events:none}
+.peek.show{display:block}
+.peek .pt{font-size:9.5px;font-family:var(--mono);color:var(--text-3);letter-spacing:.06em;text-transform:uppercase}
+.peek .ph{font-size:12.5px;font-weight:650;margin:2px 0 5px}
+.peek .pl{display:flex;gap:7px;padding:2px 0;border-top:1px solid var(--border-2);font-size:11px}
+.peek .pl .pk{flex:0 0 58px;color:var(--text-3);font-size:10px}
+.peek .pf{margin-top:6px;font-size:10px;color:var(--text-3);font-family:var(--mono)}
+
+/* ---------- 會議 ---------- */
+.mt-item{padding:8px 11px;border-bottom:1px solid var(--border);cursor:pointer;border-left:2px solid transparent}
+.mt-item:hover{background:var(--hover-overlay)}
+.mt-item.on{background:var(--pri-bg);border-left-color:var(--pri)}
+.mt-item .d{font-family:var(--mono);font-size:10px;color:var(--text-3)}
+.mt-item .t{font-size:12px;font-weight:600;margin:1px 0 3px}
+.mt-item .s{display:flex;gap:4px;flex-wrap:wrap}
+/* [約束4] 會議資料夾四屬性 */
+.mt-attrs{display:grid;grid-template-columns:repeat(2,1fr);gap:0;border-top:1px solid var(--border)}
+.mt-at{padding:9px 12px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.mt-at:nth-child(2n){border-right:0}
+.mt-at .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);display:flex;align-items:center;gap:5px}
+.mt-at .v{font-size:12px;margin-top:4px;line-height:1.65}
+.mt-at .v.edit{cursor:text;border:1px dashed transparent;border-radius:5px;margin:3px -4px 0;padding:1px 4px}
+.mt-at .v.edit:hover{border-color:var(--border-3);background:var(--surface-2)}
+.mt-at textarea{width:100%;background:var(--surface-2);border:1px solid var(--pri-br);border-radius:6px;padding:6px 7px;
+  font-size:12px;resize:vertical;min-height:54px;margin-top:3px;outline:none}
+.quad{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;padding:10px 12px}
+.qc{border:1px solid var(--border-2);border-radius:7px;padding:8px 9px;background:var(--surface-2)}
+.qc .qn{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:5px}
+.qc .qf{font-family:var(--mono);font-size:10px;color:var(--text-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qc.miss{border-style:dashed;opacity:.75}
+.qc.miss .qn{color:var(--text-3)}
+
+/* ---------- 對話 ---------- */
+.src-tabs{display:flex;gap:4px;padding:8px 11px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.src-tab{display:flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid var(--border-2);border-radius:7px;
+  font-size:11.5px;color:var(--text-2);background:var(--surface-2)}
+.src-tab.on{background:var(--pri-bg);border-color:var(--pri-br);color:var(--pri);font-weight:600}
+/* [約束7] LINE 停用入口 */
+.src-tab.disabled{opacity:.5;border-style:dashed;cursor:not-allowed}
+.src-tab.disabled:hover{opacity:.65}
+.msg{display:flex;gap:9px;padding:9px 12px}
+.msg .mav{width:24px;height:24px;border-radius:50%;flex:0 0 24px;display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-weight:650;background:#2b4a63;color:#9ecbf5}
+:root[data-theme="light"] .msg .mav{background:#dbeafe;color:#1d4ed8}
+.msg.other .mav{background:#3d3357;color:#c4a2f5}
+:root[data-theme="light"] .msg.other .mav{background:#f3e8ff;color:#7e22ce}
+.msg .mb{flex:1;min-width:0}
+.msg .mh{display:flex;align-items:center;gap:7px;font-size:11px}
+.msg .mh b{font-size:12px;font-weight:650}
+.msg .mh .ts{font-family:var(--mono);font-size:10px;color:var(--text-3)}
+.msg .mt{font-size:12.5px;margin-top:2px;white-space:pre-wrap;word-break:break-word}
+.msg .mx{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;align-items:center}
+.msg:hover .upg{opacity:1}
+.upg{opacity:0;transition:opacity .12s}
+.composer{border-top:1px solid var(--border);padding:9px 12px;display:flex;gap:8px;align-items:flex-end}
+.composer textarea{flex:1;background:var(--surface-2);border:1px solid var(--border-2);border-radius:7px;padding:7px 9px;
+  font-size:12.5px;resize:none;height:46px;outline:none}
+.composer textarea:focus{border-color:var(--pri-br)}
+
+/* ---------- drawer / modal ---------- */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:100;display:none}
+.scrim.show{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);background:var(--surface);border-left:1px solid var(--border-2);
+  z-index:110;transform:translateX(100%);transition:transform .18s ease;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.drawer.show{transform:none}
+.dh{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--border)}
+.dh h3{margin:0;font-size:13px;font-weight:650}
+.dh .x{margin-left:auto;color:var(--text-3);font-size:17px;line-height:1;padding:2px 5px;border-radius:5px}
+.dh .x:hover{background:var(--surface-3);color:var(--text)}
+.dbody{flex:1;overflow:auto;padding:12px 14px}
+.dfoot{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:var(--surface-2)}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-48%) scale(.98);z-index:110;width:min(560px,calc(100vw - 28px));
+  max-height:88vh;background:var(--surface);border:1px solid var(--border-2);border-radius:12px;box-shadow:var(--shadow);
+  display:none;flex-direction:column;opacity:0;transition:opacity .14s,transform .14s}
+.modal.show{display:flex;opacity:1;transform:translate(-50%,-50%) scale(1)}
+.fld{margin-bottom:11px}
+.fld label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:4px}
+.fld input,.fld textarea,.fld select{width:100%;background:var(--surface-2);border:1px solid var(--border-2);border-radius:7px;
+  padding:7px 9px;font-size:12.5px;outline:none}
+.fld input:focus,.fld textarea:focus,.fld select:focus{border-color:var(--pri-br)}
+.fld textarea{resize:vertical;min-height:58px}
+.fld .fh{font-size:10.5px;color:var(--text-3);margin-top:3px}
+.radios{display:flex;gap:6px;flex-wrap:wrap}
+.radio{display:flex;align-items:center;gap:5px;border:1px solid var(--border-2);border-radius:7px;padding:5px 9px;font-size:11.5px;background:var(--surface-2)}
+.radio.on{border-color:var(--pri-br);background:var(--pri-bg);color:var(--pri);font-weight:600}
+.pickrow{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--border-2);border-radius:7px;
+  margin-bottom:5px;font-size:12px;background:var(--surface-2)}
+.pickrow.on{border-color:var(--pri-br);background:var(--pri-bg)}
+.pickrow .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);z-index:140;background:var(--surface-4);
+  border:1px solid var(--border-3);border-radius:9px;padding:9px 14px;font-size:12px;box-shadow:var(--shadow);opacity:0;
+  transition:opacity .16s,transform .16s;pointer-events:none;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.empty{padding:34px 16px;text-align:center;color:var(--text-3);font-size:12px}
+.sep{height:1px;background:var(--border);margin:10px 0}
+.bar{height:5px;border-radius:3px;background:var(--surface-3);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--pri)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--text-3);padding:7px 12px;border-top:1px solid var(--border)}
+
+@media (max-width:1100px){
+  .g3,.g2,.g-side{grid-template-columns:1fr}
+  .g-drive,.g-meet,.g-chat{grid-template-columns:1fr}
+  .tree{max-height:260px}
+}
+@media (max-width:860px){
+  .topsearch{display:none}
+  .brand .v{display:none}
+  .who .role{display:none}
+  .top{gap:8px;padding:0 10px}
+  .brand{font-size:12.5px}
+  .toprt{min-width:0}
+}
+@media (max-width:720px){
+  :root{--rail:54px}
+  .rail-i{width:44px;font-size:9px}
+  .rail-i span.lb{display:none}
+  .body{padding:11px 12px 56px}
+  .phead{padding:10px 12px 0}
+  .pbanner{padding:9px 12px}
+  .ptitle h1{font-size:16px}
+  .mt-attrs{grid-template-columns:1fr}
+  .mt-at{border-right:0}
+  /* 窄螢幕：檔案列與任務列改為換行，檔名永遠占滿一行，不被晶片擠掉 */
+  .frow,.trow{flex-wrap:wrap}
+  .frow .fn,.trow .nm{flex:1 0 100%;white-space:normal;order:-1}
+  .frow input[type=checkbox]{order:-2}
+  .trow{padding-left:14px}
+  .crumb{max-width:100%}
+  .stages{padding:9px}
+  .stg{min-width:96px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 左軌道：沿用 v5 既有的 7 模組 + 工作區，僅「專案」為本原型範圍 -->
+  <nav class="rail" aria-label="模組">
+    <button class="rail-i" data-rail>%I:book%<span class="lb">日誌</span></button>
+    <button class="rail-i" data-rail>%I:layers%<span class="lb">營運</span></button>
+    <button class="rail-i on" data-rail>%I:folder%<span class="lb">專案</span></button>
+    <button class="rail-i" data-rail>%I:wallet%<span class="lb">金流</span><i class="bdg">1</i></button>
+    <button class="rail-i" data-rail>%I:chart%<span class="lb">容量</span></button>
+    <button class="rail-i" data-rail>%I:check%<span class="lb">承諾</span><i class="bdg">1</i></button>
+    <button class="rail-i" data-rail>%I:bell%<span class="lb">訊號</span><i class="bdg">3</i></button>
+    <span class="rail-sp"></span>
+    <button class="rail-i" data-rail>%I:building%<span class="lb">圓展</span></button>
+    <button class="rail-i" data-rail>%I:file%<span class="lb">文件</span></button>
+  </nav>
+
+  <div class="main">
+    <header class="top">
+      <div class="brand"><span class="sq"></span>圓展 Operating System<span class="v">v5 · 提案 A</span></div>
+      <div class="topsearch">%I:search%<span>搜尋、新增或執行動作…</span><span class="kbd">⌘K</span></div>
+      <div class="toprt">
+        <button class="tbtn" id="themeBtn">%I:moon% 深色</button>
+        <div class="who"><span class="av">宇</span>戴宇星<span class="role">OWNER</span></div>
+      </div>
+    </header>
+
+    <!-- 頁首說明條 -->
+    <div class="pbanner">
+      <span class="tagA">提案 A</span>
+      <span class="ln"><i>核心主張</i><b>分頁延伸</b>：五大資源不新增分頁總數——合併重組成 <b>六個分頁</b>，深度全部推進 v5 既有的「分頁內子視圖」慣例，學習成本趨近於零。</span>
+      <span class="ln"><i>刻意的取捨</i>分頁天生切斷資源之間的關聯，所以 A 用<b>引用晶片＋懸停卡＋回返脈絡列＋就地升級抽屜</b>把關聯補回來，而不是再開一個「關聯」分頁——那只會證明批評是對的。</span>
+    </div>
+
+    <div class="phead">
+      <div class="ptitle">
+        <h1 id="pName">—</h1>
+        <span class="rc mono" id="pRef">—</span>
+        <span class="sub" id="pClient">—</span>
+        <span class="pmeta" id="pMeta"></span>
+      </div>
+      <div class="pswitch" id="pSwitch"></div>
+      <div class="tabs" id="tabs"></div>
+    </div>
+
+    <div class="retbar" id="retbar">
+      %I:corner%<span id="retText"></span>
+      <button class="back" id="retBack">← 返回來處</button>
+    </div>
+
+    <main class="body" id="view"></main>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true">
+  <div class="dh"><h3 id="drTitle">—</h3><button class="x" data-close>×</button></div>
+  <div class="dbody" id="drBody"></div>
+  <div class="dfoot" id="drFoot"></div>
+</aside>
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="dh"><h3 id="moTitle">—</h3><button class="x" data-close>×</button></div>
+  <div class="dbody" id="moBody"></div>
+  <div class="dfoot" id="moFoot"></div>
+</div>
+<div class="peek" id="peek"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   圖示表：沿用 v5 的 `const I = {...}` ＋ svg(name,size) 形狀
+   （AGENTS.md §12.1：工作台用自己的 lucide-equivalent inline SVG）
+   ============================================================ */
+const I = {
+  book:'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
+  layers:'m12 2 9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5',
+  folder:'M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z',
+  folderOpen:'m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2',
+  wallet:'M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4',
+  chart:'M3 3v18h18M7 16V9M12 16V5M17 16v-5',
+  check:'M20 6 9 17l-5-5',
+  bell:'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+  building:'M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18ZM6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4',
+  file:'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v6h6',
+  search:'m21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+  moon:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',
+  sun:'M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
+  plus:'M12 5v14M5 12h14',
+  pencil:'M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z',
+  diamond:'m12 2 10 10-10 10L2 12z',
+  users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  clock:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+  flag:'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7',
+  alert:'m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01',
+  inbox:'M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z',
+  msg:'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+  mic:'M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3',
+  type:'M4 7V4h16v3M9 20h6M12 4v16',
+  notes:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
+  sparkle:'m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
+  lock:'M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2zM7 11V7a5 5 0 0 1 10 0v4',
+  eye:'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  corner:'M9 14 4 9l5-5M4 9h11a4 4 0 0 1 4 4v7',
+  arrow:'M5 12h14M12 5l7 7-7 7',
+  ban:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM4.9 4.9l14.2 14.2',
+  chevR:'m9 18 6-6-6-6', chevD:'m6 9 6 6 6-6',
+  up:'M12 19V5M5 12l7-7 7 7',
+  link:'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
+  trash:'M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+  cal:'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'
+};
+function svg(n,s){s=s||14;return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+I[n]+'"/></svg>';}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+document.body.innerHTML = document.body.innerHTML.replace(/%I:([a-zA-Z]+)%/g,(_,n)=>svg(n,16));
+
+/* ============================================================
+   資料：全部取自 0_工作區 實測盤點（MIG / RES-033 §6）。
+   沒有可靠數字的地方一律「待補」，沿用既有「日期待補」語彙。
+   folders[] 形狀對齊 OperatingDriveFolder（parentId / role / visibility / occasionId）
+   files[]   形狀對齊 OperatingAsset（folderId / displayName / kind / visibility）
+   [約束6] 資料夾與檔名皆為 Owner 現場既有慣例，不是我們發明的
+   ============================================================ */
+const F=(id,p,name,role,vis,meta)=>({id,p,name,role,vis:vis||'internal',meta:meta||null});
+const A=(id,fd,name,ext,size,vis,refs,note)=>({id,fd,name,ext,size,vis:vis||'internal',refs:refs||[],note:note||''});
+
+const DB={
+/* ---------------- 03 幸福文齡（二期：展示「期」這一層） ---------------- */
+'PRJ-2026-003':{
+  no:'03', name:'幸福文齡網站', full:'豐盛之翼學院 形象官網',
+  client:'梁文齡／豐盛之翼學院', stage:'EXECUTING', stageLabel:'執行中', stageTone:'pri',
+  legacy:'03. 幸福文齡網站 - 3', stat:'87 檔 · 89.11 MiB', tier:3,
+  finance:{rev:'待補',cost:'待補',gross:'待補',note:'只找到一期報價規格書，二期報價與金額待補（M2）'},
+  cycles:[
+    {ord:1,title:'一期',contract:'幸運療癒師_官網報價規格書',state:'done',
+     stages:[{k:'提案',s:'done',d:'2024-03-20'},{k:'接案',s:'done',d:'日期待補'},{k:'執行',s:'done',d:'日期待補'},{k:'驗收',s:'done',d:'一版已上線'}]},
+    {ord:2,title:'二期（第二次修改）',contract:'待補 · 二期是否另立合約未定',state:'doing',
+     stages:[{k:'追加合約',s:'todo',d:'日期待補'},{k:'執行',s:'doing',d:'2026-09-19 起'},{k:'驗收',s:'todo',d:'日期待補'}]}
+  ],
+  milestones:[
+    {id:'M05',cy:2,name:'第二次修改需求確認',date:'2026-09-19',st:'done',acc:'需求書已簽收',
+     refs:[{t:'file',id:'a31',l:'需求書.md'},{t:'meet',id:'mt31',l:'會議 0919'}],
+     tasks:[{id:'T-311',n:'需求書逐條拆成工項',st:'done',w:'戴宇星',d:'2026-09-20'}]},
+    {id:'M06',cy:2,name:'素材補齊與上站',date:'',st:'doing',acc:'87 個素材檔分類完成且標註可見性',
+     refs:[{t:'folder',id:'fd33',l:'網站素材庫'},{t:'msg',id:'g31m3',l:'對話 0922'}],
+     tasks:[
+       {id:'T-312',n:'87 個素材檔確認哪些已上站',st:'doing',w:'戴宇星',d:'日期待補'},
+       {id:'T-313',n:'證書們 40+ 份逐份確認是否可公開（預設僅內部）',st:'todo',w:'戴宇星',d:'日期待補',rev:true},
+       {id:'T-314',n:'4 個 .svg logo 走匯入路徑放寬（互動上傳仍拒）',st:'todo',w:'戴宇星',d:'日期待補'}
+     ]},
+    {id:'M07',cy:2,name:'二版驗收',date:'',st:'todo',acc:'驗收規則待補',
+     refs:[],tasks:[]}
+  ],
+  unlinked:[{id:'T-315',n:'補齊這個專案的缺漏欄位（二期報價／一期驗收日）',st:'todo',w:'戴宇星'}],
+  folders:[
+    F('fd30',null,'收件匣','inbox'),
+    F('fd31',null,'提案（開案前）','proposal'),
+    F('fd32',null,'合約','contract'),
+    F('fd3m',null,'會議','meeting'),
+    F('fd31a','fd3m','20260919 第二次修改需求對焦','meeting_one','internal',{occ:'mt31'}),
+    F('fd3M',null,'里程碑交付','milestone'),
+    F('fd33',null,'網站素材庫','material'),
+    F('fd33a','fd33','Logo','material'),
+    F('fd33b','fd33','形象照','material'),
+    F('fd33c','fd33','經歷照片','material'),
+    F('fd33d','fd33','證書們（如果有想放網站上）','material'),
+    F('fd33e','fd33','首頁出版品圖','material'),
+    F('fd33f','fd33','客戶見證圖檔','material'),
+    F('fd34',null,'第二次修改需求','revision','internal',{entry:'二期入口'}),
+    F('fd35',null,'共用（對客戶）','shared','client_visible'),
+    F('fd36',null,'內部（不得提供客戶）','internal')
+  ],
+  files:[
+    A('a31','fd30','豐盛之翼學院官網第二次修改需求書.md','md','24 KB','internal',[{t:'mile',id:'M05',l:'M05'}],'2026-09-19 · 尚未歸檔'),
+    A('a32','fd30','第二次修改需求.pptx','pptx','3.1 MB','internal',[],'原在 網站素材庫／，位置不合語意'),
+    A('a33','fd30','網站文案集.docx','docx','待補','internal',[],''),
+    A('a34','fd31','幸運療癒師_官網報價規格書.docx','docx','待補','internal',[]),
+    A('a35','fd31','幸運療癒師_官網報價規格書.pdf','pdf','待補','client_visible',[]),
+    A('a36','fd31','網站sitemap前期訪談.docx','docx','待補','internal',[]),
+    A('a37','fd33','幸福官網－文案撰寫指引.pdf','pdf','待補','client_visible',[]),
+    A('a38','fd33a','48631241.svg','svg','14 KB','client_visible',[],'匯入白名單放寬（OD-G）· 互動上傳仍拒'),
+    A('a39','fd33a','48647029.svg','svg','13 KB','client_visible',[],'匯入白名單放寬（OD-G）'),
+    A('a3a','fd33a','48647566.svg','svg','13 KB','client_visible',[],'匯入白名單放寬（OD-G）'),
+    A('a3b','fd33a','48647740.svg','svg','13 KB','client_visible',[],'匯入白名單放寬（OD-G）'),
+    A('a3c','fd33d','梁文齡金錢靈氣三階證書.pdf','pdf','待補','internal',[],'第三方學歷證照 · 禁 client_visible'),
+    A('a3d','fd31a','2026-09-19_第二次修改需求對焦_摘要.md','md','待補','internal',[{t:'mile',id:'M05',l:'M05'}])
+  ],
+  meetings:[
+    {id:'mt31',fd:'fd31a',date:'2026-09-19',title:'第二次修改需求對焦',
+     people:'戴宇星（圓展）、梁文齡（豐盛之翼學院）',
+     conclusion:'二期範圍＝第二次修改需求書全部條目；素材由客戶端補齊後才排上站。',
+     caution:'二期是否另立合約尚未確認；報價未出 → 先別排人力。',
+     quad:[{k:'會議錄音檔',f:'',ok:false},{k:'逐字稿',f:'',ok:false},
+           {k:'完整會議記錄',f:'',ok:false},{k:'摘要',f:'2026-09-19_…_摘要.md',ok:true}],
+     todos:[{n:'向客戶要二期報價確認',done:false},{n:'確認素材補齊期限',done:false}]}
+  ],
+  threads:[
+    {id:'g31',title:'第二次修改需求確認',open:true,msgs:[
+      {w:'戴宇星',me:true,ts:'09-19 10:12',t:'第二次修改需求書我收到了，條目我先拆成工項掛到 M05。'},
+      {w:'梁文齡',me:false,ts:'09-19 14:30',t:'好，另外證書那個資料夾裡面有些是我個人的，不要放上網站。'},
+      {id:'g31m3',w:'梁文齡',me:false,ts:'09-22 09:05',t:'素材我這邊還在整理，大概要到月底。先問一下二期報價什麼時候給我？',
+       upg:{kind:'task',to:'M06'}}
+    ]}
+  ]
+},
+
+/* ---------------- 01 共好玟化（已交付、尾款未收；M01–M04 現成序列） ---------------- */
+'PRJ-2026-001':{
+  no:'01', name:'共好玟化網站', full:'共好玟化 品牌網站建置（一期）',
+  client:'共好玟化', stage:'ACCEPTANCE', stageLabel:'驗收中', stageTone:'warn',
+  legacy:'01.共好玟化網站 - 3', stat:'25 檔 · 45.58 MiB', tier:3,
+  finance:{rev:'135,000',cost:'待補',gross:'待補',
+    note:'第一期之一 33,750 已收款；之二與第二期 67,500 狀態欄空白 ≠ 未收（M3 待 Owner 確認）'},
+  cycles:[
+    {ord:1,title:'一期',contract:'圓展教育科技報價單_ESG網站_回簽',state:'doing',
+     stages:[{k:'提案',s:'done',d:'開案前'},{k:'接案',s:'done',d:'2026-03-25 回簽'},
+             {k:'執行',s:'done',d:'03-04 → 04-11'},{k:'驗收',s:'doing',d:'0412 交付 · 尾款未收'}]},
+    {ord:2,title:'二期（待啟動）',contract:'待補 · 是否另立合約未定',state:'todo',
+     stages:[{k:'追加合約',s:'todo',d:'日期待補'},{k:'執行',s:'todo',d:'日期待補'},
+             {k:'驗收',s:'todo',d:'日期待補'},{k:'結案',s:'todo',d:'含一年維護，起算日待補'}]}
+  ],
+  milestones:[
+    {id:'M01',cy:1,name:'網站需求書',date:'2026-03-04',st:'done',acc:'需求書定稿',
+     refs:[{t:'file',id:'a11',l:'M01 需求書'}],tasks:[]},
+    {id:'M02',cy:1,name:'需求書回簽',date:'2026-03-25',st:'done',acc:'雙方回簽 PDF 存檔',
+     refs:[{t:'file',id:'a12',l:'M02 回簽'}],tasks:[]},
+    {id:'M03',cy:1,name:'對焦完成（Landing Page 訪談）',date:'2026-03-25',st:'done',acc:'訪談文件確認',
+     refs:[{t:'file',id:'a13',l:'M03 訪談'}],tasks:[]},
+    {id:'M04',cy:1,name:'網站資源一版',date:'2026-04-11',st:'done',acc:'6 份文案交付',
+     refs:[{t:'folder',id:'fd1M4',l:'M04 資料夾'}],tasks:[]},
+    {id:'M05',cy:1,name:'尾款與結案',date:'',st:'doing',acc:'第一期之二與第二期款項狀態待確認',
+     refs:[{t:'file',id:'a16',l:'專案財務.xlsx'}],
+     tasks:[{id:'T-111',n:'向客戶確認第一期之二是否已收款',st:'doing',w:'戴宇星',d:'日期待補'},
+            {id:'T-112',n:'一年維護起算日確認',st:'todo',w:'戴宇星',d:'日期待補'}]}
+  ],
+  unlinked:[{id:'T-113',n:'補齊這個專案的缺漏欄位（收款狀態／二期合約）',st:'todo',w:'戴宇星'}],
+  folders:[
+    F('fd10',null,'收件匣','inbox'),
+    F('fd11',null,'開案前','proposal'),
+    F('fd12',null,'專案啟動［正式資料］','milestone'),
+    F('fd1M4','fd12','20260411_M04_網站資源一版','milestone'),
+    F('fd1s',null,'[共用] 官網專案＿共好玟化 X 圓展','shared','client_visible'),
+    F('fd1s1','fd1s','01.確認文案（確認要上網頁的字）','shared','client_visible'),
+    F('fd1s2','fd1s','02.確認圖庫（確認要上網頁的圖片們）','shared','client_visible'),
+    F('fd1s3','fd1s','99.參考資料','shared','client_visible'),
+    F('fd1s4','fd1s','修改需求','revision','client_visible',{entry:'二期入口'}),
+    F('fd1f',null,'財務','finance')
+  ],
+  files:[
+    A('a11','fd12','20260304_M01_網站需求書.docx','docx','待補','internal',[{t:'mile',id:'M01',l:'M01'}]),
+    A('a12','fd12','20260325_M02_共好玟化網站需求書-YZedtech_回簽.pdf','pdf','待補','client_visible',[{t:'mile',id:'M02',l:'M02'}],'回簽＝CONTRACTED 的判定依據'),
+    A('a13','fd12','20260325_M03_對焦完成_永續品牌 Landing Page 訪談文件.pdf','pdf','待補','internal',[{t:'mile',id:'M03',l:'M03'}],'與 [共用]／0325對焦完成… 內容相同（contentHash 相同，刻意不去重）'),
+    A('a16','fd1f','專案財務.xlsx','xlsx','待補','internal',[{t:'mile',id:'M05',l:'M05'}],'整批唯一財務台帳 · 禁 client_visible'),
+    A('a14','fd1s','Sitemap.docx','docx','25.8 MB','client_visible',[]),
+    A('a15','fd1s4','Sitemap第一次修改需求確認20260808.pdf','pdf','14.2 MB','client_visible',[],'第一次修改需求＝二期入口'),
+    A('a17','fd11','圓展教育科技報價單_ESG網站_回簽.pdf','pdf','待補','client_visible',[]),
+    A('a18','fd11','共好玟化品牌網站建置需求書.pdf','pdf','待補','client_visible',[]),
+    A('a19','fd10','專案議題單與進度更新（0627後）.docx','docx','待補','internal',[],'尚未歸檔')
+  ],
+  meetings:[],
+  threads:[{id:'g11',title:'尾款與二期',open:true,msgs:[
+    {w:'戴宇星',me:true,ts:'09-28 09:40',t:'第一期之二的款項狀態我在財務表上看不出來，可以幫忙確認嗎？'},
+    {id:'g11m2',w:'共好玟化',me:false,ts:'09-29 11:02',t:'我請會計查一下。另外二期我們想等材料備齊再談，大概十一月。',
+     upg:{kind:'task',to:'M05'}}
+  ]}]
+},
+
+/* ---------------- 10 又帆會計（唯一真的做出會議四件套的專案） ---------------- */
+'PRJ-2026-011':{
+  no:'10', name:'AI SSOT 會計與工商登記', full:'又帆會計 AI SSOT 案件工作台',
+  client:'又帆（會計師）', stage:'PROPOSING', stageLabel:'提案中', stageTone:'info',
+  legacy:'10.AI SSOT 會計與工商登記 又帆', stat:'4 檔 · 0.06 MiB', tier:null,
+  finance:{rev:'待補',cost:'待補',gross:'待補',note:'訪談完成未報價（M2）'},
+  cycles:[
+    {ord:1,title:'一期',contract:'尚未報價',state:'doing',
+     stages:[{k:'提案',s:'doing',d:'2026-07-17 訪談完成'},{k:'接案',s:'todo',d:'日期待補'},
+             {k:'執行',s:'todo',d:'日期待補'},{k:'驗收',s:'todo',d:'日期待補'}]}
+  ],
+  milestones:[
+    {id:'M01',cy:1,name:'需求訪談完成',date:'2026-07-17',st:'done',acc:'四件套產出（錄音檔缺）',
+     refs:[{t:'meet',id:'mt10',l:'會議 0717'}],tasks:[]},
+    {id:'M02',cy:1,name:'報價與人日估算',date:'',st:'doing',acc:'報價單送出並取得回覆',
+     refs:[{t:'file',id:'ax4',l:'決策分析.md'}],
+     tasks:[{id:'T-101',n:'五項行動項目指派負責人與期限',st:'todo',w:'待指派',d:'日期待補'},
+            {id:'T-102',n:'產出方案 B 的人日估算',st:'doing',w:'戴宇星',d:'日期待補'}]}
+  ],
+  unlinked:[{id:'T-103',n:'確認與 11 律師-會計師-地政士 是否同一客戶群',st:'todo',w:'戴宇星'}],
+  folders:[
+    F('fda0',null,'收件匣','inbox'),
+    F('fdam',null,'會議','meeting'),
+    F('fda1','fdam','20260717 第一次需求對談','meeting_one','internal',{occ:'mt10'}),
+    F('fdap',null,'提案','proposal'),
+    F('fdai',null,'內部（不得提供客戶）','internal')
+  ],
+  files:[
+    A('ax1','fda1','2026-07-17_AI_SSOT_會計與工商登記討論_逐字稿.txt','txt','待補','internal',[{t:'meet',id:'mt10',l:'會議 0717'}]),
+    A('ax2','fda1','2026-07-17_AI_SSOT_會計與工商登記討論_完整會議記錄.md','md','待補','internal',[{t:'meet',id:'mt10',l:'會議 0717'}]),
+    A('ax3','fda1','2026-07-17_AI_SSOT_會計與工商登記討論_摘要.md','md','待補','internal',[{t:'meet',id:'mt10',l:'會議 0717'}],'「來源資料」段落明列四件套路徑'),
+    A('ax4','fda0','2026-07-17_AI_SSOT_會計與工商登記討論_決策分析.md','md','待補','internal',[{t:'meet',id:'mt10',l:'會議 0717'},{t:'mile',id:'M02',l:'M02'}],'原本散在專案根目錄 → 應歸到會議資料夾')
+  ],
+  meetings:[
+    {id:'mt10',fd:'fda1',date:'2026-07-17',title:'第一次需求對談',
+     people:'戴宇星（圓展）、又帆（會計師）',
+     conclusion:'推薦方案 B：工商登記案件 SSOT。（出處：決策分析.md）',
+     caution:'摘要列 5 項行動項目，全部「負責人：待指派／期限：待確認／狀態：未開始」；尚未報價，別先排人力。',
+     quad:[{k:'會議錄音檔',f:'',ok:false},{k:'逐字稿',f:'…_逐字稿.txt',ok:true},
+           {k:'完整會議記錄',f:'…_完整會議記錄.md',ok:true},{k:'摘要',f:'…_摘要.md',ok:true}],
+     todos:[{n:'指派五項行動項目的負責人',done:false},{n:'產出方案 B 人日估算',done:false},{n:'確認報價時程',done:false}]}
+  ],
+  threads:[]
+},
+
+/* ---------------- 12 摸摸寵物（報價 2026-10-30 到期，最急） ---------------- */
+'PRJ-2026-012':{
+  no:'12', name:'摸摸寵物營運系統', full:'摸摸寵物 單店後台導入（階段一）',
+  client:'摸摸寵物（貓咪中途實體門市）', stage:'PROPOSING', stageLabel:'提案中', stageTone:'info',
+  legacy:'12. 摸摸寵物營運系統', stat:'4 檔 · 3.06 MiB', tier:null, urgent:true,
+  finance:{rev:'120,000（推薦方案三）',cost:'待補',gross:'待補',
+    note:'標準價 150,000；推薦方案三 120,000＋一年維護綁約。維護 A 2,500/月、B 15,000/月。逾期回標準價。'},
+  cycles:[
+    {ord:1,title:'一期（階段一）',contract:'建置方案與報價_摸摸寵物_單店後台導入',state:'doing',
+     stages:[{k:'提案',s:'doing',d:'2026-09-30 送出'},{k:'接案',s:'todo',d:'報價有效期 2026-10-30'},
+             {k:'執行',s:'todo',d:'W1 起 12 週'},{k:'驗收',s:'todo',d:'保固 1 月（不計綁約）'}]}
+  ],
+  milestones:[
+    {id:'M01',cy:1,name:'報價有效期截止',date:'2026-10-30',st:'doing',acc:'逾期回標準價 150,000',
+     refs:[{t:'file',id:'ab2',l:'報價單'}],
+     tasks:[{id:'T-121',n:'追客戶回覆（距到期 27 天）',st:'doing',w:'戴宇星',d:'2026-10-30',over:false}]},
+    {id:'M02',cy:1,name:'簽約與啟動',date:'',st:'todo',acc:'綁約 12 月自上線驗收第 2 月起算',refs:[],tasks:[]}
+  ],
+  unlinked:[{id:'T-122',n:'補齊窗口姓名與聯絡方式（M4）',st:'todo',w:'戴宇星'}],
+  folders:[
+    F('fdb0',null,'收件匣','inbox'),
+    F('fdb1',null,'提案','proposal'),
+    F('fdbs',null,'摸摸寵物營運系統專案共用資料夾','shared','client_visible')
+  ],
+  files:[
+    A('ab1','fdb1','計劃提案書_摸摸寵物_單店後台導入_3.docx','docx','待補','internal',[]),
+    A('ab2','fdb1','建置方案與報價_摸摸寵物_單店後台導入.docx','docx','待補','internal',[{t:'mile',id:'M01',l:'M01'}],'提案 2026/9/30 · 有效 2026/10/30'),
+    A('ab3','fdbs','建置方案與報價_摸摸寵物_單店後台導入.pdf','pdf','待補','client_visible',[{t:'mile',id:'M01',l:'M01'}]),
+    A('ab4','fdbs','計劃提案書_摸摸寵物_單店後台導入_3.pdf','pdf','待補','client_visible',[])
+  ],
+  meetings:[],
+  threads:[]
+},
+
+/* ---------------- 08 大考中心（75.8 MiB 會議錄音 mp3） ---------------- */
+'PRJ-2026-008':{
+  no:'08', name:'大考中心AI報告生成', full:'生涯興趣量表 AI 解釋系統建構案',
+  client:'財團法人大學入學考試中心基金會', stage:'PROPOSING', stageLabel:'提案中', stageTone:'info',
+  legacy:'08. 大考中心AI報告生成 -3', stat:'17 檔 · 131.28 MiB', tier:3,
+  finance:{rev:'待補',cost:'待補',gross:'待補',note:'提案書未見金額（M2）'},
+  cycles:[
+    {ord:1,title:'一期',contract:'尚未報價',state:'doing',
+     stages:[{k:'提案',s:'doing',d:'民國 115 年 9 月'},{k:'接案',s:'todo',d:'日期待補'},
+             {k:'執行',s:'todo',d:'日期待補'},{k:'驗收',s:'todo',d:'日期待補'}]}
+  ],
+  milestones:[
+    {id:'M01',cy:1,name:'提案書送出',date:'',st:'doing',acc:'提案金額與期程待補',
+     refs:[{t:'file',id:'ac1',l:'提案書'}],
+     tasks:[{id:'T-081',n:'確認窗口（區老師？）',st:'todo',w:'戴宇星',d:'日期待補'},
+            {id:'T-082',n:'宣傳影片子資料夾移出本案',st:'todo',w:'戴宇星',d:'日期待補'}]}
+  ],
+  unlinked:[],
+  folders:[
+    F('fdc0',null,'收件匣','inbox'),
+    F('fdcm',null,'會議','meeting'),
+    F('fdc1','fdcm','20260904 生涯研討會討論','meeting_one','internal',{occ:'mt08'}),
+    F('fdcp',null,'提案','proposal'),
+    F('fdcx',null,'宣傳影片-歐洲故事箱紙偶劇場版本','custom','internal',{warn:'與本案不相關，建議移出'})
+  ],
+  files:[
+    A('ac1','fdcp','生涯興趣量表AI解釋系統建構案_提案書.docx','docx','待補','internal',[{t:'mile',id:'M01',l:'M01'}]),
+    A('ac2','fdc1','20260904_生涯研討會討論.mp3','mp3','75.8 MB','internal',[{t:'meet',id:'mt08',l:'會議 0904'}],'> 64 MiB 分段上傳門檻 · multipart 續傳未實作（P2）'),
+    A('ac3','fdc0','20260815區老師提供-興趣量表AI解釋系統的開發.docx','docx','待補','internal',[],'尚未歸檔'),
+    A('ac4','fdc0','會議摘要：AI 孤島式生涯測評應用之設計、詮釋與主題分析.docx','docx','待補','internal',[],'應歸到會議資料夾'),
+    A('ac5','fdcx','宣傳片分鏡初步規劃.docx','docx','25.3 MB','internal',[])
+  ],
+  meetings:[
+    {id:'mt08',fd:'fdc1',date:'2026-09-04',title:'生涯研討會討論',
+     people:'戴宇星（圓展）、區老師（待確認）',
+     conclusion:'待補 —— 錄音尚未轉錄，無逐字稿可引。',
+     caution:'錄音 75.8 MiB 超過分段上傳門檻（64 MiB），目前上不了；音訊轉錄列 P3 未承諾。',
+     quad:[{k:'會議錄音檔',f:'20260904_生涯研討會討論.mp3',ok:true,warn:true},
+           {k:'逐字稿',f:'',ok:false},{k:'完整會議記錄',f:'',ok:false},{k:'摘要',f:'',ok:false}],
+     todos:[{n:'確認會議結論並補寫',done:false}]}
+  ],
+  threads:[]
+}
+};
+
+const ROLE_ICON={inbox:'inbox',proposal:'notes',contract:'file',meeting:'users',meeting_one:'cal',
+  milestone:'flag',material:'folder',shared:'eye',internal:'lock',revision:'up',finance:'wallet',custom:'folder'};
+const ROLE_LABEL={inbox:'收件匣',proposal:'提案',contract:'合約',meeting:'會議',meeting_one:'一場會議',
+  milestone:'里程碑交付',material:'素材',shared:'共用（對客戶）',internal:'僅內部',revision:'二期入口',
+  finance:'財務',custom:'自訂'};
+
+/* ============================================================
+   狀態與共用工具
+   ============================================================ */
+const S={pid:'PRJ-2026-003',tab:'overview',cyc:2,
+  selFolder:'fd30',selMeet:'mt31',selThread:'g31',driveSub:'drive',
+  open:{},checked:new Set(),ret:[],editing:null};
+const $=s=>document.querySelector(s);
+const P=()=>DB[S.pid];
+const TABS=[
+  {k:'overview',n:'總覽'},
+  {k:'plan',n:'計劃'},
+  {k:'drive',n:'檔案'},
+  {k:'meet',n:'會議'},
+  {k:'chat',n:'對話'},
+  {k:'fin',n:'財務'}
+];
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+function inboxFd(p){const f=p.folders.find(x=>x.role==='inbox');return f?f.id:null;}
+function inboxN(p){const i=inboxFd(p);return i?p.files.filter(f=>f.fd===i).length:0;}
+function kids(p,pid){return p.folders.filter(f=>f.p===pid);}
+function fdById(p,id){return p.folders.find(f=>f.id===id);}
+function allMiles(p){return p.milestones;}
+function vis(v){return v==='client_visible'
+  ? '<span class="pill cli">'+svg('eye',10)+'可給客戶</span>'
+  : '<span class="pill int">'+svg('lock',10)+'僅內部</span>';}
+
+/* ---- [關聯解法 M1] 引用晶片 ---- */
+const REF_ICON={mile:'flag',meet:'users',file:'file',folder:'folder',msg:'msg',task:'check'};
+function refChip(r){
+  return '<button class="ref" data-ref="'+r.t+':'+r.id+'">'+svg(REF_ICON[r.t]||'link',10)+
+    '<span>'+esc(r.l)+'</span><span class="ar">'+svg('arrow',9)+'</span></button>';
+}
+/* ---- [關聯解法 M3] 懸停卡：多數關聯確認變成 hover，不必跳頁 ---- */
+function peekData(t,id){
+  const p=P();
+  if(t==='mile'){const m=allMiles(p).find(x=>x.id===id);if(!m)return null;
+    return{kind:'里程碑',h:m.id+' · '+m.name,rows:[['期','第 '+m.cy+' 期'],['日期',m.date||'日期待補'],
+      ['驗收',m.acc||'待補'],['任務',m.tasks.length+' 件']],foot:'計劃分頁'};}
+  if(t==='meet'){const m=p.meetings.find(x=>x.id===id);if(!m)return null;
+    return{kind:'會議資料夾',h:m.date+' '+m.title,rows:[['參與者',m.people],['產生時間',m.date],
+      ['結論',m.conclusion],['注意事項',m.caution]],foot:'會議分頁 · 屬性跟著資料夾'};}
+  if(t==='file'){const f=p.files.find(x=>x.id===id);if(!f)return null;
+    const fd=fdById(p,f.fd);
+    return{kind:'檔案',h:f.name,rows:[['位置',fd?fd.name:'—'],['大小',f.size],
+      ['可見性',f.vis==='client_visible'?'可給客戶':'僅內部']].concat(f.note?[['備註',f.note]]:[]),foot:'檔案分頁'};}
+  if(t==='folder'){const f=fdById(p,id);if(!f)return null;
+    return{kind:'資料夾',h:f.name,rows:[['角色',ROLE_LABEL[f.role]||f.role],
+      ['可見性',f.vis==='client_visible'?'可給客戶':'僅內部'],['檔案',p.files.filter(x=>x.fd===id).length+' 個']],foot:'檔案分頁'};}
+  if(t==='msg'){let hit=null;p.threads.forEach(th=>th.msgs.forEach(m=>{if(m.id===id)hit={th,m};}));
+    if(!hit)return null;
+    return{kind:'訊息',h:hit.th.title,rows:[['發話',hit.m.w],['時間',hit.m.ts],['內容',hit.m.t]],foot:'對話分頁'};}
+  if(t==='task'){let hit=null;allMiles(p).forEach(m=>m.tasks.forEach(tk=>{if(tk.id===id)hit={m,tk};}));
+    if(!hit)return null;
+    return{kind:'任務',h:hit.tk.id+' · '+hit.tk.n,rows:[['里程碑',hit.m.id+' '+hit.m.name],
+      ['狀態',hit.tk.st],['負責',hit.tk.w],['到期',hit.tk.d||'日期待補']],foot:'計劃分頁'};}
+  return null;
+}
+function showPeek(el,t,id){
+  const d=peekData(t,id);const pk=$('#peek');if(!d){pk.classList.remove('show');return;}
+  pk.innerHTML='<div class="pt">'+esc(d.kind)+'</div><div class="ph">'+esc(d.h)+'</div>'+
+    d.rows.map(r=>'<div class="pl"><span class="pk">'+esc(r[0])+'</span><span>'+esc(r[1])+'</span></div>').join('')+
+    '<div class="pf">點一下跳過去 · 跳過去後頂端會留回返脈絡</div>';
+  pk.classList.add('show');
+  const r=el.getBoundingClientRect();
+  let left=Math.min(r.left,window.innerWidth-304);left=Math.max(8,left);
+  let top=r.bottom+6; const h=pk.offsetHeight;
+  if(top+h>window.innerHeight-8) top=Math.max(8,r.top-h-6);
+  pk.style.left=left+'px';pk.style.top=top+'px';
+}
+/* ---- [關聯解法 M2] 跨分頁跳轉並保留回返脈絡 ---- */
+function curLabel(){
+  const t=TABS.find(x=>x.k===S.tab);
+  let extra='';
+  if(S.tab==='meet'&&S.selMeet){const m=P().meetings.find(x=>x.id===S.selMeet);if(m)extra=' · '+m.date+' '+m.title;}
+  if(S.tab==='drive'&&S.selFolder){const f=fdById(P(),S.selFolder);if(f)extra=' · '+f.name;}
+  if(S.tab==='chat'&&S.selThread){const th=P().threads.find(x=>x.id===S.selThread);if(th)extra=' · '+th.title;}
+  return (t?t.n:'')+extra;
+}
+function jump(t,id){
+  const snap={tab:S.tab,selFolder:S.selFolder,selMeet:S.selMeet,selThread:S.selThread,
+    cyc:S.cyc,driveSub:S.driveSub,label:curLabel()};
+  const p=P();
+  if(t==='mile'||t==='task'){const m=t==='mile'?allMiles(p).find(x=>x.id===id)
+      :allMiles(p).find(x=>x.tasks.some(k=>k.id===id));
+    if(m){S.cyc=m.cy;} S.tab='plan';}
+  else if(t==='meet'){S.tab='meet';S.selMeet=id;}
+  else if(t==='folder'){S.tab='drive';S.driveSub='drive';S.selFolder=id;openAncestors(id);}
+  else if(t==='file'){const f=p.files.find(x=>x.id===id);if(f){S.tab='drive';S.driveSub='drive';S.selFolder=f.fd;openAncestors(f.fd);}}
+  else if(t==='msg'){let th=null;p.threads.forEach(x=>{if(x.msgs.some(m=>m.id===id))th=x;});if(th){S.tab='chat';S.selThread=th.id;}}
+  else return;
+  S.ret.push(snap);$('#peek').classList.remove('show');render();
+}
+function openAncestors(fid){const p=P();let f=fdById(p,fid);while(f&&f.p){S.open[f.p]=true;f=fdById(p,f.p);}}
+function goBack(){const s=S.ret.pop();if(!s)return;Object.assign(S,{tab:s.tab,selFolder:s.selFolder,
+  selMeet:s.selMeet,selThread:s.selThread,cyc:s.cyc,driveSub:s.driveSub});render();}
+
+/* ---- drawer / modal ---- */
+function openDrawer(title,body,foot){$('#drTitle').textContent=title;$('#drBody').innerHTML=body;
+  $('#drFoot').innerHTML=foot||'';$('#scrim').classList.add('show');$('#drawer').classList.add('show');}
+function openModal(title,body,foot){$('#moTitle').textContent=title;$('#moBody').innerHTML=body;
+  $('#moFoot').innerHTML=foot||'';$('#scrim').classList.add('show');$('#modal').classList.add('show');}
+function closeAll(){$('#scrim').classList.remove('show');$('#drawer').classList.remove('show');$('#modal').classList.remove('show');}
+
+/* ============================================================
+   外殼：專案切換器 ＋ 分頁列
+   ============================================================ */
+function renderShell(){
+  const p=P();
+  $('#pName').textContent=p.name;
+  $('#pRef').textContent=S.pid;
+  $('#pClient').textContent='「'+p.full+'」· '+p.client;
+  const ib=inboxN(p);
+  const clientFiles=p.files.filter(f=>f.vis==='client_visible').length;
+  $('#pMeta').innerHTML=
+    '<span class="pill '+(p.stageTone||'')+'">'+p.stageLabel+'</span>'+
+    '<span class="pill">第 '+p.cycles.length+' 期'+(p.cycles.length>1?' · 執行→驗收重複':'')+'</span>'+
+    (p.urgent?'<span class="pill dan">'+svg('alert',10)+'報價 2026-10-30 到期</span>':'')+
+    '<span class="mono tiny">'+esc(p.stat)+'</span>'+
+    '<span class="pill int">'+svg('lock',10)+(p.files.length-clientFiles)+' 僅內部</span>'+
+    '<span class="pill cli">'+svg('eye',10)+clientFiles+' 可給客戶</span>';
+
+  $('#pSwitch').innerHTML=Object.keys(DB).sort((a,b)=>DB[a].no.localeCompare(DB[b].no)).map(id=>{
+    const d=DB[id];const tone=d.stage==='EXECUTING'?'var(--pri)':d.stage==='ACCEPTANCE'?'var(--warn)':'var(--info)';
+    return '<button class="pchip'+(id===S.pid?' on':'')+'" data-proj="'+id+'">'+
+      '<span class="dot" style="background:'+tone+'"></span><span class="no">'+d.no+'</span>'+esc(d.name)+'</button>';
+  }).join('')+'<button class="pchip" data-act="newproj">'+svg('plus',12)+'新專案</button>';
+
+  const counts={drive:ib,meet:p.meetings.length,chat:p.threads.filter(t=>t.open).length};
+  $('#tabs').innerHTML=TABS.map(t=>{
+    let c='';
+    if(t.k==='drive'&&counts.drive)c='<span class="ct warn" title="收件匣待整理">'+counts.drive+'</span>';
+    if(t.k==='meet'&&counts.meet)c='<span class="ct">'+counts.meet+'</span>';
+    if(t.k==='chat'&&counts.chat)c='<span class="ct">'+counts.chat+'</span>';
+    return '<button class="tab'+(t.k===S.tab?' on':'')+'" data-tab="'+t.k+'">'+esc(t.n)+c+'</button>';
+  }).join('');
+
+  const rb=$('#retbar');
+  if(S.ret.length){const last=S.ret[S.ret.length-1];
+    rb.classList.add('show');
+    $('#retText').innerHTML='從 <b>'+esc(last.label)+'</b> 跳來'+(S.ret.length>1?' · 共 '+S.ret.length+' 層':'');
+  } else rb.classList.remove('show');
+}
+
+/* ============================================================
+   分頁 1：總覽 — 跨資源駕駛艙
+   ============================================================ */
+function renderOverview(){
+  const p=P();const ib=inboxN(p);
+  const cyc=p.cycles.find(c=>c.ord===S.cyc)||p.cycles[p.cycles.length-1];
+  const ms=allMiles(p);
+  const doneM=ms.filter(m=>m.st==='done').length;
+  const noDate=ms.filter(m=>!m.date).length;
+  const tasks=ms.reduce((a,m)=>a.concat(m.tasks),[]).concat(p.unlinked||[]);
+  const openT=tasks.filter(t=>t.st!=='done').length;
+  const meetNoConc=p.meetings.filter(m=>!m.conclusion||m.conclusion.indexOf('待補')===0).length;
+  const upgradable=p.threads.reduce((a,t)=>a+t.msgs.filter(m=>m.upg).length,0);
+
+  /* [約束2] 總覽也看得到「期」：兩列階梯，二期的 執行→驗收 與一期並排 */
+  const ladder=p.cycles.map(c=>
+    '<div style="display:flex;gap:7px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">'+
+    '<span class="pill '+(c.state==='done'?'done':c.state==='doing'?'doing':'todo')+'" style="flex:0 0 auto">'+
+      '<span class="mono">期'+c.ord+'</span> '+esc(c.title)+'</span>'+
+    c.stages.map(s=>'<span class="ref" style="cursor:default;border-style:solid;border-color:'+
+      (s.s==='done'?'var(--ag-done-br)':s.s==='doing'?'var(--pri-br)':'var(--border-2)')+';color:'+
+      (s.s==='done'?'var(--ag-done-ink)':s.s==='doing'?'var(--pri)':'var(--text-3)')+'">'+esc(s.k)+'</span>').join(
+      '<span class="muted tiny">›</span>')+
+    '<span class="tiny muted" style="margin-left:auto">'+esc(c.contract)+'</span></div>').join('');
+
+  /* [關聯解法] 跨資源待辦：分頁架構最容易漏掉的東西，在總覽一次攤開，每一列都是跨分頁跳轉 */
+  const cross=[];
+  if(ib)cross.push({i:'inbox',t:'收件匣有 '+ib+' 個檔案等待整理',s:'檔案 › 收件匣（role=inbox 的真資料夾）',
+    go:['folder',inboxFd(p)],tone:'warn'});
+  if(meetNoConc)cross.push({i:'users',t:meetNoConc+' 場會議的「結論」還沒寫',s:'會議 › 四屬性未齊，結論欄位空白',
+    go:['meet',p.meetings.find(m=>!m.conclusion||m.conclusion.indexOf('待補')===0).id],tone:'warn'});
+  if(upgradable)cross.push({i:'msg',t:upgradable+' 則訊息看起來該變成任務',s:'對話 › 訊息→任務 升級路徑尚未執行',
+    go:['msg',(function(){let r=null;p.threads.forEach(th=>th.msgs.forEach(m=>{if(m.upg&&!r)r=m.id;}));return r;})()],tone:'pri'});
+  if(noDate)cross.push({i:'cal',t:noDate+' 個里程碑是「日期待補」',s:'計劃 › 沒有日期就不會進 time_spine，也不會上日曆',
+    go:['mile',ms.find(m=>!m.date).id],tone:''});
+  p.files.filter(f=>f.note&&f.note.indexOf('multipart')>=0).forEach(f=>cross.push(
+    {i:'alert',t:f.name+' 超過分段上傳門檻',s:'檔案 › 64 MiB 以上尚不可上傳（P2）',go:['file',f.id],tone:'dan'}));
+
+  return '<div class="grid g-side">'+
+  '<div class="grid">'+
+    '<div class="card"><div class="ch"><h3>期 · 階段</h3><span class="note">生命週期：提案 → 接案 → 執行 → 驗收 → 結案，其中 執行→驗收 因二期、三期重複</span>'+
+      '<span class="r"><button class="sbtn" data-tab-go="plan">到計劃分頁 '+svg('arrow',11)+'</button></span></div>'+
+      '<div class="cb">'+ladder+'</div></div>'+
+
+    '<div class="card"><div class="ch"><h3>跨資源待辦</h3><span class="note">分頁會切斷關聯，所以在總覽一次攤開；每一列都是跨分頁跳轉，跳過去會留回返脈絡</span></div>'+
+      '<div class="cb flush">'+(cross.length?cross.map(c=>
+        '<div class="frow"><span class="ext" style="border:0;background:transparent;color:var(--'+(c.tone||'text-3')+')">'+svg(c.i,15)+'</span>'+
+        '<span class="fn"><b style="font-weight:600">'+esc(c.t)+'</b><br><span class="tiny muted">'+esc(c.s)+'</span></span>'+
+        '<button class="sbtn" data-jump="'+c.go[0]+':'+c.go[1]+'">前往 '+svg('arrow',11)+'</button></div>').join('')
+        :'<div class="empty">沒有待處理的跨資源項目。</div>')+'</div></div>'+
+
+    '<div class="grid g3">'+
+      '<div class="card"><div class="ch"><h3>進度</h3></div><div class="cb">'+
+        '<div class="kv"><span class="k">狀態</span><span class="v"><span class="pill '+(p.stageTone||'')+'">'+p.stageLabel+'</span></span></div>'+
+        '<div class="kv"><span class="k">Owner</span><span class="v">戴宇星</span></div>'+
+        '<div class="kv"><span class="k">里程碑</span><span class="v num">'+doneM+' / '+ms.length+
+          (noDate?' <span class="pill">'+noDate+' 筆待補日期</span>':'')+'</span></div>'+
+        '<div class="kv"><span class="k">任務</span><span class="v num">'+openT+' 件未結</span></div>'+
+      '</div></div>'+
+      '<div class="card"><div class="ch"><h3>錢</h3><span class="note">可分配毛利</span></div><div class="cb">'+
+        '<div class="kv"><span class="k">未稅收入</span><span class="v num">'+esc(p.finance.rev)+'</span></div>'+
+        '<div class="kv"><span class="k">成本</span><span class="v num">'+esc(p.finance.cost)+'</span></div>'+
+        '<div class="kv"><span class="k">可分配毛利</span><span class="v num">'+esc(p.finance.gross)+'</span></div>'+
+        '<div class="hint" style="margin-top:7px">'+esc(p.finance.note)+'</div>'+
+      '</div></div>'+
+      '<div class="card"><div class="ch"><h3>資源</h3><span class="note">五大資源各自的入口</span></div><div class="cb flush">'+
+        ['<div class="frow"><span class="ext" style="border:0;background:transparent">'+svg('msg',14)+'</span><span class="fn">聊天室</span><span class="sz">'+p.threads.length+' 串</span><button class="sbtn" data-tab-go="chat">開啟</button></div>',
+         '<div class="frow"><span class="ext" style="border:0;background:transparent">'+svg('folder',14)+'</span><span class="fn">雲端硬碟</span><span class="sz">'+p.folders.length+' 夾 / '+p.files.length+' 檔</span><button class="sbtn" data-tab-go="drive">開啟</button></div>',
+         '<div class="frow"><span class="ext" style="border:0;background:transparent">'+svg('flag',14)+'</span><span class="fn">期·階段·里程碑·任務</span><span class="sz">'+ms.length+' 里程碑</span><button class="sbtn" data-tab-go="plan">開啟</button></div>',
+         '<div class="frow"><span class="ext" style="border:0;background:transparent">'+svg('users',14)+'</span><span class="fn">會議資料區</span><span class="sz">'+p.meetings.length+' 場</span><button class="sbtn" data-tab-go="meet">開啟</button></div>',
+         '<div class="frow"><span class="ext" style="border:0;background:transparent;color:var(--text-3)">'+svg('ban',14)+'</span><span class="fn muted">LINE 群導入</span><span class="sz">停用</span><button class="sbtn" data-act="line">為什麼</button></div>'
+        ].join('')+'</div></div>'+
+    '</div>'+
+  '</div>'+
+
+  '<div class="grid">'+
+    '<div class="card"><div class="ch"><h3>本專案的關鍵時間</h3><span class="note">來自時間線</span></div><div class="cb flush">'+
+      (function(){const rows=ms.filter(m=>m.date).map(m=>
+        '<div class="frow"><span class="sz">'+esc(m.date)+'</span><span class="fn">'+esc(m.name)+'</span>'+
+        refChip({t:'mile',id:m.id,l:m.id})+'</div>');
+       return rows.length?rows.join(''):'<div class="empty">沒有填了日期的里程碑 —— 刻意不猜日期。</div>';})()+
+    '</div></div>'+
+    '<div class="card"><div class="ch"><h3>原始資料夾</h3><span class="note">0_工作區 實測</span></div><div class="cb">'+
+      '<div class="mono tiny" style="color:var(--text-2);word-break:break-all">'+esc(p.legacy)+'</div>'+
+      '<div class="hint" style="margin-top:6px">專案編號用 <code class="mono">PRJ-{YYYY}-{SEQ}</code>；<code class="mono">NN.</code> 會被回收（09 同時用於霽雲燕窩與禾境），只能當 <code class="mono">legacyFolderNo</code>。</div>'+
+    '</div></div>'+
+  '</div></div>';
+}
+
+/* ============================================================
+   分頁 2：計劃 — [約束2] 期 → 階段 → 里程碑 → 任務
+   （吸收舊「工作」分頁：同一批 ProjectTask 不開兩個抽屜）
+   ============================================================ */
+function renderPlan(){
+  const p=P();
+  const cyc=p.cycles.find(c=>c.ord===S.cyc)||p.cycles[0];
+  const ms=allMiles(p).filter(m=>m.cy===cyc.ord);
+
+  const cycBar='<div class="cyc-bar">'+
+    p.cycles.map(c=>'<button class="cyc'+(c.ord===S.cyc?' on':'')+'" data-cyc="'+c.ord+'">'+
+      '<span class="ord">期'+c.ord+'</span>'+esc(c.title)+
+      '<span class="pill '+(c.state==='done'?'done':c.state==='doing'?'doing':'todo')+'">'+
+      (c.state==='done'?'完成':c.state==='doing'?'進行中':'待啟動')+'</span></button>').join('<span class="cyc-sep">›</span>')+
+    '<button class="cyc" data-act="newcyc" style="border-style:dashed">'+svg('plus',11)+'新增期</button>'+
+    '<span style="flex:1"></span>'+
+    '<span class="tiny muted" style="flex:0 0 auto">期是一列資料（ProjectPhaseCycle），不是 enum —— 加三期＝插一列＋一次 UPDATE</span></div>';
+
+  const stages='<div class="stages">'+cyc.stages.map((s,i)=>{
+    const rep=cyc.stages.filter(x=>x.k===s.k).length>1?'×'+cyc.stages.filter(x=>x.k===s.k).length:'';
+    return '<div class="stg '+s.s+'"><div class="nm">'+
+      (s.s==='done'?svg('check',12):s.s==='doing'?svg('clock',12):svg('chevR',12))+esc(s.k)+'</div>'+
+      '<div class="dt">'+esc(s.d)+'</div>'+(rep?'<span class="rep">'+rep+'</span>':'')+'</div>';
+  }).join('')+'</div>';
+
+  const mileRows=ms.length?ms.map(m=>{
+    const dl=m.date?'<span class="mono tiny muted">'+esc(m.date)+'</span>'
+      :'<span class="pill">日期待補</span><span class="pill">不進日曆</span>';
+    const done=m.tasks.filter(t=>t.st==='done').length;
+    return '<div class="mrow"><span class="dia">'+svg('diamond',12)+'</span>'+
+      '<span class="mono tiny" style="color:var(--gold)">'+esc(m.id)+'</span>'+
+      '<span class="nm">'+esc(m.name)+'</span>'+dl+
+      '<span class="pill '+(m.st==='done'?'done':m.st==='doing'?'doing':'todo')+'">'+
+        (m.st==='done'?'完成':m.st==='doing'?'進行中':'未開始')+'</span>'+
+      '<span class="tiny muted">'+esc(m.acc||'驗收規則待補')+'</span>'+
+      '<span class="rt"><span class="mono tiny muted">'+done+'/'+m.tasks.length+'</span>'+
+        m.refs.map(refChip).join('')+
+        '<button class="sbtn" data-act="addtask" data-mile="'+m.id+'">'+svg('plus',11)+'任務</button></span></div>'+
+      (m.tasks.length?m.tasks.map(t=>
+        '<div class="trow"><span class="pill '+(t.st==='done'?'done':t.st==='doing'?'doing':'todo')+'">'+
+          (t.st==='done'?'Done':t.st==='doing'?'Doing':'Todo')+'</span>'+
+        (t.rev?'<span class="pill info">'+svg('check',10)+'審核</span>':'')+
+        '<span class="mono tiny muted">'+esc(t.id)+'</span>'+
+        '<span class="nm">'+esc(t.n)+'</span>'+
+        (t.src?refChip(t.src):'')+
+        '<span class="who">'+esc(t.w)+'</span>'+
+        '<span class="mono tiny muted">'+esc(t.d||'日期待補')+'</span></div>').join('')
+        :'<div class="trow muted tiny" style="padding-top:4px;padding-bottom:4px">—</div>');
+  }).join(''):'<div class="empty">這一期還沒有里程碑。</div>';
+
+  const un=(p.unlinked||[]);
+  return '<div class="grid">'+
+  '<div class="card">'+cycBar+stages+
+    '<div class="legend">'+
+      '<span>'+svg('check',11)+' 完成</span><span>'+svg('clock',11)+' 進行中</span><span>'+svg('chevR',11)+' 未開始</span>'+
+      '<span class="muted">「現在走到哪」是推導不是存欄位：最小未完成的（期序, 階段序）</span></div>'+
+  '</div>'+
+  '<div class="card"><div class="ch"><h3>里程碑 · 任務</h3><span class="note">期'+cyc.ord+' · '+esc(cyc.title)+' · '+ms.length+' 個里程碑</span>'+
+    '<span class="r"><button class="sbtn">清單</button><button class="sbtn">看板</button><button class="sbtn">甘特</button>'+
+    '<button class="sbtn pri" data-act="addmile">'+svg('plus',11)+'新增里程碑</button></span></div>'+
+    '<div class="cb flush">'+mileRows+'</div></div>'+
+  (un.length?'<div class="card"><div class="ch"><h3>尚未掛到里程碑的工作</h3><span class="note">'+un.length+' 件</span></div><div class="cb flush">'+
+    un.map(t=>'<div class="frow"><span class="pill '+(t.st==='done'?'done':t.st==='doing'?'doing':'todo')+'">'+
+      (t.st==='done'?'Done':t.st==='doing'?'Doing':'Todo')+'</span><span class="mono tiny muted">'+esc(t.id)+'</span>'+
+      '<span class="fn">'+esc(t.n)+'</span><span class="sz">'+esc(t.w)+'</span>'+
+      '<button class="sbtn" data-act="link-mile" data-task="'+t.id+'">補掛里程碑</button></div>').join('')+
+    '</div></div>':'')+
+  '<div class="notebar">'+svg('sparkle',13)+'<span><b>舊「工作」分頁併進來了。</b>同一批 ProjectTask 用兩個分頁從兩個角度看，正是分頁式架構會變成抽屜櫃的典型原因。'+
+    '這裡保留 v5 既有的 清單／看板／甘特 子視圖切換，改動的是「哪一層是分頁」，不是元件。遷移時刻意不自動生成假目標來填滿階層。</span></div>'+
+  '</div>';
+}
+
+/* ============================================================
+   分頁 3：檔案 — [約束3] 收件匣是真資料夾 ＋ Evidence Repo 子視圖
+   ============================================================ */
+function treeHTML(p,parent,depth){
+  return kids(p,parent).map(f=>{
+    const ch=kids(p,f.id);
+    const op=!!S.open[f.id];
+    const n=p.files.filter(x=>x.fd===f.id).length;
+    const row='<div class="tn'+(f.id===S.selFolder?' on':'')+(f.role==='inbox'?' inbox':'')+'" data-fd="'+f.id+'" style="padding-left:'+(10+depth*13)+'px">'+
+      '<span class="tw" '+(ch.length?'data-tw="'+f.id+'"':'')+'>'+(ch.length?svg(op?'chevD':'chevR',10):'')+'</span>'+
+      '<span class="ico">'+svg(ROLE_ICON[f.role]||'folder',13)+'</span>'+
+      '<span class="lb">'+esc(f.name)+'</span>'+
+      (f.vis==='client_visible'?'<span class="pill cli" style="padding:1px 4px">客</span>':'')+
+      (f.meta&&f.meta.entry?'<span class="pill info" style="padding:1px 4px">'+esc(f.meta.entry)+'</span>':'')+
+      (f.meta&&f.meta.warn?'<span class="pill warn" style="padding:1px 4px">!</span>':'')+
+      (n?'<span class="n">'+n+'</span>':'')+'</div>';
+    return row+(op&&ch.length?treeHTML(p,f.id,depth+1):'');
+  }).join('');
+}
+function renderDrive(){
+  const p=P();
+  if(S.driveSub==='repo')return renderRepo();
+  const fd=fdById(p,S.selFolder)||p.folders[0];
+  if(!fd)return '<div class="empty">沒有資料夾。</div>';
+  const files=p.files.filter(f=>f.fd===fd.id);
+  const isInbox=fd.role==='inbox';
+  const path=(function(){const a=[];let c=fd;while(c){a.unshift(c);c=c.p?fdById(p,c.p):null;}return a;})();
+  const sub='<div class="src-tabs">'+
+    '<button class="src-tab'+(S.driveSub==='drive'?' on':'')+'" data-dsub="drive">'+svg('folder',13)+'硬碟</button>'+
+    '<button class="src-tab" data-fd="'+inboxFd(p)+'">'+svg('inbox',13)+'收件匣 '+
+      (inboxN(p)?'<span class="pill warn">'+inboxN(p)+'</span>':'<span class="pill">0</span>')+'</button>'+
+    '<button class="src-tab'+(S.driveSub==='repo'?' on':'')+'" data-dsub="repo">'+svg('notes',13)+'Evidence Repo</button>'+
+    '<span style="flex:1"></span>'+
+    '<span class="tiny muted" style="align-self:center">收件匣是 role=\'inbox\' 的真資料夾，不是另一個分頁</span></div>';
+
+  const checked=[...S.checked].filter(id=>files.some(f=>f.id===id));
+  return sub+'<div class="grid g-drive">'+
+  '<div class="card"><div class="ch"><h3>資料夾</h3><span class="note">'+p.folders.length+' 夾</span>'+
+    '<span class="r"><button class="sbtn" data-act="newfolder">'+svg('plus',11)+'資料夾</button></span></div>'+
+    '<div class="tree">'+treeHTML(p,null,0)+'</div>'+
+    '<div class="legend"><span>'+svg('inbox',11)+' 收件匣</span><span>'+svg('users',11)+' 會議</span>'+
+      '<span>'+svg('eye',11)+' 共用（對客戶）</span><span>'+svg('lock',11)+' 僅內部</span>'+
+      '<span>'+svg('up',11)+' 二期入口</span></div></div>'+
+
+  '<div class="card"><div class="ch">'+
+    '<div class="crumb">'+path.map((f,i)=>(i?'<span>/</span>':'')+'<b>'+esc(f.name)+'</b>').join('')+'</div>'+
+    '<span class="pill">'+esc(ROLE_LABEL[fd.role]||fd.role)+'</span>'+vis(fd.vis)+
+    '<span class="r">'+
+      (isInbox&&checked.length?'<button class="sbtn pri" data-act="file-sel">'+svg('folderOpen',11)+'歸檔 '+checked.length+' 項</button>':'')+
+      '<button class="sbtn" data-act="togglevis" data-fd="'+fd.id+'">'+svg('eye',11)+'改可見性</button>'+
+      '<button class="sbtn">'+svg('plus',11)+'上傳</button></span></div>'+
+    (isInbox?'<div class="notebar warn" style="margin:10px 12px 0">'+svg('inbox',13)+
+      '<span><b>收件匣＝真資料夾（role=\'inbox\'）。</b>分散上傳沒指定位置就落在這裡，整理就是改 <code class="mono">folderId</code>，不搬 bytes、不換 refCode。'+
+      '它和已整理的檔案在 @ 引用、搜尋、下載授權上行為完全一樣 —— 分兩張表就要寫兩套。</span></div>':'')+
+    '<div class="cb flush" style="margin-top:'+(isInbox?'10px':'0')+'">'+
+    (files.length?files.map(f=>
+      '<div class="frow">'+(isInbox?'<input type="checkbox" data-chk="'+f.id+'"'+(S.checked.has(f.id)?' checked':'')+'>':'')+
+      '<span class="ext">'+esc(f.ext)+'</span>'+
+      '<span class="fn">'+esc(f.name)+(f.note?'<br><span class="tiny muted">'+esc(f.note)+'</span>':'')+'</span>'+
+      f.refs.map(refChip).join('')+vis(f.vis)+'<span class="sz">'+esc(f.size)+'</span></div>').join('')
+      :'<div class="empty">這個資料夾沒有檔案。</div>')+'</div>'+
+    (kids(p,fd.id).length?'<div class="legend"><span class="muted">子資料夾：</span>'+
+      kids(p,fd.id).map(k=>'<button class="ref" data-ref="folder:'+k.id+'">'+svg('folder',10)+esc(k.name)+'</button>').join('')+'</div>':'')+
+  '</div></div>'+
+  '<div class="notebar">'+svg('link',13)+'<span><b>R2 的 object key 不含路徑也不含原始檔名</b>（<code class="mono">operating/{workspaceId}/project/{projectId}/{yyyy-mm}/{uuid}{ext}</code>）：'+
+    'S3 API 沒有 server-side rename，而中文／全形檔名在簽章會變成查不出原因的 403。顯示名稱、資料夾位置、原始相對路徑全部存 DB。</span></div>';
+}
+
+/* Evidence Repo：收進「檔案」分頁的第三個子視圖，不另開分頁 */
+function renderRepo(){
+  const p=P();
+  const sub='<div class="src-tabs">'+
+    '<button class="src-tab" data-dsub="drive">'+svg('folder',13)+'硬碟</button>'+
+    '<button class="src-tab" data-fd="'+inboxFd(p)+'">'+svg('inbox',13)+'收件匣 '+
+      (inboxN(p)?'<span class="pill warn">'+inboxN(p)+'</span>':'<span class="pill">0</span>')+'</button>'+
+    '<button class="src-tab on">'+svg('notes',13)+'Evidence Repo</button>'+
+    '<span style="flex:1"></span><span class="tiny muted" style="align-self:center">結案視圖：同一棵樹的固定範本，不是第二個檔案瀏覽器</span></div>';
+  const dirs=['01_contract','02_discovery','03_delivery','04_evidence','05_finance','06_retro'];
+  const pend=p.files.filter(f=>f.fd===inboxFd(p));
+  return sub+'<div class="grid g-side">'+
+  '<div class="card"><div class="ch"><h3>Evidence Repo</h3><span class="note mono">'+S.pid+'</span>'+
+    '<span class="r"><button class="sbtn">'+svg('plus',11)+'加入檔案</button></span></div><div class="cb">'+
+    '<div class="mono" style="font-size:12px;line-height:2">'+
+      '<div>README.md <span class="muted tiny">專案敘述</span></div>'+
+      '<div>CHANGELOG.md <span class="muted tiny">自動生成</span></div>'+
+      dirs.map(d=>'<div style="color:var(--pri)">'+d+'/</div>').join('')+'</div>'+
+    '<div class="notebar">'+svg('sparkle',13)+'<span><b>Evidence Repo 不再是獨立分頁。</b>它是同一棵資料夾樹上的一個固定範本視圖 —— '+
+      '原本的 7 格扁平清單（<code class="mono">REPO_DIRS</code>）升級成 <code class="mono">role</code> 已指定的資料夾。'+
+      '兩個檔案瀏覽器才是真正的抽屜櫃。</span></div></div></div>'+
+  '<div class="grid">'+
+    '<div class="card"><div class="ch"><h3>版本演化</h3></div><div class="cb">'+
+      '<div class="kv"><span class="k">v0.1</span><span class="v">Kickoff</span></div>'+
+      '<div class="kv"><span class="k">v0.5</span><span class="v">交付完成</span></div>'+
+      '<div class="kv"><span class="k">v0.9</span><span class="v">整理中 <span class="pill pri">now</span></span></div></div></div>'+
+    '<div class="card"><div class="ch"><h3>待歸檔</h3><span class="note">'+pend.length+' 項</span></div><div class="cb flush">'+
+      (pend.length?pend.map(f=>'<div class="frow"><span class="ext">'+esc(f.ext)+'</span><span class="fn">'+esc(f.name)+'</span>'+
+        '<button class="sbtn" data-jump="folder:'+inboxFd(p)+'">到收件匣</button></div>').join('')
+        :'<div class="empty">收件匣已清空。</div>')+'</div></div>'+
+  '</div></div>';
+}
+
+/* ============================================================
+   分頁 4：會議 — [約束4] 一個資料夾＝一場會議，四屬性跟著資料夾
+   ============================================================ */
+function renderMeet(){
+  const p=P();
+  if(!p.meetings.length)return '<div class="card"><div class="ch"><h3>會議</h3>'+
+    '<span class="r"><button class="sbtn pri" data-act="newmeet">'+svg('plus',11)+'新增會議</button></span></div>'+
+    '<div class="empty">這個專案還沒有會議資料夾。<br><span class="tiny">建立一場會議＝在「會議／」底下建一個 <code class="mono">YYYYMMDD 事件</code> 資料夾，屬性長在資料夾上。</span></div></div>';
+  const m=p.meetings.find(x=>x.id===S.selMeet)||p.meetings[0];
+  S.selMeet=m.id;
+  const fd=fdById(p,m.fd);
+  const files=p.files.filter(f=>f.fd===m.fd);
+
+  const list=p.meetings.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>{
+    const miss=x.quad.filter(q=>!q.ok).length;
+    return '<div class="mt-item'+(x.id===m.id?' on':'')+'" data-meet="'+x.id+'">'+
+      '<div class="d">'+esc(x.date.replace(/-/g,''))+' · '+esc(fdById(p,x.fd)?fdById(p,x.fd).name:'')+'</div>'+
+      '<div class="t">'+esc(x.title)+'</div><div class="s">'+
+      '<span class="pill '+(miss?'warn':'ok')+'">四件套 '+(4-miss)+'/4</span>'+
+      (x.conclusion&&x.conclusion.indexOf('待補')!==0?'<span class="pill ok">結論已寫</span>':'<span class="pill warn">結論待補</span>')+
+      '</div></div>';}).join('');
+
+  const attrs='<div class="mt-attrs">'+
+    '<div class="mt-at"><div class="k">'+svg('users',11)+'參與者</div><div class="v edit" data-edit="people">'+esc(m.people)+'</div></div>'+
+    '<div class="mt-at"><div class="k">'+svg('clock',11)+'產生時間</div><div class="v"><span class="mono">'+esc(m.date)+'</span></div></div>'+
+    '<div class="mt-at"><div class="k">'+svg('flag',11)+'結論</div><div class="v edit" data-edit="conclusion">'+esc(m.conclusion||'待補')+'</div></div>'+
+    '<div class="mt-at"><div class="k">'+svg('alert',11)+'注意事項</div><div class="v edit" data-edit="caution">'+esc(m.caution||'待補')+'</div></div>'+
+    '</div>';
+
+  const quad='<div class="quad">'+m.quad.map(q=>
+    '<div class="qc'+(q.ok?'':' miss')+'"><div class="qn">'+
+      svg(q.k.indexOf('錄音')>=0?'mic':q.k.indexOf('逐字')>=0?'type':q.k.indexOf('完整')>=0?'notes':'sparkle',12)+
+      esc(q.k)+(q.ok?(q.warn?'<span class="pill warn">上不了</span>':'<span class="pill ok">有</span>'):'<span class="pill">缺</span>')+'</div>'+
+    '<div class="qf">'+esc(q.f||'—')+'</div></div>').join('')+'</div>';
+
+  return '<div class="grid g-meet">'+
+  '<div class="card"><div class="ch"><h3>會議</h3><span class="note">時間序 · '+p.meetings.length+' 場</span>'+
+    '<span class="r"><button class="sbtn pri" data-act="newmeet">'+svg('plus',11)+'新增</button></span></div>'+
+    '<div class="cb flush">'+list+'</div>'+
+    '<div class="legend"><span class="muted">一個資料夾＝一場會議。屬性存在資料夾上（Occasion ＋ folderId 1:1 連結，OD-D）。</span></div></div>'+
+
+  '<div class="grid">'+
+    '<div class="card"><div class="ch"><h3>'+esc(m.date)+' '+esc(m.title)+'</h3>'+
+      '<span class="pill">'+svg('folder',10)+esc(fd?fd.name:'')+'</span>'+vis(fd?fd.vis:'internal')+
+      '<span class="r"><button class="sbtn" data-jump="folder:'+m.fd+'">在硬碟開啟 '+svg('arrow',11)+'</button></span></div>'+
+      attrs+
+      '<div class="ch" style="border-top:1px solid var(--border)"><h3>會議四件套</h3>'+
+        '<span class="note">Owner 既有慣例：會議錄音檔／逐字稿／完整紀錄／摘要</span></div>'+
+      quad+
+      '<div class="ch" style="border-top:1px solid var(--border)"><h3>夾內材料</h3><span class="note">'+files.length+' 個檔案</span></div>'+
+      '<div class="cb flush">'+(files.length?files.map(f=>
+        '<div class="frow"><span class="ext">'+esc(f.ext)+'</span><span class="fn">'+esc(f.name)+
+        (f.note?'<br><span class="tiny muted">'+esc(f.note)+'</span>':'')+'</span>'+
+        vis(f.vis)+'<span class="sz">'+esc(f.size)+'</span></div>').join('')
+        :'<div class="empty">這場會議的資料夾還沒有材料。</div>')+'</div>'+
+    '</div>'+
+    '<div class="card"><div class="ch"><h3>會議待辦</h3><span class="note">升級路徑：會議待辦 → 任務</span></div>'+
+      '<div class="cb flush">'+(m.todos.length?m.todos.map((t,i)=>
+        '<div class="frow"><span class="pill '+(t.done?'done':'todo')+'">'+(t.done?'已轉':'未轉')+'</span>'+
+        '<span class="fn">'+esc(t.n)+'</span>'+
+        (t.done?'<span class="tiny muted">已建立任務</span>'
+          :'<button class="sbtn pri" data-act="todo2task" data-ti="'+i+'">'+svg('up',11)+'升級為任務</button>')+
+        '</div>').join(''):'<div class="empty">沒有待辦。</div>')+'</div>'+
+      '<div class="notebar">'+svg('link',13)+'<span>升級會<b>就地開抽屜</b>，不離開會議分頁。建立任務的同時雙向寫入引用：任務列出現 '+
+        '<span class="ref" style="cursor:default">會議 '+esc(m.date.replace(/-/g,'').slice(4))+'</span>，這一列變成「已轉」。</span></div></div>'+
+  '</div></div>';
+}
+
+/* ============================================================
+   分頁 5：對話 — 聊天室 ＋ [約束7] LINE 停用入口
+   ============================================================ */
+function renderChat(){
+  const p=P();
+  const srcs='<div class="src-tabs">'+
+    '<button class="src-tab on">'+svg('msg',13)+'內部 Thread <span class="pill">'+p.threads.length+'</span></button>'+
+    '<button class="src-tab disabled" data-act="line" title="本階段不實作">'+svg('ban',13)+'LINE 群 <span class="pill">停用</span></button>'+
+    '<span style="flex:1"></span>'+
+    '<span class="tiny muted" style="align-self:center">LINE 只是入口，不是功能 —— 點一下看原因</span></div>';
+
+  if(!p.threads.length)return srcs+'<div class="card"><div class="ch"><h3>對話</h3>'+
+    '<span class="r"><button class="sbtn pri" data-act="newthread">'+svg('plus',11)+'新 Thread</button></span></div>'+
+    '<div class="empty">這個專案還沒有對話。</div></div>';
+
+  const th=p.threads.find(x=>x.id===S.selThread)||p.threads[0];
+  S.selThread=th.id;
+  return srcs+'<div class="grid g-chat">'+
+  '<div class="card"><div class="ch"><h3>Thread</h3><span class="note">'+p.threads.length+'</span>'+
+    '<span class="r"><button class="sbtn" data-act="newthread">'+svg('plus',11)+'</button></span></div>'+
+    '<div class="cb flush">'+p.threads.map(x=>
+      '<div class="mt-item'+(x.id===th.id?' on':'')+'" data-thread="'+x.id+'">'+
+      '<div class="s"><span class="pill '+(x.open?'ok':'')+'">'+(x.open?'open':'closed')+'</span>'+
+      '<span class="pill">'+x.msgs.length+' 則</span></div>'+
+      '<div class="t" style="margin-top:3px">'+esc(x.title)+'</div></div>').join('')+'</div></div>'+
+
+  '<div class="card"><div class="ch"><h3>'+esc(th.title)+'</h3>'+
+    '<span class="note">'+th.msgs.length+' 則</span>'+
+    '<span class="r"><button class="sbtn">Close Thread</button></span></div>'+
+    '<div class="cb flush">'+th.msgs.map(mm=>
+      '<div class="msg'+(mm.me?'':' other')+'">'+
+      '<span class="mav">'+esc(mm.w.slice(0,1))+'</span><div class="mb">'+
+      '<div class="mh"><b>'+esc(mm.w)+'</b><span class="ts">'+esc(mm.ts)+'</span>'+
+        (mm.linked?'<span class="pill ok">已升級</span>':'')+'</div>'+
+      '<div class="mt">'+esc(mm.t)+'</div>'+
+      '<div class="mx">'+(mm.refs?mm.refs.map(refChip).join(''):'')+
+        (mm.upg&&!mm.linked?'<button class="sbtn pri upg" data-act="msg2task" data-thread="'+th.id+'" data-msg="'+mm.id+'">'+
+          svg('up',11)+'升級為任務</button>':'')+'</div>'+
+      '</div></div>').join('')+'</div>'+
+    '<div class="composer"><textarea placeholder="寫一則訊息… 打 @ 可以提及 '+esc(S.pid)+' 這類物件"></textarea>'+
+      '<button class="sbtn pri" style="height:30px" data-act="send">送出</button>'+
+      '<button class="sbtn" style="height:30px">附檔</button></div>'+
+    '<div class="notebar">'+svg('sparkle',13)+'<span>Close 時系統會強制要求填五欄：Decision 進決策帳本、Files 進 Evidence Repo。'+
+      '訊息裡的檔案走 <code class="mono">OperatingAsset</code> 外鍵，不是字串陣列 —— 才 @ 得到、搜得到、下載得了。</span></div>'+
+  '</div></div>';
+}
+
+/* ============================================================
+   分頁 6：財務
+   ============================================================ */
+function renderFin(){
+  const p=P();
+  return '<div class="grid g-side"><div class="card"><div class="ch"><h3>可分配毛利</h3>'+
+    '<span class="note">'+esc(p.name)+' · 獎金是乘在哪個數字上？</span></div><div class="cb">'+
+    '<div class="kv"><span class="k">未稅收入</span><span class="v num">'+esc(p.finance.rev)+'</span></div>'+
+    '<div class="kv"><span class="k">成本</span><span class="v num">'+esc(p.finance.cost)+'</span></div>'+
+    '<div class="kv"><span class="k">可分配毛利</span><span class="v num">'+esc(p.finance.gross)+'</span></div>'+
+    '<div class="notebar warn">'+svg('alert',13)+'<span><b>不編造金額。</b>'+esc(p.finance.note)+'</span></div>'+
+    '</div></div>'+
+    '<div class="card"><div class="ch"><h3>缺的資料</h3><span class="note">M 系列</span></div><div class="cb flush">'+
+      ['M2 合約金額·簽約日·期款（8 案金額在 docx 表格未展開）',
+       'M3 已收款狀態（專案財務.xlsx 狀態欄空白 ≠ 未收）',
+       'M4 客戶聯絡人',
+       'M5 LINE 群對應關係（01 的合約變更只存在 LINE 裡）'].map(t=>
+      '<div class="frow"><span class="ext" style="border:0;background:transparent">'+svg('alert',13)+'</span><span class="fn">'+esc(t)+'</span></div>').join('')+
+    '</div></div></div>';
+}
+
+/* ============================================================
+   render
+   ============================================================ */
+function render(){
+  renderShell();
+  const v=$('#view');
+  v.innerHTML = S.tab==='overview'?renderOverview()
+    : S.tab==='plan'?renderPlan()
+    : S.tab==='drive'?renderDrive()
+    : S.tab==='meet'?renderMeet()
+    : S.tab==='chat'?renderChat()
+    : renderFin();
+}
+
+/* ============================================================
+   流程（全部記憶體狀態，無後端）
+   ============================================================ */
+let SEQ=900;
+function nextTask(){SEQ++;return 'T-'+SEQ;}
+
+/* 流程 1：收件匣 → 歸檔（新增關聯 ＋ 改 folderId，不搬 bytes） */
+function flowFile(ids){
+  const p=P();
+  const targets=p.folders.filter(f=>f.role!=='inbox');
+  const body='<div class="hint" style="margin-bottom:10px">把 '+ids.length+' 個檔案從收件匣移到正式位置。'+
+    '系統只改 <code class="mono">folderId</code>：R2 的 object key 不動、<code class="mono">refCode</code> 不重生成。</div>'+
+    ids.map(id=>{const f=p.files.find(x=>x.id===id);return '<div class="pickrow"><span class="ext">'+esc(f.ext)+
+      '</span><span class="lb">'+esc(f.name)+'</span></div>';}).join('')+
+    '<div class="sep"></div><div class="fld"><label>歸到哪個資料夾</label><div id="fdPick">'+
+    targets.map((f,i)=>'<div class="pickrow'+(i===0?' on':'')+'" data-pick="'+f.id+'">'+
+      svg(ROLE_ICON[f.role]||'folder',13)+'<span class="lb">'+esc(f.name)+'</span>'+
+      '<span class="pill">'+esc(ROLE_LABEL[f.role]||f.role)+'</span>'+
+      (f.vis==='client_visible'?'<span class="pill cli">客</span>':'<span class="pill int">內</span>')+'</div>').join('')+
+    '</div></div>'+
+    '<div class="notebar">'+svg('eye',13)+'<span>歸到 <b>共用（對客戶）</b> 的檔案可見性會一併改成 <b>可給客戶</b>；'+
+      '歸到 <b>合約／內部</b> 的資料夾則由規則<b>禁止</b>設為可給客戶。</span></div>';
+  openDrawer('歸檔 '+ids.length+' 個檔案',body,
+    '<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="file-do">歸檔並寫入關聯</button>');
+  const box=$('#fdPick');box._v=targets[0].id;
+  box.addEventListener('click',e=>{const r=e.target.closest('[data-pick]');if(!r)return;
+    box.querySelectorAll('.pickrow').forEach(x=>x.classList.remove('on'));r.classList.add('on');box._v=r.dataset.pick;});
+  $('#drFoot').querySelector('[data-act="file-do"]').addEventListener('click',()=>{
+    const to=box._v;const tf=fdById(p,to);
+    ids.forEach(id=>{const f=p.files.find(x=>x.id===id);f.fd=to;
+      if(tf.vis==='client_visible')f.vis='client_visible';
+      f.note='已從收件匣歸檔 · folderId 已更新';
+      if(tf.meta&&tf.meta.occ)f.refs=f.refs.concat([{t:'meet',id:tf.meta.occ,l:'會議 '+tf.name.slice(4,8)}]);});
+    S.checked.clear();S.selFolder=to;openAncestors(to);closeAll();render();
+    toast('已歸檔 '+ids.length+' 個檔案到「'+tf.name+'」');});
+}
+
+/* 流程 2：新增會議（＝建一個資料夾，四屬性長在資料夾上） */
+function flowNewMeeting(){
+  const p=P();
+  const today='2026-10-03';
+  const body='<div class="fld"><label>日期（YYYY-MM-DD）</label><input id="mD" value="'+today+'"></div>'+
+    '<div class="fld"><label>會議名稱</label><input id="mT" placeholder="例：第三次需求對焦">'+
+      '<div class="fh">資料夾會建成 <code class="mono">YYYYMMDD 會議名稱</code>，沿用你既有的命名慣例。</div></div>'+
+    '<div class="fld"><label>參與者</label><input id="mP" value="戴宇星（圓展）、"></div>'+
+    '<div class="fld"><label>結論</label><textarea id="mC" placeholder="會後再補也可以，但「結論待補」會出現在總覽的跨資源待辦"></textarea></div>'+
+    '<div class="fld"><label>注意事項</label><textarea id="mN" placeholder="例：報價未出，先別排人力"></textarea></div>'+
+    '<div class="notebar">'+svg('folder',13)+'<span>建立後夾內自動備好<b>會議四件套</b>欄位（錄音檔／逐字稿／完整紀錄／摘要），'+
+      '缺哪一件就顯示「缺」—— 不假裝有。</span></div>';
+  openModal('新增會議',body,'<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="meet-do">建立會議資料夾</button>');
+  $('#moFoot').querySelector('[data-act="meet-do"]').addEventListener('click',()=>{
+    const d=$('#mD').value.trim()||today;const t=$('#mT').value.trim()||'未命名會議';
+    let root=p.folders.find(f=>f.role==='meeting');
+    if(!root){root=F('fdm_'+(++SEQ),null,'會議','meeting');p.folders.push(root);}
+    const fid='fd_'+(++SEQ), mid='mt_'+SEQ;
+    p.folders.push(F(fid,root.id,d.replace(/-/g,'')+' '+t,'meeting_one','internal',{occ:mid}));
+    p.meetings.push({id:mid,fd:fid,date:d,title:t,people:$('#mP').value.trim()||'待補',
+      conclusion:$('#mC').value.trim()||'待補',caution:$('#mN').value.trim()||'待補',
+      quad:[{k:'會議錄音檔',f:'',ok:false},{k:'逐字稿',f:'',ok:false},{k:'完整會議記錄',f:'',ok:false},{k:'摘要',f:'',ok:false}],
+      todos:[]});
+    S.open[root.id]=true;S.selMeet=mid;S.tab='meet';closeAll();render();
+    toast('已建立會議資料夾「'+d.replace(/-/g,'')+' '+t+'」');});
+}
+
+/* 流程 3：就地編輯會議四屬性 */
+function startEdit(el,key){
+  const p=P();const m=p.meetings.find(x=>x.id===S.selMeet);if(!m)return;
+  const cur=m[key]||'';
+  el.outerHTML='<textarea data-live="'+key+'">'+esc(cur)+'</textarea>';
+  const ta=$('[data-live="'+key+'"]');ta.focus();ta.setSelectionRange(cur.length,cur.length);
+  const save=()=>{m[key]=ta.value.trim()||'待補';render();toast('已更新會議「'+
+    (key==='people'?'參與者':key==='conclusion'?'結論':'注意事項')+'」· 屬性存在資料夾上');};
+  ta.addEventListener('blur',save,{once:true});
+  ta.addEventListener('keydown',e=>{if(e.key==='Escape'){ta.removeEventListener('blur',save);render();}
+    if(e.key==='Enter'&&(e.metaKey||e.ctrlKey))ta.blur();});
+}
+
+/* 流程 4：訊息 → 任務（就地抽屜，不離開對話分頁；雙向寫入引用） */
+function flowMsg2Task(tid,mid){
+  const p=P();const th=p.threads.find(x=>x.id===tid);const mm=th.msgs.find(x=>x.id===mid);
+  const ms=allMiles(p);const def=mm.upg.to;
+  const body='<div class="notebar">'+svg('msg',13)+'<span><b>'+esc(mm.w)+'</b> · '+esc(mm.ts)+'<br>'+esc(mm.t)+'</span></div>'+
+    '<div class="fld" style="margin-top:12px"><label>任務名稱</label><input id="tN" value="'+esc(mm.t.slice(0,28))+'"></div>'+
+    '<div class="fld"><label>掛到哪個里程碑</label><div id="mPick">'+ms.map(m=>
+      '<div class="pickrow'+(m.id===def?' on':'')+'" data-pick="'+m.id+'">'+svg('flag',13)+
+      '<span class="lb">'+esc(m.id)+' · '+esc(m.name)+'</span><span class="pill">期'+m.cy+'</span></div>').join('')+'</div></div>'+
+    '<div class="fld"><label>型別</label><div class="radios" id="tK">'+
+      '<div class="radio on" data-k="TODO">TODO</div><div class="radio" data-k="REVIEW">審核（REVIEW）</div></div>'+
+      '<div class="fh">審核是一種任務型別，不只是看板的一欄 —— 有審核人、結果、退回理由。</div></div>'+
+    '<div class="fld"><label>到期</label><input id="tD" placeholder="日期待補"></div>';
+  openDrawer('訊息 → 任務',body,'<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="m2t-do">建立並雙向連結</button>');
+  const box=$('#mPick');box._v=def||ms[0].id;
+  box.addEventListener('click',e=>{const r=e.target.closest('[data-pick]');if(!r)return;
+    box.querySelectorAll('.pickrow').forEach(x=>x.classList.remove('on'));r.classList.add('on');box._v=r.dataset.pick;});
+  const kb=$('#tK');kb._v='TODO';
+  kb.addEventListener('click',e=>{const r=e.target.closest('[data-k]');if(!r)return;
+    kb.querySelectorAll('.radio').forEach(x=>x.classList.remove('on'));r.classList.add('on');kb._v=r.dataset.k;});
+  $('#drFoot').querySelector('[data-act="m2t-do"]').addEventListener('click',()=>{
+    const m=ms.find(x=>x.id===box._v);const id=nextTask();
+    m.tasks.push({id:id,n:$('#tN').value.trim()||'未命名任務',st:'todo',w:'戴宇星',
+      d:$('#tD').value.trim()||'日期待補',rev:kb._v==='REVIEW',src:{t:'msg',id:mid,l:'對話 '+mm.ts.slice(0,5)}});
+    mm.linked=true;mm.refs=(mm.refs||[]).concat([{t:'task',id:id,l:id}]);
+    m.refs=m.refs.concat([{t:'msg',id:mid,l:'對話 '+mm.ts.slice(0,5)}]);
+    closeAll();render();toast('已建立 '+id+' 並掛到 '+m.id+' · 兩邊都看得到對方');});
+}
+
+/* 流程 5：會議待辦 → 任務 */
+function flowTodo2Task(i){
+  const p=P();const m=p.meetings.find(x=>x.id===S.selMeet);const td=m.todos[i];
+  const ms=allMiles(p);
+  const body='<div class="notebar">'+svg('users',13)+'<span><b>'+esc(m.date)+' '+esc(m.title)+'</b><br>'+esc(td.n)+'</span></div>'+
+    '<div class="fld" style="margin-top:12px"><label>任務名稱</label><input id="tN" value="'+esc(td.n)+'"></div>'+
+    '<div class="fld"><label>掛到哪個里程碑</label><div id="mPick">'+ms.map((x,j)=>
+      '<div class="pickrow'+(j===ms.length-1?' on':'')+'" data-pick="'+x.id+'">'+svg('flag',13)+
+      '<span class="lb">'+esc(x.id)+' · '+esc(x.name)+'</span><span class="pill">期'+x.cy+'</span></div>').join('')+'</div></div>';
+  openDrawer('會議待辦 → 任務',body,'<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="t2t-do">建立</button>');
+  const box=$('#mPick');box._v=ms[ms.length-1].id;
+  box.addEventListener('click',e=>{const r=e.target.closest('[data-pick]');if(!r)return;
+    box.querySelectorAll('.pickrow').forEach(x=>x.classList.remove('on'));r.classList.add('on');box._v=r.dataset.pick;});
+  $('#drFoot').querySelector('[data-act="t2t-do"]').addEventListener('click',()=>{
+    const mm=ms.find(x=>x.id===box._v);const id=nextTask();
+    mm.tasks.push({id:id,n:$('#tN').value.trim()||td.n,st:'todo',w:'戴宇星',d:'日期待補',
+      src:{t:'meet',id:m.id,l:'會議 '+m.date.replace(/-/g,'').slice(4)}});
+    mm.refs=mm.refs.concat([{t:'meet',id:m.id,l:'會議 '+m.date.replace(/-/g,'').slice(4)}]);
+    td.done=true;closeAll();render();toast('已建立 '+id+' 並掛到 '+mm.id);});
+}
+
+/* 流程 6：新增里程碑 / 任務 / 期 / 資料夾 */
+function flowAddMile(){
+  const p=P();const cyc=p.cycles.find(c=>c.ord===S.cyc);
+  const body='<div class="fld"><label>里程碑代號</label><input id="xI" value="M'+String(allMiles(p).length+1).padStart(2,'0')+'"></div>'+
+    '<div class="fld"><label>名稱</label><input id="xN" placeholder="例：二版上線"></div>'+
+    '<div class="fld"><label>日期（可留空）</label><input id="xD" placeholder="留空＝日期待補">'+
+      '<div class="fh">沒填日期就不進 <code class="mono">time_spine</code>，也不會出現在日曆 —— 刻意不猜日期。</div></div>'+
+    '<div class="fld"><label>驗收規則</label><textarea id="xA" placeholder="留空＝待補"></textarea></div>'+
+    '<div class="hint">會掛在 <b>期'+cyc.ord+' · '+esc(cyc.title)+'</b> 底下。</div>';
+  openModal('新增里程碑',body,'<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="mile-do">建立</button>');
+  $('#moFoot').querySelector('[data-act="mile-do"]').addEventListener('click',()=>{
+    p.milestones.push({id:$('#xI').value.trim()||'M??',cy:S.cyc,name:$('#xN').value.trim()||'未命名里程碑',
+      date:$('#xD').value.trim(),st:'todo',acc:$('#xA').value.trim()||'驗收規則待補',refs:[],tasks:[]});
+    closeAll();render();toast('已新增里程碑到 期'+S.cyc);});
+}
+function flowAddTask(mid){
+  const p=P();const m=allMiles(p).find(x=>x.id===mid);
+  const body='<div class="fld"><label>任務名稱</label><input id="yN" placeholder="要做什麼"></div>'+
+    '<div class="fld"><label>型別</label><div class="radios" id="yK">'+
+      '<div class="radio on" data-k="TODO">TODO</div><div class="radio" data-k="REVIEW">審核（REVIEW）</div></div></div>'+
+    '<div class="fld"><label>負責</label><input id="yW" value="戴宇星"></div>'+
+    '<div class="fld"><label>到期</label><input id="yD" placeholder="日期待補"></div>'+
+    '<div class="hint">掛到 <b>'+esc(m.id)+' · '+esc(m.name)+'</b>。不填 Estimate、不填 Actual —— Started 與 Done 就算得出 Throughput 與 Cycle Time。</div>';
+  openModal('新增任務',body,'<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="task-do">建立</button>');
+  const kb=$('#yK');kb._v='TODO';
+  kb.addEventListener('click',e=>{const r=e.target.closest('[data-k]');if(!r)return;
+    kb.querySelectorAll('.radio').forEach(x=>x.classList.remove('on'));r.classList.add('on');kb._v=r.dataset.k;});
+  $('#moFoot').querySelector('[data-act="task-do"]').addEventListener('click',()=>{
+    const id=nextTask();
+    m.tasks.push({id:id,n:$('#yN').value.trim()||'未命名任務',st:'todo',w:$('#yW').value.trim()||'待指派',
+      d:$('#yD').value.trim()||'日期待補',rev:kb._v==='REVIEW'});
+    closeAll();render();toast('已新增 '+id);});
+}
+function flowAddCycle(){
+  const p=P();const n=p.cycles.length+1;
+  const body='<div class="fld"><label>期序</label><input id="cO" value="'+n+'" disabled></div>'+
+    '<div class="fld"><label>標題</label><input id="cT" value="'+(n===2?'二期（追加）':n===3?'三期':'第 '+n+' 期')+'"></div>'+
+    '<div class="fld"><label>合約</label><input id="cC" placeholder="留空＝待補"></div>'+
+    '<div class="fld"><label>階段</label><div class="radios" id="cS">'+
+      '<div class="radio on" data-k="a">追加合約 › 執行 › 驗收</div>'+
+      '<div class="radio" data-k="b">追加合約 › 執行 › 驗收 › 結案</div></div></div>'+
+    '<div class="notebar">'+svg('sparkle',13)+'<span><b>加一期不需要 migration、不需要改 enum。</b>'+
+      '插一列 <code class="mono">ProjectPhaseCycle</code>，再一次 UPDATE 把「結案」移過來即可。'+
+      '同一期內 執行→驗收→執行→驗收 也表達得出（<code class="mono">stageKind</code> 不唯一）。</span></div>';
+  openModal('新增期',body,'<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="cyc-do">建立</button>');
+  const kb=$('#cS');kb._v='a';
+  kb.addEventListener('click',e=>{const r=e.target.closest('[data-k]');if(!r)return;
+    kb.querySelectorAll('.radio').forEach(x=>x.classList.remove('on'));r.classList.add('on');kb._v=r.dataset.k;});
+  $('#moFoot').querySelector('[data-act="cyc-do"]').addEventListener('click',()=>{
+    const st=[{k:'追加合約',s:'todo',d:'日期待補'},{k:'執行',s:'todo',d:'日期待補'},{k:'驗收',s:'todo',d:'日期待補'}];
+    if(kb._v==='b')st.push({k:'結案',s:'todo',d:'日期待補'});
+    p.cycles.push({ord:n,title:$('#cT').value.trim()||('第 '+n+' 期'),contract:$('#cC').value.trim()||'待補',state:'todo',stages:st});
+    S.cyc=n;closeAll();render();toast('已新增 期'+n);});
+}
+function flowNewFolder(){
+  const p=P();const par=fdById(p,S.selFolder);
+  const roles=['proposal','contract','meeting','milestone','material','shared','internal','revision','finance','custom'];
+  const body='<div class="fld"><label>名稱</label><input id="nF" placeholder="例：第三次修改需求"></div>'+
+    '<div class="fld"><label>角色（role）</label><select id="nR">'+roles.map(r=>'<option value="'+r+'">'+ROLE_LABEL[r]+' · '+r+'</option>').join('')+'</select>'+
+      '<div class="fh">role 讓規則認得這個資料夾（例如 contract／internal 禁止設為可給客戶）。</div></div>'+
+    '<div class="fld"><label>可見性</label><div class="radios" id="nV">'+
+      '<div class="radio on" data-k="internal">僅內部</div><div class="radio" data-k="client_visible">可給客戶</div></div></div>'+
+    '<div class="hint">建在 <b>'+(par?esc(par.name):'根')+'</b> 底下。</div>';
+  openModal('新增資料夾',body,'<button class="sbtn" data-close>取消</button><button class="sbtn pri" data-act="fd-do">建立</button>');
+  const kb=$('#nV');kb._v='internal';
+  kb.addEventListener('click',e=>{const r=e.target.closest('[data-k]');if(!r)return;
+    kb.querySelectorAll('.radio').forEach(x=>x.classList.remove('on'));r.classList.add('on');kb._v=r.dataset.k;});
+  $('#moFoot').querySelector('[data-act="fd-do"]').addEventListener('click',()=>{
+    const role=$('#nR').value;let v=kb._v;
+    if((role==='contract'||role==='internal'||role==='finance')&&v==='client_visible'){v='internal';toast('contract／internal／finance 禁止設為可給客戶，已改回僅內部');}
+    const id='fd_'+(++SEQ);
+    p.folders.push(F(id,par?par.id:null,$('#nF').value.trim()||'新資料夾',role,v));
+    if(par)S.open[par.id]=true;S.selFolder=id;closeAll();render();});
+}
+/* [約束5] 可見性切換，含規則阻擋 */
+function flowVis(fid){
+  const p=P();const f=fdById(p,fid);
+  if(f.vis==='internal'&&(f.role==='contract'||f.role==='internal'||f.role==='finance')){
+    toast('「'+ROLE_LABEL[f.role]+'」資料夾由規則禁止對客戶可見 —— 回簽合約、財務台帳、標「不得提供客戶」的文件都在這一層');return;}
+  f.vis=f.vis==='client_visible'?'internal':'client_visible';
+  p.files.filter(x=>x.fd===fid).forEach(x=>{x.vis=f.vis;});
+  render();toast('「'+f.name+'」及夾內 '+p.files.filter(x=>x.fd===fid).length+' 個檔案已設為 '+
+    (f.vis==='client_visible'?'可給客戶':'僅內部'));
+}
+/* [約束7] LINE：只說明，不假裝 */
+function flowLine(){
+  openModal('LINE 群導入 · 本階段停用',
+    '<div class="notebar dan">'+svg('ban',13)+'<span><b>這個入口不可用，而且短期內不會變可用。</b>不是還沒做，是有三件事擋著。</span></div>'+
+    '<div class="cb" style="padding-left:0;padding-right:0">'+
+    '<div class="kv"><span class="k">技術上</span><span class="v" style="text-align:left">bot 被拉進群<b>之前</b>的歷史訊息，官方文件寫明「There is no API available to get the text again after receiving the webhook.」—— 永遠拿不回來。</span></div>'+
+    '<div class="kv"><span class="k">LINE Notify</span><span class="v" style="text-align:left">已於 2025-03-31 終止服務，不是選項。</span></div>'+
+    '<div class="kv"><span class="k">匯出檔</span><span class="v" style="text-align:left">LINE App 的 .txt 匯出<b>只有文字</b>，圖片是 <code class="mono">[照片]</code> 占位，bytes 拿不回來。</span></div>'+
+    '<div class="kv"><span class="k">風險</span><span class="v" style="text-align:left">需要一條<b>無認證公開 webhook</b>（系統第二條），屬 AGENTS.md §11 高風險；前置是先寫 <code class="mono">AUT-*</code> 政策文件並取得核准（OD-H）。</span></div>'+
+    '<div class="kv"><span class="k">後果</span><span class="v" style="text-align:left">01 共好玟化的<b>合約變更只存在 LINE 裡</b>（財務表備註「有用LINE訊息談好可以分兩期」）—— 這筆資料目前系統裡沒有，只能靠 M5 人工補。</span></div>'+
+    '</div>','<button class="sbtn" data-close>知道了</button>');
+}
+
+/* ============================================================
+   事件
+   ============================================================ */
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.closest('[data-close]')||t===$('#scrim')){closeAll();return;}
+
+  const tab=t.closest('[data-tab]');
+  if(tab){S.tab=tab.dataset.tab;S.ret=[];render();return;}
+  const tg=t.closest('[data-tab-go]');
+  if(tg){S.tab=tg.dataset.tabGo;S.ret=[];render();return;}
+
+  const pr=t.closest('[data-proj]');
+  if(pr){S.pid=pr.dataset.proj;const p=P();
+    S.cyc=p.cycles[p.cycles.length-1].ord;
+    S.selFolder=inboxFd(p)||p.folders[0].id;
+    S.selMeet=p.meetings.length?p.meetings[0].id:null;
+    S.selThread=p.threads.length?p.threads[0].id:null;
+    S.open={};S.checked.clear();S.ret=[];S.driveSub='drive';render();return;}
+
+  const cy=t.closest('[data-cyc]');
+  if(cy){S.cyc=+cy.dataset.cyc;render();return;}
+
+  const tw=t.closest('[data-tw]');
+  if(tw){const id=tw.dataset.tw;S.open[id]=!S.open[id];render();e.stopPropagation();return;}
+  const fdn=t.closest('[data-fd]');
+  if(fdn){S.tab='drive';S.driveSub='drive';S.selFolder=fdn.dataset.fd;
+    if(kids(P(),fdn.dataset.fd).length)S.open[fdn.dataset.fd]=true;
+    S.checked.clear();render();return;}
+  const ds=t.closest('[data-dsub]');
+  if(ds){S.driveSub=ds.dataset.dsub;render();return;}
+
+  const mt=t.closest('[data-meet]');
+  if(mt){S.selMeet=mt.dataset.meet;render();return;}
+  const th=t.closest('[data-thread]:not([data-act])');
+  if(th&&th.dataset.thread&&!th.dataset.act){S.selThread=th.dataset.thread;render();return;}
+
+  const ed=t.closest('[data-edit]');
+  if(ed){startEdit(ed,ed.dataset.edit);return;}
+
+  const rf=t.closest('[data-ref]');
+  if(rf){const [k,id]=rf.dataset.ref.split(':');jump(k,id);return;}
+  const jp=t.closest('[data-jump]');
+  if(jp){const [k,id]=jp.dataset.jump.split(':');jump(k,id);return;}
+
+  const act=t.closest('[data-act]');
+  if(act){
+    const a=act.dataset.act;const p=P();
+    if(a==='line'){flowLine();return;}
+    if(a==='newmeet'){flowNewMeeting();return;}
+    if(a==='newcyc'){flowAddCycle();return;}
+    if(a==='addmile'){flowAddMile();return;}
+    if(a==='addtask'){flowAddTask(act.dataset.mile);return;}
+    if(a==='newfolder'){flowNewFolder();return;}
+    if(a==='togglevis'){flowVis(act.dataset.fd);return;}
+    if(a==='file-sel'){const ids=[...S.checked];if(ids.length)flowFile(ids);return;}
+    if(a==='msg2task'){flowMsg2Task(act.dataset.thread,act.dataset.msg);return;}
+    if(a==='todo2task'){flowTodo2Task(+act.dataset.ti);return;}
+    if(a==='link-mile'){toast('補掛里程碑：由人決定掛到哪個判準下 —— 遷移時刻意不自動生成假目標來填滿階層');return;}
+    if(a==='send'){const ta=document.querySelector('.composer textarea');
+      const v=(ta&&ta.value.trim());if(!v){toast('先寫點什麼');return;}
+      const thr=p.threads.find(x=>x.id===S.selThread);
+      thr.msgs.push({id:'m_'+(++SEQ),w:'戴宇星',me:true,ts:'10-03 '+new Date().toTimeString().slice(0,5),t:v,upg:{kind:'task'}});
+      render();toast('已送出 · 訊息可以直接升級為任務');return;}
+    if(a==='newthread'){const id='g_'+(++SEQ);
+      p.threads.push({id:id,title:'新 Thread',open:true,msgs:[]});S.selThread=id;S.tab='chat';render();return;}
+    if(a==='newproj'){toast('新專案會自動綁到「圓展教育科技有限公司」workspace（OD-C，伺服器端解析，不吃前端參數）');return;}
+    return;
+  }
+
+  const rail=t.closest('[data-rail]');
+  if(rail&&!rail.classList.contains('on')){toast('本原型只實作「專案」模組，其餘軌道維持 v5 現況');return;}
+});
+
+document.addEventListener('change',e=>{
+  const c=e.target.closest('[data-chk]');
+  if(c){const id=c.dataset.chk;if(c.checked)S.checked.add(id);else S.checked.delete(id);render();}
+});
+
+/* 懸停卡 */
+document.addEventListener('mouseover',e=>{
+  const rf=e.target.closest('[data-ref]');
+  if(rf){const [k,id]=rf.dataset.ref.split(':');showPeek(rf,k,id);}
+});
+document.addEventListener('mouseout',e=>{
+  if(e.target.closest('[data-ref]'))$('#peek').classList.remove('show');
+});
+window.addEventListener('scroll',()=>$('#peek').classList.remove('show'),true);
+
+$('#retBack').addEventListener('click',goBack);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){if($('#drawer').classList.contains('show')||$('#modal').classList.contains('show'))closeAll();
+    else if(S.ret.length)goBack();}
+});
+
+/* 主題：深色為主，淺色沿用 WHITE palette */
+$('#themeBtn').addEventListener('click',()=>{
+  const d=document.documentElement.getAttribute('data-theme')==='light';
+  document.documentElement.setAttribute('data-theme',d?'dark':'light');
+  $('#themeBtn').innerHTML=(d?svg('moon',14)+' 深色':svg('sun',14)+' 淺色');
+});
+$('#themeBtn').innerHTML=svg('moon',14)+' 深色';
+
+render();
+</script>
+</body>
+</html>
