@@ -1,0 +1,29 @@
+/* 連結物件。卡片骨架沿用既有的 .eb-obj，這裡只補連結自己的部分。
+   顏色一律 var(--token, fallback)，token 在 company-theme.ts 的 V5_PALETTES。 */
+
+/* 行內網址底下的連結：放在那一行書寫區的外面，換行到下一列 */
+.eb.has-links{flex-wrap:wrap}
+.eb-links{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:4px 12px;min-width:0;padding:0 0 3px 28px;user-select:none}
+.eb-lk{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:100%;font-size:11.5px}
+.eb-lk a{display:inline-flex;align-items:center;gap:4px;min-width:0;color:var(--pri,#6cb6ff);text-decoration:none}
+.eb-lk a span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eb-lk a:hover span{text-decoration:underline;text-underline-offset:2px}
+.eb-lk a:focus-visible,.eb-lk button:focus-visible,.lk-full:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:2px}
+.eb-lk svg{width:11px;height:11px;flex-shrink:0}
+.eb-lk button{flex-shrink:0;padding:0;background:none;border:0;font-family:inherit;font-size:11px;color:var(--text-3,#626b77);cursor:pointer}
+.eb-lk button:hover{color:var(--text,#e9ecf1);text-decoration:underline;text-underline-offset:2px}
+
+/* 卡片 */
+.lk-card{cursor:pointer}
+.lk-card:hover .ti{color:var(--pri,#6cb6ff)}
+.lk-code{font-family:var(--mono);font-size:10.5px;color:var(--text-3,#626b77)}
+.lk-url{display:flex;align-items:center;gap:5px;min-width:0;margin-top:5px;font:11.5px var(--mono);color:var(--text-2,#99a2af)}
+.lk-url svg{width:11px;height:11px;flex-shrink:0;color:var(--pri,#6cb6ff)}
+.lk-url span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lk-note{margin-top:6px;font-size:12px;line-height:1.65;color:var(--text-2,#99a2af);white-space:pre-wrap;overflow-wrap:anywhere}
+.lk-toast-m{font-family:var(--mono);color:var(--text-3,#626b77)}
+
+/* 抽屜 */
+.lk-full{display:flex;align-items:flex-start;gap:6px;margin-top:12px;font:12px/1.6 var(--mono);color:var(--pri,#6cb6ff);text-decoration:none;overflow-wrap:anywhere}
+.lk-full:hover span{text-decoration:underline;text-underline-offset:2px}
+.lk-full svg{width:12px;height:12px;flex-shrink:0;margin-top:4px}

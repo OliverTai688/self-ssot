@@ -123,7 +123,7 @@ function jrBlockHtml(b) {
   if (!(b.text || '').trim()) return '';
   const bul = b.t === 'p' && b.ind > 0 ? '<span class="eb-bul">·</span>' : '';
   const ck = b.t === 'todo' ? `<span class="eb-ck ${b.done ? 'on' : ''}">${svg('check')}</span>` : '';
-  return `<div class="eb ind${b.ind}" data-t="${b.t}">${bul}${ck}<div class="eb-tx ${b.done ? 'done' : ''}">${esc(b.text)}</div></div>`;
+  return `<div class="eb ind${b.ind} ${lkHas(b) ? 'has-links' : ''}" data-t="${b.t}">${bul}${ck}<div class="eb-tx ${b.done ? 'done' : ''}">${esc(b.text)}</div>${lkRoChips(b)}</div>`;
 }
 function jrBody(d) { return `<div class="doc jr-doc">${(d.blocks || []).map(jrBlockHtml).join('')}</div>`; }
 

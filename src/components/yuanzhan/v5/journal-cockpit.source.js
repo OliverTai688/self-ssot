@@ -126,7 +126,7 @@ function jcPeerBlock(author,b){
  const ck=b.t==='todo'?`<span class="eb-ck ${b.done?'on':''}">${svg('check')}</span>`:'';
  const r=b.req&&rqFind(b.req),st=r&&!r.resolvedAt?(r.firstReplyAt?'replied':rqState(r)==='late'?'late':'ask'):b.today?'today':'';
  const pills=b.req||b.today?`<span class="rq-pills">${rqLinePills(b)}</span>`:'';
- return `<div class="eb ${ind} jc-ro ${st?'rq-line rq-'+st:''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" onclick="jcOpenLine('${author}','${b.id}')">${bul}${ck}<div class="eb-tx ${b.t==='todo'&&b.done?'done':''}">${esc(b.text)}</div>${pills}</div>${jcLineHtml(author,b)}`;
+ return `<div class="eb ${ind} jc-ro ${lkHas(b)?'has-links':''} ${st?'rq-line rq-'+st:''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" onclick="jcOpenLine('${author}','${b.id}')">${bul}${ck}<div class="eb-tx ${b.t==='todo'&&b.done?'done':''}">${esc(b.text)}</div>${pills}${lkRoChips(b)}</div>${jcLineHtml(author,b)}`;
 }
 function jcPeerColumn(peer){
  const d=jcDoc(peer),blocks=(d?.blocks||[]).map(b=>jcPeerBlock(peer,b)).join('');

@@ -1122,6 +1122,61 @@ async function applyDocObject(change: RowChange, ctx: ApplyContext): Promise<voi
   await db.operatingDocObject.upsert({ where: { id }, create: { id, ...data }, update: data })
 }
 
+const LINK_KIND = "link"
+
+/** 只收 http／https。`javascript:`、`data:` 之類的網址存進來，下一個點它的人就會執行它。 */
+function toHttpUrl(value: unknown): URL | null {
+  if (typeof value !== "string" || value.length > 2048) return null
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 連結物件：日誌裡貼上的網址。
+ *
+ * 與文件物件同一張表（operating_doc_objects，kind = 'link'），不另開一張：它要的欄位
+ * ——標題、作者、誕生日、一包 JSON——那張表都已經有了，為了一個網址多一次 migration
+ * 不划算。工作台那一頭是獨立的 `links` 集合，主鍵也由 "links" 推導，所以不會與
+ * 文件物件撞 id；讀取端依 kind 把兩者分開。
+ */
+async function applyLinkObject(change: RowChange, ctx: ApplyContext): Promise<void> {
+  const id = rowUuid("links", change.id)
+  if (change.op === "delete") {
+    await db.operatingDocObject.deleteMany({ where: { id, workspaceId: ctx.workspaceId, kind: LINK_KIND } })
+    return
+  }
+
+  const row = (change.after ?? {}) as Record<string, unknown>
+  const url = toHttpUrl(row.url)
+  if (!url) throw new Error(`link ${change.id} has no usable http(s) url`)
+
+  const data = {
+    workspaceId: ctx.workspaceId,
+    workbenchRef: change.id,
+    kind: LINK_KIND,
+    subKind: null,
+    title: (str(row.title) ?? url.host).slice(0, 300),
+    titleAuto: row.titleAuto !== false,
+    onDate: toDateOnly(row.day),
+    authorKey: str(row.author),
+    payload: toJson(
+      {
+        url: url.toString(),
+        note: str(row.note) ?? "",
+        // 私人日誌裡貼的連結只有作者讀得到，與檔案物件同一條規則。
+        space: row.space === "personal" ? "personal" : "team",
+        bornAt: typeof row.bornAt === "number" && Number.isFinite(row.bornAt) ? row.bornAt : Date.now(),
+      },
+      {},
+    ),
+  }
+  await db.operatingDocObject.upsert({ where: { id }, create: { id, ...data }, update: data })
+}
+
 /* ------------------------------------------------------------------ */
 /* M7：日誌右欄的兩人共用狀態                                          */
 /* ------------------------------------------------------------------ */
@@ -1820,6 +1875,7 @@ const HANDLERS: Partial<Record<PersistedCollection, (change: RowChange, ctx: App
   phaseCycles: applyPhaseCycle,
   chatChannels: applyChatChannel,
   chatMessages: applyChatMessage,
+  links: applyLinkObject,
 }
 
 /* ------------------------------------------------------------------ */

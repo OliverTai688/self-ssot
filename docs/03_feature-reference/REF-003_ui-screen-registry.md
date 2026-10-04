@@ -202,3 +202,5 @@ That changes only the named screen to `REVIEWING`. The review must inspect the r
 UI-088 的 tabs／drawers 是同一工作台的依賴，不新增假 UI ID。另沿用 UI-050 Company sidebar 作入口，原正式模組不替換。獨立 route group 使用原 auth resolver，避免 dashboard root 正式 library loader 將業務資料注入 UI store。
 
 **UI-088 修訂（2026-10-04，`PLN-075` S3）**：專案模組的分頁由「總覽／工作／對話／Evidence Repo／財務／里程碑」改為「總覽／計劃／檔案／會議／對話／財務」；「工作」「里程碑」降為計劃的子視圖、「Evidence Repo」降為檔案的子視圖、既有議題串降為對話的子視圖，舊分頁 index 的連結仍然走得到。依 Owner 於 2026-10-03 批准的 `INTEGRATION-DECISION`（A 分頁外殼 ＋ C 資源樹 ＋ B 時間流）執行；同一個畫面、同一個 route，未新增 UI ID。database 模式下這五個資源面寫入正式資料（`folders`／`phaseCycles`／`chatChannels`／`chatMessages` 與既有集合的新欄位），prototype 模式維持頁面記憶體。驗收見 [RPT-068](../06_audits-and-reports/RPT-068_project-module-five-resource-acceptance-report.md)。
+
+**UI-088 修訂（2026-10-04，`LINK-001`）**：日誌新增連結物件 —— 行內網址可點、空行貼上網址變成連結卡片、可存成物件（物件索引、`@` 引用、`#` 召喚）。Owner 於驗收途中直接提出；同一個畫面，未新增 UI ID。

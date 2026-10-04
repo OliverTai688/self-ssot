@@ -290,7 +290,8 @@ ok('日誌欄頭有「附件」按鈕（手機那道門）', jc.includes("astOpe
 
 const gen = fs.readFileSync(path.join(ROOT, 'scripts/generate-yuanzhan-v5.mjs'), 'utf8')
 ok('generator 併入 asset-object 與它的 CSS',
-  gen.includes("'asset-object']") && gen.includes('asset-object.css'))
+  // 只看有沒有被列進去；它後面還有別的擴充檔（pm-*、link-object），不能要求它排最後。
+  gen.includes("'asset-object'") && gen.includes('asset-object.css'))
 ok('generator 匯入共用契約（前端不自己抄一份白名單）',
   gen.includes("from '@/lib/ui-data/yuanzhan/operating-assets'"))
 

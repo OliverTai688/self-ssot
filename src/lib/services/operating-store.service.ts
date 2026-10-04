@@ -70,6 +70,9 @@ const DAY_STATE_WINDOW_DAYS = 90
 /** 聊天室訊息一次載回多少則（全專案合計）。 */
 const CHAT_MESSAGE_WINDOW = 1500
 
+/** 連結物件在 operating_doc_objects 裡的 kind（寫入端在 operating-commands.service）。 */
+const LINK_KIND = "link"
+
 const PROJECT_STATUS_FALLBACK = "進行中"
 const TASK_STATUS_FALLBACK = "Todo"
 
@@ -718,7 +721,30 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
         meta: row.meta,
       })),
 
-    docObjects: withRef(docObjectRows).map((row) => {
+    // 連結物件與文件物件同一張表，依 kind 分開。私人的只有作者讀得到。
+    links: withRef(docObjectRows)
+      .filter((row) => row.kind === LINK_KIND)
+      .flatMap((row) => {
+        const payload = (row.payload ?? {}) as Record<string, unknown>
+        const space = payload.space === "personal" ? "personal" : "team"
+        if (space === "personal" && !(row.authorKey && viewerSeatKeys.includes(row.authorKey))) return []
+        if (typeof payload.url !== "string") return []
+        return [
+          {
+            id: row.workbenchRef,
+            url: payload.url,
+            title: row.title,
+            titleAuto: row.titleAuto,
+            note: typeof payload.note === "string" ? payload.note : "",
+            space,
+            author: row.authorKey ?? "",
+            day: iso(row.onDate),
+            bornAt: typeof payload.bornAt === "number" ? payload.bornAt : row.createdAt.getTime(),
+          },
+        ]
+      }),
+
+    docObjects: withRef(docObjectRows.filter((row) => row.kind !== LINK_KIND)).map((row) => {
       const payload = (row.payload ?? {}) as Record<string, unknown>
       return {
         id: row.workbenchRef,

@@ -65,6 +65,8 @@ export const PERSISTED_COLLECTIONS = [
   'phaseCycles',
   'chatChannels',
   'chatMessages',
+  // 連結物件：日誌裡貼上的網址。與文件物件同一張表（kind = 'link'），不另開表。
+  'links',
 ] as const
 
 export type PersistedCollection = (typeof PERSISTED_COLLECTIONS)[number]
@@ -146,6 +148,8 @@ export const WRITE_ENABLED_COLLECTIONS: readonly PersistedCollection[] = [
   'phaseCycles',
   'chatChannels',
   'chatMessages',
+  // 連結物件
+  'links',
 ]
 
 /**

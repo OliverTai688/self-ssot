@@ -4213,3 +4213,18 @@ LINE 依 OD-H 以停用入口呈現。舊分頁 index 經 `opRedirect` 落到新
 
 驗收報告：`docs/06_audits-and-reports/RPT-068_project-module-five-resource-acceptance-report.md`
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-project-module-s3-five-resource-surfaces.md`
+
+## 2026-10-04 — 日誌連結物件（LINK-001）
+
+Owner 在驗收途中提出：日誌要能放連結、貼上變元件、可以存成物件。
+
+改動：新增 `src/components/yuanzhan/v5/link-object.source.js`／`link-object.css`；`journal-cockpit`、`journal-review`
+的唯讀行也有可點的連結；`links` 加入寫入管線，伺服器存進 `operating_doc_objects`（`kind = 'link'`，沒有 migration），
+讀取端依 kind 分開、私人的只有作者讀得到。只收 http／https。
+
+驗證：`pnpm ops:links:check` 24/24、`pnpm project:ui:check` 74/74、`pnpm exec tsc --noEmit` 0、`pnpm build` exit 0、
+`verify-asset-object` 51/51、瀏覽器實測（本機 showcase）。
+
+已知限制：標題依網域預設，不抓對方網頁；既有日誌裡的網址要自己按「存成物件」才會變物件。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-journal-link-object.md`

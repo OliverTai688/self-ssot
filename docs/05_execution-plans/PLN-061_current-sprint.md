@@ -1,5 +1,15 @@
 # Current Sprint
 
+## Owner-directed 日誌連結物件 — 2026-10-04
+
+`LINK-001` 已完成實作。日誌裡的網址現在是可以用的東西：**任何一行裡的網址底下都有一顆可點的連結**；**在空行貼上一個網址，那一行直接變成連結卡片**（有字的行照常貼成文字，句子不會被拆開）；卡片是**物件**——有參考碼、進物件索引、可以用 `@` 引用、可以用 `#` 召喚。
+
+**`UI-088` Revision Mode**：Owner 在驗收途中直接提出；未新增 UI ID。**沒有 schema 變更**：連結存進既有的 `operating_doc_objects`（`kind = 'link'`），工作台那一頭是獨立的 `links` 集合。
+
+兩個刻意的決定：可點的連結放在書寫區**外面**（在 `contenteditable` 裡放行內元素會打壞游標）；標題**不去抓對方網頁**（伺服器代抓任意網址是 SSRF），改為依網域給預設名稱。
+
+驗收：`pnpm ops:links:check` 24/24、`project:ui:check` 74/74 無回歸、`tsc` 0、`pnpm build` exit 0、瀏覽器實測。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-journal-link-object.md)。
+
 ## Owner-directed 專案模組五大資源 S3 — 2026-10-04
 
 `PROJMOD-S3` 已完成實作，`PROJMOD-S4`（Owner 整合測試）進行中。專案模組從「總覽／工作／對話／Evidence Repo／財務／里程碑」改為 **總覽／計劃／檔案／會議／對話／財務**：A 的分頁外殼、C 的資源樹放進檔案與會議、B 的時間流放進總覽下半（`INTEGRATION-DECISION`，Owner 2026-10-03 批准）。「工作」「Evidence Repo」「里程碑」「議題串」降為子視圖，舊分頁 index 的連結仍然走得到。
