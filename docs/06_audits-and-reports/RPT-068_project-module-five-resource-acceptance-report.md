@@ -145,7 +145,7 @@ D 段不連資料庫：它驗的是「工作台送出去的東西長得對不對
 
 ### 4.4 正式站驗證
 
-見 §9（部署後補上）。
+**尚未執行**，見 §9。
 
 ## 5. 對帳數據
 
@@ -256,4 +256,22 @@ LINE 導入（OD-H）、`0_工作區` 真實檔案遷移、`FileAsset`／`MediaA
 
 ## 9. 正式站驗證
 
-（部署後補上。）
+**尚未執行。** 程式已在本機 commit（`d21b8c51a1`），Owner 於 2026-10-04 同意 push 並由 Vercel 套用 migration，
+但執行這次工作的環境不允許代為 push 到 main，所以 push 這一步要由 Owner 自己做：
+
+```bash
+git push origin main
+```
+
+push 之後 Vercel 的 build 會依序跑 `prisma generate` → `prisma migrate deploy` → `next build`。
+`migrate deploy` 會對正式庫套用 `20261003090000_project_workspace_resources`（5 張新表、9 個 enum、
+6 張既有表加欄，全部 additive）。migration 先套用、新程式才上線；舊程式不讀新欄位，所以中間不會壞。
+
+部署完成後要驗的三件事（§8 的整合測試腳本涵蓋後兩件）：
+
+1. `/company/operating` 打得開、專案模組是六個分頁、console 沒有紅字 —— 這一項驗的是 migration 有套用成功
+   （沒套用的話，讀取路徑會查不到新表，工作台會是空的）。
+2. §8 步驟 2、3 的「重新整理頁面」之後資料還在 —— 驗的是讀取路徑。
+3. §8 步驟 4 的上傳 —— 驗的是 R2 與專案 capability。
+
+在這三件事由真人或瀏覽器在正式站走過之前，**這份報告的結論只到「本機驗證通過」為止**。
