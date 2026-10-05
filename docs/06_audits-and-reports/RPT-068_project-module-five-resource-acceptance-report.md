@@ -92,7 +92,7 @@ C 的 390px 溢出在實作時修掉了：樹只在分頁內，760px 以下收�
 | `eslint`（改動的 service／route／mapper） | 0 errors（3 個既有的 unused-var 警告） |
 | `node scripts/generate-yuanzhan-v5.mjs` | PASS，626 個 handler 編成閉包 |
 | `pnpm ui:nested-card:check` | PASS —— **七個新檔 0 違規**；既有基線 143 筆不變 |
-| `pnpm project:ui:check`（新增） | **74/74** |
+| `pnpm project:ui:check`（新增） | **79/79**（正式站驗證後補了 5 項） |
 | `check-prisma-structure` | PASS — models=79 enums=68 relations=48 |
 | `check-operating-spine` | PASS — 24 checks |
 | `check-operating-commands` | PASS — 42 checks |
@@ -145,7 +145,7 @@ D 段不連資料庫：它驗的是「工作台送出去的東西長得對不對
 
 ### 4.4 正式站驗證
 
-**尚未執行**，見 §9。
+2026-10-05 已做唯讀驗證，見 §9。
 
 ## 5. 對帳數據
 
@@ -254,24 +254,45 @@ LINE 導入（OD-H）、`0_工作區` 真實檔案遷移、`FileAsset`／`MediaA
 
 **有問題時請給我**：是哪一步、畫面右下角的保存狀態寫什麼（「未保存：…」後面那句話）、以及瀏覽器 console 的紅字。
 
-## 9. 正式站驗證
+## 9. 正式站驗證（2026-10-05，唯讀）
 
-**尚未執行。** 程式已在本機 commit（`d21b8c51a1`），Owner 於 2026-10-04 同意 push 並由 Vercel 套用 migration，
-但執行這次工作的環境不允許代為 push 到 main，所以 push 這一步要由 Owner 自己做：
+在 `https://www.person.yzedtech.com/company/operating` 以 Owner 登入後的工作階段，用瀏覽器實際走過。
+**只做唯讀檢查**（開頁、切分頁、切專案、翻日誌日期），沒有建立、修改或刪除任何資料；全程保存狀態沒有出現過。
 
-```bash
-git push origin main
-```
+部署：`d21b8c51a1`／`ae0b8cec63`（專案模組，含 migration）與 `93f56e441f`（連結物件）皆由 Owner push，
+Vercel Production 狀態 success。
 
-push 之後 Vercel 的 build 會依序跑 `prisma generate` → `prisma migrate deploy` → `next build`。
-`migrate deploy` 會對正式庫套用 `20261003090000_project_workspace_resources`（5 張新表、9 個 enum、
-6 張既有表加欄，全部 additive）。migration 先套用、新程式才上線；舊程式不讀新欄位，所以中間不會壞。
+| 檢查 | 結果 |
+|---|---|
+| migration 已套用 | ✓ —— `/api/company/operating/store` 回 200，帶著 `folders`／`phaseCycles`／`chatChannels`／`chatMessages`／`links` 五個新集合（皆 0 筆）；沒套用的話這支 API 會查不到表 |
+| 工作台是 database 模式 | ✓ —— 沒有「預覽模式」橫幅，沒有任何示範資料 |
+| 專案模組六個分頁 | ✓ —— 總覽／計劃／檔案／會議／對話／財務 |
+| 4 個真實專案的總覽 | ✓ —— 每個都畫得出數字列、期階梯、跨資源待辦、五大資源、交付標準、時間流 |
+| 計劃／檔案／會議／對話的空狀態 | ✓ —— 各自顯示正確的說明與啟用按鈕 |
+| 子視圖：工作、里程碑 · 目標、議題串 | ✓ —— 4 個專案都切得過去 |
+| 子視圖：Evidence Repo | **3 個專案 ✓，1 個 ✗** —— 見下 |
+| 日誌的行內連結（`93f56e441f`） | ✓ —— 2026-10-04 那一行的 Google Drive 網址底下出現可點的連結與「存成物件」，另開分頁、`rel="noopener noreferrer"` |
+| 物件索引 | ✓ —— 多了「連結」這個型別（0 筆） |
+| console 錯誤 | 除下面那一個之外沒有 |
 
-部署完成後要驗的三件事（§8 的整合測試腳本涵蓋後兩件）：
+### 驗證中發現並修掉的三件事
 
-1. `/company/operating` 打得開、專案模組是六個分頁、console 沒有紅字 —— 這一項驗的是 migration 有套用成功
-   （沒套用的話，讀取路徑會查不到新表，工作台會是空的）。
-2. §8 步驟 2、3 的「重新整理頁面」之後資料還在 —— 驗的是讀取路徑。
-3. §8 步驟 4 的上傳 —— 驗的是 R2 與專案 capability。
+1. **已經建過 Evidence Repo 的專案，一開那個畫面就整面不畫**（正式站是「豐盛之翼學院形象官網」）。
+   原因：讀取端回來的 repo 沒有 `pending`，而畫面直接讀 `r.pending.length`。**這不是這次改動造成的** ——
+   舊的 Evidence Repo 分頁走同一段程式、一樣會壞，只是先前沒有人在正式站對有 repo 的專案開過它。
+   修正：讀取端補上 `pending: []`。
+2. **既有的 enhance 掛勾還認舊分頁編號。** 議題串的「附檔」按鈕掛在舊的對話（2），現在那個編號是檔案；
+   Evidence Repo 檔案的點擊掛在舊的 3，現在是會議。結果是該掛的那一面沒有掛到。
+   修正：外殼在呼叫既有掛勾時把目前的畫面翻譯成舊編號。
+3. **新的總覽把「可分配毛利」顯示給所有人。** 舊總覽對非參與者會遮掉專案財務，新總覽沒有沿用那條規則。
+   修正：非負責人且非參與者顯示「— 限參與者查看」。
 
-在這三件事由真人或瀏覽器在正式站走過之前，**這份報告的結論只到「本機驗證通過」為止**。
+三項都有對應的機檢（`pnpm project:ui:check` 由 74 項增為 79 項）。修正在 Owner 下一次 push 之後才會上線；
+**上線之後 Evidence Repo 那一項需要再看一次**。
+
+### 還沒在正式站驗的
+
+- 任何寫入：建立期、資料夾、會議、頻道、連結物件，以及「重新整理之後讀得回來」。這些會在正式資料裡留下紀錄，
+  所以留給 Owner 依 §8 的腳本自己走。
+- 真實的 R2 上傳、整理、下載。
+- 成員（Lily）視角。

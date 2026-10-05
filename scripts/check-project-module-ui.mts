@@ -185,7 +185,35 @@ for (const mode of ['showcase', 'empty'] as const) {
   check('升級路徑 · 訊息→任務', (await t.save()) === 'saved' && /已轉任務/.test(text(t.all('.pm-msg').pop())))
   check('對話 · LINE 是停用的入口', !!t.byText('.pm-mt-i.off', 'LINE'))
 
+  // 既有的 enhance 掛勾認舊分頁 index：議題串那一面要掛得到「附檔」，別的分頁不能被誤掛。
+  await t.click(t.byText('.pm-subnav button', '議題串'))
+  check('舊掛勾 · 議題串子視圖掛得到附檔按鈕', !!t.byText('.composer .btn', '附檔'))
+  await t.tab('檔案')
+  check('舊掛勾 · 檔案分頁沒有被誤掛', !t.byText('.composer .btn', '附檔'))
+
   check('操作全程沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
+  r.workbench.destroy()
+}
+
+/* ------------------------------------------------------------------ */
+/* C2. 成員視角：專案財務的遮罩                                        */
+/* ------------------------------------------------------------------ */
+{
+  // 夾具沒有登入者，切換視角的按鈕不會動；直接以成員身分掛載。
+  const r = await mountAll('showcase', undefined, (state) => {
+    ;(state.data as Record<string, unknown>).me = 'lily'
+  })
+  const t = tools(r.root)
+  r.workbench.navigate('project', 0)
+  await tick(5)
+  const rails: string[] = []
+  for (let i = 0; i < t.all('#inner .seg button').length; i++) {
+    await t.click(t.all('#inner .seg button')[i])
+    rails.push(text(t.one('.pm-rail')))
+  }
+  check('成員視角 · 參與的專案看得到可分配毛利', rails.some((x) => /可分配毛利 [\d,−-]+NT\$/.test(x)))
+  check('成員視角 · 沒參與的專案看不到可分配毛利', rails.some((x) => /可分配毛利 — 限參與者查看/.test(x)), rails.map((x) => (x.match(/可分配毛利.{0,12}/) || [''])[0]))
+  check('成員視角 · 沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
   r.workbench.destroy()
 }
 

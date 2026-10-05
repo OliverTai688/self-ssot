@@ -263,7 +263,9 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
   for (const row of repoRows) {
     const ref = row.workbenchRef ?? projectRefById.get(row.projectId)
     if (!ref) continue
-    repos[ref] = { version: row.version, frozen: row.frozen, readme: row.readme ?? "", versions: row.versions, tree: row.tree }
+    // `pending`（待歸檔）沒有對應的欄位、不會被存下來，但工作台的 Evidence Repo 畫面直接讀
+    // `r.pending.length`：少了這個空陣列，任何已經建過 repo 的專案一開那個畫面就會整頁不畫。
+    repos[ref] = { version: row.version, frozen: row.frozen, readme: row.readme ?? "", versions: row.versions, tree: row.tree, pending: [] }
   }
 
   const capacity: Record<string, unknown> = {}

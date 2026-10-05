@@ -346,9 +346,27 @@ function pmPaintTabs() {
     return `<button type="button" class="tab ${S.tab === i ? 'on' : ''}" onclick="pmTab(${i})">${t[1]}${n ? `<i class="pm-tab-n">${n}</i>` : ''}</button>`;
   }).join('');
 }
+/**
+ * 畫面上現在是既有的哪一面（舊分頁 index）；新的五個版面回 -1。
+ * 既有的 enhance 掛勾認的是舊 index（對話＝2 掛議題串的事件、Evidence Repo＝3 掛檔案點擊、
+ * 總覽＝0 套財務遮罩），分頁重排之後要翻譯給它們聽，否則掛勾會掛到別的分頁上、
+ * 而真正該掛的那一面沒有掛。
+ */
+function pmLegacyIndex() {
+  const key = pmKey();
+  if (key === 'finance') return 4;
+  const sub = pmSub(key);
+  return sub in PM_SUB_LEGACY ? PM_SUB_LEGACY[sub] : -1;
+}
 const pmBaseEnhance = enhanceView;
 enhanceView = function () {
-  pmBaseEnhance();
+  if (S.wb === 'project') {
+    const real = S.tab;
+    S.tab = pmLegacyIndex();
+    try { pmBaseEnhance(); } finally { S.tab = real; }
+  } else {
+    pmBaseEnhance();
+  }
   pmPaintTabs();
 };
 

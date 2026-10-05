@@ -174,7 +174,10 @@ PMV.overview = function (p) {
     { label: '待辦', value: todo.length, tone: late ? 'crit' : '', note: late ? late + ' 件逾期' : '' },
     { label: '待審', value: reviewing, tone: reviewing ? 'warn' : '' },
     { label: '待整理檔案', value: unfiled, tone: unfiled ? 'warn' : '' },
-    { label: '可分配毛利', value: nt(gross(p.id)), unit: 'NT$' },
+    // 專案財務只有負責人與參與者看得到（與既有總覽、財務分頁同一條規則）。
+    isOwner() || can('projectFinance', p.id)
+      ? { label: '可分配毛利', value: nt(gross(p.id)), unit: 'NT$' }
+      : { label: '可分配毛利', value: '—', note: '限參與者查看' },
     ...(goal ? [{ label: '對齊目標', value: goal.pct + '%', note: goal.t }] : [])
   ], { label: '專案重點數字' });
 

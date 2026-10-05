@@ -4228,3 +4228,14 @@ Owner 在驗收途中提出：日誌要能放連結、貼上變元件、可以�
 已知限制：標題依網域預設，不抓對方網頁；既有日誌裡的網址要自己按「存成物件」才會變物件。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-journal-link-object.md`
+
+## 2026-10-05 — 正式站唯讀驗證與三項修正（PROJMOD-S4）
+
+在 `www.person.yzedtech.com` 以 Owner 的工作階段做唯讀驗證：migration 已套用、六個分頁與 4 個真實專案都畫得出來、
+日誌行內連結與物件索引的「連結」型別都在。沒有寫入任何正式資料。
+
+驗證中發現並修掉三件事：已建過 Evidence Repo 的專案開那個畫面會整面不畫（讀取端少了 `pending`，既有問題）；
+既有的 enhance 掛勾還認舊分頁編號；新總覽沒有沿用專案財務的遮罩。
+
+驗證：`pnpm project:ui:check` 79/79、`pnpm ops:links:check` 24/24、`pnpm exec tsc --noEmit` 0、`pnpm build` exit 0。
+詳見 `RPT-068` §9。
