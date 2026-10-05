@@ -4213,3 +4213,25 @@ LINE 依 OD-H 以停用入口呈現。舊分頁 index 經 `opRedirect` 落到新
 
 驗收報告：`docs/06_audits-and-reports/RPT-068_project-module-five-resource-acceptance-report.md`
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-project-module-s3-five-resource-surfaces.md`
+
+## 2026-10-04 — `ops:check` 在 Node 24 跑得完且全綠（PROJMOD-007）
+
+`pnpm ops:check` 先前在 tsx 4.22.4 ＋ Node v24.13.0 跑不完。實際有 top-level await 的只有
+`check-operating-runtime.ts` 與 `check-operating-canvas.ts`（另外四支早已是 `async main()`），
+兩支包進 `async main()`，與其餘一致；`package.json` 沒有動。
+
+改動（只動檢查腳本，runtime、種子資料、`source-patches.mjs` 都沒碰）：
+
+- `check-operating-canvas.ts`：表單斷言改看 `#formModalWrap`／`#fmFoot`（表單已搬到彈跳視窗）；
+  衝期斷言改成「比新增前多一個關鍵節點，且同時列出原里程碑與新活動」；專案分頁斷言對齊六分頁外殼，
+  里程碑樹改從「計劃 → 里程碑 · 目標」子視圖進去；總覽改找「對齊目標」。
+- `check-reply-jump.ts`：來源連結的日期原本寫死 `9/24`，改由 fixture 的昨天推出。runtime 的標示是對的。
+
+驗證：`pnpm ops:check` exit 0（spine 24、commands 42、fields 356、runtime 雙模式 26 分頁 0 錯誤、
+day-state 34/34、canvas 18、reply-jump 22/22、cashflow-faces 72/72、contract-cashflow 48/48、persistence PASS）；
+`pnpm exec tsc --noEmit` 0 errors。
+
+已知限制：canvas 後三處失敗是 `PROJMOD-S3` 造成而非既有（`RPT-068` §6.1 已加更正）；舊總覽的「目標對齊」面板
+在新外殼走不到，待 Owner 判斷。`ops:runtime:regress`（不在 `ops:check` 內）對舊基準仍有差異，本輪未處理。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-ops-check-node24-and-stale-assertions.md`

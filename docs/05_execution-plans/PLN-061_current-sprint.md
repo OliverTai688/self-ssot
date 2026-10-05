@@ -14,6 +14,8 @@
 
 **既有問題（非本輪造成）**：`check-operating-canvas` 與 `check-reply-jump` 在 HEAD 上就失敗；`ops:check` 的 tsx 腳本在 Node 24 因 top-level await 跑不起來 → `PROJMOD-007`。
 
+**`PROJMOD-007` 已完成（2026-10-04）**：`pnpm ops:check` 在本機跑完且全綠。更正上一行：`check-operating-canvas` 只有「抽屜→表單視窗」那一條是既有的；它後面還有三條斷言是被本輪 S3 弄舊的（衝期警示寫死「2 個關鍵節點」而示範資料多了同日的 `M03 內部驗收`、專案不再有獨立的「里程碑」分頁、總覽的「目標對齊」面板換成數字列的「對齊目標」），先前被第一個失敗擋住。檢查已對齊六分頁外殼，runtime 與種子資料沒有動。**待 Owner 判斷**：舊總覽的「目標對齊」面板（同目標的案子、進度條、警示）現在走不到，新總覽只留一列百分比。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261004-ops-check-node24-and-stale-assertions.md)。
+
 ## Owner-directed 日誌檔案物件 P1 — 2026-09-28
 
 `ASSET-005` 已完成實作。接續同日 P0 的契約層，這一輪把介面接上：**四道門**（拖放到某一行／⌘V 貼上截圖／`#` 召喚「附件」／日誌欄頭的「附件」按鈕，手機是拍照・相簿・檔案三選一）全部收斂到一個 `assetIntake()`，每個檔案各自一列物件、各自一張卡片 —— 一張卡片塞三個檔案的話，`@` 就引用不到其中某一個。

@@ -28,6 +28,8 @@ const dayShift = (day: string, n: number) => {
   return d.toISOString().slice(0, 10)
 }
 const YDAY = dayShift(DAY, -1)
+/** 來源連結上印的短日期（rqShortDay：月/日，不補零）。 */
+const YDAY_SHORT = `${Number(YDAY.slice(5, 7))}/${Number(YDAY.slice(8, 10))}`
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 
 let checks = 0
@@ -165,7 +167,7 @@ async function main() {
     })
     const src = m.find('#doc .rq-in .rq-src')
     check('收到的請求卡片上有來源連結', Boolean(src), src?.textContent ?? '')
-    check('來源連結標的是發問那一天與行號', (src?.textContent || '').includes('9/24') && (src?.textContent || '').includes('L1'), src?.textContent ?? '')
+    check('來源連結標的是發問那一天與行號', (src?.textContent || '').includes(YDAY_SHORT) && (src?.textContent || '').includes('L1'), src?.textContent ?? '')
     await m.click(src)
     check('來源連結 · 跳到對方發問的那一天', m.day() === YDAY, `${m.day()} vs ${YDAY}`)
     const peerLine = m.find('#jcPeer [data-jc-bid="l-y1"]')
