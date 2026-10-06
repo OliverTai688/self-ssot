@@ -1,5 +1,19 @@
 # Current Sprint
 
+## Owner-directed 日誌事故修正與復原 — 2026-10-06
+
+`JRNL-INC-001` 已完成實作與資料復原，**尚未部署**。正式站 10/06 00:21 一筆自動保存刪掉 Lily 的五天日誌：
+`DB.journal` 是依空間切換的 getter，自動保存拿它比對，切到個人空間就把整本圓展日誌判成刪除。
+
+修正：比對固定認登入者自己在圓展空間的那一本；前端攔下、伺服器拒絕「有內容的一天被整天刪除」；
+個人空間在 database 模式說明日誌文字尚未接上保存。**沒有 schema 變更**。`UI-088` Revision Mode，未新增 UI ID。
+
+復原：補回 5 列日誌、嵌回 6 個物件（Standup／會議內文完整）。直接打在日誌上、不在物件裡的字無法從資料庫復原。
+
+待 Owner：部署。部署前正式站仍會發生，請勿切到個人空間。
+
+驗收：`pnpm ops:journal-space:check` 9/9（修正前 6/9）、`tsc` 0、`pnpm build` exit 0。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261006-journal-space-switch-data-loss.md)。
+
 ## Owner-directed 日誌連結物件 — 2026-10-04
 
 `LINK-001` 已完成實作。日誌裡的網址現在是可以用的東西：**任何一行裡的網址底下都有一顆可點的連結**；**在空行貼上一個網址，那一行直接變成連結卡片**（有字的行照常貼成文字，句子不會被拆開）；卡片是**物件**——有參考碼、進物件索引、可以用 `@` 引用、可以用 `#` 召喚。

@@ -556,6 +556,47 @@ async function applyDecision(change: RowChange, ctx: ApplyContext): Promise<void
   await db.operatingDecision.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
+/** 一天的日誌有沒有寫東西：有字的行，或嵌了物件。 */
+function journalBlocksHaveContent(blocks: unknown): boolean {
+  if (!Array.isArray(blocks)) return false
+  return blocks.some((block) => {
+    if (!block || typeof block !== "object") return false
+    const b = block as Record<string, unknown>
+    return b.t === "obj" || (typeof b.text === "string" && b.text.trim().length > 0)
+  })
+}
+
+/**
+ * 有內容的一天不能被整天刪除。
+ *
+ * 工作台唯一會送出日誌 delete 的操作，是復原「剛新增的空白日期」。其餘的 delete 都不是
+ * 使用者的意思，而是前端比對錯了對象 —— 2026-10-06 正式站一筆「自動保存」帶著五筆
+ * delete 進來：使用者只是切到個人空間，前端拿空的那一本去比，就把團隊日誌整本判成刪除。
+ * 前端已經修掉，但伺服器不能靠前端守這條線：還開著舊版分頁的人會照樣送。
+ *
+ * 在套用任何一筆變更之前先檢查。命令不是交易，等到 applyJournal 才擋，
+ * 同一筆命令裡排在前面的變更已經寫進去了。
+ */
+async function assertJournalDeletesAreEmpty(changes: RowChange[], ctx: ApplyContext): Promise<void> {
+  const days = changes
+    .filter((change) => change.collection === "journal" && change.op === "delete")
+    .map((change) => toDateOnly(change.id))
+    .filter((day): day is Date => day !== null)
+  if (!days.length) return
+
+  const rows = await db.operatingJournalEntry.findMany({
+    where: { workspaceId: ctx.workspaceId, authorId: ctx.profileId, onDate: { in: days } },
+    select: { onDate: true, blocks: true },
+  })
+  const written = rows.filter((row) => journalBlocksHaveContent(row.blocks))
+  if (!written.length) return
+
+  const list = written.map((row) => row.onDate.toISOString().slice(0, 10)).join("、")
+  throw new ForbiddenChangeError(
+    `日誌 ${list} 有內容，不能整天刪除；這筆變更沒有套用，原本的內容還在。請重新整理頁面。`,
+  )
+}
+
 /**
  * 日誌以日期為鍵，一人一天一筆。
  *
@@ -569,6 +610,7 @@ async function applyJournal(change: RowChange, ctx: ApplyContext): Promise<void>
   const key = { workspaceId_authorId_onDate: { workspaceId: ctx.workspaceId, authorId: ctx.profileId, onDate } }
 
   if (change.op === "delete") {
+    // 走到這裡的 delete 已經過 assertJournalDeletesAreEmpty()：那一天是空白頁。
     await db.operatingJournalEntry.deleteMany({
       where: { workspaceId: ctx.workspaceId, authorId: ctx.profileId, onDate },
     })
@@ -1964,6 +2006,7 @@ export async function applyOperatingCommands(
     }
 
     try {
+      await assertJournalDeletesAreEmpty(command.changes, ctx)
       for (const change of orderByDependency(command.changes)) {
         await HANDLERS[change.collection]!(change, ctx)
       }

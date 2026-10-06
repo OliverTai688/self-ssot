@@ -6401,6 +6401,9 @@ function openSpaces() {
     switchSpace('team');
   })}>圓展空間</button>`);
 }
+/* 個人空間的日誌文字還沒有接上保存：資料庫那一頭是「一人一天一筆」，私人的那一本沒有地方放。
+   在 database 模式要把這件事講出來，否則寫的人以為有存。 */
+const PERSONAL_JOURNAL_UNSAVED = initialState.dataSource === 'database';
 function switchSpace(next) {
   saveJournalDraft();
   space = next;
@@ -6414,6 +6417,7 @@ function switchSpace(next) {
   S.wb = 'journal';
   S.tab = 0;
   render();
+  if (next === 'personal' && PERSONAL_JOURNAL_UNSAVED) toast('個人空間的日誌文字目前只留在這個分頁，重新整理後不會保留；圓展空間的日誌不受影響');
 }
 const originalRenderRail = renderRail;
 renderRail = function () {
@@ -6522,7 +6526,7 @@ function enhanceView() {
   }
   if (S.wb === 'journal') {
     $('#wbName').textContent = space === 'personal' ? '私人日誌' : '日誌';
-    $('#wbRule').textContent = canWriteJournal() ? space === 'team' ? '主操作面：大綱編輯器 · 即時共享' : '主操作面：大綱編輯器 · 僅自己' : '正文由作者編輯 · 可留言協作';
+    $('#wbRule').textContent = canWriteJournal() ? space === 'team' ? '主操作面：大綱編輯器 · 即時共享' : PERSONAL_JOURNAL_UNSAVED ? '主操作面：大綱編輯器 · 僅自己 · 文字尚未接上保存，重新整理後不保留' : '主操作面：大綱編輯器 · 僅自己' : '正文由作者編輯 · 可留言協作';
   }
   root.querySelectorAll('.rail-i').forEach(e => {
     if (!e.getAttribute('aria-label')) e.setAttribute('aria-label', e.querySelector('em')?.textContent || e.title);
@@ -13633,9 +13637,59 @@ let OP_READY = null;
 /** 這一輪撞版本後已經重試過幾次；重試一次就夠，再撞才是真的有人同時在寫。 */
 let OP_CONFLICT_RETRY = 0;
 let OP_RESYNC_PENDING = false;
-function opSnapshot() {
-  return OP_LIVE ? snapshotCollections(DB, OP_WRITE_ENABLED) : null;
+
+/**
+ * 比對用的那一本日誌，永遠是登入者自己在圓展空間的那一本。
+ *
+ * DB.journal 不是欄位，是 getter：它依「目前在哪個空間、正在看誰」回傳不同的本子
+ * （個人空間是另一本；回顧頁跳到對方那一天時是對方那一本）。直接拿它去比對，切一次
+ * 空間就等於告訴伺服器「原本那幾天全部不見了」—— 2026-10-06 正式站就是這樣被一筆
+ * 自動保存刪掉五天的日誌。伺服器那一頭只認登入者（profileId），所以比對也只能認
+ * 同一本，與畫面此刻停在哪裡無關。
+ *
+ * 席位在載入時記下來，不跟著 DB.me 走：切換視角改的是畫面，不是登入的人。
+ */
+const OP_SEAT = DB.me;
+function opOwnJournal() {
+  const team = DB.journalBooks && DB.journalBooks.team;
+  if (!team) return DB.journal;
+  if (!team[OP_SEAT]) team[OP_SEAT] = {};
+  return team[OP_SEAT];
 }
+
+/** 合併伺服器現況時的讀寫也走同一本，否則人在個人空間時會把團隊日誌併進私人那一本。 */
+function opRead(collection) {
+  return collection === 'journal' ? opOwnJournal() : DB[collection];
+}
+function opWrite(collection, value) {
+  const team = DB.journalBooks && DB.journalBooks.team;
+  if (collection === 'journal' && team) team[OP_SEAT] = value;else DB[collection] = value;
+}
+function opSnap() {
+  return snapshotCollections(Object.create(DB, {
+    journal: {
+      value: opOwnJournal(),
+      enumerable: true
+    }
+  }), OP_WRITE_ENABLED);
+}
+function opSnapshot() {
+  return OP_LIVE ? opSnap() : null;
+}
+
+/** 一天的日誌有沒有寫東西：有字的行，或嵌了物件。解析不了就當作有，寧可多擋。 */
+function opJournalDayHasContent(json) {
+  if (typeof json !== 'string') return false;
+  try {
+    const row = JSON.parse(json);
+    return Array.isArray(row && row.blocks) && row.blocks.some(b => b && (b.t === 'obj' || String(b.text || '').trim()));
+  } catch {
+    return true;
+  }
+}
+
+/** 被攔下的整天刪除。留到重新整理為止，否則下一次成功保存就會把警告蓋成「已保存」。 */
+let OP_HELD_NOTE = '';
 
 /**
  * 日誌是連續輸入，不會每個字都觸發 commit()。render() 之後排一個延遲比對，
@@ -13665,10 +13719,23 @@ function opEnqueue(op, ent, label, before) {
   if (!OP_LIVE || !before) return;
   let changes;
   try {
-    changes = diffCollections(before, snapshotCollections(DB, OP_WRITE_ENABLED));
+    changes = diffCollections(before, opSnap());
   } catch (err) {
     console.error('[operating] diff failed', err);
     return;
+  }
+
+  // 有內容的一天不會被「整天刪除」：畫面上沒有這個操作（唯一的 delete 是復原剛新增的
+  // 空白日期）。比對出這種變更，只可能是比對的對象錯了，送出去就是資料遺失 ——
+  // 攔下來不送，其餘照常；伺服器端有同一道檢查（applyJournal）。
+  const held = changes.filter(c => c.collection === 'journal' && c.op === 'delete' && opJournalDayHasContent((before.journal || {})[c.id]));
+  if (held.length) {
+    changes = changes.filter(c => !held.includes(c));
+    console.error('[operating] refused to delete journal days that have content', held.map(c => c.id));
+    OP_HELD_NOTE = '日誌有 ' + held.length + ' 天被判定為整天刪除，已攔下未送出，伺服器上的內容沒有變。請重新整理';
+    // 只把被攔下的那幾天從基準線拿掉，其餘的差異照常往下走。
+    if (OP_BASELINE && OP_BASELINE.journal) for (const c of held) delete OP_BASELINE.journal[c.id];
+    if (OP_STATUS === 'idle') opSetStatus('idle');
   }
   if (!changes.length) return;
   const payloadBytes = JSON.stringify(changes).length;
@@ -13691,7 +13758,7 @@ function opEnqueue(op, ent, label, before) {
     changes
   });
   // 已經排進佇列的內容就是新的基準線，否則下一次比對會把同樣的變更再送一次。
-  OP_BASELINE = snapshotCollections(DB, OP_WRITE_ENABLED);
+  OP_BASELINE = opSnap();
   opFlush();
 }
 
@@ -13784,6 +13851,10 @@ async function opResyncAndFlush() {
   if (OP_QUEUE.length) opFlush();
 }
 function opSetStatus(status, note) {
+  if (status === 'idle' && OP_HELD_NOTE) {
+    status = 'error';
+    note = OP_HELD_NOTE;
+  }
   OP_STATUS = status;
   OP_STATUS_NOTE = note || '';
   opPaintStatus();
@@ -13878,7 +13949,7 @@ async function opMergeRemote(options) {
   for (const [collection, incoming] of Object.entries(payload.store)) {
     if (!OP_WRITE_ENABLED.includes(collection)) continue;
     if (Array.isArray(incoming)) {
-      const local = Array.isArray(DB[collection]) ? DB[collection] : [];
+      const local = Array.isArray(opRead(collection)) ? opRead(collection) : [];
       const localById = new Map();
       for (const row of local) {
         const id = identifyRow(collection, row);
@@ -13904,11 +13975,12 @@ async function opMergeRemote(options) {
           kept += 1;
         }
       }
-      DB[collection] = next;
+      opWrite(collection, next);
       continue;
     }
     if (incoming && typeof incoming === 'object') {
-      const local = DB[collection] && typeof DB[collection] === 'object' ? DB[collection] : {};
+      const own = opRead(collection);
+      const local = own && typeof own === 'object' ? own : {};
       const next = {};
       for (const [key, row] of Object.entries(incoming)) {
         const pendingKey = collection + '\u0000' + key;
@@ -13926,11 +13998,11 @@ async function opMergeRemote(options) {
           kept += 1;
         }
       }
-      DB[collection] = next;
+      opWrite(collection, next);
     }
   }
   OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
-  OP_BASELINE = snapshotCollections(DB, OP_WRITE_ENABLED);
+  OP_BASELINE = opSnap();
   render();
   if (quiet) return;
   if (kept) opSetStatus('conflict', '已取得其他裝置的更新；你有 ' + kept + ' 筆尚未保存的編輯被保留');else opSetStatus(OP_QUEUE.length ? 'sending' : 'idle', merged ? '已同步其他裝置的更新' : '');

@@ -4239,3 +4239,23 @@ Owner 在驗收途中提出：日誌要能放連結、貼上變元件、可以�
 
 驗證：`pnpm project:ui:check` 79/79、`pnpm ops:links:check` 24/24、`pnpm exec tsc --noEmit` 0、`pnpm build` exit 0。
 詳見 `RPT-068` §9。
+
+## 2026-10-06 — 切到個人空間會刪掉整本圓展日誌：事故修正與復原（JRNL-INC-001）
+
+Owner 回報昨日的日誌文字不見。查正式資料庫：10/06 00:21:30 一筆「日誌 · 自動保存」帶著 5 筆 `journal` delete，
+刪掉 Lily 在圓展空間寫過的五天。根因是 `DB.journal` 為依空間／作者切換的 getter，自動保存直接拿它比對，
+切到個人空間（空的那一本）就把基準線的每一天判成刪除。
+
+改動：`operating-persistence.source.js` 的比對與合併固定認登入者自己的那一本，並攔下「有內容的一天被整天刪除」；
+`operating-commands.service.ts` 加 `assertJournalDeletesAreEmpty()`，伺服器拒絕刪除有內容的一天；
+`extensions.source.js` 在 database 模式的個人空間說明日誌文字尚未接上保存。沒有 schema 變更。
+
+資料：`pnpm ops:restore-journal-shells -- --author lily --apply` 補回 5 列、嵌回 6 個物件（Owner 同意後執行）。
+物件裡的字完整；直接打在日誌上、不在物件裡的字無法從資料庫復原。
+
+驗證：`pnpm ops:journal-space:check` 9/9（修正前 6/9）、`ops:day-state:check` 34/34、`ops:links:check` 24/24、
+`ops:assets:object:check` 51/51、`pnpm exec tsc --noEmit` 0、`pnpm build` exit 0；以正式讀取路徑唯讀複驗兩個席位。
+
+未完成：修正尚未部署，正式站在部署前仍會發生。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261006-journal-space-switch-data-loss.md`

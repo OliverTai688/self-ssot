@@ -2286,3 +2286,14 @@ Verification:
 - `javascript:`、`data:` 等非 http／https 的網址不會變成連結，伺服器端同樣拒收。
 - 私人日誌裡建立的連結物件只有作者讀得到。
 - database 模式下重新整理之後卡片與物件都還在。
+
+## 日誌不因切換空間或檢視對象而遺失（UI-088 · JRNL-INC-001，2026-10-06）
+
+機檢為 `pnpm ops:journal-space:check`。
+
+- 切到個人空間、再切回圓展空間，不會對自己的日誌送出任何 create／update／delete。
+- 在回顧頁跳到對方的那一天，不會動到自己的日誌，也不會把對方的內容存成自己的。
+- 有內容的一天（有字的行或嵌入物件）不能被整天刪除：前端攔下不送，伺服器同樣拒絕並回可讀的訊息。
+- database 模式下，個人空間的標題列說明日誌文字尚未接上保存、重新整理後不保留。
+
+[驗證報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261006-journal-space-switch-data-loss.md)

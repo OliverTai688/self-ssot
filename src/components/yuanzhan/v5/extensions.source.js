@@ -44,7 +44,10 @@ function switchJournalAuthor(who){saveJournalDraft();journalAuthor=who;UNDO=[];R
 const originalSwitchUser=switchUser;
 switchUser=function(){saveJournalDraft();closeDrawer(true);closeModal();closeCmdk();closeSummon();UNDO=[];REDO=[];DB.me=DB.me==='yz'?'lily':'yz';journalAuthor=DB.me;S.proj=myProjects()[0]||DB.projects[0]?.id||'';paintUser();render();toast('介面示例視角：'+person(DB.me))};
 function openSpaces(){openModal('切換空間','個人日誌僅自己可見；圓展工作日誌輸入即讓團隊看見。','',`<button class="btn ${space==='personal'?'pri':''}" onclick="switchSpace('personal')">個人空間</button><button class="btn ${space==='team'?'pri':''}" onclick="switchSpace('team')">圓展空間</button>`)}
-function switchSpace(next){saveJournalDraft();space=next;journalAuthor=DB.me;UNDO=[];REDO=[];closeModal();closeDrawer(true);closeCmdk();closeSummon();S.wb='journal';S.tab=0;render()}
+/* 個人空間的日誌文字還沒有接上保存：資料庫那一頭是「一人一天一筆」，私人的那一本沒有地方放。
+   在 database 模式要把這件事講出來，否則寫的人以為有存。 */
+const PERSONAL_JOURNAL_UNSAVED=initialState.dataSource==='database';
+function switchSpace(next){saveJournalDraft();space=next;journalAuthor=DB.me;UNDO=[];REDO=[];closeModal();closeDrawer(true);closeCmdk();closeSummon();S.wb='journal';S.tab=0;render();if(next==='personal'&&PERSONAL_JOURNAL_UNSAVED)toast('個人空間的日誌文字目前只留在這個分頁，重新整理後不會保留；圓展空間的日誌不受影響')}
 const originalRenderRail=renderRail;
 renderRail=function(){
  if(space==='team')originalRenderRail();else $('#rail').innerHTML=`<button class="rail-i on" onclick="nav('journal',0)">${svg('journal')}<em>私人日誌</em></button><a class="rail-i" href="/research">${svg('file')}<em>研究</em></a><a class="rail-i" href="/self">${svg('desk')}<em>生活</em></a><a class="rail-i" href="/finance">${svg('money')}<em>個人財務</em></a><div class="rail-sp"></div>`;
@@ -74,7 +77,7 @@ function enhanceView(){
  const title=$('.brand b');title.textContent=space==='team'?'圓展 Operating System':'個人 Operating System';title.setAttribute('role','button');title.tabIndex=0;title.onclick=openSpaces;title.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openSpaces()}};
  $('.brand span').title='UI-memory 示範；重整重置，尚未連接正式多人同步。';
  if(S.wb==='journal'&&!canWriteJournal()){root.querySelectorAll('[contenteditable]').forEach(e=>e.contentEditable='false');root.querySelectorAll('.eb-h,.doc-bar button,.eb-ck').forEach(e=>{e.setAttribute('aria-disabled','true');e.tabIndex=-1});}
- if(S.wb==='journal'){$('#wbName').textContent=space==='personal'?'私人日誌':'日誌';$('#wbRule').textContent=canWriteJournal()?(space==='team'?'主操作面：大綱編輯器 · 即時共享':'主操作面：大綱編輯器 · 僅自己'):'正文由作者編輯 · 可留言協作';}
+ if(S.wb==='journal'){$('#wbName').textContent=space==='personal'?'私人日誌':'日誌';$('#wbRule').textContent=canWriteJournal()?(space==='team'?'主操作面：大綱編輯器 · 即時共享':PERSONAL_JOURNAL_UNSAVED?'主操作面：大綱編輯器 · 僅自己 · 文字尚未接上保存，重新整理後不保留':'主操作面：大綱編輯器 · 僅自己'):'正文由作者編輯 · 可留言協作';}
  root.querySelectorAll('.rail-i').forEach(e=>{if(!e.getAttribute('aria-label'))e.setAttribute('aria-label',e.querySelector('em')?.textContent||e.title)});
  if(S.wb==='money'&&cfKey()==='ledger'&&S.ledgerView==='表格')enhanceLedger();
  if(S.wb==='capacity'&&S.tab===3)enhanceTimesheet();
