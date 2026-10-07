@@ -53,7 +53,7 @@ function ntItems(){
     title:`${person(r.from)} 請你${r.kind==='decision'?'做決定':'回覆'}`,text:rqText(r)});
   else if(r.from===DB.me&&r.firstReplyAt&&!r.resolvedAt)
    out.push({kind:'reply',ref:r.id,at:r.firstReplyAt,seen:true,tone:'replied',
-    title:`${person(r.to)} 回覆了你`,text:rqText(r)});
+    title:r.choice!=null?`${person(r.to)} 做了決定`:`${person(r.to)} 回覆了你`,text:r.choice!=null?`${rqText(r)} → ${r.choice}`:rqText(r)});
  }
  // 任務指派：資料形狀由 agenda-object.source.js 提供，這裡只負責併進通知匣。
  // 與其他來源一樣是從既有資料推導，沒有自己的表。

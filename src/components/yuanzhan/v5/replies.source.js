@@ -55,6 +55,13 @@ function rqDoc(r){return journals.team[r.from]?.[r.day]||null}
    日期可能沒存成日期（onDate 為 null 時讀回來是空字串）、那一行可能被延後或搬到別天、
    發問的人可能是對方（那一行在右欄那一本，不在自己的日誌裡）。
    先解析出它真正在哪裡，跳轉、行號與來源標籤才會指到同一個地方。 */
+/* 那一行也可能寫在文件物件的正文裡（任務、Standup 這類卡片的段落）：請求是從那裡發的，
+   日誌的 blocks 裡當然找不到。這時說「原行已刪除」是錯的 —— 行還在，只是在物件裡。
+   只讀 sec.blocks，不呼叫 ensureSecBlocks()：那支會替還沒展開過的段落補出 blocks，查詢不該改資料。 */
+function rqFindDocLine(r){
+ for(const d of DB.docObjects||[])for(const sec of d.secs||[]){const i=(sec.blocks||[]).findIndex(b=>b.id===r.blockId);if(i>=0)return{doc:d,block:sec.blocks[i],idx:i}}
+ return null;
+}
 function rqFindLine(r){
  const book=journals.team[r.from]||{},day=RQ_DAY.test(r.day||'')?r.day:'';
  if(r.blockId){
@@ -64,12 +71,14 @@ function rqFindLine(r){
    const blocks=book[k]?.blocks||[],i=blocks.findIndex(b=>b.id===r.blockId);
    if(i>=0)return{day:k,block:blocks[i],idx:i};
   }
+  const inDoc=rqFindDocLine(r);
+  if(inDoc)return{day:day||inDoc.doc.day||'',block:inDoc.block,idx:inDoc.idx,doc:inDoc.doc};
  }
  return{day,block:null,idx:-1};
 }
 function rqBlock(r){return rqFindLine(r).block}
 function rqText(r){return rqBlock(r)?.text?.trim()||r.text}
-function rqLine(r){const s=rqFindLine(r);return s.idx<0?'原行已刪除':'L'+(s.idx+1)}
+function rqLine(r){const s=rqFindLine(r);return s.idx<0?'原行已刪除':s.doc?docObjectName(s.doc):'L'+(s.idx+1)}
 function rqShortDay(d){return RQ_DAY.test(d||'')?String(+d.slice(5,7))+'/'+String(+d.slice(8,10)):'日期不明'}
 function rqSource(r){const s=rqFindLine(r);return `↩ ${person(r.from)} ${rqShortDay(s.day||r.day)} · ${rqLine(r)}`}
 function rqInvolves(r,who=DB.me){return r.to===who||r.from===who}
@@ -205,23 +214,32 @@ function rqFlagToday(b){
 
 /* ---- 回覆、收到、追蹤、結案、延後 ---- */
 function rqToggleReply(id){if(rqOpenReply.has(id))rqOpenReply.delete(id);else{rqOpenReply.add(id);runtime._afterRender=()=>root.querySelector('[data-rq-input="'+id+'"]')?.focus()}render()}
+/* 這三個動作改的都是請求那一列，而且一律寫在 apply() 裡面、不是 commit() 之前。
+   commit() 是「先取快照、再 apply()、再比對」；在它之前就改好的列，兩份快照長得一樣，
+   這一筆命令裡就不會有它。畫面當下是對的，所以看不出來 —— 要到重新整理才發現決定不見了。 */
 function rqReply(id,choice){
  const r=rqFind(id);if(!r)return;if(!rqInvolves(r))return deny();if(r.resolvedAt)return toast('這個請求已結案');
  const x=(rqDrafts.get(id)||'').trim();
  if(choice==null&&!x)return toast('請先輸入回覆');
  if(choice!=null&&(r.to!==DB.me||r.kind!=='decision'))return deny();
- const now=Date.now();
- r.replies.push({w:DB.me,x:choice==null?x:'',choice,at:now,ts:nowts()});
- if(choice!=null)r.choice=choice;
- if(r.to===DB.me){r.firstReplyAt??=now;r.seenAt??=now}
+ if(choice!=null&&r.choice!=null)return toast('這張決策卡已經有決定了');
  rqDrafts.delete(id);rqOpenReply.delete(id);
- commit('update','請求回覆',rqText(r),()=>[choice!=null?`決定：<b>${esc(choice)}</b>，已標回原本那一行`:'回覆已掛在原本那一行下面',r.to===DB.me?'計時停止，紅色提醒解除':'對方會在同一串看到']);
+ commit('update',choice!=null?'決策回覆':'請求回覆',rqText(r),()=>{
+  const now=Date.now();
+  // day 記的是「在哪一天做的決定」：答的人那一頭的決策紀錄要掛在那一天的日誌上。
+  r.replies.push({w:DB.me,x:choice==null?x:'',choice,at:now,ts:nowts(),...(choice!=null?{day:TODAY}:{})});
+  if(choice!=null)r.choice=choice;
+  if(r.to===DB.me){r.firstReplyAt??=now;r.seenAt??=now}
+  return[choice!=null?`決定：<b>${esc(choice)}</b>，連同其他選項記在雙方的日誌上`:'回覆已掛在原本那一行下面',r.to===DB.me?'計時停止，紅色提醒解除':'對方會在同一串看到'];
+ });
 }
 function rqChoose(id,i){const r=rqFind(id);if(r)rqReply(id,r.options[i])}
 function rqAck(id){
  const r=rqFind(id);if(!r||r.to!==DB.me)return deny();
- const now=Date.now();r.replies.push({w:DB.me,x:'收到，晚點處理',ack:true,at:now,ts:nowts()});r.firstReplyAt??=now;r.seenAt??=now;
- commit('update','請求回覆','收到：'+rqText(r),()=>['計時停止，紅色提醒解除','議題仍待解決']);
+ commit('update','請求回覆','收到：'+rqText(r),()=>{
+  const now=Date.now();r.replies.push({w:DB.me,x:'收到，晚點處理',ack:true,at:now,ts:nowts()});r.firstReplyAt??=now;r.seenAt??=now;
+  return['計時停止，紅色提醒解除','議題仍待解決'];
+ });
 }
 function rqNudge(id){
  const r=rqFind(id);if(!r||r.from!==DB.me)return deny();
@@ -230,8 +248,11 @@ function rqNudge(id){
 }
 function rqResolve(id){
  const r=rqFind(id);if(!r||!rqInvolves(r))return deny();
- const now=Date.now();r.resolvedAt=now;if(r.to===DB.me)r.firstReplyAt??=now;rqOpenReply.delete(id);
- commit('update','請求結案',rqText(r),()=>['標記已解決，不再計時']);
+ rqOpenReply.delete(id);
+ commit('update','請求結案',rqText(r),()=>{
+  const now=Date.now();r.resolvedAt=now;if(r.to===DB.me)r.firstReplyAt??=now;
+  return['標記已解決，不再計時'];
+ });
 }
 function rqCompleteToday(id){
  const t=DB.todayIssues.find(x=>x.id===id);if(!t||t.author!==DB.me)return deny();
@@ -273,13 +294,47 @@ function rqJump(id,reply){
  if(reply)root.querySelector('[data-rq-input="'+r.id+'"]')?.focus();
  if(el||toReply)return;
  // 找不到的原因不只一種，講清楚是哪一種；否則「原本那一行已刪除」會蓋掉「沒記到日期」。
- toast(src.day?`已跳到 ${src.day}，但原本那一行已不在；請求仍保留在訊號頁`
+ toast(src.doc?`已跳到 ${src.day||TODAY}；那一行寫在「${esc(docObjectName(src.doc))}」裡，展開那張卡片就看得到`
+  :src.day?`已跳到 ${src.day}，但原本那一行已不在；請求仍保留在訊號頁`
   :'這個請求沒有記下是哪一天發出的，無法跳到那一天；完整清單在訊號頁');
+}
+
+/* ---- 決策紀錄 ----
+   決策卡選完之後留下的那張卡：題目、全部選項、選了哪一個、誰在何時決定。
+   資料就是請求那一列（options＋choice＋replies 裡帶 choice 的那一則），沒有第二份 ——
+   問的人看到它掛在自己問的那一行下面，答的人看到它掛在「做決定那一天」的日誌尾端，
+   兩邊讀的是同一列，所以不會一邊有、一邊沒有，也不會兩邊講的不一樣。 */
+function rqDecided(r){return !!r&&r.kind==='decision'&&r.choice!=null}
+function rqDecidedMsg(r){return r.replies.find(m=>m.choice!=null)||null}
+function rqDecidedAt(r){return rqDecidedMsg(r)?.at||r.firstReplyAt||0}
+function rqDecidedDay(r){const m=rqDecidedMsg(r),at=rqDecidedAt(r);return m?.day||(at?rqLocalDay(at):'')}
+function rqStamp(ms){const d=new Date(ms);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+/* full：答的人那一頭沒有原本那一行可以對照，所以把題目與來源連結一起印出來。 */
+function rqRecord(r,{full}={}){
+ const at=rqDecidedAt(r),opts=r.options.includes(r.choice)?r.options:[...r.options,r.choice];
+ return `<div class="rq-rec" data-rq-rec="${r.id}" contenteditable="false">
+  <div class="rq-rec-h"><span class="rq-pill dec">${svg('diamond',11)} 決策紀錄</span><span class="rq-rec-who">${rqAv(r.from)} ${esc(person(r.from))} 問 · ${rqAv(r.to)} ${esc(person(r.to))} 決定</span>${at?`<span class="rq-meta">${rqStamp(at)}</span>`:''}</div>
+  ${full?`<div class="rq-rec-q">${esc(rqText(r))}</div>`:''}
+  <div class="rq-rec-opts">${opts.map(o=>o===r.choice?`<span class="rq-rec-opt on">${svg('check',12)}<span>${esc(o)}</span><em>選定</em></span>`:`<span class="rq-rec-opt"><span>${esc(o)}</span></span>`).join('')}</div>
+  ${full?`<button class="rq-src" onclick="rqJump('${r.id}')">${esc(rqSource(r))}</button>`:''}
+ </div>`;
+}
+/* 掛在問的那一行下面（自己的欄、對方的欄、物件正文裡的行都走這裡）。 */
+function rqLineRecord(b){
+ const r=b&&b.req&&rqFind(b.req);
+ return rqDecided(r)?`<div class="rq-wrap" contenteditable="false" style="margin-left:${Math.min(5,b.ind||0)*24+28}px">${rqRecord(r)}</div>`:'';
+}
+/* 答的人那一頭：某個人在某一天做的所有決定。pending 的決策卡只出現在答的人「今天」的日誌，
+   選完就從那裡消失 —— 沒有這一段，答的人自己的日誌上就不會留下任何痕跡。 */
+function rqDecidedHtml(who,day){
+ if(space!=='team')return '';
+ return DB.requests.filter(r=>rqDecided(r)&&r.to===who&&rqDecidedDay(r)===day).sort((a,b)=>rqDecidedAt(a)-rqDecidedAt(b)).map(r=>rqRecord(r,{full:true})).join('');
 }
 
 /* ---- 共用：訊息串與動作列 ---- */
 function rqMsgs(r){
- return r.replies.map(m=>`<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice!=null?` <span class="rq-pill done">${svg('diamond',11)} ${esc(m.choice)}</span>`:''}${m.x?`<div class="rq-msg-x">${esc(m.x)}</div>`:''}</div></div>`).join('');
+ // 只有選項、沒有附文字的那一則已經由決策紀錄卡表達，不再重複印一行。
+ return r.replies.filter(m=>!(m.choice!=null&&!m.x&&rqDecided(r))).map(m=>`<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice!=null?` <span class="rq-pill done">${svg('diamond',11)} ${esc(m.choice)}</span>`:''}${m.x?`<div class="rq-msg-x">${esc(m.x)}</div>`:''}</div></div>`).join('');
 }
 function rqReplyBox(r){
  if(!rqOpenReply.has(r.id))return '';
@@ -312,7 +367,7 @@ function rqLinePills(b){
  if(r){
   if(r.kind==='decision')pills.push('<span class="rq-pill dec">'+svg('diamond',11)+' 決策</span>');
   else pills.push(`<span class="rq-pill ask">? 請 ${esc(person(r.to))} 回覆</span>`);
-  if(r.firstReplyAt||r.resolvedAt)pills.push(`<span class="rq-pill done">${svg('check',11)} ${esc(r.firstReplyAt?rqReplyWord(r):'已解決')}</span>`);
+  if(r.firstReplyAt||r.resolvedAt)pills.push(`<span class="rq-pill done">${svg('check',11)} ${esc(rqDecided(r)?person(r.to)+' 已決定':r.firstReplyAt?rqReplyWord(r):'已解決')}</span>`);
   else pills.push(rqClock(r,r.from===DB.me&&r.seenAt?'已讀':''));
  }
  if(rqDecision?.blockId===b.id)pills.push(`<span class="rq-pill dec">${svg('diamond',11)} 決策卡 · 給 ${esc(person(rqDecision.to))}</span>`);
@@ -336,17 +391,19 @@ ebHtml=function(b){
  const indent=`margin-left:${Math.min(5,b.ind||0)*24+28}px`;
  if(rqDecision?.blockId===b.id)out+=`<div class="rq-wrap" contenteditable="false" style="${indent}">${rqDecisionCard()}</div>`;
  // 發問方在快到期前只看標籤；有回覆、快到期或逾期時才展開追蹤列。
+ out+=rqLineRecord(b);
  const show=r&&(r.replies.length||rqOpenReply.has(r.id)||r.to===DB.me&&!r.resolvedAt||r.from===DB.me&&rqPending(r)&&rqState(r)!=='open');
  if(show)out+=`<div class="rq-wrap" contenteditable="false" style="${indent}"><div class="rq-thread ${rqState(r)}">${rqMsgs(r)}${rqReplyBox(r)}${rqActions(r)}</div></div>`;
  return out;
 };
 function rqIncomingHtml(){
- if(space!=='team'||journalAuthor!==DB.me||S.jday!==TODAY)return '';
- return rqToMe().map(r=>{
+ if(space!=='team'||journalAuthor!==DB.me)return '';
+ // 還沒回的只收在「今天」；做過的決定留在做決定的那一天，回頭翻那一天還看得到。
+ return (S.jday!==TODAY?'':rqToMe().map(r=>{
   const late=rqState(r)==='late';
   return `<div class="rq-in ${late?'late':'ask'}" data-rq-in="${r.id}" contenteditable="false"><div class="rq-in-line"><span class="rq-in-ic">${svg('arrowin',12)}</span>${rqAv(r.from)}<span class="rq-in-t">${esc(person(r.from))} 問：${esc(rqText(r))}</span>${r.kind==='decision'?'<span class="rq-pill dec">'+svg('diamond',11)+' 決策</span>':''}${rqClock(r,'需要你回覆')}<button class="rq-src" onclick="rqJump('${r.id}')">${esc(rqSource(r))}</button></div>
    <div class="rq-thread ${late?'late':rqState(r)}">${rqMsgs(r)}${rqReplyBox(r)}${rqActions(r,{incoming:true})}</div></div>`;
- }).join('');
+ }).join(''))+rqDecidedHtml(DB.me,S.jday);
 }
 function rqSideCard(r){
  const late=rqState(r)==='late',mine=r.to===DB.me;
@@ -425,7 +482,7 @@ function rqBoardCard(r){
  const st=rqState(r),mine=r.to===DB.me;
  const who=mine?`${rqAv(r.from)} ${esc(person(r.from))} → 你`:`你 → ${rqAv(r.to)} ${esc(person(r.to))}`;
  return `<div class="rq-card ${st}"><div class="rq-card-m">${who}${r.kind==='decision'?'<span class="rq-pill dec">'+svg('diamond',11)+' 決策</span>':''}${rqClock(r)}</div>
-  <div class="rq-card-t">${esc(rqText(r))}</div>${rqMsgs(r)}${rqReplyBox(r)}${rqActions(r)}
+  <div class="rq-card-t">${esc(rqText(r))}</div>${rqDecided(r)?rqRecord(r):''}${rqMsgs(r)}${rqReplyBox(r)}${rqActions(r)}
   <button class="rq-src" onclick="rqJump('${r.id}')">${esc(rqSource(r))}</button></div>`;
 }
 function rqDoneCard(r){

@@ -56,6 +56,19 @@ button.rq-pill{cursor:pointer}
 .rq-optbtn.add{border-style:dashed;color:var(--text-2)}
 .rq-optin{border:1px solid var(--border-2);border-radius:8px;padding:6px 10px;color:var(--text);background:var(--surface);font-size:12px;width:130px}
 .rq-optin:focus{outline:none;border-color:var(--rq-ask,#e58bc0)}
+/* 決策紀錄：題目、全部選項、被選的那一個。問的人與答的人的日誌上各有一張，讀的是同一列請求。 */
+.rq-rec{border:1px solid var(--rq-done-br,#2d4d3d);border-radius:10px;padding:8px 10px;background:var(--surface-2);font-size:12px;display:flex;flex-direction:column;gap:6px;max-width:560px;user-select:text}
+.rq-rec-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--text-2)}
+.rq-rec-who{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.rq-rec-q{color:var(--text);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.rq-rec-opts{display:flex;flex-direction:column;gap:4px}
+.rq-rec-opt{display:flex;align-items:flex-start;gap:6px;border:1px solid var(--border-2);border-radius:8px;padding:5px 10px;color:var(--text-3);background:var(--surface);line-height:1.5}
+.rq-rec-opt>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.rq-rec-opt.on{border-color:var(--ok,#4fc38a);color:var(--text);background:var(--ok-bg,#0f1f18);font-weight:600}
+.rq-rec-opt.on svg{flex:none;margin-top:3px;color:var(--ok,#4fc38a)}
+.rq-rec-opt em{flex:none;font-style:normal;font-weight:400;font-size:11px;color:var(--ok,#4fc38a)}
+.doc>.rq-rec{margin:6px 0 8px}
+.rq-wrap>.rq-rec{margin:2px 0 4px}
 .rq-deccard{background:var(--surface-2);border:1px solid var(--rq-dec-bg,#6a2d5c);border-radius:10px;padding:12px;font-size:12px;max-width:520px;display:flex;flex-direction:column;gap:8px}
 .rq-dec-h{display:flex;justify-content:space-between;gap:8px;color:var(--text-3);flex-wrap:wrap}
 .rq-dec-f{display:flex;justify-content:flex-end;gap:6px}

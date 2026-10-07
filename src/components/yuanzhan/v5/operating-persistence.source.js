@@ -22,8 +22,9 @@ let OP_STATUS_NOTE = '';
 /**
  * 滾動基準線：最後一次成功排入佇列時的樣子。
  *
- * commit() 走的是明確的前後快照，日誌自動保存走的是「與基準線比對」——
- * 兩條路徑共用同一個 diff 與同一個佇列，差別只在快照從哪裡來。
+ * commit() 與日誌自動保存都是「與基準線比對」，共用同一個 diff 與同一個佇列。
+ * commit() 另外傳進來的前後快照只用來判斷有沒有開 database 模式 —— 拿它當比對
+ * 起點會漏掉 apply() 之前就改好的列（見 opEnqueue）。
  */
 let OP_BASELINE = null;
 let OP_TOUCH_TIMER = null;
@@ -123,9 +124,19 @@ function opRef() {
 function opEnqueue(op, ent, label, before) {
   if (!OP_LIVE || !before) return;
 
+  // 比對的起點是滾動基準線，不是 commit() 傳進來的那份「之前」。
+  //
+  // 「之前」只涵蓋 apply() 這一段；在它之前就改好的列（先改資料才呼叫 commit、
+  // 看過就標已讀、還沒輪到自動保存的打字）不在這段差異裡。而佇列一推進，下面就把
+  // 基準線設成現況 —— 那些列於是落進基準線，之後再也比不出來，永遠不會被保存。
+  // 2026-10-07 正式站的決策卡就是這樣：選了選項，送出的「請求回覆」命令裡只有
+  // stampAuthors() 順手改到的 projects／txns，請求那一列不在裡面，重新整理後決定不見。
+  // 從基準線比起，「推進基準線」與「送出差異」涵蓋的就是同一段，不會有列掉在中間。
+  const from = OP_BASELINE || before;
+
   let changes;
   try {
-    changes = diffCollections(before, opSnap());
+    changes = diffCollections(from, opSnap());
   } catch (err) {
     console.error('[operating] diff failed', err);
     return;
@@ -135,7 +146,7 @@ function opEnqueue(op, ent, label, before) {
   // 空白日期）。比對出這種變更，只可能是比對的對象錯了，送出去就是資料遺失 ——
   // 攔下來不送，其餘照常；伺服器端有同一道檢查（applyJournal）。
   const held = changes.filter(c => c.collection === 'journal' && c.op === 'delete'
-    && opJournalDayHasContent((before.journal || {})[c.id]));
+    && opJournalDayHasContent((from.journal || {})[c.id]));
   if (held.length) {
     changes = changes.filter(c => !held.includes(c));
     console.error('[operating] refused to delete journal days that have content', held.map(c => c.id));

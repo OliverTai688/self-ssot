@@ -28,7 +28,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
  */
 function instantiate({ serverVersion, versionGetOk = [] }) {
   const log = []
-  const DB = { requests: [{ id: 'R1', to: 'yz', seenAt: 111 }] }
+  /** 每一次 POST 送出去的列，照送出順序。 */
+  const posted = []
+  const DB = { requests: [{ id: 'R1', to: 'yz', seenAt: 111 }, { id: 'R2', to: 'yz', seenAt: 111 }] }
   let version = serverVersion
   const gets = [...versionGetOk]
 
@@ -42,6 +44,7 @@ function instantiate({ serverVersion, versionGetOk = [] }) {
     if (init) {
       const body = JSON.parse(init.body)
       log.push(`POST base=${body.baseVersion}`)
+      if (body.baseVersion === version) posted.push(...body.commands.flatMap((c) => c.changes.map((x) => x.id)))
       if (body.baseVersion !== version) {
         return { status: 409, ok: false, json: async () => ({ code: 'version_conflict', version }) }
       }
@@ -82,13 +85,15 @@ function instantiate({ serverVersion, versionGetOk = [] }) {
   const body = `${fragment}
     return {
       enqueue: () => opEnqueue('update', '日誌', '自動保存', OP_BASELINE),
+      // 與 runtime 的 commit() 同一個形狀：先取快照、再 apply()、再排入佇列。
+      commit: (apply) => { const before = opSnapshot(); apply(); opEnqueue('update', '請求回覆', '測試', before); },
       status: () => [OP_STATUS, OP_STATUS_NOTE],
       queued: () => OP_QUEUE.length,
     };`
 
   const names = Object.keys(deps)
   const api = new Function(...names, body)(...names.map((n) => deps[n]))
-  return { api, DB, log, serverVersion: () => version }
+  return { api, DB, log, posted, serverVersion: () => version }
 }
 
 let failures = 0
@@ -159,9 +164,32 @@ async function caseQueueNeverDropped() {
   })
 }
 
+/**
+ * 回歸案例（2026-10-07 正式站）：決策卡選了選項，重新整理之後決定不見。
+ *
+ * 那一列是在 commit() 取「之前」快照之前就改好的，所以不在這筆命令的前後差異裡；
+ * 而同一次 commit 另外帶出了別的變更（stampAuthors 補的欄位），佇列一推進，基準線
+ * 就被設成現況 —— 先改好的那一列落進基準線，之後的自動保存再也比不出來。
+ * 基準線推進到哪裡，送出去的差異就必須涵蓋到哪裡。
+ */
+async function caseEarlyMutationNotSwallowed() {
+  const t = instantiate({ serverVersion: 57 })
+  await sleep(10)
+  t.DB.requests[0].choice = 'B' // commit() 之前就改好的那一列
+  t.api.commit(() => { t.DB.requests[1].seenAt = 222 }) // apply() 裡順手改到的另一列
+  await sleep(80)
+  t.api.enqueue() // 之後的自動保存
+  await sleep(80)
+
+  check('commit 之前就改好的列也會被送出', t.posted.includes('R1'), { posted: t.posted, log: t.log })
+  check('apply() 裡改的列照常送出', t.posted.includes('R2'), { posted: t.posted })
+  check('同一列不會被送兩次', t.posted.filter((id) => id === 'R1').length === 1, { posted: t.posted })
+}
+
 await caseStaleVersionRecovers()
 await caseHappyPath()
 await caseQueueNeverDropped()
+await caseEarlyMutationNotSwallowed()
 
 console.log(failures ? `\n${failures} failing` : '\noperating persistence: all checks passed')
 process.exit(failures ? 1 : 0)

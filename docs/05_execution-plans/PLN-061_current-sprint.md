@@ -1,5 +1,19 @@
 # Current Sprint
 
+## Owner-directed 決策卡回覆沒存下來 — 2026-10-07
+
+`RQ-DEC-001` 已完成實作，**尚未部署**。正式站兩次選決策卡選項都沒有落地：回覆是在 `commit()` 取快照之前改好的，
+而同一次 commit 另有差異時，基準線往前推就把那一列吞掉（正式庫紀錄：兩筆「請求回覆」命令只帶 `projects`／`txns`）。
+
+修正：寫入佇列改從滾動基準線比起；回覆、收到、結案的改動移進 `apply()`。新增決策紀錄卡 —— 題目、全部選項、選定的那一個、
+誰問誰決定 —— 同時掛在問的那一行下面與答的人做決定那一天的日誌尾端，兩處讀同一列請求。
+**沒有 schema 變更**。`UI-088` Revision Mode，未新增 UI ID。
+
+待 Owner：部署，並在那張決策卡上重選一次（資料庫裡沒有留下當時選了哪一個）。
+
+驗收：`ops:decision-reply:check` 36/36（對舊 runtime 失敗）、`ops:persistence:check` 全過、`tsc` 0。
+證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-decision-card-reply-lost.md)。
+
 ## Owner-directed 日誌召喚上傳圖片／影片／音訊 — 2026-10-07
 
 `ASSET-006` 已完成實作，**待 Owner 於正式站驗收**。`ASSET-005` 上線九天沒有任何檔案成功傳上去（`operating_assets` 0 列）：

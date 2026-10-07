@@ -126,13 +126,13 @@ function jcPeerBlock(author,b){
  const ck=b.t==='todo'?`<span class="eb-ck ${b.done?'on':''}">${svg('check')}</span>`:'';
  const r=b.req&&rqFind(b.req),st=r&&!r.resolvedAt?(r.firstReplyAt?'replied':rqState(r)==='late'?'late':'ask'):b.today?'today':'';
  const pills=b.req||b.today?`<span class="rq-pills">${rqLinePills(b)}</span>`:'';
- return `<div class="eb ${ind} jc-ro ${lkHas(b)?'has-links':''} ${st?'rq-line rq-'+st:''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" onclick="jcOpenLine('${author}','${b.id}')">${bul}${ck}<div class="eb-tx ${b.t==='todo'&&b.done?'done':''}">${esc(b.text)}</div>${pills}${lkRoChips(b)}</div>${jcLineHtml(author,b)}`;
+ return `<div class="eb ${ind} jc-ro ${lkHas(b)?'has-links':''} ${st?'rq-line rq-'+st:''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" onclick="jcOpenLine('${author}','${b.id}')">${bul}${ck}<div class="eb-tx ${b.t==='todo'&&b.done?'done':''}">${esc(b.text)}</div>${pills}${lkRoChips(b)}</div>${rqLineRecord(b)}${jcLineHtml(author,b)}`;
 }
 function jcPeerColumn(peer){
  const d=jcDoc(peer),blocks=(d?.blocks||[]).map(b=>jcPeerBlock(peer,b)).join('');
  return `<section class="jc-col" id="jcPeer" data-author="${peer}">
   <div class="jc-col-h">${rqAv(peer,'md')}<b>${esc(jcShort(peer))}</b><span class="jc-col-m">· 唯讀 · ${jcAgo(jcTouched(peer))}</span><span class="sp"></span></div>
-  <div class="jc-col-b"><div class="doc jc-doc">${blocks}</div>
+  <div class="jc-col-b"><div class="doc jc-doc">${blocks}${rqDecidedHtml(peer,S.jday)}</div>
   <div class="jc-hint">${blocks?`${esc(person(peer))} 今天還在寫…<br>選取任一行或右鍵選單可展開對話串留言`:`${esc(person(peer))} 今天還沒開始寫<br>寫了之後會即時出現在這裡`}</div></div></section>`;
 }
 function jcFocusPage(){const el=root.querySelector('#journalReply');if(el){el.focus();el.scrollIntoView({block:'nearest'})}}
@@ -267,7 +267,7 @@ docInput=function(e){
  if(jcStart())opTouch();
 };
 const jcBaseCommit=commit;
-const JC_SHARED_LOG={'請求':'發出請求','決策卡':'發出決策卡','今日議題':'標記今日議題','請求回覆':'回覆請求','請求結案':'結案請求','行內留言':'留言','日誌留言':'留言'};
+const JC_SHARED_LOG={'請求':'發出請求','決策卡':'發出決策卡','今日議題':'標記今日議題','請求回覆':'回覆請求','決策回覆':'做出決定','請求結案':'結案請求','行內留言':'留言','日誌留言':'留言'};
 function jcCommitLog(op,ent){
  if(ent==='收工')return jcLog('收工',DB.me,TODAY,'close');
  // 標記與完成走同一個 ent，靠 op 分開；否則脈絡上兩件事會長得一模一樣。

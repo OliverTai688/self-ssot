@@ -4277,3 +4277,24 @@ Owner 要求把日誌的圖片／影片／音訊上傳做到能用並存進 Clou
 待 Owner：正式站驗收。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-journal-media-upload-r2.md`
+
+## 2026-10-07 — 決策卡選了選項卻沒存下來：寫入管線修正＋雙方日誌的決策紀錄（RQ-DEC-001）
+
+Owner 回報決策卡選了選項、結果沒保存，並要求結果與其他選項一起保存、問的人與答的人兩邊都看得到。
+正式庫唯讀查詢證實：兩次「請求回覆」命令（15:21、17:43）只帶 `projects`／`txns`，沒有 `requests`，
+那一列的 `choice` 仍是 null。根因是 `rqReply()` 在 `commit()` 取快照之前就改好資料，而 `opEnqueue()`
+以 commit 的「之前」為比對起點、排入後把基準線設成現況 —— 同一次 commit 只要另有差異
+（合併伺服器現況後 `stampAuthors()` 補的欄位），先改好的那一列就落進基準線，永遠不會送出。
+
+改動：`opEnqueue()` 改從滾動基準線比起（整類問題的修正）；`rqReply`／`rqAck`／`rqResolve` 的改動移進 `apply()`；
+新增決策紀錄卡（題目、全部選項、選定、誰問誰決定、時間），掛在問的那一行下面與答的人做決定那一天的日誌尾端，
+兩處讀同一列請求；來源標籤認得寫在文件物件正文裡的行；今日脈絡與通知改用「做出決定」。沒有 schema 與伺服器程式變更。
+
+驗證：`check-decision-reply` 36/36（對 HEAD 舊 runtime 失敗，送出的命令與正式站紀錄相同）、
+`check-operating-persistence` 全過（新案例對 HEAD 舊片段失敗）、`ops:day-state:check` 34/34、`ops:journal-space:check` 9/9、
+`tsc` 0；showcase 預覽實際點選驗證兩處紀錄。修正前即存在：`check-reply-jump` 21/22、`ops:check` 因兩支腳本的
+top-level await 中斷。
+
+未完成：尚未部署；那一筆決定資料庫裡沒有留下，部署後需由 Owner 重選一次。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-decision-card-reply-lost.md`
