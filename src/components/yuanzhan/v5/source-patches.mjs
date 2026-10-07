@@ -12,7 +12,7 @@ export function patchSource(source) {
  rep("function jdoc(){\n  if(!DB.journal[S.jday])DB.journal[S.jday]={title:S.jday,blocks:[{id:newBid(),t:'p',ind:0,text:''}]};\n  const d=DB.journal[S.jday]; if(!d.blocks.length)d.blocks.push({id:newBid(),t:'p',ind:0,text:''});\n  return d;\n}","function jdoc(){return currentJournal()}");
  // ARC-042：commit() 是唯一的寫入入口，所以持久化只接這一個點，不是 97 個呼叫點。
  // 快照在 apply() 之前取，比對在之後做；prototype 模式下 opSnapshot() 回 null，整段等於 no-op。
- rep('const eff=apply()||[];','const __opBefore=opSnapshot(); const eff=apply()||[]; stampAuthors(); saveJournalDraft(); recalcLedger(); opEnqueue(op,ent,label,__opBefore);');
+ rep('const eff=apply()||[];','const __opBefore=opSnapshot(); const eff=apply()||[]; stampAuthors(); saveJournalDraft(); recalcLedger(); opEnqueue(op,ent,label,__opBefore,opDetail(eff));');
  rep('function render(){','function render(){\n  saveJournalDraft(); normalizeSelection(); opTouch();');
  rep('renderRail();\n  if(runtime._afterRender)','renderRail(); enhanceView();\n  if(runtime._afterRender)');
  rep('function nav(wb,tab){S.wb=wb;','function nav(wb,tab){saveJournalDraft();S.wb=wb;');

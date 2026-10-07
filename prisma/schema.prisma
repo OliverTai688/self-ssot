@@ -2484,6 +2484,10 @@ model OperatingCommandLog {
   /// 稽核顯示用的中文物種名與這一筆的名字
   entity         String
   label          String
+  /// 「改了什麼」的一句話（例如「決定：課程（FB上的資訊）」）。由 commit() 的第一條下游影響
+  /// 而來，去掉標記後截到 280 字。2026-10-07 之前的列沒有這個欄位 —— 那時它只活在
+  /// 瀏覽器記憶體裡，重新整理就不見，補不回來。
+  detail         String?
   /// 這次命令碰到的集合，查帳時用來定位
   collections    String[]
   changeCount    Int      @default(0) @map("change_count")

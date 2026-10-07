@@ -465,8 +465,8 @@ function orgSeatsHtml(){
  return `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>登入 email</th><th>工作台身分</th><th>角色</th></tr></thead><tbody>${seats.map(s=>`<tr><td class="k">${esc(s.email)}</td><td>${esc(DB.people[s.actor]?DB.people[s.actor].n:s.actor)}</td><td><span class="chip ${s.role==='owner'?'c-o':'c-i'}">${s.role==='owner'?'負責人':'員工'}</span>${s.canSwitchActor?'<span class="chip c-n">共用帳號</span>':''}</td></tr>`).join('')||'<tr><td colspan="3">尚無席位</td></tr>'}</tbody></table></div><div class="note" style="margin-top:8px">席位目前來自環境變數 <b>YUANZHAN_SEATS</b>（<code>email:actor[:switch]</code>）。新增一個人＝加一列並重啟，之後這張表會變成可直接編輯的成員管理。</div>`;
 }
 function orgAuditHtml(){
- return fld('稽核筆數（本頁）',`${DB.audit.length} 筆`)+fld('你的登入方式',esc(VIEWER?VIEWER.email:'介面示例'))+fld('組織設定最後更新',SETTINGS&&SETTINGS.orgUpdatedAt?esc(SETTINGS.orgUpdatedAt.slice(0,19).replace('T',' ')):'尚未有人改過')+
- `<div class="note" style="margin-top:8px">設定的變更會記在 <b>organization_settings.updated_by_id / updated_at</b>，查得到是誰改的。工作台內的稽核軌跡目前只存在這次瀏覽的記憶體裡，尚未落資料庫。</div>
+ return fld(OP_LIVE?'稽核紀錄':'稽核筆數（本頁）',OP_LIVE?'存在伺服器 · 開啟抽屜查看':`${DB.audit.length} 筆`)+fld('你的登入方式',esc(VIEWER?VIEWER.email:'介面示例'))+fld('組織設定最後更新',SETTINGS&&SETTINGS.orgUpdatedAt?esc(SETTINGS.orgUpdatedAt.slice(0,19).replace('T',' ')):'尚未有人改過')+
+ `<div class="note" style="margin-top:8px">設定的變更會記在 <b>organization_settings.updated_by_id / updated_at</b>，查得到是誰改的。${OP_LIVE?'工作台內每一筆變更都記在伺服器的命令紀錄（<b>operating_command_logs</b>）：誰、何時、動了什麼。重新整理、換裝置都在，沒有刪除的入口。':'這是介面示例：工作台內的稽核軌跡只存在這次瀏覽的記憶體裡，重新整理就會清空。'}</div>
  <div style="margin-top:10px"><button class="btn sm" onclick="closeDrawer();openAudit()">${svg('clock',13)} 開啟稽核軌跡</button></div>`;
 }
 function orgSourcesHtml(){

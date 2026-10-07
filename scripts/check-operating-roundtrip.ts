@@ -215,6 +215,7 @@ async function main() {
 
   // finally 需要它來精確刪除本次寫入的列，所以宣告在 try 之外。
   let workspaceId = ""
+  const extraRefs: string[] = []
   const user = { id: yzProfile.id, email: yzProfile.email, role: "OWNER" as const }
   const seat = { email: yzProfile.email, actor: "yz" as const, role: "owner" as const, canSwitchActor: false }
 
@@ -374,12 +375,69 @@ async function main() {
         op: "delete",
         ent: "目標",
         label: GOAL_ID,
+        // 換行會壓成單行；< > 是使用者可能打的字，原樣留著（顯示端負責 escape）。
+        detail: `刪除目標\n  預算 <100 萬且 >50 萬  ${GOAL_ID}`,
         changes: [{ collection: "goals", id: GOAL_ID, op: "delete" }],
       },
     ])
     eq("delete command applied", deleted.applied, [REF_DELETE])
     const afterDelete = (await loadOperatingStore(workspaceId, yzProfile.id)) as Record<string, Row[]>
     check("deleted goal is gone on read", !(afterDelete.goals ?? []).some((g) => g.id === GOAL_ID))
+
+    // ── 稽核軌跡：命令紀錄讀得回來（抽屜的資料來源）────────────────────────
+    // 在這之前這張表只寫不讀：抽屜顯示的是瀏覽器記憶體裡的另一份，重新整理就清空。
+    const { listOperatingAuditLog } = await import("../src/lib/services/operating-audit-log.service")
+    const audit = await listOperatingAuditLog({})
+    const mine = (label: string, op: string) => audit.rows.find((row) => row.label === label && row.op === op)
+    const deletedRow = mine(GOAL_ID, "delete")
+    check("audit log returns the delete command", Boolean(deletedRow))
+    eq("audit detail is stored single-line with the user's own < > intact", deletedRow?.detail, `刪除目標 預算 <100 萬且 >50 萬 ${GOAL_ID}`)
+    eq("audit row carries the seat, not a profile id", deletedRow?.actor, "yz")
+    eq("a command sent without detail reads back as empty, not invented", mine(GOAL_ID, "create")?.detail, "")
+    check(
+      "audit rows are newest first",
+      audit.rows.every((row, i) => i === 0 || audit.rows[i - 1].at >= row.at),
+    )
+    check(
+      "ledger commands are marked high risk and others are not",
+      audit.rows.find((row) => row.collections.includes("txns"))?.riskLevel === "high" && deletedRow?.riskLevel === "low",
+    )
+    check("audit rows do not leak the idempotency hash", !JSON.stringify(audit.rows).includes(createHash("sha256").update(REF_DELETE).digest("hex")))
+
+    // 自動保存預設收起，但要說得出有幾筆 —— 藏起來不等於不存在。
+    const autosaveRef = `rt-autosave-${ts}`
+    const autosaved = await applyOperatingCommands(user, seat, deleted.version, [
+      {
+        clientRef: autosaveRef,
+        op: "update",
+        ent: "日誌",
+        label: "自動保存",
+        changes: [
+          {
+            collection: "journal",
+            id: JOURNAL_DATE,
+            op: "update",
+            after: { title: JOURNAL_DATE, visibility: "company", blocks: [{ id: "rt-b1", t: "p", ind: 0, text: "稽核測試" }] },
+          },
+        ],
+      },
+    ])
+    eq("autosave command applied", autosaved.applied, [autosaveRef])
+    extraRefs.push(autosaveRef)
+    const hidden = await listOperatingAuditLog({})
+    const shown = await listOperatingAuditLog({ includeAutosave: true })
+    check("autosave is hidden by default", !hidden.rows.some((row) => row.entity === "日誌" && row.label === "自動保存"))
+    check("autosave is still counted", hidden.autosaveTotal >= 1 && hidden.total === audit.total)
+    check("autosave shows up when asked for", shown.rows.some((row) => row.label === "自動保存") && shown.total === hidden.total + hidden.autosaveTotal)
+
+    // 分頁：游標往更舊的方向走，不重複、不漏。
+    const first = await listOperatingAuditLog({ limit: 2 })
+    check("a short page reports that older rows exist", first.rows.length === 2 && Boolean(first.nextBefore))
+    const second = await listOperatingAuditLog({ limit: 2, before: new Date(first.nextBefore ?? 0) })
+    check(
+      "the next page continues with older rows only",
+      second.rows.length >= 1 && second.rows.every((row) => !first.rows.some((seen) => seen.id === row.id) && row.at < first.rows[1].at),
+    )
   } finally {
     // workspaceId 為空代表第一批命令就失敗了，沒有東西需要收拾。
     if (workspaceId) {
@@ -394,7 +452,7 @@ async function main() {
       where: {
         workspaceId,
         clientRefHash: {
-          in: [REF_GOAL, REF_OCC, REF_TXN, REF_JOURNAL, REF_REPLAY, REF_DELETE].map((ref) =>
+          in: [REF_GOAL, REF_OCC, REF_TXN, REF_JOURNAL, REF_REPLAY, REF_DELETE, ...extraRefs].map((ref) =>
             createHash("sha256").update(ref).digest("hex"),
           ),
         },

@@ -97,6 +97,47 @@ function opJournalDayHasContent(json) {
 let OP_HELD_NOTE = '';
 
 /**
+ * 取基準線之前，先把 runtime 自己會補的欄位補齊。
+ *
+ * commit() 每次都會跑 stampAuthors() 與 recalcLedger()：前者替沒有作者的列蓋上作者、
+ * 替交易編 ledgerRow，後者替有公式的交易寫上 formulaError 並重算金額。伺服器讀回來的列
+ * 沒有這些欄位（它們不是資料，是畫面用的衍生值），所以基準線若在補齊之前取，下一次
+ * commit 就會把「補上這些欄位」比成一筆變更，跟著那一筆命令一起送出去。
+ *
+ * 內容其實沒有變，伺服器收到後寫回同樣的值 —— 但命令紀錄上那一筆行內留言就此變成
+ * 「動了 txns、高風險」，稽核軌跡裡的帳務變更於是跟留言分不開。2026-10-07 之前有 29 筆
+ * 非帳務命令被這樣標成高風險：每一頁載入後的第一筆 commit 帶到有公式的那筆交易，
+ * 每一次併回伺服器現況後的第一筆則是所有專案（作者被重蓋）。
+ *
+ * 兩個函式都是冪等的，重複呼叫不會再改任何東西。
+ */
+function opSettle() {
+  try {
+    stampAuthors();
+    recalcLedger();
+  } catch (err) {
+    console.warn('[operating] settle before baseline failed', err);
+  }
+}
+
+/**
+ * commit() 的第一條下游影響，去掉標記後就是稽核軌跡上的「改了什麼」。
+ *
+ * 那句話是給「資料流」用的 HTML 片段：會有 <b>，使用者打的字是 esc() 過的。存進稽核的
+ * 是純文字，所以標記拿掉、實體還原（抽屜顯示時會再 esc 一次，不還原就會出現 &amp;lt;）。
+ */
+const OP_ENTITY = { '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&amp;': '&' };
+function opDetail(eff) {
+  const first = Array.isArray(eff) && eff.length ? String(eff[0] == null ? '' : eff[0]) : '';
+  return first
+    .replace(/<[^>]+>/g, '')
+    .replace(/&(?:lt|gt|quot|#39|amp);/g, m => OP_ENTITY[m])
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280);
+}
+
+/**
  * 日誌是連續輸入，不會每個字都觸發 commit()。render() 之後排一個延遲比對，
  * 讓打完字停下來就保存，而不是等到下一次 commit 才順便被帶上去。
  */
@@ -106,6 +147,7 @@ function opTouch() {
   OP_TOUCH_TIMER = setTimeout(() => {
     OP_TOUCH_TIMER = null;
     if (!OP_BASELINE) {
+      opSettle();
       OP_BASELINE = opSnapshot();
       return;
     }
@@ -121,7 +163,7 @@ function opRef() {
  * apply() 之後呼叫。沒開 database 就什麼都不做 —— prototype 模式一個網路請求都不發，
  * 那是 ARC-042 §10 的一條驗收。
  */
-function opEnqueue(op, ent, label, before) {
+function opEnqueue(op, ent, label, before, detail) {
   if (!OP_LIVE || !before) return;
 
   // 比對的起點是滾動基準線，不是 commit() 傳進來的那份「之前」。
@@ -171,7 +213,10 @@ function opEnqueue(op, ent, label, before) {
     return;
   }
 
-  OP_QUEUE.push({ clientRef: opRef(), op, ent, label, changes });
+  const command = { clientRef: opRef(), op, ent, label, changes };
+  // 沒有這句話就不帶欄位（自動保存就是這樣），伺服器存成 NULL 而不是空字串。
+  if (detail) command.detail = detail;
+  OP_QUEUE.push(command);
   // 已經排進佇列的內容就是新的基準線，否則下一次比對會把同樣的變更再送一次。
   OP_BASELINE = opSnap();
   opFlush();
@@ -429,6 +474,8 @@ async function opMergeRemote(options) {
   }
 
   OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
+  // 剛換進來的列是伺服器的原樣，沒有衍生欄位；先補齊再當基準線（見 opSettle）。
+  opSettle();
   OP_BASELINE = opSnap();
   render();
 
@@ -440,9 +487,140 @@ async function opMergeRemote(options) {
 // 先取一次伺服器版本，否則第一次送出就會撞 409（本地從 0 起算，伺服器不一定）。
 // 取不到就維持 0：那樣第一次送出會收到 409 並顯示衝突，比靜默覆寫安全。
 if (OP_LIVE) {
+  opSettle();
   OP_BASELINE = opSnapshot();
   doc.addEventListener('visibilitychange', () => {
     if (doc.visibilityState === 'visible') opCheckRemoteVersion();
   }, { signal: controller.signal });
   opSyncVersion();
 }
+
+/* ==================================================================
+   稽核軌跡抽屜的資料來源
+
+   原型的抽屜讀 DB.audit —— commit() 順手塞進記憶體的一個陣列。那在示例模式夠用，
+   在正式模式是錯的：重新整理就清空、看不到另一個席位做了什麼、上限 400 筆，
+   而抽屜自己寫著「不可刪除」。伺服器其實每一筆命令都有留（operating_command_logs），
+   只是沒有人讀。database 模式下抽屜改讀那一份；示例模式維持原樣，並且照實說它不持久。
+
+   開抽屜才取、每次開都重取：稽核要看的是「現在伺服器上有什麼」，不是這一頁記得什麼。
+   ================================================================== */
+
+const OP_AUDIT_ENDPOINT = '/api/company/operating/audit';
+/** idle | loading | ready | error */
+let OP_AUDIT = { state: 'idle', rows: [], total: 0, autosaveTotal: 0, nextBefore: null, autosave: false, note: '' };
+let OP_AUDIT_SEQ = 0;
+
+function opAuditOpen() {
+  const top = S.stack[S.stack.length - 1];
+  return !!top && top.type === 'audit' && root.querySelector('#drawer.on');
+}
+
+async function opAuditLoad(more) {
+  if (!OP_LIVE) return;
+  const seq = ++OP_AUDIT_SEQ;
+  const before = more ? OP_AUDIT.nextBefore : null;
+  OP_AUDIT = more
+    ? { ...OP_AUDIT, state: 'loading', note: '' }
+    : { ...OP_AUDIT, state: 'loading', rows: [], nextBefore: null, note: '' };
+  if (opAuditOpen()) paintDrawer();
+
+  let next;
+  try {
+    const query = [];
+    if (OP_AUDIT.autosave) query.push('autosave=1');
+    if (before) query.push('before=' + encodeURIComponent(before));
+    const res = await fetch(OP_AUDIT_ENDPOINT + (query.length ? '?' + query.join('&') : ''));
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload.error || ('讀取失敗（HTTP ' + res.status + '）'));
+    next = {
+      ...OP_AUDIT,
+      state: 'ready',
+      rows: more ? OP_AUDIT.rows.concat(payload.rows || []) : (payload.rows || []),
+      total: payload.total || 0,
+      autosaveTotal: payload.autosaveTotal || 0,
+      nextBefore: payload.nextBefore || null,
+      note: ''
+    };
+  } catch (err) {
+    next = { ...OP_AUDIT, state: 'error', note: (err && err.message) || '讀取失敗' };
+  }
+  // 連按「顯示自動保存」時，較早的那一次回來得比較晚 —— 只認最後發出的那一次。
+  if (seq !== OP_AUDIT_SEQ) return;
+  OP_AUDIT = next;
+  if (opAuditOpen()) paintDrawer();
+}
+
+/** 失敗的是「載入更早的」就接著往下取；失敗的是第一頁就從頭來。 */
+function opAuditRetry() {
+  opAuditLoad(OP_AUDIT.rows.length > 0 && !!OP_AUDIT.nextBefore);
+}
+
+function opAuditToggleAutosave() {
+  OP_AUDIT.autosave = !OP_AUDIT.autosave;
+  opAuditLoad(false);
+}
+
+/** 伺服器給的是 UTC；稽核要對得上使用者記得的時刻，所以顯示成這台裝置的當地時間。 */
+function opAuditStamp(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+
+const OP_AUDIT_VERB = { create: '新增', update: '更新', delete: '刪除' };
+
+function opAuditRowHtml(x) {
+  // 2026-10-07 之前的列沒有「改了什麼」，退回動作本身，不留一行空白也不編內容。
+  const what = x.detail || (OP_AUDIT_VERB[x.op] || x.op);
+  return `<div class="aud"><span class="who">${esc(x.actor ? person(x.actor) : '—')}</span>
+    <div class="bd"><div>${esc(x.entity)}　<b style="color:var(--text)">${esc(x.label)}</b></div>
+      <div class="df"><span class="n">${esc(what)}</span></div></div>
+    <span class="ts">${esc(opAuditStamp(x.at))}</span></div>`;
+}
+
+const opAuditPrototypeDrawer = DRAWERS.audit;
+DRAWERS.audit = () => {
+  if (!OP_LIVE) {
+    // 示例模式：內容照舊，但不再宣稱它是不可刪除的紀錄。
+    const base = opAuditPrototypeDrawer();
+    return {
+      ...base,
+      sub: `${DB.audit.length} 筆 · 僅本頁`,
+      foot: `<div class="note" style="padding:0 2px">這是介面示例：稽核紀錄只存在這次瀏覽的記憶體裡，<b>重新整理就會清空</b>。正式模式下每一筆變更都會留在伺服器，不能清空。</div>`
+    };
+  }
+
+  const a = OP_AUDIT;
+  const loading = a.state === 'loading';
+  const failed = a.state === 'error'
+    ? `<div class="empty">${esc(a.note)}　<button class="btn sm" onclick="opAuditRetry()">重試</button></div>`
+    : '';
+  const more = a.nextBefore
+    ? `<div style="padding:12px 14px;text-align:center"><button class="btn sm" ${loading ? 'disabled' : ''} onclick="opAuditLoad(true)">${loading ? '讀取中…' : '載入更早的紀錄'}</button></div>`
+    : '';
+  const list = a.rows.length
+    ? a.rows.map(opAuditRowHtml).join('') + (failed || more)
+    : failed || (a.state === 'ready' ? '<div class="empty">尚無稽核紀錄</div>' : '<div class="empty">讀取中…</div>');
+  const autosave = a.autosaveTotal
+    ? `<div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;color:var(--text-3);font-size:12px">
+        <span>${a.autosave ? '含' : '另有'} ${a.autosaveTotal} 筆日誌自動保存</span>
+        <button class="btn sm" style="margin-left:auto" onclick="opAuditToggleAutosave()">${a.autosave ? '收起自動保存' : '顯示自動保存'}</button></div>`
+    : '';
+
+  return {
+    crumb: '稽核',
+    title: '稽核軌跡',
+    sub: a.state === 'ready' || a.rows.length ? `${a.total} 筆 · 不可刪除` : '不可刪除',
+    body: `<div style="margin:-14px -14px 0">${autosave}${list}</div>`,
+    foot: `<div class="note" style="padding:0 2px">稽核軌跡與「資料流」不同：資料流說明<b>這次操作串到哪裡</b>，稽核記錄<b>誰在何時改了什麼</b>，存在伺服器上，重新整理、換裝置都在，而且不能清空。契約 §9.6 的獎金明細一旦有爭議，需要的是這一份。<br>「改了什麼」那一行自 2026-10-07 起才有留；更早的紀錄只有動作與對象。</div>`
+  };
+};
+
+const opAuditPrototypeOpen = openAudit;
+openAudit = function () {
+  opAuditPrototypeOpen();
+  // 沒有權限時原型已經擋下並提示；有權限才去取。每次開都重取。
+  if (OP_LIVE && can('audit')) opAuditLoad(false);
+};

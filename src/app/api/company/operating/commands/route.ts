@@ -40,10 +40,12 @@ function parseBody(body: unknown): CommandBatchRequest | null {
 
   for (const command of commands) {
     if (!command || typeof command !== "object") return null
-    const { clientRef, op, ent, label, changes } = command as Record<string, unknown>
+    const { clientRef, op, ent, label, detail, changes } = command as Record<string, unknown>
     if (typeof clientRef !== "string" || clientRef.length === 0 || clientRef.length > 64) return null
     if (op !== "create" && op !== "update" && op !== "delete") return null
     if (typeof ent !== "string" || typeof label !== "string") return null
+    // 選填：自動保存沒有這句話，尚未重新整理的舊分頁也不會送。長度由服務層截。
+    if (detail !== undefined && typeof detail !== "string") return null
     if (!Array.isArray(changes) || changes.length === 0 || changes.length > MAX_CHANGES_PER_COMMAND) return null
 
     for (const change of changes) {

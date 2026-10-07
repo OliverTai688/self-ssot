@@ -125,6 +125,7 @@ POST /api/company/operating/commands
     op: 'create' | 'update' | 'delete'
     ent: string              // 稽核顯示用
     label: string            // 稽核顯示用
+    detail?: string          // 稽核顯示用：「改了什麼」一句話（§7.6）；自動保存沒有
     changes: RowChange[]
   }>
 }
@@ -180,6 +181,53 @@ POST /api/company/operating/commands
 1. **讀取不建立任何東西。** 沒有 workspace 就回空，不 create。打開頁面不該在資料庫留下痕跡（`ARC-040`）。
 2. **`database` 模式一律先清空再覆蓋。** 否則資料庫裡沒有的集合會保留 showcase 的假資料，混在真資料旁邊看起來像真的。
 3. **讀取失敗不得退回 showcase／empty。** 直接拋出，由 `error.tsx` 顯示。靜默降級會讓人以為資料是空的，而不是讀取失敗了。
+
+## 7.6 稽核軌跡：命令紀錄的讀取面（2026-10-07 補上）
+
+§5 的流程圖寫的是 `OperatingAuditEvent`；實際落地的是 `operating_command_logs`（PLN-074 M7，理由記在 schema 註解：
+前者的 CHECK constraint 只收 teamcollab 的具名高風險動作）。這張表每一筆成功的命令都寫了一列，但到 2026-10-07
+為止**只寫不讀** —— 工作台的稽核抽屜顯示的是 `commit()` 順手塞進瀏覽器記憶體的 `DB.audit`：重新整理就清空、
+看不到另一個席位的操作、上限 400 筆，而抽屜自己寫著「不可刪除」。與 §7.5 同一個教訓的另一面：
+**寫了卻讀不回來的紀錄，比不寫更糟，因為介面宣稱它在。**
+
+```txt
+稽核抽屜（僅負責人）
+  → GET /api/company/operating/audit?autosave=1&before=<ISO>
+  → requireUser() → resolveYuanzhanSeat()      沒有席位 403 no_seat
+  → seat.role === 'owner'                      否則 403 owner_only（契約 §18）
+  → readOperatingDataSource() === 'database'   否則 403 source_not_database
+  → listOperatingAuditLog()                    只讀；workspace 由 slug 解析，不收呼叫端的 id
+  → { rows, total, autosaveTotal, nextBefore }
+```
+
+規則：
+
+1. **這條路只有 GET。** 沒有寫入、沒有刪除，之後也不該長出來。命令紀錄只在 `applyOperatingCommands()` 套用成功後新增一列。
+2. **擋人的是伺服器。** 前端的 `can('audit')` 只是不顯示入口；員工直接打網址一樣是 403。
+3. **讀取失敗不拿記憶體那一份頂替。** 抽屜說出錯誤並給重試（與 §7.5 規則 3 同一個理由）。
+4. **自動保存預設收起，但要數得出來。** 它的量是其他命令的好幾倍（867 筆裡 766 筆）；抽屜顯示「另有 N 筆」並可展開，
+   藏起來不等於不存在。
+5. **`detail` 是純文字，不去標記。** 前端 `opDetail()` 已經把 `commit()` 的 `eff[0]`（畫面用的 HTML 片段）還原成純文字；
+   到伺服器時裡面的 `<` `>` 是使用者自己打的字。伺服器只壓控制字元、截到 280 字；安全靠顯示端一律 escape。
+6. **不出去的欄位：** `client_ref_hash`（冪等鍵）與 `actor_profile_id`（內部主鍵）。抽屜要的是席位字串。
+7. **`prototype` 模式照舊讀記憶體，但照實說它不持久。** 不發任何請求（§10 的那一條驗收不變）。
+
+`detail` 欄位自 `20261007140000_operating_command_log_detail` 起才有；之前的列為 NULL，抽屜退回顯示動作（新增／更新／刪除），
+不編內容。
+
+### 基準線要在衍生欄位補齊之後才取
+
+`commit()` 每次都跑 `stampAuthors()` 與 `recalcLedger()`：替沒有作者的列蓋上作者、替交易編 `ledgerRow`、
+替有公式的交易寫上 `formulaError` 並重算金額。這些不是資料，是畫面用的衍生值，伺服器讀回來的列沒有它們。
+基準線若在補齊之前取，下一次 commit 就把「補上這些欄位」比成變更、跟著那一筆命令送出去 ——
+內容沒變，伺服器寫回同樣的值，但命令紀錄上那一筆行內留言從此是「`txns` · 高風險」。
+
+正式庫 2026-10-07 之前有 29 筆這樣的非帳務命令（留言、通知、日誌物件、連結）：每一頁載入後的第一筆 commit
+帶到有公式的那筆交易，每一次併回伺服器現況後的第一筆則是所有專案。§7 的高風險標記因此分不開帳務變更與留言。
+
+所以 `operating-persistence.source.js` 取基準線的三個地方（啟動、`opTouch` 的第一次、`opMergeRemote` 之後）
+都先呼叫 `opSettle()`。兩個函式冪等，重複呼叫不改任何東西。**新增會在 `commit()` 內補衍生欄位的函式時，要一併加進 `opSettle()`。**
+既有的 29 筆不回頭改 —— 稽核紀錄不該被事後修飾。
 
 ### `workbench_ref`：付回去的技術債
 
@@ -239,3 +287,5 @@ pnpm ops:check                                                     # 既有營�
 - `baseVersion` 落後回 409，且回應含衝突集合的現況。
 - 高風險集合的 `RowChange` 一律回 `write_not_enabled`，不進 domain service。
 - `prototype` 模式下佇列不發出任何網路請求。
+- 稽核軌跡（§7.6）：`pnpm ops:audit-trail:check`（抽屜讀伺服器、命令帶 `detail`、留言不夾帶 `txns`／`projects`；
+  對舊 runtime 失敗）；真資料庫往返在 `pnpm ops:roundtrip`（寫入後由 `listOperatingAuditLog()` 讀回、自動保存收起、分頁）。

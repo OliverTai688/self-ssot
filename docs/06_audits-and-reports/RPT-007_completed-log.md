@@ -4362,3 +4362,36 @@ Owner 要求在日誌打 `/done` 就換成一個可愛的完成印章蓋上去�
 待 Owner：正式站驗收（含注音輸入法打 `/完成`）。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-journal-done-sticker.md`
+
+## 2026-10-07 — 稽核軌跡改讀伺服器、補上「改了什麼」、留言不再夾帶帳務（AUDIT-TRAIL-001）
+
+Owner 看著稽核抽屜上的 2 筆紀錄問「稽核是不是資料也沒有儲存到」。正式庫唯讀查詢的答案分三層：決策回覆與行內留言本身有存；
+伺服器命令紀錄 `operating_command_logs` 也有存（867 筆，含截圖那兩筆）；但抽屜讀的是 `commit()` 塞進瀏覽器記憶體的 `DB.audit`，
+沒有任何程式把命令紀錄讀回來。重新整理就清空、看不到另一個席位、上限 400 筆 —— 「不可刪除」只是文案。
+另外命令紀錄沒有存抽屜上的第二行（「決定：課程…」），行內留言的名稱 24 筆全是空的。
+
+查的過程另外發現 29 筆非帳務命令的 `collections` 夾帶 `txns`（部分還有 `projects`）、被標成高風險。根因：基準線在
+`stampAuthors()`／`recalcLedger()` 補齊衍生欄位之前就取了，下一次 commit 把「補上 `formulaError`／`author`」比成變更。
+內容沒變（伺服器寫回同值），但稽核上帳務變更與留言分不開。
+
+改動：新增 `operating_command_logs.detail`（可為 NULL，migration `20261007140000_operating_command_log_detail`）；
+命令契約加選填的 `detail`，前端由 `eff[0]` 還原成純文字後送出，伺服器只壓控制字元與長度（不去標記 —— `<` `>` 是使用者的字）；
+新增唯讀 BFF `GET /api/company/operating/audit`（`requireUser` → 席位 → 僅負責人 → database 模式）與
+`operating-audit-log.service.ts`；抽屜在 database 模式改讀它（當地時間、自動保存收起並計數、載入更早、失敗可重試），
+prototype 模式標示「僅本頁」；`opSettle()` 在三個取基準線的地方先補齊衍生欄位；行內留言的名稱認得物件段落裡的行；
+設定頁「稽核軌跡與安全」的說明改成符合實情。`ARC-042` 補 §7.6，`ACC-002` 補驗收條目。
+
+驗證：`check-audit-trail` 33/33（對 HEAD 舊 runtime 15/33，送出的命令重現 `行內留言〔lineComments,txns〕` 與
+`〔projects,lineComments,txns〕`）；拋棄式本機 Postgres 16 上 20 支 migration 全串套用、`ops:roundtrip` 35/35
+（新增 13 條稽核讀回檢查）；`check-decision-reply` 36/36、`ops:day-state` 34/34、`ops:journal-space` 9/9、
+`check-cashflow-faces` 72/72、`check-contract-cashflow` 48/48、`check-operating-persistence` 全過、
+`ops:fields:check` 358、`tsc` 0、`db:validate`、`pnpm build`。同一個拋棄式資料庫上瀏覽器實測：負責人建專案 → 重新整理 →
+抽屜仍有那一筆與細節；員工席位留行內留言 → 紀錄為 `{lineComments}`／low、名稱是那一行；員工打稽核 API 得 403 `owner_only`。
+正式庫 `prisma migrate status` 只有這一支待套用（部署時由建置流程的 `migrate deploy` 套用）。
+修正前即存在、與本次無關：`check-reply-jump` 21/22、`check-operating-{runtime,canvas}` 的 top-level await（`PROJMOD-007`）。
+
+未完成：既有 867 筆沒有「改了什麼」（補不回來）；既有 29 筆誤標高風險的紀錄不回頭改；直接呼叫 `audit()` 而不經
+`commit()` 的三處（出勤分鐘逐格編輯的前後值、檔案上傳／歸檔、連結建立）在 database 模式的抽屜裡沒有自己的那一行 ——
+資料變更仍由帶著它的那筆命令（多半是自動保存）記錄，但少了「之前 → 之後」的細節。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-audit-trail-persist.md`

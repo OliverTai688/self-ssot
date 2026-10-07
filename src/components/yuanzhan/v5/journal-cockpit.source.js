@@ -91,9 +91,11 @@ function jcOpenLine(author,id){const k=jcLineKey(author,id);jcLineOpen=jcLineOpe
 function jcSendLine(author,id){
  const k=jcLineKey(author,id),x=(jcDrafts.get(k)||'').trim();if(!x)return toast('請先輸入留言');
  const allBlocks=jcDoc(author)?.blocks||(author===DB.me?jdoc()?.blocks:[]);
- const b=allBlocks?.find(b=>b.id===id);
+ // 那一行可能不在日誌的行裡，而是在嵌入的文件物件（Standup、任務…）的段落裡。只找日誌
+ // 會找不到，命令紀錄上這筆留言的名稱就是空的，事後查不出是留在哪一行。
+ const b=allBlocks?.find(b=>b.id===id)||rqFindDocLine({blockId:id})?.block;
  jcDrafts.delete(k);jcLineOpen='';
- commit('create','行內留言',(b?.text||'').slice(0,24),()=>{DB.lineComments.push({id:nid('LC'),author,day:S.jday,blockId:id,w:DB.me,x,ts:jcNow()});return['留言掛在 '+person(author)+' 的這一行下方']});
+ commit('create','行內留言',((b?.text||'').trim()||x).slice(0,24),()=>{DB.lineComments.push({id:nid('LC'),author,day:S.jday,blockId:id,w:DB.me,x,ts:jcNow()});return['留言掛在 '+person(author)+' 的這一行下方：'+esc(x.slice(0,120))]});
  render();
 }
 function jcDeleteLine(cid){const c=DB.lineComments.find(c=>c.id===cid);if(!c||c.w!==DB.me)return deny();DB.lineComments=DB.lineComments.filter(x=>x!==c);render()}

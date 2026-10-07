@@ -11,7 +11,10 @@ import { DEFAULT_ORG_KEY } from "@/lib/services/operating-settings.service"
 import { removeSpine, syncMilestone, syncOccasion, syncSession } from "@/lib/services/operating-spine.service"
 import {
   HIGH_RISK_COLLECTIONS,
+  MAX_COMMAND_DETAIL,
+  MAX_COMMAND_LABEL,
   WRITE_ENABLED_COLLECTIONS,
+  cleanAuditText,
   isPersistedCollection,
   type CommandBatchResponse,
   type CommandRejection,
@@ -2035,7 +2038,10 @@ export async function applyOperatingCommands(
           actorKey: seat.actor,
           op: command.op,
           entity: command.ent,
-          label: command.label,
+          // 兩者都只擋長度與控制字元，不動內容（使用者打的 < > 是內容）。
+          // 沒有「改了什麼」就存 NULL，不拿別的欄位頂替。
+          label: command.label.slice(0, MAX_COMMAND_LABEL),
+          detail: cleanAuditText(command.detail, MAX_COMMAND_DETAIL) || null,
           collections: [...new Set(command.changes.map((change) => change.collection))],
           changeCount: command.changes.length,
           riskLevel: riskLevelFor(command.changes),

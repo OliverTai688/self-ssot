@@ -2329,3 +2329,22 @@ Verification:
 - 在物件段落的行尾按 Enter，只多出下面一行，上面不會多出空行。
 
 [驗證報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-journal-done-sticker.md)
+
+## 稽核軌跡存在伺服器上（UI-088 · AUDIT-TRAIL-001，2026-10-07）
+
+機檢為 `pnpm ops:audit-trail:check`；真資料庫往返為 `pnpm ops:roundtrip`。
+
+- 負責人打開稽核軌跡，看到的是伺服器上的紀錄：重新整理、換裝置之後還在，筆數不會歸零。
+- 看得到另一個席位做了什麼（誰、何時、動了哪一種物件、哪一筆）。
+- 每一筆有「改了什麼」一句話（例如「決定：課程（FB上的資訊）」）；2026-10-07 之前的紀錄沒有這一句，顯示動作本身，不留空也不編內容。
+- 時間是這台裝置的當地時間。
+- 日誌自動保存預設收起，抽屜說得出另有幾筆，可以展開。
+- 紀錄超過一頁時可以往更早的載入。
+- 讀取失敗時抽屜說得出來並可重試，不會改顯示這一頁記憶體裡的東西。
+- 員工沒有入口；直接打 `/api/company/operating/audit` 得到 403。
+- 抽屜與 API 都沒有刪除或修改紀錄的途徑。
+- 行內留言在紀錄上的名稱是被留言的那一行（包含寫在 Standup、任務等物件段落裡的行）。
+- 留言、通知、連結這類非帳務操作，紀錄上不會出現 `txns`／`projects`，也不會被標成高風險。
+- 介面示例（prototype）模式的抽屜標示「僅本頁」，並說明重新整理就會清空。
+
+[驗證報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-audit-trail-persist.md)

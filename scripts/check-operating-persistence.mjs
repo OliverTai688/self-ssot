@@ -80,6 +80,17 @@ function instantiate({ serverVersion, versionGetOk = [] }) {
     OP_MAX_CHANGES: 50,
     OP_MAX_BYTES: 1_000_000,
     OPERATING_COMMANDS_ENDPOINT: '/api/company/operating/commands',
+    // 片段尾端接了稽核抽屜與「取基準線前先補齊衍生欄位」，用得到 runtime 的這幾個名字。
+    // 這一支不測它們（那在 check-audit-trail），給最小的替身讓片段掛得起來。
+    stampAuthors: () => {},
+    recalcLedger: () => {},
+    DRAWERS: { audit: () => ({ crumb: '', title: '', sub: '', body: '', foot: '' }) },
+    openAudit: () => {},
+    paintDrawer: () => {},
+    can: () => true,
+    esc: (v) => String(v),
+    person: (v) => String(v),
+    S: { stack: [] },
   }
 
   const body = `${fragment}

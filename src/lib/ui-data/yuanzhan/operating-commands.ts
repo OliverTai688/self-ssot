@@ -325,6 +325,11 @@ export type OperatingCommand = {
   ent: string
   /** 稽核顯示用的這一筆名字。 */
   label: string
+  /**
+   * 稽核顯示用的「改了什麼」一句話（commit() 的第一條下游影響）。
+   * 選填：自動保存沒有這句話，舊版前端也不會送。伺服器存之前會再清一次。
+   */
+  detail?: string
   changes: RowChange[]
 }
 
@@ -366,3 +371,61 @@ export const MAX_COMMANDS_PER_BATCH = 50
  * 也不要讓一張 5 MB 的圖變成 7 MB 的 JSON 悄悄送出去。
  */
 export const MAX_COMMAND_BYTES = 512 * 1024
+
+/* ------------------------------------------------------------------ */
+/* 稽核軌跡（命令紀錄的讀取面）                                        */
+/* ------------------------------------------------------------------ */
+
+export const OPERATING_AUDIT_ENDPOINT = '/api/company/operating/audit'
+
+/** 稽核抽屜一行放得下的長度。超過的部分對「誰在何時改了什麼」沒有幫助。 */
+export const MAX_COMMAND_DETAIL = 280
+export const MAX_COMMAND_LABEL = 120
+
+/**
+ * 稽核文字進資料庫之前的最後一道：控制字元與換行壓成單一空白、截長。
+ *
+ * 刻意**不**去標記。這句話在前端已經從畫面用的 HTML 片段還原成純文字（opDetail），
+ * 到這裡時裡面的 < > 是使用者自己打的字 —— 「預算 <100 萬且 >50 萬」被當成標記拿掉，
+ * 稽核上就少了半句。安全靠的是顯示端：抽屜一律 escape 之後才放進畫面。
+ */
+export function cleanAuditText(value: unknown, max: number): string {
+  if (typeof value !== 'string') return ''
+  const text = value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+/** 自動保存：打字停下來 1.5 秒就會有一筆，量是其他命令的好幾倍，稽核抽屜預設收起。 */
+export const AUTOSAVE_ENTITY = '日誌'
+export const AUTOSAVE_LABEL = '自動保存'
+
+export type OperatingAuditRow = {
+  id: string
+  /** ISO 8601（UTC）。顯示成當地時間是前端的事。 */
+  at: string
+  /** 席位字串（'yz' | 'lily'）；早期的列可能沒有。 */
+  actor: string
+  op: string
+  entity: string
+  label: string
+  /** 2026-10-07 之前的列是空字串：那句話當時沒有送到伺服器。 */
+  detail: string
+  collections: string[]
+  changeCount: number
+  riskLevel: string
+}
+
+export type OperatingAuditResponse = {
+  rows: OperatingAuditRow[]
+  /** 這次查詢條件下的總筆數（不含自動保存，除非 includeAutosave）。 */
+  total: number
+  /** 自動保存的筆數，讓抽屜能說「另有 N 筆自動保存」而不是默默藏起來。 */
+  autosaveTotal: number
+  /** 還有更舊的列時，下一頁的游標（上一頁最後一列的 at）。 */
+  nextBefore: string | null
+}
+
+export const AUDIT_PAGE_SIZE = 100

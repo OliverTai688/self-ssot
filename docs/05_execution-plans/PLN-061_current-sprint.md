@@ -1,5 +1,21 @@
 # Current Sprint
 
+## Owner-directed 稽核軌跡沒有存到 — 2026-10-07
+
+`AUDIT-TRAIL-001` 已完成並推上 main。Owner 看著稽核抽屜問「是不是資料也沒有儲存到」：資料本身與伺服器的命令紀錄
+（`operating_command_logs`，當時 867 筆）都有存，但抽屜讀的是瀏覽器記憶體裡的另一份 —— 重新整理就清空、看不到 Lily 的操作，
+而抽屜寫著「不可刪除」。
+
+修正：抽屜在 database 模式改讀伺服器（`GET /api/company/operating/audit`，僅負責人、只讀）；命令多帶一句「改了什麼」
+（新欄位 `detail`，migration `20261007140000`）；行內留言的名稱認得物件段落裡的行。順帶修掉一條讓稽核失真的路徑：
+取基準線前沒有先補齊衍生欄位，留言、通知這類命令因此夾帶 `txns`／`projects` 並被標成高風險（正式庫 29 筆）。
+`UI-088` Revision Mode，未新增 UI ID。
+
+留意：既有紀錄沒有「改了什麼」（當時沒送到伺服器，補不回來）；既有 29 筆誤標高風險的紀錄不回頭改。
+
+驗收：`ops:audit-trail:check` 33/33（對舊 runtime 15/33）、`ops:roundtrip` 35/35（拋棄式本機 Postgres，含 migration 全串）、`tsc` 0。
+證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-audit-trail-persist.md)。
+
 ## Owner-directed 日誌貼紙 `/done` 完成章 — 2026-10-07
 
 `JRNL-STK-001` 已完成實作，Owner 同輪指示推送 `main`，**待 Owner 於正式站驗收**。

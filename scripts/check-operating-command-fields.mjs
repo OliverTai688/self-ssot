@@ -126,7 +126,7 @@ const DEPENDENCIES = {
   ],
   OperatingCommandLog: [
     'id', 'workspaceId', 'clientRefHash', 'actorProfileId', 'actorKey',
-    'op', 'entity', 'label', 'collections', 'changeCount', 'riskLevel',
+    'op', 'entity', 'label', 'detail', 'collections', 'changeCount', 'riskLevel', 'createdAt',
   ],
   OperatingDocObject: [
     'id', 'workspaceId', 'workbenchRef', 'kind', 'subKind', 'title',
