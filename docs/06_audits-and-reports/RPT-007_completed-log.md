@@ -4340,3 +4340,25 @@ Owner 同日指示 commit 並部署，並把 `01`、`03`、`07`、`12` 四個既
 `check-operating-runtime.ts` 與 `check-operating-canvas.ts` 仍因 Node 24 的 top-level await 無法執行（既有的 `PROJMOD-007`）。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-project-index-and-header.md`
+
+## 2026-10-07 — 日誌貼紙：`/done` 完成章（JRNL-STK-001）
+
+Owner 要求在日誌打 `/done` 就換成一個可愛的完成印章蓋上去，並說明 `/` 是召喚貼紙、裝飾標註用，
+蓋了章的那一行要被記下來，用來看有多少小事被完成；同輪指示「設計提案、實作、推上 main」。
+
+改動：新增 `public/stickers/done.svg`（朱紅花形章、自帶白邊、1:1 透明、2 KB）與 `journal-stickers.source.js`／`.css`
+（`/` 觸發沿用召喚選單並多一條「名字＋空白」的直接路徑、蓋章與撕掉、行上的章、完成的小事）；
+駕駛艙右側多「完成的小事」、對方那一欄與回顧畫得出章、物件卡片標題列顯示件數。
+章是區塊上的一個欄位（`b.stk = { k, at, by }`），跟著日誌與物件原本的保存走。沒有 schema 變更、沒有後端改動。
+
+順帶修掉既有問題：物件段落的書寫區長在日誌的 `#doc` 裡，按鍵／輸入／點擊冒泡之後被同一支 handler 處理兩遍 ——
+在 Standup 的行尾按 Enter，原本那一行上面多一個空行；段落裡 `#`／`@` 選單的 ↑↓ 一次跳兩格。改成一個事件只處理一次。
+
+驗證：`ops:stickers:check` 38/38（新）、`tsc` 0、`pnpm build` exit 0、`check-journal-day-state` 34/34、`check-decision-reply` 36/36、
+`check-link-object` 24/24、`verify-agenda-object` 103/103、`verify-journal-review` 34/34、`verify-asset-object` 73/73、
+`check-project-module-ui` 91/91；本機 showcase 真實鍵盤實測（黑、白主題）。
+`check-reply-jump` 21/22 與 `check-operating-runtime`／`check-operating-canvas` 的轉譯錯誤是既有的，換回 `HEAD` 的 runtime 一樣。
+
+待 Owner：正式站驗收（含注音輸入法打 `/完成`）。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-journal-done-sticker.md`

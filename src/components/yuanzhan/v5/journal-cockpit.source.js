@@ -2,7 +2,7 @@
    · 標題列一行：日誌 ‹ 日期 › 📅 [今天｜回顧｜標籤流] …… 「我開始一天了」時間
    · 左欄＝自己（編輯中，唯一可寫的 #doc），右欄＝對方（唯讀，點任一行即可留言）
    · 行內留言掛在該行下方；整頁留言縮成駕駛艙底部一行輸入框
-   · 右側駕駛艙：今日統計、回覆追蹤、今天誕生的物件（標出來源行）、今日脈絡
+   · 右側駕駛艙：今日統計、回覆追蹤、今天誕生的物件（標出來源行）、完成的小事（/done，見 journal-stickers）、今日脈絡
    只作用在圓展空間的「今天」分頁；個人空間與回顧／標籤流沿用原本畫面。
    ───────────────────────────────────────────────────────────────────────── */
 /* 這幾個集合是從伺服器讀回來的（database 模式）。無條件指派會把剛讀回來的內容
@@ -126,7 +126,7 @@ function jcPeerBlock(author,b){
  const ck=b.t==='todo'?`<span class="eb-ck ${b.done?'on':''}">${svg('check')}</span>`:'';
  const r=b.req&&rqFind(b.req),st=r&&!r.resolvedAt?(r.firstReplyAt?'replied':rqState(r)==='late'?'late':'ask'):b.today?'today':'';
  const pills=b.req||b.today?`<span class="rq-pills">${rqLinePills(b)}</span>`:'';
- return `<div class="eb ${ind} jc-ro ${lkHas(b)?'has-links':''} ${st?'rq-line rq-'+st:''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" onclick="jcOpenLine('${author}','${b.id}')">${bul}${ck}<div class="eb-tx ${b.t==='todo'&&b.done?'done':''}">${esc(b.text)}</div>${pills}${lkRoChips(b)}</div>${rqLineRecord(b)}${jcLineHtml(author,b)}`;
+ return `<div class="eb ${ind} jc-ro ${stkOf(b)?'stk-on':''} ${lkHas(b)?'has-links':''} ${st?'rq-line rq-'+st:''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" onclick="jcOpenLine('${author}','${b.id}')">${bul}${ck}<div class="eb-tx ${b.t==='todo'&&b.done?'done':''}">${esc(b.text)}</div>${stkHtml(b)}${pills}${lkRoChips(b)}</div>${rqLineRecord(b)}${jcLineHtml(author,b)}`;
 }
 function jcPeerColumn(peer){
  const d=jcDoc(peer),blocks=(d?.blocks||[]).map(b=>jcPeerBlock(peer,b)).join('');
@@ -194,6 +194,7 @@ function jcCockpit(){
   <div class="jc-side-b">${jcStats(objs)}
    <div class="jc-sec"><div class="jc-sec-t">回覆追蹤</div>${rqSideBody()}</div>
    <div class="jc-sec"><div class="jc-sec-t">今天誕生的物件</div>${objRows||'<div class="rq-empty">在日誌打 # 召喚物件</div>'}</div>
+   ${stkCockpitHtml()}
    <div class="jc-sec"><div class="jc-sec-t">今日脈絡</div>${jcTimeline()}</div>
    ${S.jday===TODAY?'':'<div class="rq-empty">回覆追蹤與今日議題依今天計算</div>'}
   </div>

@@ -162,7 +162,8 @@
     "ops:contract:check": "tsx scripts/check-contract-cashflow.ts",
     "project:capability:check": "node scripts/check-project-capability.mjs",
     "project:ui:check": "tsx scripts/check-project-module-ui.mts",
-    "ops:links:check": "tsx scripts/check-link-object.mts"
+    "ops:links:check": "tsx scripts/check-link-object.mts",
+    "ops:stickers:check": "tsx scripts/check-journal-stickers.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",

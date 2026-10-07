@@ -438,6 +438,7 @@ renderDocObjectCard = function (b) {
         <span class="chip ${meta.chip}">${svg('flag', 11)} ${docObjectLabel(d, meta)}</span>
         <span class="eb-doc-bar-title">${esc(docObjectName(d))}</span>
         <span class="ag-pills">${agPills(d)}</span>
+        ${stkDocChip(d)}
       </div>
       <div class="eb-doc-bar-right">
         <button type="button" class="eb-doc-toggle-btn" title="${collapsed ? '展開議題' : '收合議題'}" onclick="event.stopPropagation();toggleDocCollapse('${d.id}')">

@@ -20,7 +20,7 @@ export function patchSource(source) {
  rep('function nav(wb,tab){saveJournalDraft();S.wb=wb;','function nav(wb,tab){saveJournalDraft();const _r=opRedirect(wb,tab);wb=_r[0];tab=_r[1];S.wb=wb;');
  rep("owner:'yz',size:'M',pri:'3'","owner:DB.me,size:'M',pri:'3'");
  rep("p:S.proj,pass:'否'","p:P(S.proj)?S.proj:'公司層級',pass:'否'");
- rep("const PH={p:'寫點什麼：# 召喚 component、@ 引用既有物件'","const PH={p:'寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆'");
+ rep("const PH={p:'寫點什麼：# 召喚 component、@ 引用既有物件'","const PH={p:'寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆、/ 貼紙'");
  rep("{k:'amt',label:'金額（未稅）',type:'number',req:true,step:'1',hint:'支出請填負數，例如 −28000'}","{k:'amt',label:'金額（未稅）',type:'text',req:true,hint:'支出負數；支援 =SUM(D1:D3)、算術及固定列號公式'}");
  rep("values:e?{...e,pass:e.pass?'是':'否'}","values:e?{...e,amt:e.formula??e.amt,pass:e.pass?'是':'否'}");
  rep('const amt=Number(v.amt)||0;','const formula=String(v.amt), result=evaluateFormula(formula,ledgerCells()); if(result.error)throw Error(result.error); const amt=result.value??0;');

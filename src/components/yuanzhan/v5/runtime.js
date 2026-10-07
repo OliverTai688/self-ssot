@@ -3292,7 +3292,7 @@ function syncAll() {
 
 /* ---- 區塊 HTML ---- */
 const PH = {
-  p: '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆',
+  p: '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆、/ 貼紙',
   h1: '大標題',
   h2: '中標題',
   h3: '小標題',
@@ -8425,6 +8425,272 @@ function applyStoredSettings() {
 }
 applyStoredSettings();
 
+/* ── 日誌貼紙：行內打 / 召喚，蓋在那一行上 ─────────────────────────────────────
+   # 建立物件、@ 引用或通知、?@ 請對方回覆、! 標議題 —— 這些都會產生一個要追蹤的東西。
+   / 不會：它只是往這一行貼一張貼紙，裝飾與標註用。
+
+   第一張是 /done 完成章：「這件小事做完了」。它不值得開一張任務，也不是待辦清單
+   （待辦是事前寫下、事後打勾；完成章是做完了才回頭蓋）。但蓋了章的那一行會被記下來：
+   右側駕駛艙列出這一天完成的小事，物件卡片的標題列顯示這張物件裡蓋了幾個章。
+
+   資料：貼紙記在那一行自己身上 —— b.stk = { k, at, by }。日誌的行與文件物件段落的行
+   都是整包存成 JSON 的 blocks，所以不需要新的集合、欄位或 migration，跟著原本的
+   自動保存（render → opTouch）走；對方那一頭讀回來的 blocks 上就帶著章。
+   計數不另外存：每次都從 blocks 現算，行被刪掉、章被撕掉，數字自己就對。
+
+   掛在 replies 之前載入：ebHtml 在這裡包的是最裡面那一層，拿到的還是單純的
+   `<div class="eb">…<div class="eb-tx">…</div></div>`，貼紙才插得進 .eb 裡、.eb-tx 後面。
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* 貼紙表。新增一張：把圖放進 public/stickers/，在這裡加一列。
+   圖檔格式：1:1、透明背景、建議 SVG（或 256px 以上的 PNG／WebP），自帶白邊，
+   縮到 20px 還認得出來。k 只用小寫英數，它就是使用者打的 /k。 */
+const STICKERS = [{
+  k: 'done',
+  nm: '完成',
+  ds: '蓋一個完成章 · 小事做完就蓋',
+  src: '/stickers/done.svg',
+  alias: ['完成']
+}];
+const STK_BY = Object.fromEntries(STICKERS.map(s => [s.k, s]));
+/* 只有這一張算「完成」；之後加的貼紙純粹是裝飾，不進完成的統計。 */
+const STK_DONE = 'done';
+
+/* 行首或空白之後的 /字。前面要求空白，網址（https://…）、日期（10/7）、路徑都不會誤觸。 */
+const STK_TRIGGER = /(?:^|\s)[\/／]([^\s\/／#@]{0,12})$/;
+/* 打完整個名字再按一下空白就直接蓋，不必等選單。 */
+const STK_INSTANT = /(?:^|\s)[\/／]([^\s\/／#@]{1,12})[ \u3000]$/;
+function stkOf(b) {
+  return b && b.stk && STK_BY[b.stk.k] || null;
+}
+function stkHits(q) {
+  q = (q || '').toLowerCase();
+  return STICKERS.filter(s => !q || s.k.startsWith(q) || s.nm.includes(q) || s.alias.some(a => a.startsWith(q))).map(s => ({
+    ...s,
+    g: '貼紙',
+    ic: '/'
+  }));
+}
+function stkExact(q) {
+  q = (q || '').toLowerCase();
+  return STICKERS.find(s => s.k === q || s.alias.includes(q)) || null;
+}
+function stkWhen(ms) {
+  if (!ms) return '';
+  const d = new Date(ms),
+    hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  return new Date().toDateString() === d.toDateString() ? hm : d.getMonth() + 1 + '/' + d.getDate() + ' ' + hm;
+}
+
+/* ---- 蓋章、撕掉 ---- */
+let stkFreshId = '',
+  stkFreshUntil = 0;
+/** start/len 是那個 /字 在 b.text 裡的位置：蓋章的同時把它從文字裡拿掉。 */
+function stkStamp(b, k, start, len) {
+  const s = STK_BY[k];
+  if (!s || !b || !canWriteJournal()) return;
+  snap();
+  const text = (b.text.slice(0, start) + b.text.slice(start + len)).replace(/\s+$/, '');
+  const had = stkOf(b);
+  b.text = text;
+  if (!had || had.k !== k) {
+    b.stk = {
+      k,
+      at: Date.now(),
+      by: DB.me
+    };
+    stkFreshId = b.id;
+    stkFreshUntil = Date.now() + 600;
+  }
+  focusB(b.id, Math.min(start, text.length));
+  render();
+  if (had && had.k === k) toast(`這一行已經蓋過${esc(s.nm)}章了`);
+}
+/* 點貼紙的時候焦點不一定在那一行所在的書寫面上，bOf() 會被 BLKS_OVERRIDE 指到別處；
+   所以自己找：自己的日誌，再來是自己能寫的物件。別人的行這裡找不到，也就撕不掉。 */
+function stkLocate(id) {
+  const mine = jdoc().blocks.find(b => b.id === id);
+  if (mine) return {
+    b: mine
+  };
+  for (const doc of DB.docObjects || []) {
+    if (!docWritable(doc)) continue;
+    for (const sec of doc.secs || []) {
+      const b = (sec.blocks || []).find(x => x.id === id);
+      if (b) return {
+        b,
+        doc
+      };
+    }
+  }
+  return null;
+}
+function stkPeel(id) {
+  if (!canWriteJournal()) return;
+  syncAll();
+  const hit = stkLocate(id);
+  if (!hit || !hit.b.stk) return;
+  snap();
+  delete hit.b.stk;
+  if (hit.doc) hit.doc.updatedAt = Date.now();
+  render();
+  toast('已撕掉貼紙');
+}
+
+/* ---- 畫在那一行上 ---- */
+/** own：自己的行，貼紙是一顆按鈕，點一下撕掉；別人的行只是一張圖。 */
+function stkHtml(b, own) {
+  const s = stkOf(b);
+  if (!s) return '';
+  const tip = `${s.nm} · ${person(b.stk.by)} ${stkWhen(b.stk.at)}`;
+  const img = `<img class="stk-img" src="${s.src}" alt="${esc(s.nm)}" draggable="false">`;
+  if (!own) return `<span class="stk" title="${esc(tip)}">${img}</span>`;
+  const fresh = stkFreshId === b.id && Date.now() < stkFreshUntil ? ' fresh' : '';
+  return `<button type="button" class="stk${fresh}" contenteditable="false" title="${esc(tip)} · 點一下撕掉" ${bind("click", (event, element) => {
+    stkPeel(b.id);
+  })}>${img}</button>`;
+}
+const stkBaseEb = ebHtml;
+ebHtml = function (b) {
+  const html = stkBaseEb(b);
+  if (!b || !TEXTY(b.t) || !stkOf(b)) return html;
+  const end = html.lastIndexOf('</div>');
+  return html.slice(0, end).replace('class="eb ', 'class="eb stk-on ') + stkHtml(b, true) + html.slice(end);
+};
+
+/* ---- / 觸發：沿用 # 與 @ 的那一張選單 ---- */
+const stkBaseTrigger = checkTrigger;
+checkTrigger = function (tx, b) {
+  if (b && !COMPOSING && TEXTY(b.t) && b.t !== 'code') {
+    const upto = b.text.slice(0, caretOff(tx));
+    let m = upto.match(STK_INSTANT);
+    const exact = m && stkExact(m[1]);
+    if (exact) {
+      if (SM.open) closeSummon();
+      return stkStamp(b, exact.k, upto.length - m[1].length - 2, m[1].length + 2);
+    }
+    m = upto.match(STK_TRIGGER);
+    const hits = m ? stkHits(m[1]) : [];
+    if (hits.length) {
+      const start = upto.length - m[1].length - 1;
+      if (!SM.open || SM.blockId !== b.id || SM.mode !== 'stk') openSummon(b.id, start, m[1], caretRect(tx), 'stk');
+      SM.q = m[1];
+      SM.start = start;
+      SM.hits = hits;
+      SM.sel = Math.min(SM.sel, hits.length - 1);
+      return paintSummon();
+    }
+  }
+  if (SM.open && SM.mode === 'stk') closeSummon();
+  return stkBaseTrigger(tx, b);
+};
+const stkBasePaint = paintSummon;
+paintSummon = function () {
+  stkBasePaint();
+  if (SM.mode !== 'stk') return;
+  root.querySelectorAll('#summonList .summon-i').forEach((el, i) => {
+    const h = SM.hits[i];
+    // openSummon 會先用 # 的清單畫一次，那時 hits 還沒換成貼紙
+    if (!h || !h.src) return;
+    el.querySelector('.kb').textContent = '/' + h.k;
+    el.querySelector('.ic').outerHTML = `<img class="stk-menu-img" src="${h.src}" alt="">`;
+  });
+};
+const stkBaseApply = applySummon;
+applySummon = function (n) {
+  if (SM.mode !== 'stk') return stkBaseApply(n);
+  if (!canWriteJournal()) return;
+  const h = SM.hits[n],
+    b = bOf(SM.blockId);
+  if (!h || !b) return closeSummon();
+  syncAll();
+  const start = SM.start,
+    len = 1 + SM.q.length;
+  closeSummon();
+  stkStamp(b, h.k, start, len);
+};
+
+/* ---- 記錄：哪些行蓋了完成章 ---- */
+/** 空白行蓋了章也不算：沒有寫下完成了什麼，就沒有東西可以記。 */
+function stkCounts(b) {
+  return !!b && TEXTY(b.t) && !!b.stk && b.stk.k === STK_DONE && !!(b.text || '').trim();
+}
+/* 物件的段落裡還可以再嵌物件（Standup 的 Today 裡放一張任務），所以一路走到底。
+   只讀 sec.blocks，不呼叫 ensureSecBlocks()：那支會替還沒展開過的段落補出 blocks，查詢不該改資料。
+   seen 擋住互相引用的物件，同 template-objects 的 DOC_SEC_STACK。 */
+function stkWalk(blocks, doc, visit, seen) {
+  (blocks || []).forEach((b, i) => {
+    if (!b) return;
+    if (b.t !== 'obj') return visit(b, i, doc);
+    const o = b.obj || {};
+    if (o.ty !== 'doc_object' && o.ty !== 'doc' || seen.has(o.rid)) return;
+    seen.add(o.rid);
+    const inner = (DB.docObjects || []).find(d => d.id === o.rid);
+    for (const sec of inner && inner.secs || []) stkWalk(sec.blocks, inner, visit, seen);
+  });
+}
+/** 一張物件裡（連同它裡面嵌的物件）蓋了完成章的行。 */
+function stkDocLines(doc) {
+  const out = [];
+  if (!doc) return out;
+  const seen = new Set([doc.id]);
+  for (const sec of doc.secs || []) stkWalk(sec.blocks, doc, b => {
+    if (stkCounts(b)) out.push(b);
+  }, seen);
+  return out;
+}
+/** 物件卡片標題列上的那一顆：這張物件裡完成了幾件小事，滑過去看是哪幾行。 */
+function stkDocChip(doc) {
+  const lines = stkDocLines(doc);
+  if (!lines.length) return '';
+  const tip = `完成的小事 ${lines.length} 件\n` + lines.slice(0, 12).map(b => '· ' + b.text.trim()).join('\n') + (lines.length > 12 ? '\n…' : '');
+  return `<span class="stk-count" title="${esc(tip)}"><img src="${STK_BY[STK_DONE].src}" alt="完成">${lines.length}</span>`;
+}
+/** 這一天兩個人的日誌上（連同嵌在日誌裡的物件）蓋了完成章的行，照蓋章的時間排。 */
+function stkDayLines(day = S.jday) {
+  const out = [],
+    seen = new Set();
+  for (const who of Object.keys(DB.people)) {
+    stkWalk(jcDoc(who, day)?.blocks, null, (b, i, doc) => {
+      if (stkCounts(b)) out.push({
+        who: doc ? doc.author || who : who,
+        b,
+        where: doc ? docObjectLabel(doc) : 'L' + (i + 1)
+      });
+    }, seen);
+  }
+  return out.sort((a, z) => (a.b.stk.at || 0) - (z.b.stk.at || 0));
+}
+function stkCockpitHtml() {
+  const rows = stkDayLines();
+  const body = rows.map(({
+    who,
+    b,
+    where
+  }) => `<button class="jc-obj stk-row" title="${esc(person(b.stk.by))} ${stkWhen(b.stk.at)} 蓋章 · 點一下跳到那一行" ${bind("click", (event, element) => {
+    stkJump(b.id);
+  })}><img class="stk-row-img" src="${STK_BY[STK_DONE].src}" alt=""><span class="jc-obj-t">${esc(b.text.trim())}</span><span class="jc-obj-s">${esc(jcShort(who))} ${esc(where)}</span></button>`).join('');
+  return `<div class="jc-sec" id="stkDone"><div class="jc-sec-t stk-sec-t"><span>完成的小事</span>${rows.length ? `<b>${rows.length}</b>` : ''}</div>${body || '<div class="rq-empty">做完一件小事，就在那一行打 /done 蓋個章</div>'}</div>`;
+}
+/* 那一行可能在收合的物件卡裡：先把包著它的卡片展開再找一次。 */
+function stkJump(id) {
+  const find = () => root.querySelector(`.jc .eb[data-id="${CSS.escape(id)}"], .jc [data-jc-bid="${CSS.escape(id)}"]`);
+  let el = find();
+  if (!el) {
+    const doc = (DB.docObjects || []).find(d => (d.secs || []).some(sec => (sec.blocks || []).some(b => b.id === id)));
+    if (doc && doc.collapsed) {
+      doc.collapsed = false;
+      render();
+      el = find();
+    }
+  }
+  if (!el) return toast('那一行在物件裡面；展開包著它的卡片就看得到');
+  el.scrollIntoView({
+    block: 'center'
+  });
+  el.classList.add('rq-flash');
+}
+
 /* ── 回覆追蹤（依 journal-reply-flow.html 設計稿實作）──────────────────────────
    ① 24 小時回覆規則：0–16h 藍色倒數 → 16–24h 橘色＋提醒回覆方 → >24h 雙方大紅色橫幅，
       之後每 4h 再提醒一次，直到有人回覆。文字回覆、選決策卡選項、「收到，晚點處理」都算回覆。
@@ -9617,7 +9883,7 @@ setTimeout(rqTick, 1500);
    · 標題列一行：日誌 ‹ 日期 › 📅 [今天｜回顧｜標籤流] …… 「我開始一天了」時間
    · 左欄＝自己（編輯中，唯一可寫的 #doc），右欄＝對方（唯讀，點任一行即可留言）
    · 行內留言掛在該行下方；整頁留言縮成駕駛艙底部一行輸入框
-   · 右側駕駛艙：今日統計、回覆追蹤、今天誕生的物件（標出來源行）、今日脈絡
+   · 右側駕駛艙：今日統計、回覆追蹤、今天誕生的物件（標出來源行）、完成的小事（/done，見 journal-stickers）、今日脈絡
    只作用在圓展空間的「今天」分頁；個人空間與回顧／標籤流沿用原本畫面。
    ───────────────────────────────────────────────────────────────────────── */
 /* 這幾個集合是從伺服器讀回來的（database 模式）。無條件指派會把剛讀回來的內容
@@ -9889,9 +10155,9 @@ function jcPeerBlock(author, b) {
   const r = b.req && rqFind(b.req),
     st = r && !r.resolvedAt ? r.firstReplyAt ? 'replied' : rqState(r) === 'late' ? 'late' : 'ask' : b.today ? 'today' : '';
   const pills = b.req || b.today ? `<span class="rq-pills">${rqLinePills(b)}</span>` : '';
-  return `<div class="eb ${ind} jc-ro ${lkHas(b) ? 'has-links' : ''} ${st ? 'rq-line rq-' + st : ''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" ${bind("click", (event, element) => {
+  return `<div class="eb ${ind} jc-ro ${stkOf(b) ? 'stk-on' : ''} ${lkHas(b) ? 'has-links' : ''} ${st ? 'rq-line rq-' + st : ''}" data-t="${b.t}" data-jc-bid="${b.id}" title="點一下留言" ${bind("click", (event, element) => {
     jcOpenLine(author, b.id);
-  })}>${bul}${ck}<div class="eb-tx ${b.t === 'todo' && b.done ? 'done' : ''}">${esc(b.text)}</div>${pills}${lkRoChips(b)}</div>${rqLineRecord(b)}${jcLineHtml(author, b)}`;
+  })}>${bul}${ck}<div class="eb-tx ${b.t === 'todo' && b.done ? 'done' : ''}">${esc(b.text)}</div>${stkHtml(b)}${pills}${lkRoChips(b)}</div>${rqLineRecord(b)}${jcLineHtml(author, b)}`;
 }
 function jcPeerColumn(peer) {
   const d = jcDoc(peer),
@@ -10054,6 +10320,7 @@ function jcCockpit() {
   <div class="jc-side-b">${jcStats(objs)}
    <div class="jc-sec"><div class="jc-sec-t">回覆追蹤</div>${rqSideBody()}</div>
    <div class="jc-sec"><div class="jc-sec-t">今天誕生的物件</div>${objRows || '<div class="rq-empty">在日誌打 # 召喚物件</div>'}</div>
+   ${stkCockpitHtml()}
    <div class="jc-sec"><div class="jc-sec-t">今日脈絡</div>${jcTimeline()}</div>
    ${S.jday === TODAY ? '' : '<div class="rq-empty">回覆追蹤與今日議題依今天計算</div>'}
   </div>
@@ -10776,7 +11043,7 @@ function migrateLegacyTemplateBlocks(journal) {
 
 // 每個 section 的書寫區塊：跟主日誌的 #doc 用同一套 .doc/.eb 標記與事件（docClick/docKey/docInput），
 // 唯一差別是容器帶 data-doc-sec，讓 blks()（見 source-patches.mjs 的 BLKS_OVERRIDE）改指到這個 section 的 blocks 陣列。
-// 這樣 Enter/Tab/Backspace、# 召喚、@ 引用既有物件、?@ 請對方回覆／!今天 全部原封不動可用，不必另外重寫一套引擎。
+// 這樣 Enter/Tab/Backspace、# 召喚、@ 引用既有物件、?@ 請對方回覆／!今天、/ 貼紙 全部原封不動可用，不必另外重寫一套引擎。
 /* 展開路徑上已經出現過的物件，不再往下展開。
  *
  * renderDocSectionBody → ebHtml → renderDocObjectCard → renderDocSectionBody 這條環
@@ -10826,7 +11093,7 @@ function renderDocSectionBodyInner(doc, sec, idx, meta) {
   if (!docWritable(doc)) return renderDocSectionReadonly(doc, sec, idx, blocks);
   let html = blocks.map(ebHtml).join('');
   if (blocks.length === 1 && !blocks[0].text) {
-    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆';
+    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆、/ 貼紙';
     html = html.replace(/data-ph="[^"]*"/, `data-ph="${esc(ph)}"`);
   }
   return `<div class="eb-doc-inline-sec">
@@ -10869,6 +11136,7 @@ function renderDocObjectCard(b) {
         <span class="chip ${meta.chip}">${meta.nm}</span>
         <span class="eb-doc-bar-title">${esc(name)}</span>
         <span class="eb-doc-bar-meta">${isCollapsed ? esc(docObjectTimestamp(doc)) : `${doc.day} · ${person(doc.author)}${doc.secs.reduce((a, sec) => a + secWordCount(sec), 0) ? ' · ' + doc.secs.reduce((a, sec) => a + secWordCount(sec), 0) + ' 字' : ''}`}</span>
+        ${stkDocChip(doc)}
         ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 可留言</span>'}
       </div>
       <div class="eb-doc-bar-right">
@@ -10928,6 +11196,7 @@ DRAWERS.doc_object = id => {
         <span>${doc.day}</span>
         <span>由 ${person(doc.author)} 撰寫</span>
         <span>${esc(docObjectTimestamp(doc))}</span>
+        ${stkDocChip(doc)}
         <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
         ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 點任一行留言</span>'}
       </span>`,
@@ -11091,6 +11360,29 @@ docInput = function (e) {
   if (!canWriteJournal()) return;
   opTouch();
 };
+
+/* 段落的書寫區（.doc[data-doc-sec]）長在日誌的 #doc 裡面，兩層掛的是同一組 handler，
+ * 而事件會冒泡 —— 段落裡的每一次按鍵、輸入、點擊，都被同一支函式處理兩遍：
+ *   · 行尾按 Enter：第一遍把行拆開並重畫；第二遍拿著已經離開畫面的舊節點再拆一次，
+ *     原本那一行的上面就多出一個空行。
+ *   · # 或 @ 的選單開著按 ↑↓：一次跳兩格。
+ *   · 輸入當下改寫文字（/done 蓋章）：第二遍把舊節點上還沒改寫的字抄回資料。
+ *
+ * 一個事件只處理一次。先到的是裡層（段落），那時 blks() 指著的正是它的 blocks，
+ * 所以留下來的是對的那一遍。 */
+const DOC_EVENTS_SEEN = new WeakSet();
+function docOnce(handler) {
+  return function (e) {
+    if (e && typeof e === 'object') {
+      if (DOC_EVENTS_SEEN.has(e)) return;
+      DOC_EVENTS_SEEN.add(e);
+    }
+    return handler(e);
+  };
+}
+docKey = docOnce(docKey);
+docInput = docOnce(docInput);
+docClick = docOnce(docClick);
 
 /* 議題物件（提案 B）—— 把「今日議題」從一行上的旗標，升格成系統裡的一個物件。
  *
@@ -11641,6 +11933,7 @@ renderDocObjectCard = function (b) {
         <span class="chip ${meta.chip}">${svg('flag', 11)} ${docObjectLabel(d, meta)}</span>
         <span class="eb-doc-bar-title">${esc(docObjectName(d))}</span>
         <span class="ag-pills">${agPills(d)}</span>
+        ${stkDocChip(d)}
       </div>
       <div class="eb-doc-bar-right">
         <button type="button" class="eb-doc-toggle-btn" title="${collapsed ? '展開議題' : '收合議題'}" ${bind("click", (event, element) => {
@@ -18157,7 +18450,7 @@ function jrBlockHtml(b) {
   if (!(b.text || '').trim()) return '';
   const bul = b.t === 'p' && b.ind > 0 ? '<span class="eb-bul">·</span>' : '';
   const ck = b.t === 'todo' ? `<span class="eb-ck ${b.done ? 'on' : ''}">${svg('check')}</span>` : '';
-  return `<div class="eb ind${b.ind} ${lkHas(b) ? 'has-links' : ''}" data-t="${b.t}">${bul}${ck}<div class="eb-tx ${b.done ? 'done' : ''}">${esc(b.text)}</div>${lkRoChips(b)}</div>`;
+  return `<div class="eb ind${b.ind} ${stkOf(b) ? 'stk-on' : ''} ${lkHas(b) ? 'has-links' : ''}" data-t="${b.t}">${bul}${ck}<div class="eb-tx ${b.done ? 'done' : ''}">${esc(b.text)}</div>${stkHtml(b)}${lkRoChips(b)}</div>`;
 }
 function jrBody(d) {
   return `<div class="doc jr-doc">${(d.blocks || []).map(jrBlockHtml).join('')}</div>`;

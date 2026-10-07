@@ -1,5 +1,19 @@
 # Current Sprint
 
+## Owner-directed 日誌貼紙 `/done` 完成章 — 2026-10-07
+
+`JRNL-STK-001` 已完成實作，Owner 同輪指示推送 `main`，**待 Owner 於正式站驗收**。
+`/` 是日誌的第五個行內入口：`#`、`@`、`?@`、`!` 都會產生要追蹤的東西，`/` 只是往這一行貼一張貼紙。第一張是完成章。
+
+現在：任何一行（日誌或 Standup、任務等物件的段落）打 `/done` 按 ↵ 或空白，那幾個字換成一個完成章蓋在行尾；點一下撕掉。
+蓋了章的行記為「完成的小事」：右側駕駛艙列出這一天兩個人完成了哪些，物件卡片的標題列顯示件數。
+章記在那一行的 JSON 上，跟著原本的自動保存走。**沒有 schema 變更、沒有後端改動**。`UI-088` Revision Mode，未新增 UI ID。
+
+順帶修掉：在物件段落的行尾按 Enter，原本那一行上面會多出一個空行（事件被段落與外層日誌各處理一次）。
+
+驗收：`ops:stickers:check` 38/38、`tsc` 0、`pnpm build` exit 0、既有日誌檢查無回歸、本機 showcase 真實鍵盤實測（黑、白主題）。
+未做：正式站與注音輸入法的實測、橘色與品牌主題的目視確認。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-journal-done-sticker.md)。
+
 ## Owner-directed 專案區域介面重做 — 2026-10-07
 
 `PROJUI-001` 已完成實作，Owner 同日指示 commit 並部署（推送 `main`）。15 個專案匯入後，Owner 回報專案分頁的介面很糟：換專案靠一排只有名字的按鈕、沒有全部專案的一覽、

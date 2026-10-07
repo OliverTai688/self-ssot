@@ -290,7 +290,7 @@ function migrateLegacyTemplateBlocks(journal) {
 
 // 每個 section 的書寫區塊：跟主日誌的 #doc 用同一套 .doc/.eb 標記與事件（docClick/docKey/docInput），
 // 唯一差別是容器帶 data-doc-sec，讓 blks()（見 source-patches.mjs 的 BLKS_OVERRIDE）改指到這個 section 的 blocks 陣列。
-// 這樣 Enter/Tab/Backspace、# 召喚、@ 引用既有物件、?@ 請對方回覆／!今天 全部原封不動可用，不必另外重寫一套引擎。
+// 這樣 Enter/Tab/Backspace、# 召喚、@ 引用既有物件、?@ 請對方回覆／!今天、/ 貼紙 全部原封不動可用，不必另外重寫一套引擎。
 /* 展開路徑上已經出現過的物件，不再往下展開。
  *
  * renderDocSectionBody → ebHtml → renderDocObjectCard → renderDocSectionBody 這條環
@@ -341,7 +341,7 @@ function renderDocSectionBodyInner(doc, sec, idx, meta) {
   if (!docWritable(doc)) return renderDocSectionReadonly(doc, sec, idx, blocks);
   let html = blocks.map(ebHtml).join('');
   if (blocks.length === 1 && !blocks[0].text) {
-    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆';
+    const ph = meta.placeholders[idx] || '寫點什麼：# 召喚 component、@ 引用物件或通知對方、?@ 請對方回覆、/ 貼紙';
     html = html.replace(/data-ph="[^"]*"/, `data-ph="${esc(ph)}"`);
   }
   return `<div class="eb-doc-inline-sec">
@@ -374,6 +374,7 @@ function renderDocObjectCard(b) {
         <span class="chip ${meta.chip}">${meta.nm}</span>
         <span class="eb-doc-bar-title">${esc(name)}</span>
         <span class="eb-doc-bar-meta">${isCollapsed ? esc(docObjectTimestamp(doc)) : `${doc.day} · ${person(doc.author)}${doc.secs.reduce((a,sec)=>a+secWordCount(sec),0) ? ' · '+doc.secs.reduce((a,sec)=>a+secWordCount(sec),0)+' 字' : ''}`}</span>
+        ${stkDocChip(doc)}
         ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 可留言</span>'}
       </div>
       <div class="eb-doc-bar-right">
@@ -433,6 +434,7 @@ DRAWERS.doc_object = id => {
         <span>${doc.day}</span>
         <span>由 ${person(doc.author)} 撰寫</span>
         <span>${esc(docObjectTimestamp(doc))}</span>
+        ${stkDocChip(doc)}
         <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
         ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 點任一行留言</span>'}
       </span>`,
@@ -593,3 +595,26 @@ docInput = function (e) {
   if (!canWriteJournal()) return;
   opTouch();
 };
+
+/* 段落的書寫區（.doc[data-doc-sec]）長在日誌的 #doc 裡面，兩層掛的是同一組 handler，
+ * 而事件會冒泡 —— 段落裡的每一次按鍵、輸入、點擊，都被同一支函式處理兩遍：
+ *   · 行尾按 Enter：第一遍把行拆開並重畫；第二遍拿著已經離開畫面的舊節點再拆一次，
+ *     原本那一行的上面就多出一個空行。
+ *   · # 或 @ 的選單開著按 ↑↓：一次跳兩格。
+ *   · 輸入當下改寫文字（/done 蓋章）：第二遍把舊節點上還沒改寫的字抄回資料。
+ *
+ * 一個事件只處理一次。先到的是裡層（段落），那時 blks() 指著的正是它的 blocks，
+ * 所以留下來的是對的那一遍。 */
+const DOC_EVENTS_SEEN = new WeakSet();
+function docOnce(handler) {
+  return function (e) {
+    if (e && typeof e === 'object') {
+      if (DOC_EVENTS_SEEN.has(e)) return;
+      DOC_EVENTS_SEEN.add(e);
+    }
+    return handler(e);
+  };
+}
+docKey = docOnce(docKey);
+docInput = docOnce(docInput);
+docClick = docOnce(docClick);

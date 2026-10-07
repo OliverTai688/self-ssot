@@ -47,6 +47,12 @@ const stubs = {
   person: w => DB.people[w].n,
   rqAv: w => `<span class="av rq-av xs ${DB.people[w].cls}">${DB.people[w].s}</span>`,
   svg: name => `<svg data-i="${name}"></svg>`,
+  // 行上的貼紙，住在 journal-stickers.source.js
+  stkOf: () => null,
+  stkHtml: () => '',
+  // 行內網址的連結，住在 link-object.source.js
+  lkHas: () => false,
+  lkRoChips: () => '',
   objHtml: b => `<obj:${b.obj?.rid || ''}>`,
   jcWeek: d => '週' + '日一二三四五六'[new Date(d + 'T00:00:00Z').getUTCDay()],
   panel: (title, sub, body, act, flush) =>

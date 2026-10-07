@@ -98,6 +98,8 @@ const stubs = {
   person: w => DB.people[w].n,
   rqAv: w => '<span class="av">' + DB.people[w].s + '</span>',
   svg: (name) => '<svg data-i="' + name + '"></svg>',
+  // 物件卡片標題列的完成章計數，住在 journal-stickers.source.js
+  stkDocChip: () => '',
   toast: m => { toasts.push(String(m)); },
   deny: () => { denies.push(1); },
   render: () => {},

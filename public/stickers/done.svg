@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="完成">
+  <title>完成</title>
+  <!--
+    日誌貼紙：/done 完成章。
+    貼紙格式：1:1 畫布（viewBox 0 0 128 128）、透明背景、圖樣四周留 2px 以上的邊，
+    自帶白色 die-cut 邊與一圈極淡的外框線 —— 白、橘、黑、品牌四個主題上都看得出輪廓，
+    所以顏色寫在圖裡，不跟主題 token 走（它是貼上去的圖，不是介面圖示）。
+    縮到 20px 仍要認得出來：只留花形章、勾、一顆亮點，不放字。
+  -->
+  <defs>
+    <path id="seal" d="M79.14 17.4a16.5 16.5 0 0 1 24.5 17.8A16.5 16.5 0 0 1 113 64a16.5 16.5 0 0 1-9.36 28.8 16.5 16.5 0 0 1-24.5 17.8 16.5 16.5 0 0 1-30.28 0 16.5 16.5 0 0 1-24.5-17.8A16.5 16.5 0 0 1 15 64a16.5 16.5 0 0 1 9.36-28.8 16.5 16.5 0 0 1 24.5-17.8 16.5 16.5 0 0 1 30.28 0Z"/>
+  </defs>
+  <use href="#seal" fill="none" stroke="#000" stroke-opacity=".16" stroke-width="11" stroke-linejoin="round"/>
+  <use href="#seal" fill="#fff" stroke="#fff" stroke-width="8.5" stroke-linejoin="round"/>
+  <use href="#seal" fill="#f0564a" stroke="#d93f3a" stroke-width="2.5" stroke-linejoin="round"/>
+  <circle cx="64" cy="64" r="38.5" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2.2" stroke-linecap="round" stroke-dasharray=".1 6.6"/>
+  <path d="M44 66.5 57.5 80l28-30.500" fill="none" stroke="#fff" stroke-width="11.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 28c1.200 5 3 6.800 8 8-5 1.200-6.800 3-8 8-1.200-5-3-6.800-8-8 5-1.200 6.800-3 8-8Z" fill="#ffd65a" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+</svg>

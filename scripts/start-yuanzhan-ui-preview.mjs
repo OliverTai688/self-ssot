@@ -11,7 +11,7 @@ const port = Number(process.argv[3] ?? (mode === "showcase" ? 3011 : 3012))
 const target = path.join(os.tmpdir(), `personal-os-yuanzhan-${mode}`)
 fs.mkdirSync(target, { recursive: true })
 const copy = (name) => { const to = path.join(target, name); fs.mkdirSync(path.dirname(to), { recursive: true }); fs.cpSync(path.join(root, name), to, { recursive: true }) }
-for (const name of ["src/components", "src/lib", "src/types", "src/hooks", "src/app/globals.css", "src/app/layout.tsx", "src/app/(operating)", "postcss.config.mjs", "components.json", "package.json"]) if (fs.existsSync(path.join(root, name))) copy(name)
+for (const name of ["src/components", "src/lib", "src/types", "src/hooks", "src/app/globals.css", "src/app/layout.tsx", "src/app/(operating)", "public", "postcss.config.mjs", "components.json", "package.json"]) if (fs.existsSync(path.join(root, name))) copy(name)
 if (!fs.existsSync(path.join(target, "tsconfig.json"))) copy("tsconfig.json")
 fs.writeFileSync(path.join(target, "next.config.mjs"), "export default { experimental: { webpackBuildWorker: true, webpackMemoryOptimizations: true } }\n")
 if (!fs.existsSync(path.join(target, "node_modules"))) fs.symlinkSync(path.join(root, "node_modules"), path.join(target, "node_modules"), "dir")
