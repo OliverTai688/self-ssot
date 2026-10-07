@@ -226,6 +226,21 @@
   flex-direction: column;
   gap: 3px;
 }
+/* 段落內文重用主日誌的 .doc 引擎，但不能連它的版面一起繼承：
+   .doc 的 min-height（一般 360px、駕駛艙 .jc .doc 200px）和底部留白是給「整本日誌」用的，
+   套在每個段落上就變成 Yesterday / Today / Blocker 之間各空出一大塊。
+   段落高度跟著內容走，段落之間只留一行的距離。
+   選擇器刻意寫到三個 class：journal-cockpit.css 排在後面，同權重會被 .jc .doc 蓋回去。 */
+.eb-doc-inline-sec > .doc.eb-doc-secbody {
+  min-height: 0;
+  padding: 0 2px;
+}
+.eb-doc-inline-sec + .eb-doc-inline-sec {
+  margin-top: 12px;
+}
+.doc-page-workspace > .eb-doc-inline-sec + .eb-doc-inline-sec {
+  margin-top: 22px;
+}
 .eb-doc-inline-sec-title {
   font-size: 12.5px;
   font-weight: 700;
