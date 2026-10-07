@@ -1,0 +1,105 @@
+/* ==================================================================
+   專案總表與專案標題列（RES-034 · PROJUI-001）
+
+   與 pm-primitives.css／pm-shell.css 同一組約束（ARC-043 §5）：
+   沒有四邊外框的區塊容器、顏色一律 var(--token, fallback)、760px 以下收成單欄。
+   這一層的字級刻意比其他 pm-* 大一級（13px 起）：總表是每天第一眼要讀的東西，
+   而它的每一列都有一句人寫的「下一步」，不是數字。
+   ================================================================== */
+
+/* ---------- 共用：狀態、重要度、資料夾序號 ---------- */
+.pm-st{display:inline-flex;align-items:center;padding:2px 9px;border:1px solid var(--border-2,#333b45);border-radius:999px;font-size:11.5px;line-height:1.5;color:var(--text-2,#99a2af);white-space:nowrap}
+.pm-st.pri{color:var(--pri,#6cb6ff);border-color:var(--pri-br,#2d5a7d);background:var(--pri-bg,#11212e)}
+.pm-st.warn{color:var(--warn,#f2b95e);border-color:var(--warn,#f2b95e);background:var(--warn-bg,#2a2111)}
+.pm-st.off{color:var(--text-3,#626b77);border-color:var(--border,#232931)}
+.pm-tier{display:inline-flex;align-items:center;gap:3px;vertical-align:middle}
+.pm-tier i{display:block;width:5px;height:12px;border-radius:1.5px;background:var(--border-2,#333b45)}
+.pm-tier i.on{background:var(--pri,#6cb6ff)}
+.pm-tier.none{font-size:11px;color:var(--text-3,#626b77)}
+.pm-ix-no{flex-shrink:0;min-width:22px;font:600 12px/1.6 var(--mono);color:var(--text-3,#626b77);font-variant-numeric:tabular-nums}
+
+/* ---------- 總表 ---------- */
+.pm-view-index .pm-rail{padding-top:4px}
+.pm-ix-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 6px}
+.pm-ix-bar .pm-tseg button{padding:6px 12px;font-size:13px}
+.pm-ix-bar .pm-tsearch{max-width:320px;padding:5px 8px}
+.pm-ix-bar .pm-tsearch input{font:13px/1.4 inherit;font-family:inherit}
+.pm-ix-bar .pm-tcount{font:11.5px var(--mono);color:var(--text-3,#626b77)}
+.pm-tab-all{cursor:default}
+
+.pm-ix{min-width:0}
+.pm-ix-head,.pm-ix-row{display:grid;grid-template-columns:minmax(0,2.3fr) 96px 74px minmax(0,3fr) 108px 58px;align-items:center;gap:0 16px}
+.pm-ix-head{padding:10px 10px 8px;border-bottom:1px solid var(--border-2,#333b45);font-size:11.5px;letter-spacing:.03em;color:var(--text-3,#626b77)}
+.pm-ix-group{margin:0}
+.pm-ix-gh{display:flex;align-items:center;gap:10px;margin:0;padding:20px 10px 8px;font-size:12px;font-weight:400}
+.pm-ix-gh b{font:600 12.5px var(--mono);color:var(--text-2,#99a2af)}
+.pm-ix-gh em{font-style:normal;font-size:11.5px;color:var(--text-3,#626b77)}
+.pm-ix-row{width:100%;padding:13px 10px;background:none;border:0;border-top:1px solid var(--border,#232931);text-align:left;color:inherit;font:inherit;cursor:pointer}
+.pm-ix-row:hover{background:var(--hover-overlay,rgba(255,255,255,.035))}
+.pm-ix-row:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:-2px}
+.pm-ix-name{display:flex;align-items:baseline;gap:10px;min-width:0}
+.pm-ix-tt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pm-ix-tt b{font-size:14px;font-weight:600;line-height:1.45;color:var(--text,#e9ecf1);overflow-wrap:anywhere}
+.pm-ix-tt em{font-style:normal;font-size:12px;line-height:1.5;color:var(--text-2,#99a2af);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pm-ix-row:hover .pm-ix-tt b{color:var(--pri,#6cb6ff)}
+.pm-ix-stage{font-size:12.5px;color:var(--text-2,#99a2af);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pm-ix-stage.none{color:var(--text-3,#626b77)}
+.pm-ix-next{font-size:13px;line-height:1.6;color:var(--text,#e9ecf1);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.pm-ix-next.none{color:var(--text-3,#626b77)}
+.pm-ix-todo{display:flex;justify-content:flex-start}
+.pm-ix-todo .pm-chip{font-size:11px;padding:2px 9px}
+.pm-ix-end{display:flex;align-items:center;justify-content:flex-end;gap:8px;color:var(--text-3,#626b77)}
+
+/* ---------- 專案標題列 ---------- */
+.pm-ph{margin:0 0 16px;min-width:0}
+.pm-ph-back{display:inline-flex;align-items:center;gap:4px;margin:0 0 8px;padding:3px 0;background:none;border:0;color:var(--text-2,#99a2af);font-size:12.5px;cursor:pointer}
+.pm-ph-back:hover{color:var(--pri,#6cb6ff)}
+.pm-ph-back:focus-visible,.pm-ph-switch select:focus-visible,.pm-setup-i:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:2px}
+.pm-ph-row{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;min-width:0}
+.pm-ph-id{flex:1 1 320px;min-width:0}
+.pm-ph-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.pm-ph-title h2{margin:0;font-size:19px;font-weight:640;line-height:1.35;letter-spacing:-.005em;color:var(--text,#e9ecf1);overflow-wrap:anywhere}
+.pm-ph-title .pm-ix-no{font-size:13px}
+.pm-ph-meta{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:6px;font-size:12.5px;line-height:1.6;color:var(--text-2,#99a2af)}
+.pm-ph-act{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pm-ph-switch{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-3,#626b77)}
+.pm-ph-switch select{max-width:230px;padding:5px 8px;background:var(--surface-2,#161a20);border:1px solid var(--border-2,#333b45);border-radius:6px;color:var(--text,#e9ecf1);font:12.5px/1.4 inherit;font-family:inherit;cursor:pointer}
+
+/* ---------- 總覽：下一步 ---------- */
+.pm-next{margin:0 0 18px;padding:2px 0 2px 16px;border-left:3px solid var(--pri,#6cb6ff);min-width:0}
+.pm-next-h{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.pm-next-h .pm-eyebrow{font:600 11.5px/1.4 inherit;font-family:inherit;letter-spacing:.06em;color:var(--pri,#6cb6ff)}
+.pm-next-t{margin:0;max-width:760px;font-size:16px;font-weight:560;line-height:1.6;color:var(--text,#e9ecf1);overflow-wrap:anywhere;white-space:pre-wrap}
+.pm-next-t.none{font-size:13.5px;font-weight:400;color:var(--text-2,#99a2af)}
+.pm-next-d{margin:8px 0 0;max-width:760px;font-size:13px;line-height:1.75;color:var(--text-2,#99a2af);overflow-wrap:anywhere;white-space:pre-wrap}
+
+/* ---------- 總覽：設定清單 ---------- */
+.pm-setup{min-width:0}
+.pm-setup-i{display:flex;align-items:center;gap:14px;width:100%;padding:13px 6px;background:none;border:0;border-bottom:1px solid var(--border,#232931);text-align:left;color:var(--text-3,#626b77);font:inherit;cursor:pointer}
+.pm-setup-i:hover{background:var(--hover-overlay,rgba(255,255,255,.035))}
+.pm-setup-c{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0;border:1.5px solid var(--border-3,#465060);border-radius:50%;color:var(--bg,#0a0c0f)}
+.pm-setup-i.done .pm-setup-c{background:var(--ok,#5fd09a);border-color:var(--ok,#5fd09a)}
+.pm-setup-t{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pm-setup-t b{font-size:13.5px;font-weight:580;color:var(--text,#e9ecf1)}
+.pm-setup-t em{font-style:normal;font-size:12px;line-height:1.6;color:var(--text-2,#99a2af)}
+.pm-setup-i.done .pm-setup-t b{color:var(--text-2,#99a2af)}
+.pm-setup-i:hover .pm-setup-t b{color:var(--pri,#6cb6ff)}
+
+@media(max-width:760px){
+  .pm-ix-head{display:none}
+  .pm-ix-row{grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;padding:14px 4px}
+  .pm-ix-name{grid-column:1}
+  .pm-ix-stage{grid-column:2;grid-row:1;text-align:right}
+  .pm-ix-next{grid-column:1 / -1}
+  .pm-ix-tier{grid-column:1;grid-row:3}
+  .pm-ix-todo{grid-column:2;grid-row:3;justify-content:flex-end}
+  .pm-ix-end{display:none}
+  .pm-ix-gh{padding:18px 4px 8px}
+  .pm-ix-gh em{display:none}
+  .pm-ph-title h2{font-size:17px}
+  .pm-ph-act{width:100%}
+  .pm-ph-switch{flex:1}
+  .pm-ph-switch span{display:none}
+  .pm-ph-switch select{max-width:none;width:100%}
+  .pm-next-t{font-size:15px}
+}

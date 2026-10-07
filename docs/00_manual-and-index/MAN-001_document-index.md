@@ -168,6 +168,7 @@
 | [PLN-070](../05_execution-plans/PLN-070_yuanzhan-team-ui-implementation-plan.md) | 圓展 UI 優先開發順序、範圍與雙模式任務 |
 | [PLN-071](../05_execution-plans/PLN-071_yuanzhan-account-and-private-launch-plan.md) | 三帳號 Email 六碼登入、我的帳號／公司管理與正式使用分期 |
 | [PLN-075](../05_execution-plans/PLN-075_project-module-five-resource-staged-build-plan.md) | 專案模組五大資源分階段建置計劃：記錄 S0 Owner 決策定案（OD-A=圓展教育科技有限公司、OD-B=v5 工作台轉真持久化、OD-D=擴充 Occasion、OD-E=OperatingAsset 為唯一家、OD-H=LINE 留 P2）；S1 三提案＋整合決策為硬性 Owner 批准 checkpoint，S2 P0 骨架、S3 P1 五大資源版面、S4 驗收報告；真實檔案遷移刻意移出另立 PLN |
+| [PLN-076](../05_execution-plans/PLN-076_workspace-project-import-plan.md) | `0_工作區` 真實專案匯入計劃：Owner 2026-10-07 決策、一個資料夾一個專案（共 15 個）、階段 A 只建專案（乾跑完成、待 Owner 同意寫入）、階段 B 檔案、階段 C 合約與里程碑 |
 
 ## 06 Audits And Reports
 
@@ -268,6 +269,7 @@
 | [RES-029](../07_research-and-design/RES-029_yuanzhan-ui-phase-and-data-mode-research.md) | 工作日誌與雙模式接合的三輪研究 |
 | [RES-030](../07_research-and-design/RES-030_yuanzhan-ui-implementation-rounds.md) | 圓展全部情境三輪研究、元件與 UI-memory 實作契約 |
 | [RES-033](../07_research-and-design/RES-033_project-workspace-five-resource-integration-research.md) | 專案工作區五大資源整合研究（聊天室／雲端硬碟／里程碑期階段／LINE 導入／會議資料區）：合併三個獨立子任務（UI 截圖盤點、架構設計、真實專案 migrate），裁決三項報告間衝突，確認 P0 阻斷點為 `createProjectForProfile` 未寫 `workspaceId`；含 15 個真實專案的階段對應表、R2 key 策略、LINE 平台限制的誠實結論與 Owner 決策包 |
+| [RES-034](../07_research-and-design/RES-034_project-area-index-and-header-research.md) | 專案區域介面研究與提案：問題診斷、需求理解分數與三輪研究（本地程式、Linear／Asana、NN/g 空白狀態）、採用的專案總表＋標題列＋設定清單、否決的做法、資料契約變更與驗收條件 |
 
 ## 08 Acceptance And QA
 

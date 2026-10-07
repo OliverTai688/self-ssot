@@ -167,8 +167,10 @@ PMV.overview = function (p) {
   const cur = pmCurrentStage(p.id);
   const goal = (DB.goals || []).find(g => g.id === p.goal);
 
+  // 剛建好的專案什麼都還沒有：一張設定清單，不排五個各自說「還沒有」的區塊。
+  if (pmIsFresh(p)) return pmBrief(p) + pmSetup(p);
+
   const rail = pmRail([
-    { label: '狀態', value: p.status || '—' },
     { label: '目前階段', value: cur ? pmCycleName(cur.cycle) + ' · ' + cur.stage.label : '未分期', tone: cur && cur.state === 'late' ? 'crit' : '', note: cur && cur.state === 'late' ? '階段已過期，仍有里程碑未達成' : '' },
     { label: '里程碑', value: ms.filter(m => m.state === 'done').length + ' / ' + ms.length },
     { label: '待辦', value: todo.length, tone: late ? 'crit' : '', note: late ? late + ' 件逾期' : '' },
@@ -213,5 +215,5 @@ PMV.overview = function (p) {
       : pmEmpty('還沒有任何事件。里程碑、會議、檔案上傳與對話都會依日期出現在這裡。')
   );
 
-  return rail + trackBlock + attentionBlock + pmBlock('五大資源', '', pmResources(p)) + deliveryBlock + flowBlock;
+  return pmBrief(p) + rail + trackBlock + attentionBlock + pmBlock('五大資源', '', pmResources(p)) + deliveryBlock + flowBlock;
 };

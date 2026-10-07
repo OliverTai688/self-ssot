@@ -1,5 +1,33 @@
 # Current Sprint
 
+## Owner-directed 專案區域介面重做 — 2026-10-07
+
+`PROJUI-001` 已完成實作，Owner 同日指示 commit 並部署（推送 `main`）。15 個專案匯入後，Owner 回報專案分頁的介面很糟：換專案靠一排只有名字的按鈕、沒有全部專案的一覽、
+新專案的總覽是一整頁空白區塊。研究與提案寫在 [`RES-034`](../07_research-and-design/RES-034_project-area-index-and-header-research.md)。
+
+現在：從側欄進「專案」先看到**專案總表**（依狀態分組，每列有客戶、重要度、下一步、待處理件數）；進了專案，標題列取代那排按鈕
+（回總表、名稱與狀態、切換選單、編輯）；總覽最上面是「下一步」；剛建好的專案只顯示四項設定清單。
+下一步、重要度、說明可在工作台填寫並寫回資料庫。**沒有 schema 變更**。`UI-088` Revision Mode，未新增 UI ID。
+
+驗收：`project:ui:check` 91/91、`tsc` 0、`ops:commands:check` 42/42、本機對正式庫瀏覽 15 個專案（桌機與 375px，全程沒有送出寫入）。
+`pnpm build` exit 0。未做：淺色主題的目視確認、在正式站的工作台上實際存一次下一步。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-project-index-and-header.md)。
+
+## Owner-directed `0_工作區` 專案匯入（階段 A）— 2026-10-07
+
+`PROJIMP-A` 完成：Owner 看過乾跑計畫後同意，**已寫入正式庫**。Owner 回覆 `PROJMOD-S4` 驗收通過，並回答了 10/02 盤點留下的問題，
+據此另立 [`PLN-076`](PLN-076_workspace-project-import-plan.md)：一個資料夾一個專案，共 15 個。
+
+階段 A 只建專案：新建 11 個，替 Owner 已手動建的 4 個（`01`、`03`、`07`、`12`）補上生命週期、第幾期、資料夾序號、重要度，名稱與客戶不動。
+資料夾樹與檔案（階段 B）、合約與里程碑（階段 C）未開始。**沒有 schema 變更**；未動任何產品畫面。
+
+順帶修掉：工作台把專案改成「已結案」會被存成 `EXPLORING`。
+
+Owner 確認重要度數字愈大愈重要。尚未回覆、先採預設：`01` 的「第二期」存成專案第 2 期；`11` 的與會者不開帳號。
+「已結案」對照的修正隨 `PROJUI-001` 一起部署。Owner 同日指示把 `01`、`03`、`07`、`12` 的下一步也寫進去（只寫原本是空的那一格），已寫入。
+
+驗收：腳本自測 12/12、乾跑對正式庫唯讀（新建 11／補欄位 4／阻斷 0）、`--apply` 新建 11／補欄位 4、重跑 0 變更、本機工作台 15 個專案全部出現、`tsc` 0、`ops:commands:check` 42/42、`db:validate` 通過。
+證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-workspace-project-import-stage-a.md)。
+
 ## Owner-directed 決策卡回覆沒存下來 — 2026-10-07
 
 `RQ-DEC-001` 已完成實作，**尚未部署**。正式站兩次選決策卡選項都沒有落地：回覆是在 `commit()` 取快照之前改好的，

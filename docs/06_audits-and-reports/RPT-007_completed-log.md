@@ -4298,3 +4298,45 @@ top-level await 中斷。
 未完成：尚未部署；那一筆決定資料庫裡沒有留下，部署後需由 Owner 重選一次。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-decision-card-reply-lost.md`
+
+## 2026-10-07 — `0_工作區` 專案匯入階段 A：對應表、匯入腳本與乾跑（PROJIMP-A）
+
+Owner 追問 10/02 的工作區盤點做到哪，並回覆 `PROJMOD-S4` 驗收通過與盤點留下的問題。查證結果：盤點與計劃在，
+但真實匯入從未執行 —— 正式庫的圓展工作區只有 Owner 手動建的 4 個專案，專案資料夾與專案檔案都是 0。
+
+本輪：另立 `PLN-076`；依 Owner 回覆寫成對應表 `projects.json`（一個資料夾一個專案，共 15 個）；寫 `scripts/import-workspace-projects.mjs`
+（預設乾跑、`--apply` 需確認字串、單一交易、可重跑）；對正式庫唯讀乾跑，計畫為新建 11、補欄位 4、阻斷 0。
+主鍵沿用寫入管線的 UUIDv5 規則，腳本以既有專案的主鍵驗證該規則。
+
+順帶修正：`PROJECT_STATUS_MAP` 沒有工作台表單實際送出的「已結案」，結案專案會被存成 `EXPLORING`。
+
+驗證：腳本自測 12/12、乾跑（唯讀）、`pnpm exec tsc --noEmit` 0、`pnpm db:validate` 通過、`ops:commands:check` 42/42、
+`check-operating-command-fields` 356、`check-operating-persistence` 全過。
+
+Owner 同日同意寫入並確認重要度數字愈大愈重要。`--apply`：新建 11、補欄位 4；重跑回報已存在 11、不需變更 4；
+本機工作台（database 模式、對正式庫）專案分頁 15 個專案全部出現，點開「演藝經紀營運 AI」狀態為已結案，瀏覽期間沒有送出任何寫入命令。
+
+未完成：「已結案」對照的修正尚未部署；`01` 的期數與 `11` 的帳號採預設值，待 Owner 回覆；階段 B（檔案）與階段 C（合約、里程碑）未開始。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-workspace-project-import-stage-a.md`
+
+## 2026-10-07 — 專案區域介面重做：專案總表、標題列、下一步與設定清單（PROJUI-001）
+
+Owner 在 15 個專案匯入後回報專案分頁的介面很糟，要求研究、提案並修正。研究與提案：`RES-034`（需求理解 84 分，三輪研究：
+本地程式與資料、Linear／Asana 的專案清單與總覽、NN/g 的空白狀態準則）。
+
+實作：新增 `pm-index.source.js`／`pm-index.css`（專案總表、專案標題列、下一步表單、設定清單）；`pm-shell` 分流總表與專案、
+以 rail 的 capture 事件分辨「使用者點了專案」與「其他模組的深連結」；`pm-overview` 最上方加下一步，剛建好的專案改顯示設定清單；
+專案讀取多回四欄（資料夾序號、重要度、下一步、說明），`applyProject` 在列帶著對應的鍵時寫回後三欄。沒有 schema 變更。
+
+驗證：`pnpm project:ui:check` 91/91（新增 12 條：總表、標題列、切換、深連結、設定清單、下一步寫入管線）、`pnpm exec tsc --noEmit` 0、
+`ops:commands:check` 42/42、欄位契約 360、`ops:persistence:check` 全過、決策卡 36/36、日誌空間切換 9/9；
+本機 database 模式對正式庫瀏覽：總表 11／15 列、進專案、設定清單、375px 無橫向捲軸、console 無錯誤、全程只有 GET。
+
+Owner 同日指示 commit 並部署，並把 `01`、`03`、`07`、`12` 四個既有專案的下一步寫進去：匯入腳本加上「下一步只在資料庫那一格是空的時候才寫」，
+乾跑顯示 4 列各補一句，`--apply` 補欄位 4，重跑為 0 變更。`pnpm build` exit 0。
+
+未完成：淺色主題沒有目視確認；沒有在正式站的工作台上實際存過下一步。
+`check-operating-runtime.ts` 與 `check-operating-canvas.ts` 仍因 Node 24 的 top-level await 無法執行（既有的 `PROJMOD-007`）。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-project-index-and-header.md`

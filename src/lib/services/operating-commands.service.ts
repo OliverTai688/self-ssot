@@ -375,6 +375,9 @@ const PROJECT_STATUS_MAP: Record<string, { status: "EXPLORING" | "ACTIVE" | "PAU
   進行中: { status: "ACTIVE", phase: "EXECUTION" },
   驗收中: { status: "ACTIVE", phase: "REVIEW" },
   已完成: { status: "COMPLETED", phase: "MAINTENANCE" },
+  // 工作台表單的第四個選項實際送來的是「已結案」。少了這一列，結案的專案會落到
+  // 下面的 fallback，被存成 EXPLORING —— 也就是「商機」。
+  已結案: { status: "COMPLETED", phase: "MAINTENANCE" },
   暫停: { status: "PAUSED", phase: "PLANNING" },
 }
 
@@ -427,7 +430,17 @@ async function applyProject(change: RowChange, ctx: ApplyContext): Promise<void>
     startedAt: toDateOnly(row.start),
   }
 
-  await db.project.upsert({ where: { id }, create: { id, ...core }, update: core })
+  // 專案總表的三欄（RES-034）。只在這一列真的帶著那個鍵時才寫：
+  // 還沒更新的分頁送來的列沒有這些鍵，不能因此把資料庫裡的值清成空的。
+  const brief: { nextAction?: string | null; priorityTier?: number | null; description?: string | null } = {}
+  if ("next" in row) brief.nextAction = str(row.next)
+  if ("desc" in row) brief.description = str(row.desc)
+  if ("tier" in row) {
+    const tier = Math.trunc(Number(row.tier))
+    brief.priorityTier = Number.isFinite(tier) && tier >= 1 && tier <= 5 ? tier : null
+  }
+
+  await db.project.upsert({ where: { id }, create: { id, ...core, ...brief }, update: { ...core, ...brief } })
 
   const profile = {
     client: str(row.client),

@@ -50,7 +50,11 @@ const DEPENDENCIES = {
     'until', 'timeOfDay', 'timezone', 'expectMedia', 'derivedFrom', 'remind', 'active',
   ],
   RhythmSession: ['id', 'rhythmId', 'occurrenceDate', 'state', 'movedTo', 'note', 'recordedById'],
-  Project: ['id', 'ownerId', 'workspaceId', 'name', 'clientName', 'status', 'phase', 'startedAt'],
+  Project: [
+    'id', 'ownerId', 'workspaceId', 'name', 'clientName', 'status', 'phase', 'startedAt',
+    // 專案總表的下一步／重要度／說明（寫入）與資料夾序號（唯讀）
+    'nextAction', 'priorityTier', 'description', 'legacyFolderNo',
+  ],
   OperatingProjectProfile: [
     'projectId', 'client', 'goalId', 'engagementType', 'operatingStatus',
     'bonusRatePct', 'bonusCapPct', 'budgetAmount', 'evidenceRepoTag', 'startedOn',

@@ -337,6 +337,12 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       repo: row.evidenceRepoTag ?? "—",
       start: iso(row.startedOn) || "—",
       delivery: [],
+      // 專案總表用的四欄（RES-034）。no 是 `0_工作區` 的資料夾序號，唯讀；
+      // 其餘三欄由工作台的「下一步與重要度」表單寫回。
+      no: row.project.legacyFolderNo ?? "",
+      tier: row.project.priorityTier ?? 0,
+      next: row.project.nextAction ?? "",
+      desc: row.project.description ?? "",
     })),
 
     issues: withRef(taskRows).map((row) => ({

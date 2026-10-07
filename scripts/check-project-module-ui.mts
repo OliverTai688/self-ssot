@@ -58,8 +58,30 @@ const TABS = ['總覽', '計劃', '檔案', '會議', '對話', '財務']
 for (const mode of ['showcase', 'empty'] as const) {
   const r = await mountAll(mode)
   const pages = r.pages.filter((p) => p.wb === '專案')
-  check(`${mode} · 專案模組有六個分頁`, pages.length === 6, pages.map((p) => p.tabName.replace(/\d+$/, '')).join(' / '))
-  check(`${mode} · 分頁名稱與順序`, pages.every((p, i) => p.tabName.replace(/\d+$/, '') === TABS[i]))
+  if (mode === 'showcase') {
+    // 從側欄進專案＝專案總表（RES-034）；六個分頁要進了某一個專案才有。
+    const t = tools(r.root)
+    check('showcase · 從側欄進來先看到專案總表', pages.length === 1 && pages[0].tabName === '所有專案', pages.map((p) => p.tabName).join(' / '))
+    await t.click(t.all('.rail-i').find((b) => text(b).includes('專案')))
+    const projects = t.all('.pm-ix-row').length
+    check('showcase · 總表列出示範專案', projects >= 3, String(projects))
+    check('showcase · 總表沒有那排專案按鈕', !t.one('#inner .seg'))
+    await t.click(t.all('.pm-ix-row')[0])
+    const names = t.all('#tabs .tab').map((b) => text(b).replace(/\d+$/, ''))
+    check('showcase · 專案模組有六個分頁', names.length === 6, names.join(' / '))
+    check('showcase · 分頁名稱與順序', names.every((n, i) => n === TABS[i]))
+    check('showcase · 專案標題列有名稱、狀態與切換選單', Boolean(t.one('.pm-ph h2') && t.one('.pm-ph .pm-st') && t.one('.pm-ph-switch select')))
+    check('showcase · 切換選單列出全部專案', t.all('.pm-ph-switch option').length === projects)
+    await t.click(t.one('.pm-ph-back'))
+    check('showcase · 「所有專案」回到總表', t.all('.pm-ix-row').length === projects)
+    // 其他模組跳進來是要看某一個專案，不落在總表。
+    r.workbench.navigate('project', 0)
+    await tick(5)
+    check('showcase · 深連結直接落在專案上', Boolean(t.one('.pm-ph h2')) && !t.one('.pm-ix-row'))
+  } else {
+    check(`${mode} · 專案模組有六個分頁`, pages.length === 6, pages.map((p) => p.tabName.replace(/\d+$/, '')).join(' / '))
+    check(`${mode} · 分頁名稱與順序`, pages.every((p, i) => p.tabName.replace(/\d+$/, '') === TABS[i]))
+  }
   check(`${mode} · 沒有 runtime 錯誤`, r.errors.length === 0, r.errors.slice(0, 2))
   check(`${mode} · 沒有 NaN／undefined`, !pages.some((p) => /\bNaN\b|\bundefined\b/.test(p.text)))
   r.workbench.destroy()
@@ -207,8 +229,12 @@ for (const mode of ['showcase', 'empty'] as const) {
   r.workbench.navigate('project', 0)
   await tick(5)
   const rails: string[] = []
-  for (let i = 0; i < t.all('#inner .seg button').length; i++) {
-    await t.click(t.all('#inner .seg button')[i])
+  const ids = t.all('.pm-ph-switch option').map((o) => (o as unknown as HTMLOptionElement).value)
+  for (const id of ids) {
+    const select = t.one('.pm-ph-switch select') as unknown as HTMLSelectElement
+    select.value = id
+    select.dispatchEvent(new (r.root.ownerDocument.defaultView as unknown as { Event: typeof Event }).Event('change', { bubbles: true }))
+    await tick(5)
     rails.push(text(t.one('.pm-rail')))
   }
   check('成員視角 · 參與的專案看得到可分配毛利', rails.some((x) => /可分配毛利 [\d,−-]+NT\$/.test(x)))
@@ -248,8 +274,21 @@ for (const mode of ['showcase', 'empty'] as const) {
   const last = () => sent[sent.length - 1] || []
   const rows = (changes: Change[], collection: string) => changes.filter((c) => c.collection === collection)
 
-  check('database · 空專案的總覽畫得出來', /未分期/.test(text(t.one('.pm-rail'))))
+  check('database · 空專案的總覽是設定清單，不是一排空白區塊', t.all('.pm-setup-i').length === 4 && t.all('.pm-empty').length === 0, t.all('.pm-setup-i').length + ' 項 / ' + t.all('.pm-empty').length + ' 個空白區塊')
+  check('database · 空專案的總覽請使用者寫下一步', /還沒寫下一步/.test(text(t.one('.pm-next'))))
   check('database · 沒有示範資料', t.all('.pm-tl-ev').length === 0 && !t.one('.pm-stage'))
+
+  // 下一步與重要度：從總覽填寫，寫入管線要帶著這三欄送出去。
+  await t.click(t.byText('.pm-next .btn', '填寫'))
+  t.set('next', '追對方選方案')
+  t.set('tier', '4')
+  t.set('desc', '首期三個月')
+  check('database · 下一步表單存得下去', (await t.save()) === 'saved')
+  await flush()
+  const brief = rows(last(), 'projects')[0]?.after as Record<string, unknown> | undefined
+  check('database · 下一步／重要度／說明進了寫入管線', brief?.next === '追對方選方案' && brief?.tier === 4 && brief?.desc === '首期三個月', JSON.stringify(brief && { next: brief.next, tier: brief.tier, desc: brief.desc }))
+  check('database · 總覽顯示剛寫的下一步', /追對方選方案/.test(text(t.one('.pm-next-t'))))
+  check('database · 設定清單把「寫下一步」打勾', t.all('.pm-setup-i.done').length === 1)
 
   // 啟用硬碟
   await t.tab('檔案')
@@ -331,7 +370,7 @@ for (const mode of ['showcase', 'empty'] as const) {
   check('chatMessages · 一列一訊息', msg.length === 1 && msg[0].after?.channelId === channel[0].id && msg[0].after?.text === '第一則訊息' && typeof msg[0].after?.at === 'number' && msg[0].after?.w === 'yz')
 
   const collections = new Set(sent.flat().map((c) => c.collection))
-  check('database · 只動到預期的集合', [...collections].every((c) => ['folders', 'phaseCycles', 'phases', 'milestones', 'issues', 'occasions', 'chatChannels', 'chatMessages'].includes(c)), [...collections].join(', '))
+  check('database · 只動到預期的集合', [...collections].every((c) => ['projects', 'folders', 'phaseCycles', 'phases', 'milestones', 'issues', 'occasions', 'chatChannels', 'chatMessages'].includes(c)), [...collections].join(', '))
   check('database · 全程沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
   r.workbench.destroy()
   g.fetch = realFetch

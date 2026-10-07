@@ -81,9 +81,28 @@ opRedirect = (wb, tab) => {
     if (PM_LEGACY_SUB[old]) S.pmSub[PM_TABS[next][0]] = PM_LEGACY_SUB[old];
     S.pmBack = [];
     r[1] = next;
+    // 從側欄點「專案」＝要看全部專案；其他地方跳進來（訊號、營運甘特、指令面板）
+    // 是要看某一個專案，直接落在那個專案上。
+    S.pmList = PM_FROM_RAIL;
+    if (PM_FROM_RAIL) r[1] = 0;
   }
+  PM_FROM_RAIL = false;
   return r;
 };
+
+/* 側欄的按鈕與深連結呼叫的是同一個 nav('project', 0)，從參數分不出來。
+   所以在 rail 上用 capture 階段先記一筆：這一次是使用者自己點了「專案」。 */
+var PM_FROM_RAIL = false;
+(function () {
+  const rail = $('#rail');
+  if (!rail) return;
+  rail.addEventListener('click', e => {
+    const btn = e.target && e.target.closest ? e.target.closest('.rail-i') : null;
+    if (!btn) return;
+    const w = WB[[...rail.querySelectorAll('.rail-i')].indexOf(btn)];
+    PM_FROM_RAIL = Boolean(w && w.id === 'project');
+  }, { capture: true, signal: controller.signal });
+})();
 
 /** 模組內導覽。不經過 opRedirect：新 index 不能再被當成舊 index 轉一次。 */
 function pmGo(tab, sub, patch) {
@@ -312,12 +331,13 @@ function pmHead(key) {
       `<button type="button" role="tab" aria-selected="${s[0] === cur}" class="${s[0] === cur ? 'on' : ''}" onclick="pmGo('${key}','${s[0]}')">${s[1]}</button>`
     ).join('')}</div>`
     : '';
-  return `<div class="pm-head">${back}${pmBasePicker()}${subnav}</div>`;
+  return `<div class="pm-head">${pmProjectHead(P(S.proj))}${back}${subnav}</div>`;
 }
 
 VIEWS.project = tab => {
   // 沒有專案時沿用既有的空狀態（它自己帶「建立第一個專案」）。
   if (!DB.projects.length) return pmPrevProject(0);
+  if (S.pmList) return PMV.index();
   const p = P(S.proj);
   const key = (PM_TABS[tab] || PM_TABS[0])[0];
   const head = pmHead(key);
@@ -340,6 +360,8 @@ function pmTabBadge(key, p) {
 function pmPaintTabs() {
   const tabs = $('#tabs');
   if (!tabs || S.wb !== 'project') return;
+  // 總表不屬於任何一個專案，分頁列留白；進了專案才有六個分頁。
+  if (S.pmList && DB.projects.length) { tabs.innerHTML = '<span class="tab on pm-tab-all">所有專案</span>'; return; }
   const p = P(S.proj);
   tabs.innerHTML = PM_TABS.map((t, i) => {
     const n = pmTabBadge(t[0], p);
@@ -353,6 +375,7 @@ function pmPaintTabs() {
  * 而真正該掛的那一面沒有掛。
  */
 function pmLegacyIndex() {
+  if (S.pmList) return -1;
   const key = pmKey();
   if (key === 'finance') return 4;
   const sub = pmSub(key);
