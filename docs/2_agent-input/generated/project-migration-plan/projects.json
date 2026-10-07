@@ -1,0 +1,204 @@
+{
+  "$comment": [
+    "0_工作區 → 圓展工作區的專案對應表（PLN-076 階段 A：只建專案，不建資料夾、不傳檔案）。",
+    "由 scripts/import-workspace-projects.mjs 讀取。改這份檔案再重跑乾跑即可；`ref` 一旦寫進資料庫就不要再改。",
+    "existingRef：資料庫裡已經有的專案（Owner 手動建的），只補 lifecycleStage／phaseRound／legacyFolderNo／priorityTier；nextAction 只在資料庫那一格還是空的時候才寫。名稱與客戶一個字都不動。",
+    "ref：新專案的工作台編號。主鍵由它以 UUIDv5 推導（與工作台寫入管線同一條規則），所以重跑會落在同一列。",
+    "status 只能是工作台表單認得的四個值：商機／進行中／驗收中／已結案。",
+    "priorityTier：資料夾名稱的 `- N` 後綴，Owner 2026-10-07 定義為「主觀認為這個專案的重要程度」，原樣存數字。",
+    "import: false 的列會被跳過（例如不想把封存案放進工作台）。"
+  ],
+  "sourceRoot": "0_工作區",
+  "workspaceSlug": "yzedtech",
+  "projects": [
+    {
+      "sourceFolder": "00.未來履歷書 - 5",
+      "legacyFolderNo": "00",
+      "priorityTier": 5,
+      "ref": "PRJ-ws2610-001",
+      "name": "未來履歷書（含 SBIR 申請）",
+      "client": "圓展內部",
+      "status": "商機",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "第一批招生尚未開始；SBIR 尚未送審。",
+      "description": "圓展自家產品線。資料夾含商模路徑圖與 SBIR 申請支持（附件 A–L 官方範本）。"
+    },
+    {
+      "sourceFolder": "01.共好玟化網站 - 3",
+      "legacyFolderNo": "01",
+      "priorityTier": 3,
+      "existingRef": "PRJ-8smkzbc2-003",
+      "lifecycleStage": "EXECUTING",
+      "phaseRound": 2,
+      "nextAction": "第一期款已收，現在是第二期。"
+    },
+    {
+      "sourceFolder": "02.CRM平台（SaaS）",
+      "legacyFolderNo": "02",
+      "priorityTier": null,
+      "ref": "PRJ-ws2610-002",
+      "name": "LINE CRM 平台（SaaS）",
+      "client": "未定（文齡協助引介買家）",
+      "status": "商機",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "仍在進行。文齡不是直接客戶，而是可以協助找到購買客戶的引介人。",
+      "description": "LINE CRM SaaS 構想。資料夾目前只有一份定價筆記。"
+    },
+    {
+      "sourceFolder": "03. 幸福文齡網站 - 3",
+      "legacyFolderNo": "03",
+      "priorityTier": 3,
+      "existingRef": "PRJ-5xesqva2-001",
+      "lifecycleStage": "EXECUTING",
+      "phaseRound": 2,
+      "nextAction": "第二期的內容與金額待填寫。"
+    },
+    {
+      "sourceFolder": "05. 金流商城申請 - 5",
+      "legacyFolderNo": "05",
+      "priorityTier": 5,
+      "ref": "PRJ-ws2610-003",
+      "name": "圓展商城金流申請",
+      "client": "圓展內部",
+      "status": "進行中",
+      "lifecycleStage": "EXECUTING",
+      "phaseRound": null,
+      "nextAction": "已申請完成，尚未成交第一筆買賣；需要規劃如何推進第一筆交易。",
+      "description": "圓展自家商城的金流申請。資料夾另含新屋愛鄉協會的申請協辦資料。`商城專案資訊.docx` 含帳號密碼，Owner 決定留在本機、不進系統。"
+    },
+    {
+      "sourceFolder": "06. 演藝經紀營運AI -3",
+      "legacyFolderNo": "06",
+      "priorityTier": 3,
+      "ref": "PRJ-ws2610-004",
+      "name": "演藝經紀營運 AI",
+      "client": "演藝經紀公司（名稱未入檔）",
+      "status": "已結案",
+      "lifecycleStage": "CLOSED",
+      "phaseRound": null,
+      "nextAction": "已封存：客戶表示近期先不考慮 AI 導入。",
+      "description": "演藝經紀 AI 案件協作提案（Phase S 規格書／Phase T LINE 工具）。2026-10-07 Owner 指示封存，原因：客戶說近期先不考慮 AI 導入。"
+    },
+    {
+      "sourceFolder": "07. BNI商會會務自動化",
+      "legacyFolderNo": "07",
+      "priorityTier": null,
+      "existingRef": "PRJ-8smkzbc2-002",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "目前不用；轉成申請 SIIR，主要看各種補助申請，或專心跟品牌顧問做實際的商業合作。"
+    },
+    {
+      "sourceFolder": "08. 大考中心AI報告生成 -3",
+      "legacyFolderNo": "08",
+      "priorityTier": 3,
+      "ref": "PRJ-ws2610-005",
+      "name": "大考中心 生涯興趣量表 AI 解釋系統",
+      "client": "財團法人大學入學考試中心基金會",
+      "status": "商機",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "預計明年（2027）執行、金額約 40 萬，尚未啟動。",
+      "description": "生涯興趣量表 AI 解釋系統建構案，提案日期 2026 年 9 月。"
+    },
+    {
+      "sourceFolder": "09. 霽雲燕窩品牌行銷",
+      "legacyFolderNo": "09",
+      "priorityTier": null,
+      "ref": "PRJ-ws2610-006",
+      "name": "霽雲燕窩 品牌行銷",
+      "client": "霽雲燕窩",
+      "status": "商機",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "對方還沒選方案，需要追蹤。",
+      "description": "IG 與搜尋曝光行銷服務，報價單已出兩版（2026-09-01、2026-09-12），首期三個月。"
+    },
+    {
+      "sourceFolder": "10.AI SSOT 會計與工商登記 又帆",
+      "legacyFolderNo": "10",
+      "priorityTier": null,
+      "ref": "PRJ-ws2610-007",
+      "name": "又帆會計 AI SSOT（會計與工商登記）",
+      "client": "又帆（會計師）",
+      "status": "商機",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "近期正在整理會計需求。",
+      "description": "2026-07-17 第一次需求對談。與「律師-會計師-地政士 AI 客戶開發規模化」是同一個客戶群。"
+    },
+    {
+      "sourceFolder": "11. 律師-會計師-地政士 AI客戶開發規模化",
+      "legacyFolderNo": "11",
+      "priorityTier": null,
+      "ref": "PRJ-ws2610-008",
+      "name": "律師-會計師-地政士 AI 客戶開發規模化",
+      "client": "黃杰律師／泓睿地政士／又帆會計師",
+      "status": "商機",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "持續追蹤。",
+      "description": "跨專業資產規劃服務的 AI 客戶開發。與「又帆會計 AI SSOT」是同一個客戶群。資料夾裡的會議摘要是 AI 自動產生、自標待校對，不可當權威資料。"
+    },
+    {
+      "sourceFolder": "12. 摸摸寵物營運系統",
+      "legacyFolderNo": "12",
+      "priorityTier": null,
+      "existingRef": "PRJ-8smkzbc2-001",
+      "lifecycleStage": "PROPOSING",
+      "phaseRound": null,
+      "nextAction": "已提案，看對方有沒有想要製作。報價有效期至 2026-10-30。"
+    },
+    {
+      "sourceFolder": "封存的專案/04. 庭羽的攝影專案 -2  (提案closed)",
+      "legacyFolderNo": "04",
+      "priorityTier": 2,
+      "ref": "PRJ-ws2610-009",
+      "name": "庭羽 攝影整理工具（ITTF）",
+      "client": "庭羽",
+      "status": "已結案",
+      "lifecycleStage": "CLOSED",
+      "phaseRound": null,
+      "nextAction": "已封存：提案關閉。",
+      "description": "ITTF 攝影整理工具提案（含球員辨識二版）。原資料夾標註「提案closed」。"
+    },
+    {
+      "sourceFolder": "封存的專案/09. 禾境室內設計 - 3 (20260912暫時封存）",
+      "legacyFolderNo": "09",
+      "priorityTier": 3,
+      "ref": "PRJ-ws2610-010",
+      "name": "禾境室內設計 Planner5D AI SSOT 導入",
+      "client": "禾境室內設計",
+      "status": "已結案",
+      "lifecycleStage": "CLOSED",
+      "phaseRound": null,
+      "nextAction": "2026-09-12 暫時封存。",
+      "description": "Planner5D AI SSOT 導入提案與報價。原資料夾標註「20260912暫時封存」。"
+    },
+    {
+      "sourceFolder": "封存的專案/[Project] 永續問卷AI工具 - 2 (無內容-封存)",
+      "legacyFolderNo": null,
+      "priorityTier": 2,
+      "ref": "PRJ-ws2610-011",
+      "name": "永續問卷 AI 工具",
+      "client": "未知",
+      "status": "已結案",
+      "lifecycleStage": "CLOSED",
+      "phaseRound": null,
+      "nextAction": "已封存：無內容。",
+      "description": "2025 年的計畫書一份。原資料夾標註「無內容-封存」。"
+    }
+  ],
+  "notProjects": [
+    {
+      "sourceFolder": "20260818股東會議",
+      "reason": "不是專案，是一場公司會議（只有兩段錄音）。留到檔案階段再建成會議。"
+    },
+    {
+      "sourceFolder": "研究發表線",
+      "reason": "不是客戶專案，是內部 weekly sync 與投稿素材。留到檔案階段再決定落點。"
+    }
+  ]
+}

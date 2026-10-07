@@ -564,7 +564,8 @@ model Project {
   /// `0_工作區` 的兩位數資料夾編號。**不是鍵**：`09` 被用過兩次（編號會回收），
   /// 它只是「從舊硬碟找回同一個案子」的線索。
   legacyFolderNo String?           @map("legacy_folder_no")
-  /// 1＝最高。null＝未分級。
+  /// `0_工作區` 資料夾名稱的 `- N` 後綴，原樣存數字。Owner 2026-10-07 定義：
+  /// 「主觀認為這個專案的重要程度」，**數字愈大愈重要**（5＝最高）。null＝未分級。
   priorityTier   Int?              @map("priority_tier")
 
   tasksDone   Int               @default(0) @map("tasks_done")
