@@ -99,6 +99,31 @@ export const ASSET_KIND_LABELS: Record<AssetKind, string> = {
   video: '影片',
 }
 
+/**
+ * 副檔名 → Content-Type。
+ *
+ * 預簽網址把 Content-Type 一起簽進去，瀏覽器 PUT 時送的那一個必須一字不差，否則 R2 回 403。
+ * 而瀏覽器給的 `file.type` 不可靠：手機錄的 .mov、某些系統上的 .m4a 會是空字串。
+ * 空字串時由這張表補上，伺服器把最後採用的值回給前端，兩邊用的就是同一個字串。
+ */
+const EXTENSION_MIME: Record<string, string> = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic',
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  md: 'text/markdown', txt: 'text/plain', json: 'application/json',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', aac: 'audio/aac', ogg: 'audio/ogg',
+  mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', m4v: 'video/x-m4v',
+}
+
+/** 瀏覽器有給型別就用它的（它等一下 PUT 時送的就是那個），沒有才依副檔名補。 */
+export function resolveAssetContentType(input: { name: string; mimeType?: string | null }): string {
+  const given = (input.mimeType || '').trim()
+  if (given) return given
+  return EXTENSION_MIME[assetExtension(input.name || '')] ?? 'application/octet-stream'
+}
+
 export function assetExtension(fileName: string): string {
   const dot = fileName.lastIndexOf('.')
   if (dot < 0 || dot === fileName.length - 1) return ''

@@ -4,8 +4,9 @@
  *
  * 做法與 verify-object-index / verify-agenda-object 一樣：把 asset-object.source.js
  * 原封不動放進最小樁環境實際執行 —— 不抄第二份邏輯，測的就是會被打包進 runtime 的那份。
- * 上傳的網路那一段由樁接住（prototype 模式本來就不打網路），瀏覽器互動
- * （真的拖放、真的貼上、真的 R2 round trip）仍需 Owner 在本機確認。
+ * 上傳的網路那一段由樁接住（prototype 模式本來就不打網路）。真的拖放、真的 R2 round trip
+ * 在 2026-10-07 以本機 database 模式的瀏覽器走過一次（見該日的證據報告）；
+ * 這支守的是那一次看出來的問題不會再回來。
  *
  * 契約層（白名單、上限、參考碼、狀態機、授權）在 verify-asset-pipeline.mjs，不重複。
  */
@@ -48,8 +49,12 @@ const stubs = {
   // 兩個群組就夠：擴充只 push 到 SUMMON[1]。
   SUMMON: [{ g: '模板', items: [] }, { g: '物件', items: [] }],
   root: { addEventListener() {}, querySelector: () => null, querySelectorAll: () => [], append() {} },
-  doc: { createElement: () => ({ style: {}, setAttribute() {}, click() {}, remove() {}, append() {} }) },
-  controller: { signal: null },
+  doc: { createElement: () => ({ style: {}, setAttribute() {}, addEventListener() {}, click() {}, remove() {}, append() {} }) },
+  // 卸載時要釋放 blob 網址與播放器，所以這裡要掛得上 abort 監聽。
+  controller: { signal: { addEventListener() {} } },
+  wire: () => {},
+  URL: { createObjectURL: () => 'blob:stub', revokeObjectURL() {} },
+  window: { matchMedia: () => ({ matches: false }) },
   listen: () => {},
   setTimeout: () => 0,
   canWriteJournal: () => true,
@@ -64,7 +69,7 @@ const stubs = {
   audit: () => {},
   person: k => (DB.people[k] || {}).n || k,
   svg: k => '<svg data-i="' + k + '"></svg>',
-  openModal: () => { calls.openModal += 1 },
+  openModal: (...args) => { calls.openModal += 1; calls.modalArgs = args },
   closeModal: () => {},
   openDrawer: (t, id) => calls.openDrawer.push([t, id]),
   ensureSecBlocks: sec => (sec.blocks = sec.blocks || []),
@@ -277,6 +282,76 @@ ok('一次拖多個檔案 → 各自一張卡片', blocks.filter(b => b.t === 'o
 reset()
 await api.assetIntake([mkFile('好的.txt', 10), mkFile('壞的.exe', 10), mkFile('也好.pdf', 10)], 'b0')
 ok('一批裡有壞檔時，好的照上、壞的只跳訊息', DB.assets.length === 2)
+
+/* ---------------- 7b. 選檔視窗、召喚、卡片內播放 ---------------- */
+/* 這一節補的是 2026-10-07 在瀏覽器裡才看出來的三件事：選檔視窗整個是壞的
+   （openModal 收的是位置參數，原本傳了一個物件，畫面上是 [object Object] 加一顆 undefined）、
+   影片與音訊在日誌裡只是一顆膠囊、而重試會把檔案傳到舊 key 再去核對新 key。 */
+
+reset()
+calls.modalArgs = null
+api.summonObject('asset', 'b0')
+ok('# 附件 → 選檔視窗：openModal 收到的是（標題字串、說明、內文、頁尾）四個位置參數',
+  Array.isArray(calls.modalArgs) && calls.modalArgs.length === 4 && calls.modalArgs.every(a => typeof a === 'string') &&
+  calls.modalArgs[0] === '加入檔案', calls.modalArgs && calls.modalArgs.map(a => typeof a).join(','))
+const modalBody = String(calls.modalArgs?.[2] ?? ''), modalFoot = String(calls.modalArgs?.[3] ?? '')
+ok('選檔視窗把圖片／影片／音訊／其他檔案四種選法攤開',
+  ['圖片', '影片', '音訊', '其他檔案'].every(t => modalBody.includes('>' + t + '<')) &&
+  ["astPick('image'", "astPick('video'", "astPick('audio'", "astPick('file'"].every(t => modalBody.includes(t)))
+ok('選檔視窗有取消，不是一顆 undefined', modalFoot.includes('取消') && !modalFoot.includes('undefined'))
+ok('桌機不給「拍照／錄影」（按了只是再開一次選檔視窗）', !modalBody.includes("astPick('camera'"))
+
+const summonKeys = api.SUMMON[1].items.map(x => x.k)
+ok('# 召喚選單有圖片、影片、音訊各一項',
+  ['image', 'video', 'audio'].every(k => summonKeys.includes(k)), summonKeys.join(','))
+ok('召喚項目的圖示都在 icon 表裡（未知 key 會畫出空 svg）',
+  api.SUMMON[1].items.filter(x => ['image', 'video', 'audio', 'asset'].includes(x.k)).every(x => x.ic === 'paperclip' || typeof api.I[x.ic] === 'string'))
+const baseSummonBefore = calls.baseSummon.length
+api.summonObject('video', 'b0')
+ok('# 影片直接開選檔視窗，不落到原本的 summonObject', calls.baseSummon.length === baseSummonBefore)
+
+reset()
+DB.assets.push(mkAsset({ id: 'AST-V', name: '現場.mp4', kind: 'video' }))
+html = api.astCard({ id: 'bv', obj: { ty: 'asset', rid: 'AST-V' } })
+ok('影片卡片：有播放器的位置，而且是整張卡片（不被雙欄日誌收成膠囊）',
+  html.includes('data-ast-media="AST-V"') && html.includes('ast-card') && html.includes('data-ast-where="bv"'))
+DB.assets.push(mkAsset({ id: 'AST-A', name: '訪談.m4a', kind: 'audio' }))
+html = api.astCard({ id: 'ba', obj: { ty: 'asset', rid: 'AST-A' } })
+ok('音訊卡片：有播放器的位置', html.includes('data-ast-media="AST-A"') && html.includes('ast-audio'))
+DB.assets.push(mkAsset({ id: 'AST-I', name: '白板.png', kind: 'image' }))
+html = api.astCard({ id: 'bi', obj: { ty: 'asset', rid: 'AST-I' } })
+ok('圖片卡片：有縮圖的位置，且用屬性定位（同一份檔案嵌兩處不會撞 id）',
+  html.includes('data-ast-thumb="AST-I"') && !/id="astH-/.test(html))
+DB.assets.push(mkAsset())
+html = api.astCard({ id: 'b0', obj: { ty: 'asset', rid: 'AST-JRNL-000010-20260928' } })
+ok('試算表等其他檔案維持精簡膠囊（沒有主體就不撐成整張卡片）', !html.includes('ast-card') && !html.includes('data-ast-media'))
+
+reset()
+DB.assets.push(mkAsset({ id: 'AST-UP2', name: '大影片.mp4', kind: 'video', status: 'uploading', pct: 12 }))
+html = api.astCard({ id: 'b0', obj: { ty: 'asset', rid: 'AST-UP2' } })
+ok('uploading：可以取消，百分比數字可被單獨更新',
+  html.includes("astCancel('AST-UP2')") && html.includes('data-ast-pct="AST-UP2"'))
+ok('uploading 與 failed 是整張卡片（膠囊樣式會把進度與「重試／取消」藏掉）', html.includes('ast-card'))
+
+const src = fs.readFileSync(path.join(V5, 'asset-object.source.js'), 'utf8')
+ok('上傳只要一次預簽（astUpload 自己不再去要，否則每個檔案多一列孤兒）',
+  !/async function astUpload[\s\S]*?astPresign\(/.test(src.split('/** 正在傳的那幾個請求')[0].split('async function astUpload')[1] || 'astPresign('))
+ok('重試沿用同一列（retryOf），不另建一列、不換參考碼',
+  /astPresign\(file, row\.assetId\)/.test(src) && /retryOf/.test(src))
+ok('PUT 用伺服器回的 Content-Type（簽進網址的那一個）', /contentType: signed\.contentType/.test(src))
+ok('下載走附件簽名（跨來源的 <a download> 無效，會把人帶離工作台）', src.includes("'?download=1&key='"))
+ok('播放器跨 render() 保留同一個節點', /const astBaseRender = render/.test(src) && /AST_PLAYERS/.test(src))
+
+const route = fs.readFileSync(path.join(ROOT, 'src/app/api/company/operating/uploads/route.ts'), 'utf8')
+ok('上傳路由認得 retryOf，並把簽進網址的 Content-Type 回給前端',
+  route.includes('reopenAssetUpload') && /contentType,\s*\n\s*multipart/.test(route))
+ok('下載檔名取資產列上的，不收前端送來的', route.includes('grant.displayName') && !/searchParams\.get\("name"\)/.test(route))
+
+ok('沒給型別時依副檔名補 Content-Type',
+  CONTRACT.resolveAssetContentType({ name: '錄音.wav', mimeType: '' }) === 'audio/wav' &&
+  CONTRACT.resolveAssetContentType({ name: 'IMG_0001.MOV', mimeType: null }) === 'video/quicktime')
+ok('瀏覽器有給型別就用它的（它 PUT 時送的就是那個）',
+  CONTRACT.resolveAssetContentType({ name: 'a.m4a', mimeType: 'audio/x-m4a' }) === 'audio/x-m4a')
 
 /* ---------------- 8. 靜態接線檢查 ---------------- */
 

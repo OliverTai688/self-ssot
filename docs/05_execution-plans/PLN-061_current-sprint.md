@@ -1,5 +1,17 @@
 # Current Sprint
 
+## Owner-directed 日誌召喚上傳圖片／影片／音訊 — 2026-10-07
+
+`ASSET-006` 已完成實作，**待 Owner 於正式站驗收**。`ASSET-005` 上線九天沒有任何檔案成功傳上去（`operating_assets` 0 列）：
+選檔視窗打開來沒有按鈕、重試必敗、影音在日誌裡只是一顆膠囊。這一輪把它做到會動。
+
+現在：`#` 輸入「圖片／影片／音訊」直接開選檔視窗；欄頭「附件」攤開所有選法（手機多拍照、錄影）；
+影片與音訊在日誌卡片裡直接播放；上傳可取消，失敗可重試且參考碼不變；檔案存在 Cloudflare R2，重新整理後讀回。
+**沒有 schema 變更**。`UI-088` Revision Mode，未新增 UI ID。
+
+驗收：本機 database 模式對正式 R2 bucket 的真實往返、`ops:assets:object:check` 73/73、`tsc` 0、`pnpm build` exit 0。
+未做：超過 64 MB 的分段上傳。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-journal-media-upload-r2.md)。
+
 ## Owner-directed 日誌事故修正與復原 — 2026-10-06
 
 `JRNL-INC-001` 已完成實作與資料復原，**尚未部署**。正式站 10/06 00:21 一筆自動保存刪掉 Lily 的五天日誌：

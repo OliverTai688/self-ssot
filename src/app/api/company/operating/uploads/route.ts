@@ -10,6 +10,7 @@ import {
   createPendingAsset,
   failAsset,
   finalizeAsset,
+  reopenAssetUpload,
   resolveDownloadGrant,
 } from "@/lib/services/operating-assets.service"
 import {
@@ -19,6 +20,7 @@ import { findOperatingWorkspaceId } from "@/lib/services/operating-store.service
 import { createDownloadUrl, createUploadUrl } from "@/lib/storage/presigned-url"
 import {
   classifyAsset,
+  resolveAssetContentType,
   type AssetOrigin,
 } from "@/lib/ui-data/yuanzhan/operating-assets"
 
@@ -95,9 +97,40 @@ export async function POST(request: NextRequest) {
     if (isResponse(actor)) return actor
 
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
+    // 重試：不建新列，沿用原本那一列的參考碼與 key，只重新發一張上傳網址。
+    const retryOf = typeof body?.retryOf === "string" ? body.retryOf : ""
+    if (retryOf) {
+      const asset = await reopenAssetUpload({
+        workspaceId: actor.workspaceId,
+        assetId: retryOf,
+        seatKeys: actor.seatKeys,
+      })
+      const retryType = resolveAssetContentType({
+        name: asset.displayName,
+        mimeType: typeof body?.contentType === "string" ? body.contentType : asset.mimeType,
+      })
+      return NextResponse.json(
+        {
+          objectKey: asset.objectKey,
+          uploadUrl: await createUploadUrl(asset.bucket, asset.objectKey, retryType),
+          assetId: asset.id,
+          refCode: asset.refCode,
+          kind: asset.kind,
+          contentType: retryType,
+          multipart: false,
+        },
+        { headers: noStoreHeaders }
+      )
+    }
+
     const name = typeof body?.name === "string" ? body.name : ""
-    const contentType = typeof body?.contentType === "string" ? body.contentType : null
     const bytes = Number(body?.bytes)
+    // 瀏覽器沒給型別（手機錄的 .mov、部分系統的 .m4a）就依副檔名補；
+    // 補出來的值會簽進網址，所以要原樣回給前端，它 PUT 時送的必須是同一個字串。
+    const contentType = resolveAssetContentType({
+      name,
+      mimeType: typeof body?.contentType === "string" ? body.contentType : null,
+    })
 
     // 白名單與分級上限走共用契約，前端擋下來的理由與這裡一字不差。
     const verdict = classifyAsset({ name, bytes, mimeType: contentType })
@@ -135,6 +168,7 @@ export async function POST(request: NextRequest) {
         assetId: asset.id,
         refCode: asset.refCode,
         kind: asset.kind,
+        contentType,
         multipart: verdict.multipart,
       },
       { headers: noStoreHeaders }
@@ -206,7 +240,13 @@ export async function GET(request: NextRequest) {
       isOwnerSeat: actor.isOwnerSeat,
     })
 
-    const downloadUrl = await createDownloadUrl(grant.bucket, grant.objectKey)
+    // download=1：簽成附件下載。檔名取資產列上的那一個，不收前端送來的。
+    const asAttachment = request.nextUrl.searchParams.get("download") === "1"
+    const downloadUrl = await createDownloadUrl(
+      grant.bucket,
+      grant.objectKey,
+      asAttachment ? { downloadName: grant.displayName ?? grant.objectKey.split("/").pop() ?? "file" } : undefined
+    )
     return NextResponse.json({ downloadUrl }, { headers: noStoreHeaders })
   } catch (error) {
     return handleError("download_url", error)

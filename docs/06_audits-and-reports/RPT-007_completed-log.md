@@ -4259,3 +4259,21 @@ Owner 回報昨日的日誌文字不見。查正式資料庫：10/06 00:21:30 �
 未完成：修正尚未部署，正式站在部署前仍會發生。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261006-journal-space-switch-data-loss.md`
+
+## 2026-10-07 — 日誌召喚上傳圖片／影片／音訊：修好入口、卡片內播放、真實往返（ASSET-006）
+
+Owner 要求把日誌的圖片／影片／音訊上傳做到能用並存進 Cloudflare R2。盤點發現 `ASSET-005` 上線九天，
+正式資料庫的 `operating_assets` 是 0 列：選檔視窗以錯誤的參數形狀呼叫 `openModal`，打開來沒有任何按鈕；
+重試會把檔案傳到舊 key 再核對新 key；每個檔案多一列孤兒；影音在雙欄日誌裡只是一顆膠囊。
+
+改動：`asset-object.source.js`／`.css` 重寫上傳、選檔、卡片與播放（`#image`／`#video`／`#audio` 召喚、卡片內播放器、
+取消、同列重試、短效網址快取與過期自動換新）；上傳路由支援 `retryOf`、回傳簽進網址的 Content-Type、
+附件下載；`reopenAssetUpload()`、`resolveAssetContentType()`。沒有 schema 變更。
+
+驗證：本機 database 模式對正式 R2 bucket 的真實往返（圖片、影片、音訊各一，重新整理後讀回播放，取消後重試參考碼不變）、
+`ops:assets:object:check` 73/73、`ops:assets:check` 42/42、`project:ui:check` 79/79、`tsc` 0、`pnpm build` exit 0。
+測試資產四列已軟刪除，四個 R2 物件（6.3 MB）仍在 bucket。
+
+待 Owner：正式站驗收。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-journal-media-upload-r2.md`

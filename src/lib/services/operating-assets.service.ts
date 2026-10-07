@@ -198,6 +198,32 @@ export async function finalizeAsset(params: {
   return { ok: true, asset: updated }
 }
 
+/**
+ * 重試：同一列、同一個參考碼、同一個 object key，只是重新開放上傳。
+ *
+ * 參考碼不能換 —— 日誌那一行存的就是它，換了那張卡片就指向一筆不存在的檔案（RES-018）。
+ * key 也不換：單次 PUT 是整份取代，傳到一半中斷不會留下半份 bytes；
+ * 換 key 反而會在「其實傳上去了、只是 finalize 沒回來」的情況下留下一份沒有列指得到的檔案。
+ */
+export async function reopenAssetUpload(params: {
+  workspaceId: string
+  assetId: string
+  seatKeys: string[]
+}) {
+  const asset = await db.operatingAsset.findFirst({
+    where: { id: params.assetId, workspaceId: params.workspaceId, deletedAt: null },
+  })
+  if (!asset) throw new AssetNotFoundError()
+  if (!canSeatReadAsset(asset, { workspaceId: params.workspaceId, seatKeys: params.seatKeys })) {
+    throw new AssetForbiddenError()
+  }
+  // 還停在 uploading 也收：分頁被關掉、連 failed 都來不及回報時就是這個狀態。
+  if (asset.status === "ready") throw new AssetStateError("這個檔案已經上傳完成。")
+  if (asset.status === "failed" && !canTransitionAsset("failed", "uploading")) throw new AssetStateError()
+
+  return db.operatingAsset.update({ where: { id: asset.id }, data: { status: "uploading" } })
+}
+
 export async function failAsset(params: { workspaceId: string; assetId: string }) {
   await db.operatingAsset.updateMany({
     where: { id: params.assetId, workspaceId: params.workspaceId, status: "uploading" },
@@ -209,7 +235,12 @@ export async function failAsset(params: { workspaceId: string; assetId: string }
 /* 下載授權                                                            */
 /* ------------------------------------------------------------------ */
 
-export type DownloadGrant = { bucket: string; objectKey: string }
+export type DownloadGrant = {
+  bucket: string
+  objectKey: string
+  /** 資產列上的顯示名稱。舊檔案（文件庫版本、憑證、收件匣）沒有那一列，所以沒有。 */
+  displayName?: string
+}
 
 /**
  * 「這個 key 你讀不讀得到」的唯一判定點。
@@ -249,7 +280,7 @@ export async function resolveDownloadGrant(params: {
   }
   if (asset) {
     if (!canSeatReadAsset(asset, { workspaceId, seatKeys })) throw new AssetForbiddenError()
-    return { bucket: asset.bucket, objectKey: asset.objectKey }
+    return { bucket: asset.bucket, objectKey: asset.objectKey, displayName: asset.displayName }
   }
 
   const bucket = getR2BucketName()

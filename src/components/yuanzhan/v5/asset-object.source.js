@@ -76,6 +76,7 @@ async function astAdd(file, verdict, anchor) {
     };
     if (verdict.kind === 'image') row.data = await astDataUrl(file);
     DB.assets.push(row);
+    astKeepLocal(row.id, file);
     const bid = astInsert(row.id, anchor);
     audit('檔案', row.name, '上傳', '', 1);
     toast('已加入本頁記憶體 · 重整重置');
@@ -94,26 +95,30 @@ async function astAdd(file, verdict, anchor) {
   // 而且上傳到一半關掉分頁時，畫面上那張卡片說得出它是哪一個檔案。
   const row = {
     id: signed.refCode, assetId: signed.assetId, name: file.name, kind: signed.kind || verdict.kind,
-    bytes: file.size, mime: file.type || '', objectKey: signed.objectKey,
+    bytes: file.size, mime: signed.contentType || file.type || '', objectKey: signed.objectKey,
     status: 'uploading', pct: 0, space, author: DB.me,
     day: S.jday || TODAY, bornAt: Date.now(), err: ''
   };
   DB.assets.push(row);
   AST_FILES.set(row.id, file);
+  astKeepLocal(row.id, file);
   const bid = astInsert(row.id, anchor);
 
-  astUpload(row, file);
+  astUpload(row, file, signed);
   return bid;
 }
 
-/** 上傳本身。不 await —— 使用者可以繼續打字，卡片自己會走完。 */
-async function astUpload(row, file) {
+/**
+ * 上傳本身。不 await —— 使用者可以繼續打字，卡片自己會走完。
+ *
+ * `signed` 是這一次要用的那張預簽：第一次由 astAdd 帶進來，重試由 astRetry 重新要一張。
+ * 這裡自己不再去要 —— 先前這裡多要了一次，每傳一個檔案伺服器就多一列永遠傳不完的孤兒。
+ */
+async function astUpload(row, file, signed) {
   try {
-    const signed = await astPresign(file, row.assetId ? null : undefined);
-    void signed;
-  } catch { /* astUpload 只在 astAdd 之後被呼叫，預簽已經拿到了 */ }
-  try {
-    await astPut(row.uploadUrl || AST_URLS.get(row.id), file, pct => astPaintProgress(row.id, pct));
+    await astPut(signed.uploadUrl, file, pct => astPaintProgress(row.id, pct), {
+      contentType: signed.contentType, rid: row.id
+    });
     await astFinalize(row.assetId, 'uploaded');
     row.status = 'ready';
     row.pct = 100;
@@ -124,43 +129,54 @@ async function astUpload(row, file) {
     row.err = e && e.message ? e.message : '上傳失敗';
     await astFinalize(row.assetId, 'failed').catch(() => {});
   }
+  AST_XHR.delete(row.id);
   if (active) render();
 }
 
-/* 預簽網址不放進 DB.assets（它會進 structuredClone 的快照，而且 15 分鐘就過期）。 */
-const AST_URLS = new Map();
+/** 正在傳的那幾個請求，取消時要找得到。 */
+const AST_XHR = new Map();
 
-async function astPresign(file) {
+/**
+ * 要一張預簽。`retryOf` 有給就是重試：伺服器沿用同一列、同一個參考碼與 key，
+ * 只重新開放上傳 —— 日誌那一行存的是參考碼，換了那張卡片就指向一筆不存在的檔案。
+ */
+async function astPresign(file, retryOf) {
   const res = await fetch(UPLOAD_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: file.name, contentType: file.type, bytes: file.size,
-      origin: 'journal', space, bornDay: S.jday || TODAY
+      origin: 'journal', space, bornDay: S.jday || TODAY,
+      ...(retryOf ? { retryOf } : {})
     })
   });
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) throw Error(payload.error || '取得上傳網址失敗');
-  AST_URLS.set(payload.refCode, payload.uploadUrl);
   return payload;
 }
 
 /**
  * 用 XHR 而不是 fetch：fetch 沒有上傳進度事件。
  * 假的進度條比沒有進度條更糟 —— 它會在 99% 卡住，而使用者不知道那是不是當掉了。
+ *
+ * Content-Type 是簽進網址的一部分，送出去的必須與伺服器簽的那一個一字不差，否則 R2 回 403。
+ * 所以有 `options.contentType`（伺服器回的）就用它；沒有才退回 `file.type`（專案硬碟那條路）。
  */
-function astPut(uploadUrl, file, onPct) {
+function astPut(uploadUrl, file, onPct, options) {
   return new Promise((resolve, reject) => {
     if (!uploadUrl) return reject(Error('上傳網址已失效，請重試'));
     const xhr = new XMLHttpRequest();
+    const type = (options && options.contentType) || file.type;
     xhr.open('PUT', uploadUrl, true);
-    if (file.type) xhr.setRequestHeader('Content-Type', file.type);
+    if (type) xhr.setRequestHeader('Content-Type', type);
     xhr.upload.onprogress = e => { if (e.lengthComputable) onPct(Math.round(e.loaded / e.total * 100)); };
     xhr.onload = () => (xhr.status >= 200 && xhr.status < 300)
       ? resolve()
       : reject(Error('上傳失敗（HTTP ' + xhr.status + '）'));
     xhr.onerror = () => reject(Error('連線中斷'));
     xhr.ontimeout = () => reject(Error('上傳逾時'));
+    xhr.onabort = () => reject(Error('已取消上傳'));
+    if (options && options.rid) AST_XHR.set(options.rid, xhr);
     xhr.send(file);
   });
 }
@@ -191,8 +207,8 @@ function astDataUrl(file) {
 function astPaintProgress(rid, pct) {
   const row = astOf(rid);
   if (row) row.pct = pct;
-  const el = root.querySelector('[data-ast-prog="' + rid + '"]');
-  if (el) el.style.width = pct + '%';
+  root.querySelectorAll('[data-ast-prog="' + rid + '"]').forEach(el => { el.style.width = pct + '%'; });
+  root.querySelectorAll('[data-ast-pct="' + rid + '"]').forEach(el => { el.textContent = pct + '%'; });
 }
 
 /** 把一列物件插進日誌。空行就地換掉，有字就接在它下面，後面一定留一行可以繼續打字。 */
@@ -211,42 +227,67 @@ function astInsert(rid, anchorId) {
   return nb.id;
 }
 
-/* ---------- 二、選檔器（# 附件、行首 ＋、手機三選一） ---------- */
+/* ---------- 二、選檔器（# 圖片／影片／音訊／附件、欄頭按鈕） ---------- */
+
+/** 每一種選法對應一個原生 input。accept 用型別萬用字元：實際收不收仍由 astClassify 決定。 */
+const AST_PICK = {
+  image: { accept: 'image/*' },
+  video: { accept: 'video/*' },
+  audio: { accept: 'audio/*' },
+  // 手機：capture 會直接叫出相機，而不是先進相簿。桌機瀏覽器忽略這個屬性。
+  camera: { accept: 'image/*', capture: 'environment', single: true },
+  record: { accept: 'video/*', capture: 'environment', single: true },
+  gallery: { accept: 'image/*,video/*' },
+  file: { accept: '' }
+};
 
 /**
- * 手機沒有拖放、⌘V 不好按、# 要切輸入法，所以那道門是三個原生 input。
- * accept 與 capture 由瀏覽器解讀成「相機／相簿／檔案」三種系統選單，
- * 我們不自己畫選單 —— 自己畫的一定比系統的難用。
+ * 系統的選檔視窗由瀏覽器叫出來，我們不自己畫 —— 自己畫的一定比系統的難用。
+ * input 用完就拿掉；同一個檔案連選兩次也要觸發 change，所以每次都建新的。
  */
 function astPick(mode, blockId) {
+  if (!canWriteJournal()) return deny();
+  const cfg = AST_PICK[mode] || AST_PICK.file;
   const input = doc.createElement('input');
   input.type = 'file';
-  input.multiple = mode !== 'camera';
-  if (mode === 'camera') { input.accept = 'image/*'; input.setAttribute('capture', 'environment'); }
-  else if (mode === 'gallery') input.accept = 'image/*,video/*';
+  input.multiple = !cfg.single;
+  if (cfg.accept) input.accept = cfg.accept;
+  if (cfg.capture) input.setAttribute('capture', cfg.capture);
   input.setAttribute('aria-label', '選擇檔案');
   input.style.display = 'none';
   root.append(input);
   input.onchange = () => {
     const files = input.files;
     input.remove();
-    if (files && files.length) assetIntake(files, blockId);
+    if (files && files.length) assetIntake(files, blockId || null);
   };
+  // 使用者按了取消：瀏覽器支援 cancel 事件就收掉，不支援的話下一次開啟時清。
+  input.addEventListener('cancel', () => input.remove());
+  root.querySelectorAll('input[type="file"][aria-label="選擇檔案"]').forEach(el => { if (el !== input) el.remove(); });
   input.click();
 }
 
-/** 行首 ＋：手機上唯一可靠的那道門。桌機按了也一樣，只是多一個選項而已。 */
+/** 欄頭「附件」與 # 附件：把幾種選法攤開。手機沒有拖放、⌘V 不好按，這裡是它唯一可靠的門。 */
 function astOpenPicker(blockId) {
-  openModal({
-    title: '加入檔案',
-    sub: '圖片、文件、音訊或影片 · 之後可以用 @ 引用',
-    body: `<div class="frow" style="gap:8px;flex-wrap:wrap">
-      <button class="btn" onclick="closeModal();astPick('camera','${blockId || ''}')">${svg('image', 14)} 拍照</button>
-      <button class="btn" onclick="closeModal();astPick('gallery','${blockId || ''}')">${svg('video', 14)} 相簿</button>
-      <button class="btn pri" onclick="closeModal();astPick('file','${blockId || ''}')">${svg('paperclip', 14)} 選擇檔案</button>
+  if (!canWriteJournal()) return deny();
+  const id = blockId || '';
+  const opt = (mode, ic, nm, ds) => `<button class="ast-opt" onclick="closeModal();astPick('${mode}','${id}')">
+      <span class="ast-opt-ic">${svg(ic, 18)}</span><span class="ast-opt-nm">${nm}</span><span class="ast-opt-ds">${ds}</span></button>`;
+  // 有鏡頭可以直接拍的裝置才給「拍照／錄影」；桌機上那兩顆按了只是再開一次選檔視窗。
+  const touch = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  openModal(
+    '加入檔案',
+    '上傳之後是一個物件：有參考碼、進物件索引，任何一行都可以用 @ 引用同一份。',
+    `<div class="ast-opts">
+      ${opt('image', 'image', '圖片', 'PNG、JPG、WebP、GIF、HEIC · 25 MB')}
+      ${opt('video', 'video', '影片', 'MP4、MOV、WebM · 500 MB')}
+      ${opt('audio', 'audio', '音訊', 'MP3、M4A、WAV、AAC、OGG · 200 MB')}
+      ${touch ? opt('camera', 'image', '拍照', '開啟相機拍一張') + opt('record', 'video', '錄影', '開啟相機錄一段') : ''}
+      ${opt('file', 'paperclip', '其他檔案', 'PDF、Word、Excel、PowerPoint · 50 MB')}
     </div>
-    <div class="note" style="margin-top:10px">圖片 25 MB · 文件 50 MB · 音訊 200 MB · 影片 500 MB</div>`
-  });
+    ${touch ? '' : '<div class="note" style="margin-top:10px">也可以把檔案直接拖到日誌的某一行，或在行內按 ⌘V 貼上截圖。</div>'}`,
+    '<button class="btn" onclick="closeModal()">取消</button>'
+  );
 }
 
 /* ---------- 三、卡片 ---------- */
@@ -260,32 +301,54 @@ function astCard(b) {
     <span class="m" style="font-family:var(--mono);font-size:10.5px;color:var(--text-3)">${esc(a.id)}</span></div>`;
 
   if (a.status === 'uploading') {
-    return `<div class="eb-obj">${head}
-      <div class="eb-obj-p"><span class="pf">上傳中 <b>${a.pct || 0}%</b></span><span class="pf">大小 <b>${astSize(a.bytes)}</b></span></div>
+    // 還在傳的時候就看得到是哪一張圖：本機那一份已經在手上，不必等網路。
+    const peek = a.kind === 'image' && AST_LOCAL.has(a.id) ? astThumb(a, '') : '';
+    return `<div class="eb-obj ast-card">${head}${peek}
+      <div class="eb-obj-p"><span class="pf">上傳中 <b data-ast-pct="${esc(a.id)}">${a.pct || 0}%</b></span><span class="pf">大小 <b>${astSize(a.bytes)}</b></span>
+        <span class="pf" onclick="astCancel('${a.id}')" role="button" tabindex="0">取消 ×</span></div>
       <div class="ast-prog"><i data-ast-prog="${esc(a.id)}" style="width:${a.pct || 0}%"></i></div></div>`;
   }
 
   if (a.status === 'failed') {
     // 失敗的檔案留在原地，不默默消失 —— 那一行的上下文就是它為什麼被上傳。
     const canRetry = AST_FILES.has(a.id);
-    return `<div class="eb-obj ast-failed">${head}
+    return `<div class="eb-obj ast-card ast-failed">${head}
       <div class="eb-obj-p"><span class="pf ast-err">${esc(a.err || '上傳失敗')}</span>
         ${canRetry ? `<span class="pf" onclick="astRetry('${a.id}')" role="button" tabindex="0">重試 ↻</span>`
       : `<span class="pf" onclick="astPick('file','${b.id}')" role="button" tabindex="0">重新選擇檔案</span>`}
         <span class="pf" onclick="astDrop('${b.id}')" role="button" tabindex="0">移除 ×</span></div></div>`;
   }
 
-  return `<div class="eb-obj" onclick="objJump('asset','${a.id}')">${head}${astBody(a)}
+  // 圖片、影片、音訊要看得到內容，所以是整張卡片；其餘檔案維持雙欄裡的精簡膠囊，細節點開抽屜。
+  const body = astBody(a, b.id);
+  return `<div class="eb-obj ${body ? 'ast-card' : ''}" onclick="objJump('asset','${a.id}')">${head}${body}
     <div class="eb-obj-p">${astFacts(a).map(f => '<span class="pf">' + f + '</span>').join('')}</div></div>`;
 }
 
-/** 卡片主體依 kind 換。P1 只給圖片真的預覽，其餘是圖示與下載 —— 見提案第七節的分級。 */
-function astBody(a) {
-  if (a.kind !== 'image') return '';
-  const pid = 'astH-' + a.id.replace(/[^A-Za-z0-9-]/g, '');
-  if (a.data) return `<div class="ast-hold ready" style="margin-top:8px"><img src="${a.data}" alt="${esc(a.name)}"></div>`;
-  setTimeout(() => astPaintImg(pid, a.objectKey), 0);
-  return `<div class="ast-hold" id="${pid}" style="margin-top:8px"><span class="ast-ph">載入中…</span><img alt="${esc(a.name)}"></div>`;
+/**
+ * 卡片主體依 kind 換：圖片是縮圖，影片與音訊是可以直接按播放的播放器，其餘只有圖示與下載。
+ *
+ * 這裡只畫「位置」。真正的 <img src>／<video> 由 astHydrate() 在畫完之後補上 ——
+ * 網址要向伺服器換，是非同步的；而且播放器是活的節點，不能跟著每一次 render() 重建
+ * （那樣正在播的影片會被切斷、從頭來過）。`where` 讓同一份檔案嵌在兩個地方時各有各的播放器。
+ */
+function astBody(a, where) {
+  if (a.kind === 'image') return astThumb(a, '');
+  if ((a.kind === 'video' || a.kind === 'audio') && astPlayable(a)) return astMediaSlot(a, where || 'card');
+  return '';
+}
+
+/** 有東西可以播：這一頁剛傳的本機那一份，或伺服器上的那一份。 */
+const astPlayable = a => AST_LOCAL.has(a.id) || !!a.objectKey;
+
+function astThumb(a, cls) {
+  astQueueHydrate();
+  return `<div class="ast-hold ${cls}" data-ast-thumb="${esc(a.id)}" style="margin-top:8px"><span class="ast-ph">載入中…</span><img alt="${esc(a.name)}"></div>`;
+}
+
+function astMediaSlot(a, where) {
+  astQueueHydrate();
+  return `<div class="ast-media ast-${a.kind}" data-ast-media="${esc(a.id)}" data-ast-where="${esc(where)}"><div class="ast-media-ph">${svg(a.kind, 14)} 載入播放器…</div></div>`;
 }
 
 function astFacts(a) {
@@ -316,27 +379,165 @@ function astRefCount(rid) {
   return n;
 }
 
+/* ---------- 三之二、看得到的那一份 ---------- */
+
+/* 這一頁剛傳上去的檔案，直接用本機那一份看與播：不必為了看自己剛選的檔再下載一次。
+   blob 網址只活在這一頁，重新整理後改由伺服器換短效網址。 */
+const AST_LOCAL = new Map();
+function astKeepLocal(rid, file) {
+  try { AST_LOCAL.set(rid, URL.createObjectURL(file)); } catch { /* 沒有 createObjectURL 就退回伺服器那一份 */ }
+}
+controller.signal.addEventListener('abort', () => {
+  AST_LOCAL.forEach(url => { try { URL.revokeObjectURL(url); } catch { /* 已經失效 */ } });
+  AST_LOCAL.clear();
+  AST_PLAYERS.forEach(el => { try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* 節點已釋放 */ } });
+  AST_PLAYERS.clear();
+});
+
 /**
- * 下載網址只有 5 分鐘，所以是要看的時候才換一張，不存進紀錄。
- * 先畫骨架、圖真的解碼完才淡入 —— 直接給一個還沒有 src 的 <img> 會先閃一次破圖。
+ * 短效下載網址（伺服器簽 5 分鐘）。同一個 key 在 4 分鐘內重用同一張：
+ * 每次 render() 都重換一張的話，縮圖會跟著每個動作重新下載、閃一次。
+ * 存的是 promise，同一輪裡十張卡片指向同一個檔也只問伺服器一次。
  */
-async function astPaintImg(elementId, objectKey) {
-  if (!objectKey) return;
-  try {
-    const res = await fetch(UPLOAD_ENDPOINT + '?key=' + encodeURIComponent(objectKey));
-    if (!res.ok) throw Error('取得檔案失敗');
-    const { downloadUrl } = await res.json();
-    const hold = root.querySelector('#' + elementId);
-    if (!hold) return;
-    const img = hold.querySelector('img');
-    if (!img) return;
-    img.onload = () => hold.classList.add('ready');
-    img.onerror = () => { hold.classList.add('failed'); hold.querySelector('.ast-ph').textContent = '無法顯示'; };
-    img.src = downloadUrl;
-  } catch {
-    const hold = root.querySelector('#' + elementId);
-    if (hold) { hold.classList.add('failed'); hold.querySelector('.ast-ph').textContent = '無法載入'; }
+const AST_SIGNED = new Map();
+const AST_SIGNED_TTL = 4 * 60 * 1000;
+
+function astSignedUrl(objectKey, fresh) {
+  const hit = AST_SIGNED.get(objectKey);
+  if (!fresh && hit && Date.now() - hit.at < AST_SIGNED_TTL) return hit.url;
+  const url = fetch(UPLOAD_ENDPOINT + '?key=' + encodeURIComponent(objectKey))
+    .then(res => { if (!res.ok) throw Error('取得檔案失敗'); return res.json(); })
+    .then(payload => payload.downloadUrl);
+  AST_SIGNED.set(objectKey, { url, at: Date.now() });
+  url.catch(() => { if (AST_SIGNED.get(objectKey)?.url === url) AST_SIGNED.delete(objectKey); });
+  return url;
+}
+
+/** `fresh`：手上的那一張不能用了（過期，或本機那一份瀏覽器解不開），向伺服器換新的。 */
+async function astViewUrl(a, fresh) {
+  if (!fresh) {
+    if (a.data) return a.data;
+    if (AST_LOCAL.has(a.id)) return AST_LOCAL.get(a.id);
   }
+  if (!a.objectKey) throw Error('這一份只在本頁記憶體裡');
+  return astSignedUrl(a.objectKey, fresh);
+}
+
+/* render() 之後補上縮圖與播放器。同一輪裡畫了幾張卡片都只排一次。 */
+let AST_HYDRATE_QUEUED = false;
+function astQueueHydrate() {
+  if (AST_HYDRATE_QUEUED) return;
+  AST_HYDRATE_QUEUED = true;
+  setTimeout(() => { AST_HYDRATE_QUEUED = false; if (active) astHydrate(); }, 0);
+}
+
+function astHydrate(prune) {
+  root.querySelectorAll('[data-ast-thumb]:not([data-ast-on])').forEach(astMountThumb);
+  root.querySelectorAll('[data-ast-media]:not([data-ast-on])').forEach(astMountMedia);
+  if (!prune) return;
+  // 畫面上已經沒有的播放器放掉，否則翻過的每一天都留著一支載好的影片。
+  AST_PLAYERS.forEach((el, key) => {
+    if (el.isConnected) return;
+    try { el.pause(); el.removeAttribute('src'); el.load(); } catch { /* 節點已釋放 */ }
+    AST_PLAYERS.delete(key);
+  });
+}
+
+/* 整頁重畫之後立刻把播放器接回去 —— 同一個 task 裡拿下來又放回去，瀏覽器不會把它暫停，
+   正在播的影片不會因為旁邊按了一顆按鈕而中斷。抽屜不走 render()，由 astQueueHydrate() 補。 */
+const astBaseRender = render;
+render = function (...args) {
+  const out = astBaseRender(...args);
+  if (active) astHydrate(true);
+  return out;
+};
+
+function astMountThumb(hold) {
+  hold.dataset.astOn = '1';
+  const a = astOf(hold.dataset.astThumb);
+  const img = hold.querySelector('img');
+  if (!a || !img) return;
+  const fail = text => {
+    hold.classList.add('failed');
+    const ph = hold.querySelector('.ast-ph');
+    if (ph) ph.textContent = text;
+  };
+  let healed = false;
+  // 先畫骨架、圖真的解碼完才淡入 —— 直接給一個還沒有 src 的 <img> 會先閃一次破圖。
+  img.onload = () => hold.classList.add('ready');
+  img.onerror = () => {
+    if (healed) return fail('無法顯示');
+    healed = true;
+    astViewUrl(a, true).then(url => { img.src = url; }, () => fail('無法顯示'));
+  };
+  astViewUrl(a).then(url => { img.src = url; }, () => fail('無法載入'));
+}
+
+/* 活著的播放器，鍵是「檔案｜嵌在哪裡」。 */
+const AST_PLAYERS = new Map();
+
+function astMountMedia(slot) {
+  slot.dataset.astOn = '1';
+  const a = astOf(slot.dataset.astMedia);
+  if (!a) return;
+  const key = a.id + '|' + (slot.dataset.astWhere || 'card');
+  const kept = AST_PLAYERS.get(key);
+  if (kept && !kept.isConnected) {
+    slot.replaceChildren(kept);
+    if (kept._astPlaying) kept.play().catch(() => {});
+    return;
+  }
+  const el = astBuildPlayer(a, slot);
+  if (!kept) AST_PLAYERS.set(key, el);
+  slot.replaceChildren(el);
+}
+
+function astBuildPlayer(a) {
+  const el = doc.createElement(a.kind === 'video' ? 'video' : 'audio');
+  el.controls = true;
+  el.preload = 'metadata';
+  el.setAttribute('playsinline', '');
+  el.setAttribute('aria-label', a.name);
+  // 按播放器不是「打開這個檔案」：不要讓外層卡片的點擊一起觸發、把抽屜叫出來。
+  el.addEventListener('click', e => e.stopPropagation());
+  el.addEventListener('playing', () => { el._astPlaying = true; el._astHeals = 0; });
+  el.addEventListener('pause', () => { if (el.isConnected) el._astPlaying = false; });
+  el.addEventListener('ended', () => { el._astPlaying = false; });
+
+  const use = (url, resumeAt, resume) => {
+    el._astUrlAt = Date.now();
+    el._astLocal = /^blob:|^data:/.test(url);
+    // #t：手機 Safari 不先定位就不畫第一格，影片卡片會是一塊黑。片段不會送到伺服器，不影響簽名。
+    el.src = a.kind === 'video' && !resumeAt ? url + '#t=0.001' : url;
+    if (resumeAt || resume) {
+      el.addEventListener('loadedmetadata', () => {
+        if (resumeAt) el.currentTime = resumeAt;
+        if (resume) el.play().catch(() => {});
+      }, { once: true });
+    }
+  };
+
+  el.addEventListener('error', () => {
+    // 兩種會在這裡的情況要分開：網址過期（換一張就好），或這個格式瀏覽器解不開（換幾張都一樣）。
+    // 剛換到手的網址還出錯就是後者；本機那一份出錯則先退回伺服器那一份試一次。
+    const stale = el._astLocal || Date.now() - (el._astUrlAt || 0) > 60 * 1000;
+    el._astHeals = (el._astHeals || 0) + 1;
+    if (!stale || el._astHeals > 3 || !a.objectKey) return astPlayerFailed(el, a);
+    const at = el.currentTime || 0, was = !!el._astPlaying;
+    astViewUrl(a, true).then(url => use(url, at, was), () => astPlayerFailed(el, a));
+  });
+
+  astViewUrl(a).then(url => use(url, 0, false), () => astPlayerFailed(el, a));
+  return el;
+}
+
+function astPlayerFailed(el, a) {
+  AST_PLAYERS.forEach((node, key) => { if (node === el) AST_PLAYERS.delete(key); });
+  const slot = el.parentNode;
+  if (!slot || !slot.isConnected) return;
+  slot.innerHTML = `<div class="ast-media-ph">這個瀏覽器播不了這個格式${a.objectKey
+    ? `　<span class="pf" role="button" tabindex="0" onclick="event.stopPropagation();astDownload('${a.id}')">下載後開啟</span>` : ''}</div>`;
+  wire();
 }
 
 /* ---------- 四、動作 ---------- */
@@ -348,17 +549,18 @@ function astRetry(rid) {
   row.pct = 0;
   row.err = '';
   render();
-  // 重試換一個新的 key：R2 對同一個 key 的寫入限制是每秒一次，而且半份舊 bytes
-  // 留在原地會讓 finalize 的大小比對變得沒有意義。參考碼不變（RES-018）。
-  astPresign(file).then(signed => {
-    row.assetId = signed.assetId;
-    row.objectKey = signed.objectKey;
-    return astUpload(row, file);
-  }).catch(e => {
+  // 同一列、同一個參考碼（RES-018）：伺服器只重新開放上傳，日誌那一行不必改。
+  astPresign(file, row.assetId).then(signed => astUpload(row, file, signed)).catch(e => {
     row.status = 'failed';
     row.err = e.message || '重試失敗';
     if (active) render();
   });
+}
+
+/** 取消正在傳的那一個。卡片留著並變成「已取消」，可以重試或移除 —— 大影片選錯了不必等它傳完。 */
+function astCancel(rid) {
+  const xhr = AST_XHR.get(rid);
+  if (xhr) xhr.abort();
 }
 
 /** 只從日誌移除這一行；物件本身不動 —— 與既有「刪除區塊」的語意一致。 */
@@ -375,15 +577,20 @@ function astDrop(blockId) {
 async function astDownload(rid) {
   const a = astOf(rid);
   if (!a) return;
-  if (a.data) return toast('這一份只在本頁記憶體裡');
+  const link = doc.createElement('a');
+  link.rel = 'noopener';
+  link.download = a.name;
   try {
-    const res = await fetch(UPLOAD_ENDPOINT + '?key=' + encodeURIComponent(a.objectKey));
-    if (!res.ok) throw Error('取得下載網址失敗');
-    const { downloadUrl } = await res.json();
-    const link = doc.createElement('a');
-    link.href = downloadUrl;
-    link.download = a.name;
-    link.rel = 'noopener';
+    if (a.objectKey) {
+      // download=1：伺服器把網址簽成附件。預簽網址與工作台不同源，<a download> 對它無效，
+      // 不這樣做的話瀏覽器會在同一個分頁把圖片或影片打開，等於把人帶離工作台。
+      const res = await fetch(UPLOAD_ENDPOINT + '?download=1&key=' + encodeURIComponent(a.objectKey));
+      if (!res.ok) throw Error('取得下載網址失敗');
+      link.href = (await res.json()).downloadUrl;
+    } else {
+      // 只在這一頁記憶體裡的那一份（prototype 模式）：同源的 blob，可以直接存。
+      link.href = await astViewUrl(a);
+    }
     root.append(link);
     link.click();
     link.remove();
@@ -401,18 +608,16 @@ function astCopyCode(rid) {
 DRAWERS.asset = rid => {
   const a = astOf(rid);
   if (!a) return { crumb: '檔案', title: '找不到檔案', body: '', foot: '' };
-  const pid = 'astD-' + rid.replace(/[^A-Za-z0-9-]/g, '');
   let preview = '';
   if (a.kind === 'image') {
-    if (a.data) preview = `<img class="ast-lb-img" src="${a.data}" alt="${esc(a.name)}">`;
-    else { setTimeout(() => astPaintImg(pid, a.objectKey), 0); preview = `<div class="ast-hold" id="${pid}" style="max-width:100%;height:280px"><span class="ast-ph">載入中…</span><img alt="${esc(a.name)}"></div>`; }
+    preview = astThumb(a, 'big');
   } else if (a.kind === 'pdf' && a.objectKey) {
+    const pid = 'astD-' + rid.replace(/[^A-Za-z0-9-]/g, '');
     setTimeout(() => astPaintFrame(pid, a.objectKey), 0);
-    // 手機 Safari 的 iframe PDF 幾乎不能用，所以底下一定要留「用新分頁開啟」。
+    // 手機 Safari 的 iframe PDF 幾乎不能用，所以底下一定要留下載。
     preview = `<iframe class="ast-frame" id="${pid}" title="${esc(a.name)}"></iframe>`;
-  } else if ((a.kind === 'audio' || a.kind === 'video') && a.objectKey) {
-    setTimeout(() => astPaintMedia(pid, a.objectKey), 0);
-    preview = `<div class="ast-media" id="${pid}"><div class="note">載入中…</div></div>`;
+  } else if ((a.kind === 'audio' || a.kind === 'video') && astPlayable(a)) {
+    preview = astMediaSlot(a, 'drawer');
   }
 
   return {
@@ -426,33 +631,16 @@ DRAWERS.asset = rid => {
         <span>被引用 <b>${astRefCount(a.id)}</b> 次</span>
       </div>${preview}`,
     foot: `<button class="btn pri" onclick="astDownload('${a.id}')">${svg('download', 13)} 下載</button>
-      <span class="note">下載網址每次重新產生，只有 5 分鐘有效</span>`
+      <span class="note">${a.objectKey ? '存放在 Cloudflare R2 · 網址每次重新產生，短時間內有效' : '這一份只在本頁記憶體裡'}</span>`
   };
 };
 
-async function astSignedUrl(objectKey) {
-  const res = await fetch(UPLOAD_ENDPOINT + '?key=' + encodeURIComponent(objectKey));
-  if (!res.ok) throw Error('取得檔案失敗');
-  return (await res.json()).downloadUrl;
-}
 async function astPaintFrame(elementId, objectKey) {
   try {
     const url = await astSignedUrl(objectKey);
     const el = root.querySelector('#' + elementId);
     if (el) el.src = url;
   } catch { /* 預覽失敗不影響下載按鈕 */ }
-}
-async function astPaintMedia(elementId, objectKey) {
-  const el = root.querySelector('#' + elementId);
-  if (!el) return;
-  try {
-    const url = await astSignedUrl(objectKey);
-    const a = (DB.assets || []).find(x => x.objectKey === objectKey);
-    const tag = a && a.kind === 'video' ? 'video' : 'audio';
-    el.innerHTML = '<' + tag + ' controls preload="metadata" src="' + url + '"></' + tag + '>';
-  } catch {
-    el.innerHTML = '<div class="note">無法載入，請改用下載</div>';
-  }
 }
 
 /* ---------- 六、接進既有的物件機制 ---------- */
@@ -489,13 +677,19 @@ objJump = function (ty, rid) {
   return astBaseObjJump(ty, rid);
 };
 
-/* # 召喚選單多一項「附件」。走 summonObject 而不是 TPL —— 它不是文件模板，
-   選了之後開的是檔案選擇器，不是表單。 */
-SUMMON[1].items.push({
-  k: 'asset', nm: '附件', ds: '上傳圖片、文件、音訊或影片 · 之後可用 @ 引用', ic: 'paperclip'
-});
+/* # 召喚：圖片、影片、音訊各一項，選了直接開系統的選檔視窗 —— 少一層選單。
+   「附件」留著給其他檔案與手機的拍照／錄影，它開的是把幾種選法攤開的那個視窗。
+   走 summonObject 而不是 TPL：它們不是文件模板，選了之後開的是選檔視窗，不是表單。 */
+const AST_SUMMON = { image: 'image', video: 'video', audio: 'audio' };
+SUMMON[1].items.push(
+  { k: 'image', nm: '圖片', ds: '上傳圖片或截圖 · 日誌裡直接看得到', ic: 'image' },
+  { k: 'video', nm: '影片', ds: '上傳影片 · 日誌裡直接播放', ic: 'video' },
+  { k: 'audio', nm: '音訊', ds: '上傳錄音或音檔 · 日誌裡直接播放', ic: 'audio' },
+  { k: 'asset', nm: '附件', ds: 'PDF、Office 文件與其他檔案 · 手機可拍照或錄影', ic: 'paperclip' }
+);
 const astBaseSummonObject = summonObject;
 summonObject = function (ty, blockId, seed) {
+  if (AST_SUMMON[ty]) return astPick(AST_SUMMON[ty], blockId);
   if (ty === 'asset') return astOpenPicker(blockId);
   return astBaseSummonObject(ty, blockId, seed);
 };
