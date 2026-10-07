@@ -33,8 +33,9 @@
 6. **沒有型別的檔案會被 R2 拒絕。** Content-Type 簽進網址，而手機錄的 `.mov`、部分系統的 `.m4a`／`.wav`
    `file.type` 是空字串，簽的與送的對不上。
 
-R2 本身沒有問題：以預簽網址送 preflight 探測，`https://person.yzedtech.com` 與 `http://localhost:3000` 的
-`PUT`／`GET`／`HEAD` 都放行（允許標頭 `content-type`），既有物件的 Range 讀取回 206。
+R2 本身沒有問題：以預簽網址送 preflight 探測，正式站的來源 `https://www.person.yzedtech.com`
+（以及 `https://person.yzedtech.com`、`http://localhost:3000`）的 `PUT`／`GET`／`HEAD` 都放行
+（允許標頭 `content-type`），既有物件的 Range 讀取回 206。
 
 ## Changes
 
@@ -107,7 +108,8 @@ R2 本身沒有問題：以預簽網址送 preflight 探測，`https://person.yz
 ## Remaining Risks
 
 - **正式站尚未由 Owner 驗收**：本輪的真實往返在本機對正式 R2 bucket 完成，CORS 也探測過正式網域放行；
-  但我沒有登入 `person.yzedtech.com` 實際操作，正式站的 R2 環境變數是否齊全只能由那裡的第一次上傳確認。
+  部署後 `https://www.person.yzedtech.com/api/company/operating/uploads` 未登入回 401（路由已上線、有守門）。
+  但沒有登入正式站實際操作，正式站的 R2 環境變數是否齊全只能由那裡的第一次上傳確認。
 - **大檔沒有分段上傳**：超過 64 MB 仍是單次 PUT，掉線就整份重來（R2 單次上限 5 GiB，不是不能傳，是不能續傳）。
 - **個人空間**：在 database 模式下日誌文字不保存（`JRNL-INC-001`），所以在個人空間上傳的檔案會存成私人物件、
   進物件索引，但日誌那一行重新整理後不在。
