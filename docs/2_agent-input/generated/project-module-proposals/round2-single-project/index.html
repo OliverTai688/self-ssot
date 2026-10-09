@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>單一專案路徑：截圖分析與三版提案</title>
+<style>
+:root{--bg:#0a0c0f;--s1:#111418;--s2:#161a20;--s3:#1d232b;--bd:#232931;--bd2:#333b45;--t:#e9ecf1;--t2:#99a2af;--t3:#626b77;--pri:#6cb6ff;--pribg:#11212e;--pribr:#2d5a7d;--ok:#5fd09a;--warn:#f2b95e;--warnbg:#2a2111;--dgr:#ef8a82;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:14px/1.7 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+a{color:var(--pri)}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:22px 14px;border-right:1px solid var(--bd);background:var(--s1)}
+nav h1{margin:0 0 4px;font-size:15px}
+nav p{margin:0 0 16px;font-size:12px;color:var(--t3)}
+nav button{display:block;width:100%;margin:2px 0;padding:8px 10px;background:none;border:0;border-left:2px solid transparent;color:var(--t2);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+nav button.on{color:var(--t);border-left-color:var(--pri);background:var(--pribg)}
+nav button small{display:block;font-size:11px;color:var(--t3)}
+main{padding:28px 34px 80px;min-width:0;max-width:1180px}
+h2{margin:0 0 4px;font-size:21px}
+.lead{margin:0 0 20px;color:var(--t2)}
+h3{margin:30px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--bd2);font-size:14px}
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.shots figure{margin:0}
+.shots img{display:block;width:100%;border:1px solid var(--bd2);border-radius:6px}
+.shots figcaption{margin-top:5px;font-size:12px;color:var(--t3)}
+ol.find{margin:0;padding-left:20px}
+ol.find li{margin:5px 0}
+ol.find b{color:var(--warn);font-weight:600}
+.vtabs{display:flex;gap:4px;margin:0 0 12px;border-bottom:1px solid var(--bd)}
+.vtabs button{margin-bottom:-1px;padding:8px 16px;background:none;border:0;border-bottom:2px solid transparent;color:var(--t3);font:inherit;cursor:pointer}
+.vtabs button.on{color:var(--t);border-bottom-color:var(--pri)}
+.vtabs button.pick::after{content:"採用";margin-left:8px;padding:1px 7px;border-radius:999px;background:var(--ok);color:#06140d;font-size:10.5px;font-weight:700}
+.var{display:none}
+.var.on{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,1fr);gap:22px}
+.mock{padding:16px;border:1px solid var(--bd2);border-radius:8px;background:var(--s1);font-size:13px;min-width:0;overflow:auto}
+.pc h4{margin:0 0 6px;font-size:13px}
+.pc ul{margin:0 0 14px;padding-left:18px;font-size:13px;color:var(--t2)}
+.pc .good{color:var(--ok)}.pc .bad{color:var(--dgr)}
+.decide{margin-top:18px;padding:14px 16px 14px 18px;border-left:3px solid var(--ok);background:var(--s1)}
+.decide h4{margin:0 0 6px;font-size:13px;color:var(--ok)}
+.decide p{margin:4px 0;font-size:13.5px}
+.decide .no{color:var(--t2)}
+/* 示意元件 */
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--bd)}
+.row:last-child{border-bottom:0}
+.sp{flex:1}
+.h{font-weight:600}
+.dim{color:var(--t3);font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:1px 9px;border:1px solid var(--bd2);border-radius:999px;font-size:11.5px;color:var(--t2);white-space:nowrap}
+.chip.pri{color:var(--pri);border-color:var(--pribr);background:var(--pribg)}
+.chip.ok{color:var(--ok);border-color:var(--ok)}
+.chip.warn{color:var(--warn);border-color:var(--warn);background:var(--warnbg)}
+.chip.dgr{color:var(--dgr);border-color:var(--dgr)}
+.chip.act{cursor:pointer;border-style:solid;box-shadow:0 0 0 2px rgba(108,182,255,.18)}
+.chip.act::after{content:"▾";font-size:9px;opacity:.8}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--bd2);border-radius:6px;background:var(--s2);color:var(--t);font-size:12px}
+.btn.pri{border-color:var(--pribr);background:var(--pribg);color:var(--pri)}
+.av{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;background:#2b4a63;color:#9ecbf5;font-size:11px}
+.av.l{background:#3d3357;color:#c4a2f5}
+.ind1{margin-left:16px;padding-left:14px;border-left:2px solid var(--bd)}
+.ind2{margin-left:34px;padding-left:14px;border-left:1px solid var(--bd2)}
+.pop{margin:8px 0 8px 40px;padding:12px;width:290px;border:1px solid var(--bd2);border-radius:8px;background:var(--s3);box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.pop .o{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:5px;font-size:13px}
+.pop .o.on{background:var(--pribg);color:var(--pri)}
+.pop .ta{margin:8px 0;padding:7px 8px;border:1px solid var(--bd2);border-radius:6px;background:var(--s1);color:var(--t3);font-size:12.5px}
+.pop .hist{margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);font-size:11.5px;color:var(--t3)}
+.inp{flex:1;min-width:160px;padding:6px 9px;border:1px dashed var(--bd2);border-radius:6px;color:var(--t3);font-size:12.5px}
+.cols{display:grid;gap:10px}
+.col{padding:10px;border:1px solid var(--bd);border-radius:6px;background:var(--s2);min-width:0}
+.card{margin:6px 0;padding:8px;border:1px solid var(--bd2);border-radius:6px;background:var(--s1);font-size:12.5px}
+table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+table.t th{padding:6px 8px;text-align:left;color:var(--t3);font-weight:500;border-bottom:1px solid var(--bd2)}
+table.t td{padding:7px 8px;border-bottom:1px solid var(--bd)}
+.sys{padding:5px 0 5px 12px;border-left:2px solid var(--bd2);color:var(--t2);font-size:12.5px}
+.track{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.track div{padding:6px 0;border-bottom:3px solid var(--bd2);font-size:12px}
+.track .d{border-color:var(--ok)}.track .n{border-color:var(--pri)}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}nav{position:static;height:auto}.var.on{grid-template-columns:1fr}main{padding:20px 16px 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <h1>單一專案路徑提案</h1>
+  <p>2026-10-09 · 第二輪 · 每條路徑三版</p>
+  <div id="nav"></div>
+</nav>
+<main id="main"></main>
+</div>
+<script>
+const chip=(t,c='',act)=>`<span class="chip ${c} ${act?'act':''}">${t}</span>`;
+const av=(w)=>`<span class="av ${w==='L'?'l':''}">${w==='L'?'L':'宇'}</span>`;
+const POP=`<div class="pop"><div class="dim">變更狀態 · M03 內部驗收</div>
+ <div class="o">○ 進行中</div><div class="o on">● 已達成</div>
+ <div class="ta">理由（可略過，Enter 送出）</div>
+ <div class="row" style="border:0;padding:0"><span class="sp"></span><span class="btn">取消</span><span class="btn pri">更新</span></div>
+ <div class="hist">09/28 戴宇星　進行中 → 已達成　「客戶簽回驗收單」<br>09/20 Lily　已達成 → 進行中　「客戶追加兩個帳號」</div></div>`;
+
+const PATHS=[
+{id:'status',name:'0　狀態變更（共用）',sub:'所有路徑都會用到',
+ lead:'「有顯示狀態的地方都可以點、可以留理由」是這一輪的主軸，所以先決定這個互動，再套到每條路徑。',
+ shots:[['before-2-plan-tasks.jpg','計劃：進行中／已完成／Doing／審核中 都只是顯示']],
+ find:['專案狀態要按「編輯」開整張表單才改得到，<b>改一個狀態要 4 步</b>。','期的狀態藏在編輯表單裡；階段只有「完成這個階段」，<b>不能重新開啟</b>；里程碑靠一顆沒有文字的菱形。','除了審核「退回」之外，<b>任何狀態變更都不留理由</b>，事後看不出為什麼結案、為什麼退回進行中。','任務狀態顯示英文 Todo／Doing／Review／Done。'],
+ vars:[
+  {k:'A',t:'點狀態 → 就地小視窗',pick:true,mock:`<div class="row"><span class="h">◇ M03 內部驗收</span>${chip('進行中','pri',1)}<span class="sp"></span><span class="dim">09-28</span></div>${POP}<div class="dim">所有狀態籤都長一樣：有 ▾、可點。選狀態 → 寫理由（可略過）→ Enter。</div>`,
+   good:['兩個動作完成：點選項、按 Enter','視線不離開那一列','小視窗底下直接看到最近幾次變更與理由'],bad:['手機上要改成底部抽屜']},
+  {k:'B',t:'點狀態 → 開整張表單',mock:`<div class="row"><span class="h">◇ M03 內部驗收</span>${chip('進行中','pri',1)}</div><div class="col" style="margin-top:10px"><div class="h">變更狀態</div><div class="row"><span class="dim">狀態</span>${chip('進行中')}${chip('已達成','pri')}</div><div class="row"><span class="dim">理由</span><span class="inp">必填</span></div><div class="row"><span class="dim">生效日</span><span class="inp">2026-10-09</span></div><div class="row" style="border:0"><span class="sp"></span><span class="btn pri">儲存</span></div></div>`,
+   good:['欄位可以很多（生效日、通知誰）','沿用現有表單元件'],bad:['蓋住整個畫面，改五個任務要開關五次','理由必填會讓人亂填']},
+  {k:'C',t:'下拉即改，事後可復原',mock:`<div class="row"><span class="h">◇ M03 內部驗收</span>${chip('已達成','ok',1)}</div><div class="col" style="margin-top:10px;width:300px">已改為 <b>已達成</b>　<span class="btn">復原</span>　<span class="btn">補一句理由</span></div>`,
+   good:['最快，一個動作'],bad:['理由變成事後補，實際上不會有人補','誤觸就改掉了狀態']}],
+ decide:['採用 A。','理由的規則：往前推進（待辦→進行中→完成）可略過；<b>往回走、結案、取消一律必填</b> —— 往前是例行，往回才需要解釋。','每一筆變更寫成專案主頻道的一則系統訊息（誰、從什麼改成什麼、理由），所以兩個人都看得到、重新整理後還在、也會出現在總覽的時間流。不另開資料表。','B 留給審核「退回」這種本來就要寫一段話的動作；C 不採用：留不下理由。']},
+
+{id:'init',name:'1　專案初始化',sub:'新專案的第一分鐘',
+ lead:'剛匯入的 11 個專案全部停在「未分期」。要讓一個專案變成可以管理，現在得依序開五張表單。',
+ shots:[['before-2-plan-top.jpg','計劃：新增一期／階段／里程碑／TODO／審核任務 五顆按鈕']],
+ find:['建第一期可以帶出五個階段，但<b>里程碑要一個一個開表單建</b>。','不同類型的案子（網站、AI 導入、行銷、補助申請）里程碑其實是固定的幾種，現在每次從零開始。','工具列五顆「新增」與每一列右邊的「＋階段／＋里程碑／＋任務」重複。'],
+ vars:[
+  {k:'A',t:'範本一次建好',pick:true,mock:`<div class="h">初始化這個專案</div><div class="row"><span class="dim">範本</span>${chip('網站建置','pri')}${chip('AI 系統導入')}${chip('行銷服務')}${chip('顧問／規格')}${chip('補助申請')}${chip('內部產品')}${chip('空白')}</div><div class="row"><span class="dim">起訖</span><span class="inp">2026-10-09 → 2027-01-06</span></div><div class="dim" style="margin:8px 0">會建立：一期、5 個階段、9 個里程碑（M01 需求書確認 … M09 一年維護起算），日期待補</div><div class="row" style="border:0"><span class="sp"></span><span class="btn pri">建立</span></div>`,
+   good:['一張表單、一次儲存，專案就有期、階段、里程碑','里程碑名稱來自你工作區資料夾裡真實出現過的序列','建完每一項都能改、能刪'],bad:['範本不合用時要刪幾個里程碑']},
+  {k:'B',t:'設定清單逐項做（現況）',mock:`<div class="row">○ 寫下一步</div><div class="row">○ 分期</div><div class="row">○ 啟用專案硬碟</div><div class="row">○ 記第一場會議</div>`,
+   good:['已經存在'],bad:['「分期」點下去還是只有階段，沒有里程碑','四件事各自一張表單']},
+  {k:'C',t:'複製另一個專案的結構',mock:`<div class="row"><span class="dim">複製自</span><span class="inp">豐盛之翼學院形象官網 ▾</span></div><div class="row">☑ 期與階段　☑ 里程碑　☐ 任務　☐ 資料夾</div>`,
+   good:['同類型的第二個案子最快'],bad:['現在沒有任何一個專案有完整結構可以複製','會把上一個案子的特殊狀況一起帶過來']}],
+ decide:['採用 A，入口放在 B 的設定清單「分期」那一項與計劃的空白狀態 —— 兩個不是互斥的。','C 等有三四個完整專案之後再做。','工具列五顆新增收成兩顆（新增一期、用範本初始化），其餘留在各列自己的「＋」。']},
+
+{id:'overview',name:'2　總覽',sub:'專案 › 總覽',
+ lead:'打開一個專案第一眼看到的地方。要回答：現在什麼狀態、下一步、什麼卡住了。',
+ shots:[['before-1-overview.jpg','總覽（示範資料）']],
+ find:['標題列的「驗收中」<b>不能點</b>。','期階梯的五個階段是純顯示，要改得跳到計劃分頁。','待辦列上的「待審」「已退回」只是標籤。','看不到「最近誰改了什麼狀態、為什麼」。'],
+ vars:[
+  {k:'A',t:'現有版面＋狀態可點＋狀態紀錄',pick:true,mock:`<div class="row"><span class="h" style="font-size:16px">柏翰 · Google Workspace 導入</span>${chip('驗收中','warn',1)}<span class="sp"></span><span class="btn">編輯</span></div><div class="row" style="border-left:3px solid var(--pri);padding-left:12px"><span><span class="dim">下一步</span><br>等客戶簽回驗收單</span></div><div class="track" style="margin:12px 0"><div class="d">提案 ${chip('已完成','ok',1)}</div><div class="d">接案 ${chip('已完成','ok',1)}</div><div class="d">執行 ${chip('已完成','ok',1)}</div><div class="n">驗收 ${chip('進行中','pri',1)}</div><div>結案 ${chip('未開始','',1)}</div></div><div class="h" style="margin-top:10px">狀態紀錄</div><div class="sys">10/09 戴宇星　專案：進行中 → 驗收中　「M02 全員導入完成」</div><div class="sys">09/05 Lily　里程碑 M02：進行中 → 已達成</div>`,
+   good:['不用重新學版面','狀態在原地就能改','多一塊狀態紀錄回答「為什麼」'],bad:['頁面再長一點']},
+  {k:'B',t:'左內容＋右屬性欄',mock:`<div class="cols" style="grid-template-columns:2fr 1fr"><div><div class="h">下一步</div><div class="dim">等客戶簽回驗收單</div><div class="h" style="margin-top:12px">待處理 4</div><div class="row">驗收報告送審 ${chip('待審','warn')}</div><div class="row">教育訓練簡報定稿 ${chip('已退回','dgr')}</div></div><div class="col"><div class="row"><span class="dim">狀態</span>${chip('驗收中','warn',1)}</div><div class="row"><span class="dim">階段</span>${chip('一期 · 驗收','pri',1)}</div><div class="row"><span class="dim">負責</span>${av('L')} Lily</div><div class="row"><span class="dim">重要度</span>▮▮▮▯▯</div></div></div>`,
+   good:['Linear 的做法，屬性集中'],bad:['標題列已經有同一組屬性，重複','760px 以下右欄要掉到最下面，狀態反而更難找','主內容寬度少三分之一']},
+  {k:'C',t:'以期階梯為主視覺',mock:`<div class="track"><div class="d" style="padding:18px 0">提案</div><div class="d" style="padding:18px 0">接案</div><div class="d" style="padding:18px 0">執行</div><div class="n" style="padding:18px 0">驗收<br><span class="dim">0/1 里程碑 · 至 09-28</span></div><div style="padding:18px 0">結案</div></div><div class="dim" style="margin-top:10px">下方為時間流</div>`,
+   good:['一眼看到走到哪'],bad:['15 個專案裡 14 個還沒分期，這一頁會是空的','下一步被擠到第二屏']}],
+ decide:['採用 A。','B 的屬性欄與 10/7 做的標題列重複；C 要等大多數專案都分期之後才有意義。']},
+
+{id:'plan',name:'3　計劃：期・階段・里程碑',sub:'專案 › 計劃',
+ lead:'工作流（提案→接案→執行→驗收→結案）、分期、里程碑、任務都在這裡。CRUD 最密集的一頁。',
+ shots:[['before-2-plan-top.jpg','期與階段'],['before-2-plan-tasks.jpg','里程碑與任務']],
+ find:['四層都有狀態，<b>沒有一個狀態籤可以點</b>。','里程碑只有一顆菱形代表狀態，<b>沒有文字</b>。','新增任務要開一張 8 個欄位的表單；連續加三件事要開關三次。','負責人頭像不能點；<b>而且任務的負責人根本沒有存進資料庫</b>，重新整理後全部變成空的，Lily 會無法勾掉任何任務。','「完成這個階段」之後沒有辦法重新開啟。'],
+ vars:[
+  {k:'A',t:'階層樹＋狀態可點＋行內新增',pick:true,mock:`<div class="row"><span class="h">C1 一期</span>${chip('進行中','pri',1)}<span class="sp"></span><span class="dim">07-20 → 09-28</span></div><div class="ind1"><div class="row"><span class="h">驗收</span>${chip('進行中','pri',1)}<span class="sp"></span><span class="dim">09-06 → 09-28</span></div><div class="ind2"><div class="row"><span class="h">◇ M03 內部驗收</span>${chip('進行中','pri',1)}<span class="sp"></span><span class="dim">09-28　1/3</span></div><div class="row">☐ 彙整導入後 30 日成效數據 <span class="sp"></span>${chip('進行中','pri',1)}<span class="dim">09-20</span>${av('L')}</div><div class="row">◎ 驗收報告送審 <span class="sp"></span>${chip('審核中','warn',1)}<span class="dim">09-18</span>${av('L')}</div><div class="row"><span class="inp">＋ 新增任務，Enter 建立</span></div></div><div class="row"><span class="inp">＋ 新增里程碑，Enter 建立</span></div></div>`,
+   good:['保留已經熟悉的四層結構','每個狀態原地可改','連續打三行字就是三個任務','點頭像換負責人'],bad:['四層全展開時很長（已有收合）']},
+  {k:'B',t:'工作流看板（階段為欄）',mock:`<div class="cols" style="grid-template-columns:repeat(5,1fr)"><div class="col"><div class="dim">提案</div></div><div class="col"><div class="dim">接案</div></div><div class="col"><div class="dim">執行</div><div class="card">M01 帳號盤點 ${chip('已達成','ok')}</div><div class="card">M02 全員導入 ${chip('已達成','ok')}</div></div><div class="col"><div class="dim">驗收</div><div class="card">M03 內部驗收<br><span class="dim">1/3 任務</span></div></div><div class="col"><div class="dim">結案</div></div></div>`,
+   good:['工作流一眼看完','拖曳很直覺'],bad:['看不到「期」：二期的執行與一期的執行會疊在同一欄','拖曳沒有地方寫理由','任務藏在卡片裡，要再點一層','手機上五欄只能橫向捲']},
+  {k:'C',t:'試算表式表格',mock:`<table class="t"><tr><th>項目</th><th>階段</th><th>狀態</th><th>負責</th><th>期限</th></tr><tr><td>M03 內部驗收</td><td>一期 · 驗收</td><td>${chip('進行中','pri',1)}</td><td></td><td>09-28</td></tr><tr><td>　彙整成效數據</td><td></td><td>${chip('進行中','pri',1)}</td><td>${av('L')}</td><td>09-20</td></tr><tr><td>　驗收報告送審</td><td></td><td>${chip('審核中','warn',1)}</td><td>${av('L')}</td><td>09-18</td></tr></table>`,
+   good:['密度最高，可排序'],bad:['期與階段變成一欄文字，工作流不見了','行內新增要先選階層','手機上要橫向捲']}],
+ decide:['採用 A。','B 丟掉「期」這一層，而二期正是 01、03 兩個進行中專案的現況；C 把階層壓平，適合 50 件以上的任務，現在每個專案不到 10 件。','同時補上任務負責人的儲存（資料庫加欄位），否則 Lily 重新整理後無法操作任何任務。','階段的狀態仍由日期推導，但可以點：選「進行中」就是把開始日設成今天、「已完成」是把結束日收在昨天、重新開啟會把結束日延後一週並告訴你。']},
+
+{id:'work',name:'4　計劃：工作（任務）',sub:'專案 › 計劃 › 工作',
+ lead:'兩個人的團隊，任務清單最重要的問題是「誰在做什麼」。',
+ shots:[['before-3-work.jpg','工作（清單／看板／表格／日曆）']],
+ find:['狀態是英文，而且<b>不能點</b>。','預設依狀態分組；看不出兩個人各自手上有幾件。','上方「view 是存起來的設定，不是另一份資料」是設計說明，不是操作。','四種檢視對一個不到 10 件任務的專案太多。'],
+ vars:[
+  {k:'A',t:'一張清單，可切換分組',pick:true,mock:`<div class="row"><span class="dim">分組</span>${chip('負責人','pri')}${chip('狀態')}${chip('里程碑')}<span class="sp"></span>${chip('未完成','pri')}${chip('全部')}</div><div class="row"><span class="inp">＋ 新增任務，Enter 建立（負責人是你）</span></div><div class="h" style="margin-top:10px">${av('L')} Lily　3</div><div class="row">☐ 彙整導入後 30 日成效數據 <span class="dim">M03</span><span class="sp"></span>${chip('進行中','pri',1)}<span class="dim">09-20</span></div><div class="row">◎ 驗收報告送審 <span class="dim">M03</span><span class="sp"></span>${chip('審核中','warn',1)}<span class="dim">09-18</span></div><div class="h" style="margin-top:10px">${av()} 戴宇星　0</div><div class="dim">沒有進行中的任務</div>`,
+   good:['預設就回答「誰在做什麼」','狀態、負責人都能原地改','最上面一行可以連續加任務'],bad:['沒有拖曳']},
+  {k:'B',t:'看板，拖曳改狀態',mock:`<div class="cols" style="grid-template-columns:repeat(4,1fr)"><div class="col"><div class="dim">待辦 0</div></div><div class="col"><div class="dim">進行中 2</div><div class="card">彙整成效數據 ${av('L')}</div><div class="card">教育訓練簡報 ${av('L')}</div></div><div class="col"><div class="dim">審核中 1</div><div class="card">驗收報告送審 ${av('L')}</div></div><div class="col"><div class="dim">完成 3</div></div></div>`,
+   good:['狀態分佈一眼看完'],bad:['拖曳之後才跳出來要理由，流程被打斷','手機上不好拖','看不出人的負荷']},
+  {k:'C',t:'兩人兩欄對照',mock:`<div class="cols" style="grid-template-columns:1fr 1fr"><div class="col"><div class="h">${av()} 戴宇星</div><div class="dim">待審 1</div><div class="card">驗收報告（審核）</div></div><div class="col"><div class="h">${av('L')} Lily</div><div class="dim">進行中 2 · 審核中 1</div><div class="card">彙整成效數據</div><div class="card">教育訓練簡報</div></div></div>`,
+   good:['負荷對照最清楚'],bad:['固定兩欄，未指派的任務沒地方放','加第三個人版面就要重做']}],
+ decide:['採用 A，預設依負責人分組 —— 把 C 的好處收進來，又不把版面綁死在兩個人。','原本的看板／表格／日曆保留，改名為「看板・表格・日曆」放在旁邊，不刪。','狀態一律顯示中文：待辦／進行中／審核中／完成。']},
+
+{id:'meeting',name:'5　會議',sub:'專案 › 會議',
+ lead:'會議本身沒有狀態欄位，狀態是推導的：還沒開、開完沒寫結論、已有結論。',
+ shots:[['before-4-meeting.jpg','會議']],
+ find:['左側「缺結論」是標籤，點了沒有反應。','其餘 CRUD（新增、編輯、四件套、會議待辦轉任務）是完整的。'],
+ vars:[
+  {k:'A',t:'維持兩欄，缺結論可點',pick:true,mock:`<div class="cols" style="grid-template-columns:1fr 2fr"><div><div class="row">09-08 驗收前確認 ${chip('缺結論','warn',1)}</div><div class="row">08-06 啟動會議 ${chip('已有結論','ok')}</div></div><div class="col"><div class="h">驗收前確認</div><div class="row"><span class="dim">結論</span><span class="inp">點「缺結論」直接跳到這一格</span></div></div></div>`,
+   good:['改動最小','缺結論是這一頁唯一需要處理的狀態'],bad:['沒有新的能力']},
+  {k:'B',t:'時間軸',mock:`<div class="sys">09-08　驗收前確認　${chip('缺結論','warn')}</div><div class="sys">08-06　啟動會議　結論：28 個帳號分三批導入</div>`,
+   good:['結論可以連著讀'],bad:['四件套與會議待辦沒地方放','總覽的時間流已經有同樣的東西']},
+  {k:'C',t:'表格',mock:`<table class="t"><tr><th>日期</th><th>會議</th><th>參與</th><th>結論</th><th>四件套</th></tr><tr><td>09-08</td><td>驗收前確認</td><td>Lily</td><td>${chip('缺','warn')}</td><td>1/4</td></tr><tr><td>08-06</td><td>啟動會議</td><td>宇星 Lily</td><td>有</td><td>4/4</td></tr></table>`,
+   good:['會議多的時候好掃'],bad:['一個專案的會議通常不到 10 場','細節要再開抽屜']}],
+ decide:['採用 A。這一頁的結構沒有問題，只補上「缺結論」可點。','<span class="no">本輪不重排版面。</span>']},
+
+{id:'drive',name:'6　檔案',sub:'專案 › 檔案',
+ lead:'檔案的「狀態」是兩件事：待整理／已歸檔，以及對客戶可見與否。',
+ shots:[['before-5-drive.jpg','專案硬碟']],
+ find:['收件匣的待整理數字清楚，歸檔流程已經有。','可見性已經可以在資料夾上改，而且合約與內部資料夾被鎖住不能對客戶公開。'],
+ vars:[
+  {k:'A',t:'維持樹＋內容',pick:true,mock:`<div class="cols" style="grid-template-columns:1fr 2fr"><div><div class="row">收件匣 ${chip('2 待整理','warn')}</div><div class="row">[共用] 共用資料夾 ${chip('客戶可見','pri')}</div><div class="row">開案前</div></div><div class="col"><div class="h">專案硬碟</div><div class="dim">8 個資料夾</div></div></div>`,good:['符合你原本在 0_工作區 的資料夾習慣','已驗收過'],bad:['—']},
+  {k:'B',t:'縮圖格狀',mock:`<div class="cols" style="grid-template-columns:repeat(4,1fr)"><div class="card">報價單.pdf</div><div class="card">組織圖.png</div><div class="card">盤點表.xlsx</div><div class="card">錄音.m4a</div></div>`,good:['圖片多的專案好找'],bad:['你的檔案 58% 是 docx／pdf，縮圖沒有資訊','看不到資料夾層級']},
+  {k:'C',t:'依種類分區（合約／會議／素材）',mock:`<div class="h">合約 2</div><div class="row">報價單_回簽.pdf</div><div class="h">會議 5</div><div class="row">啟動會議_摘要.md</div>`,good:['不用自己整理'],bad:['種類要靠檔名猜，猜錯比沒分更糟','跟資料夾是兩套分類']}],
+ decide:['採用 A，<span class="no">本輪不改。</span>檔案搬遷（階段 B）之後有真實檔案再回頭看。']},
+
+{id:'chat',name:'7　對話',sub:'專案 › 對話',
+ lead:'狀態變更的理由要有一個兩個人都看得到的地方。',
+ shots:[['before-6-chat.jpg','聊天室']],
+ find:['聊天室只有人打的字；里程碑達成、專案結案這些事不會出現。','「為什麼結案」現在只能靠記得去聊天室補一句。'],
+ vars:[
+  {k:'A',t:'狀態變更成為主頻道的系統訊息',pick:true,mock:`<div class="row">${av('L')} <span>問卷回收 21/28，剩下的我週一再催一次。</span></div><div class="sys">◆ 戴宇星 把 里程碑「M03 內部驗收」 進行中 → 已達成　·　客戶簽回驗收單</div><div class="row">${av()} <span>驗收報告我今天看，下午回你。</span></div>`,
+   good:['理由跟當時的對話在同一條時間線上','兩個人都看得到','用的是資料庫裡本來就為這件事留的訊息來源（SYSTEM）'],bad:['狀態改很多的那天，頻道會多幾行']},
+  {k:'B',t:'另開一個「動態」分頁',mock:`<div class="vtabs" style="margin:0 0 8px"><button>聊天室</button><button class="on">動態</button></div><div class="sys">10/09 專案：進行中 → 驗收中</div><div class="sys">09/28 里程碑 M03：已達成</div>`,good:['聊天室保持乾淨'],bad:['多一個分頁要記得去看','理由與當時的討論被拆開']},
+  {k:'C',t:'只放在總覽的時間流',mock:`<div class="sys">10/09　狀態 · 專案：進行中 → 驗收中</div><div class="dim">對話分頁不變</div>`,good:['不動聊天室'],bad:['時間流一則只有一行，放不下理由','沒開聊天室的人看不到']}],
+ decide:['採用 A，同時也讓它出現在總覽的時間流與狀態紀錄（C 的位置），所以不必另開 B 的分頁。','系統訊息畫成一條細線加一行灰字，不帶頭像，不能刪除。','專案還沒開聊天室時，第一次改狀態會自動建立主頻道。']},
+
+{id:'finance',name:'8　財務',sub:'專案 › 財務',
+ lead:'毛利瀑布圖與本專案交易。',
+ shots:[['before-7-finance.jpg','財務']],
+ find:['這一頁沒有狀態。收款狀態在「金流」模組的合約與期款。','交易的新增／刪除會影響獎金試算，屬於金流的規則。'],
+ vars:[
+  {k:'A',t:'維持現況',pick:true,mock:`<div class="dim">毛利瀑布圖＋本專案交易（不變）</div>`,good:['不碰帳務'],bad:['—']},
+  {k:'B',t:'加上期款狀態列',mock:`<div class="row">第一期 33,750 ${chip('已收','ok',1)}</div><div class="row">第二期 67,500 ${chip('未收','warn',1)}</div>`,good:['專案裡就看得到收款'],bad:['期款的「已收」會動到現金推演與結帳月份鎖，不能用一般的狀態小視窗改']},
+  {k:'C',t:'預算 vs 實際',mock:`<div class="row">預算 80,000　實際 52,000　<span class="dim">65%</span></div>`,good:['成本控管'],bad:['目前 15 個專案的成本預算都是 0']}],
+ decide:['採用 A，<span class="no">本輪不改。</span>','B 值得做，但收款狀態屬於金流（合約階段 C），要跟著那邊的鎖帳規則一起設計。']},
+{id:'accept',name:'9　實作後驗收',sub:'本機測試資料庫上的實際畫面',
+ lead:'在拋棄式的本機資料庫上，分別以負責人與 Lily 的身分實際操作。每一步之後都直接查資料庫確認有落地，再重新整理確認讀得回來。',
+ shots:[['after-1-template-init.jpg','用範本初始化（從設定清單進來）'],['after-2-status-popover.jpg','點任務的狀態籤：就地小視窗'],['after-4-plan.jpg','計劃：每一層的狀態都可以點；工具列剩兩顆'],['after-5-work-by-owner.jpg','工作：預設依負責人分組'],['after-3-overview-status-log.jpg','重新整理後的總覽：狀態紀錄與理由都在'],['after-6-chat-system-lines.jpg','對話：狀態變更是主頻道的系統訊息'],['after-7-lily-seat.jpg','Lily 的身分：完成自己的任務、加一件新的']],
+ find:['範本一次建立 1 期、5 個階段、9 個里程碑。','行內新增連打兩件任務，游標留在同一格。','待辦 → 進行中（寫了理由）→ 完成（勾選框）→ 進行中（沒寫理由被擋下，寫了才放行）。','換負責人後資料庫的 <code>owner_key</code> 是 <code>lily</code>；重新整理後 Lily 可以完成它，而宇星的任務她勾不掉。','375px 寬：小視窗貼在螢幕底部、沒有橫向捲軸。'],
+ vars:[],decide:[]}
+];
+
+const nav=document.getElementById('nav'),main=document.getElementById('main');
+let cur=location.hash.slice(1)||PATHS[0].id;
+function draw(){
+  nav.innerHTML=PATHS.map(p=>`<button class="${p.id===cur?'on':''}" data-id="${p.id}">${p.name}<small>${p.sub}</small></button>`).join('');
+  const p=PATHS.find(x=>x.id===cur)||PATHS[0];
+  const pick=p.vars.findIndex(v=>v.pick);
+  main.innerHTML=`<h2>${p.name.replace(/^\d+\s+/,'')}</h2><p class="lead">${p.lead}</p>
+   <h3>現況截圖</h3><div class="shots">${p.shots.map(s=>`<figure><img src="shots/${s[0]}" alt="${s[1]}"><figcaption>${s[1]}</figcaption></figure>`).join('')}</div>
+   <h3>${p.vars.length?'分析':'結果'}</h3><ol class="find">${p.find.map(f=>`<li>${f}</li>`).join('')}</ol>
+   ${p.vars.length?`<h3>三版提案</h3><div class="vtabs">${p.vars.map((v,i)=>`<button class="${i===pick?'on':''} ${v.pick?'pick':''}" data-v="${i}">${v.k}　${v.t}</button>`).join('')}</div>
+   ${p.vars.map((v,i)=>`<div class="var ${i===pick?'on':''}" data-v="${i}"><div class="mock">${v.mock}</div><div class="pc"><h4 class="good">好處</h4><ul>${v.good.map(x=>`<li>${x}</li>`).join('')}</ul><h4 class="bad">代價</h4><ul>${v.bad.map(x=>`<li>${x}</li>`).join('')}</ul></div></div>`).join('')}
+   <div class="decide"><h4>AI 決策</h4>${p.decide.map(d=>`<p>${d}</p>`).join('')}</div>`:''}`;
+}
+nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cur=b.dataset.id;location.hash=cur;draw();scrollTo(0,0)});
+main.addEventListener('click',e=>{const b=e.target.closest('.vtabs button[data-v]');if(!b)return;main.querySelectorAll('.vtabs button[data-v]').forEach(x=>x.classList.toggle('on',x===b));main.querySelectorAll('.var').forEach(x=>x.classList.toggle('on',x.dataset.v===b.dataset.v))});
+draw();
+</script>
+</body>
+</html>

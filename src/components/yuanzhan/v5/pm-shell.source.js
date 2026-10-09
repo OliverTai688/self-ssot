@@ -30,12 +30,12 @@ const PM_LEGACY = { 0: 0, 1: 1, 2: 4, 3: 2, 4: 5, 5: 1 };
 /** 舊 index 落到新分頁時要開哪個子視圖。 */
 const PM_LEGACY_SUB = { 1: 'work', 2: 'threads', 3: 'evidence', 5: 'milestone' };
 const PM_SUBS = {
-  plan: [['tree', '期 · 階段 · 里程碑'], ['work', '工作'], ['milestone', '里程碑 · 目標']],
+  plan: [['tree', '期 · 階段 · 里程碑'], ['work', '工作'], ['views', '看板 · 表格 · 日曆'], ['milestone', '里程碑 · 目標']],
   drive: [['tree', '專案硬碟'], ['evidence', 'Evidence Repo']],
   chat: [['room', '聊天室'], ['threads', '議題串']]
 };
 /** 子視圖 → 既有 VIEWS.project 的舊 index。 */
-const PM_SUB_LEGACY = { work: 1, milestone: 5, evidence: 3, threads: 2 };
+const PM_SUB_LEGACY = { views: 1, milestone: 5, evidence: 3, threads: 2 };
 
 ['folders', 'phaseCycles', 'chatChannels', 'chatMessages', 'assets', 'phases', 'milestones', 'occasions'].forEach(k => {
   if (!Array.isArray(DB[k])) DB[k] = [];
@@ -344,7 +344,8 @@ VIEWS.project = tab => {
   if (key === 'finance') return head + pmLegacy(4);
   const sub = pmSub(key);
   if (sub in PM_SUB_LEGACY) return head + pmLegacy(PM_SUB_LEGACY[sub]);
-  const view = PMV[key];
+  // 「工作」是計劃底下自己的一面（RES-035）；原本的看板／表格／日曆留在隔壁的子視圖。
+  const view = key === 'plan' && sub === 'work' ? PMV.work : PMV[key];
   return head + `<div class="pm-view pm-view-${key}">${view ? view(p) : ''}</div>`;
 };
 

@@ -520,6 +520,8 @@ async function applyIssue(change: RowChange, ctx: ApplyContext): Promise<void> {
     priority: Number.isFinite(Number(row.pri)) ? Math.trunc(Number(row.pri)) : 2,
     dueAt: toDateOnly(row.due),
     completedAt: toDateOnly(row.done),
+    ownerKey: str(row.owner),
+    startedOn: toDateOnly(row.started),
     sizeClass: str(row.size),
     blocker: str(row.blocker),
     expectation: str(row.exp),
@@ -1965,6 +1967,8 @@ const APPLY_PRIORITY: Partial<Record<PersistedCollection, number>> = {
   phases: 12,
   milestones: 13,
   objectives: 14,
+  // 狀態變更會在同一筆命令裡建立專案主頻道並寫一則系統訊息；頻道要先落地。
+  chatChannels: 15,
 }
 
 function orderByDependency(changes: RowChange[]): RowChange[] {

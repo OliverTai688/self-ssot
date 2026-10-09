@@ -251,7 +251,7 @@ function pmMeetingDetail(p, o) {
   const attrs = `<dl class="pm-attr">
       <div><dt>參與者</dt><dd>${people.length ? people.map(n => `<span class="pm-chip">${esc(n)}</span>`).join(' ') : '<span class="pm-dim">未填</span>'}</dd></div>
       <div><dt>產生時間</dt><dd class="mono">${esc(born)}</dd></div>
-      <div><dt>結論</dt><dd>${o.recap ? esc(o.recap) : '<span class="pm-dim">還沒寫結論</span>'}
+      <div><dt>結論</dt><dd>${o.recap ? esc(o.recap) : `<button type="button" class="pm-link pm-link-lead" onclick="formPmMeeting('${o.id}')">${o.onDate > TODAY ? '還沒開，先寫預期的結論' : '還沒寫結論，現在寫'}</button>`}
         ${o.recap ? (decided
           ? `<span class="pm-chip good">${svg('check', 10)} 已轉決議 ${esc(decided.decisionId || '')}</span>`
           : `<button type="button" class="pm-link" onclick="pmMeetingDecide('${o.id}')">轉成決議</button>`) : ''}</dd></div>

@@ -64,6 +64,8 @@ const DEPENDENCIES = {
   ProjectTask: [
     'id', 'projectId', 'title', 'status', 'operatingStatus', 'priority', 'dueAt', 'completedAt',
     'sizeClass', 'blocker', 'expectation', 'evidenceCount', 'relations', 'customFields', 'subtasks',
+    // 負責人與開始日（RES-035）：沒有它們，重新整理後只有 yz 改得動任務
+    'ownerKey', 'startedOn',
   ],
   OperatingGoal: ['id', 'workspaceId', 'title', 'period', 'progressPct', 'warning'],
   OperatingDecision: ['id', 'workspaceId', 'authorId', 'title', 'body', 'decidedOn'],

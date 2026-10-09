@@ -129,10 +129,19 @@ function pmFlow(p) {
   }));
   pmChannels(p.id).forEach(c => {
     const byDay = {};
-    pmMessages(c.id).forEach(m => { const d = pmDay(m.at); (byDay[d] = byDay[d] || []).push(m); });
+    // 狀態變更是一則一件事，不併進「對話 N 則」。
+    pmMessages(c.id).filter(m => !pmIsStatusMsg(m)).forEach(m => { const d = pmDay(m.at); (byDay[d] = byDay[d] || []).push(m); });
     Object.keys(byDay).forEach(d => {
       const list = byDay[d], last = list[list.length - 1];
       ev.push({ key: 'chat:' + c.id, d, title: '對話 · ' + c.name + '　' + list.length + ' 則', summary: pmWho(last.w) + '：' + pmCut(last.text, 60) });
+    });
+  });
+  pmStatusLog(p.id).forEach(m => {
+    const x = m.meta || {};
+    ev.push({
+      key: 'chat:' + m.channelId, d: pmDay(m.at), time: pmClock(m.at),
+      title: `狀態 · ${x.kind || ''}「${x.name || ''}」 ${x.from || ''} → ${x.to || ''}`,
+      summary: [pmWho(m.w), x.reason].filter(Boolean).join('：')
     });
   });
   // 既有的關鍵時間。已經遷成里程碑的那幾筆（同一天、同名）不重複列一次。
@@ -215,5 +224,12 @@ PMV.overview = function (p) {
       : pmEmpty('還沒有任何事件。里程碑、會議、檔案上傳與對話都會依日期出現在這裡。')
   );
 
-  return pmBrief(p) + rail + trackBlock + attentionBlock + pmBlock('五大資源', '', pmResources(p)) + deliveryBlock + flowBlock;
+  const log = pmStatusLog(p.id);
+  const logBlock = log.length
+    ? pmBlock('狀態紀錄', '誰在什麼時候把什麼改成什麼、為什麼',
+      `<div class="pm-syslog">${log.slice(0, 6).map(pmStatusLine).join('')}</div>`,
+      log.length > 6 ? `<button class="btn sm" onclick="pmJump('chat','room','總覽')">看全部 ${log.length} 筆</button>` : '')
+    : '';
+
+  return pmBrief(p) + rail + trackBlock + attentionBlock + logBlock + pmBlock('五大資源', '', pmResources(p)) + deliveryBlock + flowBlock;
 };

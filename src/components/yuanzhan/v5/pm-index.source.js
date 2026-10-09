@@ -41,11 +41,6 @@ function pmTierMeter(tier) {
   }</span>`;
 }
 
-function pmStatusChip(p) {
-  const g = pmGroupOf(p);
-  return `<span class="pm-st ${g.tone}">${esc(p.status || '商機')}</span>`;
-}
-
 /** 「二期 · 執行」這種一行字；沒分期就不佔位置。 */
 function pmStageLine(p) {
   const cur = pmCurrentStage(p.id);
@@ -190,7 +185,7 @@ function pmProjectHead(p) {
     <button type="button" class="pm-ph-back" onclick="pmList()">${svg('chevronLeft', 14)}<span>所有專案</span></button>
     <div class="pm-ph-row">
       <div class="pm-ph-id">
-        <div class="pm-ph-title">${p.no ? `<span class="pm-ix-no">${esc(p.no)}</span>` : ''}<h2>${esc(p.t)}</h2>${pmStatusChip(p)}${pmTierMeter(p.tier)}</div>
+        <div class="pm-ph-title">${p.no ? `<span class="pm-ix-no">${esc(p.no)}</span>` : ''}<h2>${esc(p.t)}</h2>${pmStatusChip('project', p.id)}${pmTierMeter(p.tier)}</div>
         <div class="pm-ph-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div>
       </div>
       <div class="pm-ph-act">
@@ -250,7 +245,7 @@ function pmIsFresh(p) {
 function pmSetup(p) {
   const items = [
     { key: 'next', done: Boolean(p.next), title: '寫下一步', summary: '一句話：這個案子接下來要做什麼' },
-    { key: 'plan', done: pmCycles(p.id).length > 0, title: '分期', summary: '把案子切成 提案 → 接案 → 執行 → 驗收，之後看得到走到哪' },
+    { key: 'plan', done: pmCycles(p.id).length > 0, title: '用範本初始化', summary: '一次建好第一期、五個階段與這類案子常見的里程碑' },
     { key: 'drive', done: Boolean(pmRoot(p.id)), title: '啟用專案硬碟', summary: '報價單、合約、素材放這裡，不再散在各處' },
     { key: 'meeting', done: pmMeetings(p.id).length > 0, title: '記第一場會議', summary: '參與者、結論與注意事項跟著會議走' }
   ];
@@ -266,5 +261,6 @@ function pmSetup(p) {
 function pmSetupPick(key) {
   if (key === 'next') return pmBriefForm(S.proj);
   if (key === 'meeting') return pmJump('meeting', null, '總覽');
+  if (key === 'plan') return pmInitForm();
   return pmJump(key, 'tree', '總覽');
 }

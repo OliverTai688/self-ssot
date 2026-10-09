@@ -13,7 +13,10 @@
  * 副檔名是 .mts：這支腳本用 top-level await，而 tsx 對 .ts 會照 package.json 的型別
  * 編成 CJS，那裡不支援 top-level await。
  */
+import { operatingToday } from '../src/lib/ui-data/yuanzhan/v5-state'
 import { mountAll } from './operating-runtime-harness'
+
+const TODAY = operatingToday()
 
 let pass = 0
 let fail = 0
@@ -48,7 +51,27 @@ function tools(root: Root) {
     const err = one('#fErr.on')
     return err ? text(err) : 'saved'
   }
-  return { all, one, byText, click, tab, field, set, chip, save }
+  const win = root.ownerDocument.defaultView as unknown as { KeyboardEvent: typeof KeyboardEvent }
+  /** 在輸入框打字後按 Enter（行內新增、狀態小視窗的理由欄）。 */
+  const enter = async (el: HTMLElement | null | undefined, value?: string) => {
+    if (!el) throw new Error('找不到要輸入的元素')
+    if (value !== undefined) (el as HTMLInputElement).value = value
+    el.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await tick(5)
+  }
+  /** 點一顆狀態籤 → 選一個選項 →（填理由）→ 更新。回傳小視窗上的錯誤字樣，沒有就是空字串。 */
+  const status = async (chipEl: HTMLElement | null | undefined, option: string, reason?: string) => {
+    await click(chipEl)
+    const opt = byText('.pm-pop-o', option)
+    if (!opt) throw new Error('小視窗沒有選項 ' + option)
+    if ((opt as HTMLButtonElement).disabled) return 'disabled:' + text(opt)
+    await click(opt)
+    const input = one('#pmPopReason') as HTMLTextAreaElement | null
+    if (input && reason !== undefined) input.value = reason
+    if (one('#pmPopSave')) await click(one('#pmPopSave'))
+    return text(one('#pmPopErr'))
+  }
+  return { all, one, byText, click, tab, field, set, chip, save, enter, status }
 }
 
 /* ------------------------------------------------------------------ */
@@ -70,7 +93,7 @@ for (const mode of ['showcase', 'empty'] as const) {
     const names = t.all('#tabs .tab').map((b) => text(b).replace(/\d+$/, ''))
     check('showcase · 專案模組有六個分頁', names.length === 6, names.join(' / '))
     check('showcase · 分頁名稱與順序', names.every((n, i) => n === TABS[i]))
-    check('showcase · 專案標題列有名稱、狀態與切換選單', Boolean(t.one('.pm-ph h2') && t.one('.pm-ph .pm-st') && t.one('.pm-ph-switch select')))
+    check('showcase · 專案標題列有名稱、狀態與切換選單', Boolean(t.one('.pm-ph h2') && t.one('.pm-ph .pm-stc') && t.one('.pm-ph-switch select')))
     check('showcase · 切換選單列出全部專案', t.all('.pm-ph-switch option').length === projects)
     await t.click(t.one('.pm-ph-back'))
     check('showcase · 「所有專案」回到總表', t.all('.pm-ix-row').length === projects)
@@ -322,15 +345,90 @@ for (const mode of ['showcase', 'empty'] as const) {
   check('phases · 五格依序是提案→接案→執行→驗收→結案', phases.map((p) => p.after?.stageKind).join('>') === 'PROPOSAL>CONTRACT>EXECUTION>ACCEPTANCE>CLOSING')
 
   // 里程碑 ＋ 審核任務
-  await t.click(t.byText('.pm-bar .btn', '里程碑'))
-  t.set('title', 'M01 測試交付')
-  t.set('dueOn', '2026-11-01')
-  const stageOpt = Array.from((t.field('phaseId') as unknown as HTMLSelectElement).options).find((o) => o.textContent?.includes('執行'))
-  t.set('phaseId', stageOpt?.value || '')
-  await t.save()
+  const stageOf = (name: string) => t.all('.pm-pl-stage').find((el) => text(el.querySelector('.pm-pl-stage-h')).includes(name))
+  const execPhase = phases.find((p) => p.after?.stageKind === 'EXECUTION')
+  check('計劃 · 工具列只剩新增一期與審核任務', t.all('.pm-bar .btn').length === 2, t.all('.pm-bar .btn').map((b) => text(b)).join(' / '))
+  await t.enter(stageOf('執行')?.querySelector(':scope > .pm-quick input') as HTMLElement, 'M01 測試交付')
   await flush()
   const ms = rows(last(), 'milestones')
-  check('milestones · 帶 phaseId／state', ms.length === 1 && !!ms[0].after?.phaseId && ms[0].after?.state === 'open')
+  check('行內新增 · 里程碑落在打字的那個階段底下', ms.length === 1 && ms[0].after?.title === 'M01 測試交付' && ms[0].after?.phaseId === execPhase?.id && ms[0].after?.state === 'open')
+  check('行內新增 · 建完游標留在同一格，可以連續加', (r.root.getRootNode() as Document | ShadowRoot).activeElement === stageOf('執行')?.querySelector(':scope > .pm-quick input') || r.root.ownerDocument.activeElement === stageOf('執行')?.querySelector(':scope > .pm-quick input'))
+
+  const msBlock = () => t.all('.pm-pl-ms').find((el) => text(el).includes('M01 測試交付'))
+  await t.enter(msBlock()?.querySelector('.pm-quick input') as HTMLElement, '整理素材')
+  await flush()
+  const quick = rows(last(), 'issues')
+  check('行內新增 · 任務掛在那個里程碑、負責人是自己', quick.length === 1 && quick[0].after?.t === '整理素材' && quick[0].after?.msId === ms[0].id && quick[0].after?.owner === 'yz' && quick[0].after?.kind === 'TODO' && quick[0].after?.st === 'Todo')
+
+  // 狀態：點了就能改，往前可以不寫理由
+  const taskRow = (name: string) => t.all('.pm-pl-task').find((row) => text(row).includes(name))
+  check('狀態 · 任務顯示中文', text(taskRow('整理素材')?.querySelector('.pm-stc')) === '待辦')
+  await t.status(taskRow('整理素材')?.querySelector('.pm-stc') as HTMLElement, '進行中')
+  await flush()
+  const moved = rows(last(), 'issues')[0]?.after
+  const logCh = rows(last(), 'chatChannels')
+  const logMsg = rows(last(), 'chatMessages')
+  check('狀態 · 任務改成進行中並記下開始日', moved?.st === 'Doing' && !!moved?.started)
+  check('狀態紀錄 · 第一次變更時自動建立專案主頻道', logCh.length === 1 && logCh[0].after?.kind === 'MAIN' && logCh[0].after?.projectId === project.id)
+  const meta = (logMsg[0]?.after?.meta || {}) as Record<string, unknown>
+  check('狀態紀錄 · 同一筆命令寫一則系統訊息', logMsg.length === 1 && logMsg[0].after?.origin === 'SYSTEM' && logMsg[0].after?.type === 'status' && logMsg[0].after?.channelId === logCh[0]?.id && meta.from === '待辦' && meta.to === '進行中' && meta.ref === quick[0].id && logMsg[0].after?.w === 'yz', JSON.stringify(meta))
+
+  // 往回走一定要寫理由
+  await t.click(taskRow('整理素材')?.querySelector('.pm-pl-check') as HTMLElement)
+  await flush()
+  check('狀態 · 勾選框直接完成', rows(last(), 'issues')[0]?.after?.st === 'Done' && !!rows(last(), 'issues')[0]?.after?.done)
+  const before = sent.length
+  const err = await t.status(taskRow('整理素材')?.querySelector('.pm-stc') as HTMLElement, '進行中', '')
+  await flush()
+  check('狀態 · 完成的任務拉回來，沒寫理由不放行', err === '這個變更要寫理由' && sent.length === before, err)
+  ;(t.one('#pmPopReason') as HTMLTextAreaElement).value = '客戶追加一張圖'
+  await t.click(t.one('#pmPopSave'))
+  await flush()
+  const back = rows(last(), 'chatMessages')[0]?.after?.meta as Record<string, unknown> | undefined
+  check('狀態 · 寫了理由就放行，理由進紀錄', rows(last(), 'issues')[0]?.after?.st === 'Doing' && back?.reason === '客戶追加一張圖' && back?.from === '完成', JSON.stringify(back))
+  await t.click(taskRow('整理素材')?.querySelector('.pm-stc') as HTMLElement)
+  check('狀態 · 小視窗底下看得到這一筆的變更與理由', /客戶追加一張圖/.test(text(t.one('.pm-pop-log'))))
+  await t.click(t.byText('.pm-pop-f .btn', '取消'))
+
+  // 換負責人：點頭像、選人，不問理由
+  await t.click(taskRow('整理素材')?.querySelector('.pm-own') as HTMLElement)
+  await t.click(t.byText('.pm-pop-o', 'Lily'))
+  await flush()
+  check('負責人 · 點頭像換人，寫入管線帶著 owner', rows(last(), 'issues')[0]?.after?.owner === 'lily' && rows(last(), 'chatMessages').length === 0)
+
+  // 階段：里程碑沒達成之前不能標完成；里程碑達成之後可以
+  const stageChip = () => stageOf('執行')?.querySelector('.pm-pl-stage-h .pm-stc') as HTMLElement
+  await t.status(stageChip(), '進行中')
+  await flush()
+  const started = rows(last(), 'phases').find((p) => p.id === execPhase?.id)?.after
+  check('狀態 · 階段改成進行中＝把日期拉到今天', !!started && String(started.startOn) <= TODAY && String(started.endOn) >= TODAY, JSON.stringify(started && { startOn: started.startOn, endOn: started.endOn }))
+  const blocked = await t.status(stageChip(), '已完成')
+  check('狀態 · 還有里程碑沒達成時，階段不能標完成', /^disabled:.*還有 1 個里程碑沒達成/.test(blocked), blocked)
+  await t.click(t.byText('.pm-pop-f .btn', '取消'))
+  await t.status(msBlock()?.querySelector('.pm-pl-ms-h .pm-stc') as HTMLElement, '已達成')
+  await flush()
+  check('狀態 · 里程碑標為已達成', rows(last(), 'milestones')[0]?.after?.state === 'done')
+
+  // 專案狀態：標題列上那一顆，結案要寫理由
+  const closeErr = await t.status(t.one('.pm-ph .pm-stc'), '已結案', '')
+  check('狀態 · 專案結案沒寫理由不放行', closeErr === '這個變更要寫理由')
+  await t.click(t.byText('.pm-pop-f .btn', '取消'))
+  await t.status(t.one('.pm-ph .pm-stc'), '驗收中', '全部交付完成')
+  await flush()
+  check('狀態 · 專案狀態從標題列改', rows(last(), 'projects')[0]?.after?.status === '驗收中')
+
+  // 工作：預設依負責人分組
+  await t.click(t.byText('.pm-subnav button', '工作'))
+  check('工作 · 預設依負責人分組', t.all('.pm-wk-h').map((h) => text(h).replace(/\d+$/, '')).join('|').includes('Lily'))
+  check('工作 · 原本的看板／表格／日曆還在', !!t.byText('.pm-subnav button', '看板 · 表格 · 日曆'))
+  await t.enter(t.one('.pm-view-plan > .pm-quick input'), '回覆客戶信')
+  await flush()
+  check('工作 · 最上面一行可以直接加任務', rows(last(), 'issues')[0]?.after?.t === '回覆客戶信' && rows(last(), 'issues')[0]?.after?.owner === 'yz')
+  await t.click(t.byText('.pm-subnav button', '期 · 階段 · 里程碑'))
+
+  await t.tab('總覽')
+  check('總覽 · 狀態紀錄列出剛才的變更與理由', /客戶追加一張圖/.test(text(t.one('.pm-syslog'))) && /全部交付完成/.test(text(t.one('.pm-syslog'))))
+  await t.tab('計劃')
 
   await t.click(t.byText('.pm-bar .btn', '審核任務'))
   t.set('t', '交付物審核')
@@ -358,10 +456,8 @@ for (const mode of ['showcase', 'empty'] as const) {
 
   // 對話
   await t.tab('對話')
-  await t.click(t.byText('.pm-empty .btn', '開啟專案聊天室'))
-  await flush()
-  const channel = rows(last(), 'chatChannels')
-  check('chatChannels · 主頻道', channel.length === 1 && channel[0].after?.kind === 'MAIN' && channel[0].after?.projectId === project.id)
+  const channel = logCh
+  check('對話 · 主頻道已經有了，狀態變更畫成系統訊息', !t.byText('.pm-empty .btn', '開啟專案聊天室') && t.all('.pm-chat-log .pm-sysline').length >= 5, String(t.all('.pm-chat-log .pm-sysline').length))
   const input = r.root.querySelector('[id="pmChatInput"]') as HTMLTextAreaElement
   input.value = '第一則訊息'
   await t.click(t.byText('.pm-chat-row .btn', '送出'))
@@ -372,6 +468,82 @@ for (const mode of ['showcase', 'empty'] as const) {
   const collections = new Set(sent.flat().map((c) => c.collection))
   check('database · 只動到預期的集合', [...collections].every((c) => ['projects', 'folders', 'phaseCycles', 'phases', 'milestones', 'issues', 'occasions', 'chatChannels', 'chatMessages'].includes(c)), [...collections].join(', '))
   check('database · 全程沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
+  r.workbench.destroy()
+  g.fetch = realFetch
+}
+
+/* ------------------------------------------------------------------ */
+/* E. 範本初始化；Lily 操作自己的任務                                  */
+/* ------------------------------------------------------------------ */
+{
+  type Change = { collection: string; id: string; op: string; after?: Record<string, unknown> }
+  const sent: Change[][] = []
+  let version = 3
+  const g = globalThis as unknown as Record<string, unknown>
+  const realFetch = g.fetch
+  g.fetch = async (_url: unknown, init?: { method?: string; body?: string }) => {
+    if (init?.method === 'POST' && init.body) {
+      const body = JSON.parse(init.body) as { commands: Array<{ clientRef: string; changes: Change[] }> }
+      body.commands.forEach((c) => sent.push(c.changes))
+      version += 1
+      return { ok: true, status: 200, json: async () => ({ version, applied: body.commands.map((c) => c.clientRef), rejected: [] }) }
+    }
+    return { ok: true, status: 200, json: async () => ({ version }) }
+  }
+  const base = { client: '', goal: '', type: '', rate: 0, cap: 0, budget: 0, repo: '—', delivery: [] }
+  // 讀回來的任務就是伺服器給的形狀：有 owner，沒有 author。
+  const task = (id: string, t: string, owner: string) => ({ id, t, p: 'PRJ-T-3', owner, size: 'M', st: 'Todo', created: TODAY, started: '', done: '', blocker: '', exp: '', ev: 0, pri: 3, due: '', rel: [], cf: {}, sub: [], objectiveId: '', kind: 'TODO', msId: '', reviewer: '', reviewResult: '', reviewedAt: 0, reviewNote: '' })
+  const r = await mountAll('empty', undefined, (state) => {
+    state.dataSource = 'database'
+    const data = state.data as Record<string, unknown>
+    data.me = 'lily'
+    data.projects = [
+      { ...base, id: 'PRJ-T-2', t: '範本測試專案', owner: 'lily', status: '商機', start: '2026-10-01' },
+      { ...base, id: 'PRJ-T-3', t: '權限測試專案', owner: 'yz', status: '進行中', start: '2026-09-01' },
+    ]
+    data.issues = [task('ISS-L', 'Lily 的任務', 'lily'), task('ISS-Y', '宇星的任務', 'yz')]
+  })
+  const t = tools(r.root)
+  const flush = async () => { await tick(60) }
+  const of = (collection: string) => (sent[sent.length - 1] || []).filter((c) => c.collection === collection)
+
+  r.workbench.navigate('project', 0)
+  await tick(30)
+  const pick = async (id: string) => {
+    const select = t.one('.pm-ph-switch select') as unknown as HTMLSelectElement
+    select.value = id
+    select.dispatchEvent(new (r.root.ownerDocument.defaultView as unknown as { Event: typeof Event }).Event('change', { bubbles: true }))
+    await tick(10)
+  }
+
+  await pick('PRJ-T-2')
+  await t.click(t.byText('.pm-setup-i', '用範本初始化'))
+  check('範本 · 設定清單的入口開的是範本表單', text(t.one('#fmTitle, .fm-title, [id="formModalWrap"] h3')).includes('用範本初始化') || !!t.field('tpl'))
+  await t.chip('tpl', 'marketing')
+  check('範本 · 存得下去', (await t.save()) === 'saved')
+  await flush()
+  const stages = of('phases')
+  const stageIds = new Set(stages.map((x) => x.id))
+  check('範本 · 一筆命令建好一期、五個階段與里程碑', of('phaseCycles').length === 1 && stages.length === 5 && of('milestones').length === 5, `${of('phaseCycles').length}/${stages.length}/${of('milestones').length}`)
+  check('範本 · 商機階段的專案，第一期是規劃中', of('phaseCycles')[0]?.after?.status === 'PLANNED')
+  check('範本 · 每個里程碑都掛在某個階段底下、日期待補', of('milestones').every((m) => stageIds.has(String(m.after?.phaseId)) && m.after?.dueOn === '' && m.after?.state === 'open'))
+  check('範本 · 建完落在計劃分頁，看得到里程碑', text(t.one('#tabs .tab.on')).startsWith('計劃') && /M02 第一月報告/.test(text(t.one('.pm-pl'))))
+  check('範本 · 有了第一期之後工具列不再出現範本按鈕', !t.byText('.pm-bar .btn', '用範本初始化'))
+
+  // Lily 重新整理之後：自己的任務改得動，別人的不行。
+  await pick('PRJ-T-3')
+  await t.tab('計劃')
+  await t.click(t.byText('.pm-subnav button', '工作'))
+  const row = (name: string) => t.all('.pm-pl-task').find((el) => text(el).includes(name))
+  const n = sent.length
+  await t.click(row('Lily 的任務')?.querySelector('.pm-pl-check') as HTMLElement)
+  await flush()
+  check('權限 · Lily 勾得掉掛在自己名下的任務', sent.length === n + 1 && of('issues')[0]?.after?.st === 'Done' && of('issues')[0]?.after?.owner === 'lily')
+  const m = sent.length
+  await t.click(row('宇星的任務')?.querySelector('.pm-pl-check') as HTMLElement)
+  await flush()
+  check('權限 · 別人的任務 Lily 勾不掉', sent.length === m && !t.one('#pmPopWrap.on'))
+  check('E · 全程沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
   r.workbench.destroy()
   g.fetch = realFetch
 }

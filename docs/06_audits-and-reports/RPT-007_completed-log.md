@@ -4409,3 +4409,26 @@ Owner 看過後追加：右側駕駛艙在「完成的小事」上面多一區�
 在由 `origin/main` 開出的獨立 worktree 裡實作。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261009-journal-doing-sticker.md`
+
+## 2026-10-09 — 單一專案路徑：狀態可點、留理由、範本初始化、任務負責人落地（PROJUI-002）
+
+Owner 要求對單一專案的每條路徑截圖分析、考慮專案／里程碑／任務／工作流／分期的初始化與狀態管理、
+「有顯示狀態的地方都可以點選更改留下理由」，每條路徑出三版 HTML、由 AI 決策後實作並推送。
+
+研究與提案：`RES-035`；提案頁 `docs/2_agent-input/generated/project-module-proposals/round2-single-project/index.html`
+（狀態變更、初始化、總覽、計劃、工作、會議、檔案、對話、財務各三版，附現況與驗收截圖）。
+
+實作：新增 `pm-status.source.js`／`pm-status.css`（狀態設定表、可點的狀態籤、就地小視窗、狀態紀錄、行內新增、範本初始化、工作清單）；
+計劃的四層與標題列改用可點的狀態籤，既有快捷（勾選框、菱形、完成這個階段、送審／通過／退回）改走同一條狀態管線；
+狀態紀錄寫成主頻道的 SYSTEM 訊息，總覽新增「狀態紀錄」、時間流與對話同步；計劃工具列由五顆收成兩顆。
+資料：`project_tasks` 新增 `owner_key`、`started_on`（migration `20261009090000_project_task_owner`），讀寫路徑接上。
+
+驗證：`pnpm project:ui:check` 122/122（新增 31 條）、`pnpm exec tsc --noEmit` 0、`pnpm build` exit 0、`ops:commands:check` 42/42、
+欄位契約 364、migration coverage／prisma structure 通過、audit-trail 33/33、decision-reply 36/36、day-state 34/34、cashflow 72/72＋48/48；
+拋棄式本機 Postgres：migration 全串套用、`ops:roundtrip` 35/35；瀏覽器實測（負責人席位）建立專案 → 範本 → 行內新增 → 狀態往前／往回 → 換負責人 → 重新整理讀回，
+（Lily 席位）完成自己的任務、別人的勾不掉、新增任務；每一步查庫確認 `owner_key`、`started_on`、SYSTEM 訊息與稽核 `detail`；375px 小視窗貼底。
+
+已知：`ops:journal-space:check` 8/9，失敗的那一條在未含本輪改動的 `main`（87ea548ce7）上同樣失敗，與本輪無關。
+未做：總表列上直接改狀態、看板／表格／日曆裡的狀態、會議／檔案／財務的版面、淺色主題的目視確認。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261009-single-project-status-crud.md`

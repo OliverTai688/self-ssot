@@ -181,19 +181,8 @@ function pmStageClose(id) {
   if (!ph) return;
   const open = pmMsOf(ph.id).filter(m => m.state !== 'done');
   if (open.length) return toast(`還有 <b>${open.length}</b> 個里程碑沒達成，先把它們標成已達成或移到別的階段`);
-  const next = pmStages(ph.cycleId).find(x => (x.ordinal || 0) > (ph.ordinal || 0));
-  commit('update', '階段', ph.label, () => {
-    const end = dadd(TODAY, -1);
-    ph.endOn = end < ph.startOn ? ph.startOn : end;
-    if (ph.startOn > ph.endOn) ph.startOn = ph.endOn;
-    const eff = [`<b>${esc(ph.label)}</b> 標為完成`];
-    if (next && next.startOn > TODAY) {
-      next.startOn = TODAY;
-      if (next.endOn < TODAY) next.endOn = TODAY;
-      eff.push(`<b>${esc(next.label)}</b> 從今天開始`);
-    }
-    return eff;
-  });
+  // 與點狀態籤是同一條路，狀態紀錄才不會漏掉這一筆。
+  pmStatusApply('stage', id, 'done', '');
 }
 
 /* ---------- 里程碑 ---------- */
@@ -259,13 +248,12 @@ function formPmMilestone(id, phaseId) {
   });
 }
 
-function pmMsToggle(id) {
+/** 菱形是「標為已達成」的快捷；已達成的要改回來得寫理由，所以交給狀態小視窗。 */
+function pmMsToggle(id, el) {
   const m = MS(id);
   if (!m || !opGuard(m)) return;
-  commit('update', '里程碑', m.title, () => {
-    m.state = m.state === 'done' ? 'open' : 'done';
-    return [m.state === 'done' ? '標為已達成' : '改回進行中'];
-  });
+  if (m.state === 'done') return pmStatusOpen(el, 'milestone', id);
+  pmStatusApply('milestone', id, 'done', '');
 }
 
 /* ---------- 任務（TODO ／ 審核） ---------- */
@@ -329,17 +317,13 @@ function formPmTask(id, preset) {
 }
 
 /** 勾掉一個 TODO，或把它拉回來。 */
-function pmTaskToggle(id) {
+function pmTaskToggle(id, el) {
   const t = ISS(id);
   if (!t) return;
-  if (!progressable(t)) return deny();
-  commit('update', 'TODO', t.t, () => {
-    if (t.st === 'Done') { t.st = 'Doing'; t.done = ''; return ['改回進行中']; }
-    t.st = 'Done';
-    if (!t.started) t.started = TODAY;
-    t.done = TODAY;
-    return ['標為完成', ...effFlow()];
-  });
+  if (!progressable(t) && !isOwner()) return deny();
+  // 完成的任務拉回來要寫理由 —— 交給狀態小視窗。
+  if (t.st === 'Done') return pmStatusOpen(el, 'task', id);
+  pmStatusApply('task', id, 'Done', '');
 }
 
 /** 審核流程：送審 → 通過／退回 → （退回後）重新送審。 */
@@ -350,24 +334,10 @@ function pmReview(id, action) {
   const reviewer = t.reviewer === DB.me || isOwner();
   if (action === 'submit') {
     if (!mine) return deny();
-    return commit('update', '審核任務', t.t, () => {
-      t.reviewResult = 'IN_REVIEW';
-      t.st = 'Review';
-      if (!t.started) t.started = TODAY;
-      return [`送給 <b>${esc(pmWho(t.reviewer))}</b> 審核`];
-    });
+    return pmStatusApply('review', id, 'IN_REVIEW', '');
   }
   if (!reviewer) return deny();
-  if (action === 'pass') {
-    return commit('update', '審核任務', t.t, () => {
-      t.reviewResult = 'PASSED';
-      t.reviewedAt = Date.now();
-      t.reviewNote = '';
-      t.st = 'Done';
-      t.done = TODAY;
-      return ['審核通過，任務完成', ...effFlow()];
-    });
-  }
+  if (action === 'pass') return pmStatusApply('review', id, 'PASSED', '');
   if (action === 'reject') {
     openForm({
       crumb: t.id,
@@ -377,26 +347,17 @@ function pmReview(id, action) {
       fields: [{ k: 'note', label: '退回原因', type: 'textarea', rows: 3, req: true, ph: '要改什麼、改到什麼程度才會通過' }],
       values: { note: '' },
       effects: ['任務回到負責人手上，狀態改為進行中', '退回原因會顯示在這一列，直到重新送審'],
-      onSave: v => {
-        commit('update', '審核任務', t.t, () => {
-          t.reviewResult = 'CHANGES_REQUESTED';
-          t.reviewedAt = Date.now();
-          t.reviewNote = v.note;
-          t.st = 'Doing';
-          t.done = '';
-          return [`退回給 <b>${esc(pmWho(t.owner))}</b>`];
-        });
-      }
+      onSave: v => pmStatusApply('review', id, 'CHANGES_REQUESTED', String(v.note || '').trim())
     });
   }
 }
 
 /* ---------- 版面 ---------- */
-function pmTaskRow(t) {
+function pmTaskRow(t, opts) {
   const review = pmIsReview(t);
+  const ms = opts && opts.ms && t.msId ? MS(t.msId) : null;
   const done = t.st === 'Done';
   const late = !done && t.due && t.due < TODAY;
-  const rv = PM_REVIEW[t.reviewResult] || PM_REVIEW.PENDING;
   const acts = [];
   if (review) {
     if (t.reviewResult === 'IN_REVIEW') {
@@ -409,12 +370,13 @@ function pmTaskRow(t) {
   return `<div class="pm-pl-task ${done ? 'done' : ''}">
     ${review
       ? `<span class="pm-pl-kind" title="審核任務">${svg('checkCircle', 14)}</span>`
-      : `<button type="button" class="pm-pl-check ${done ? 'on' : ''}" aria-pressed="${done}" title="${done ? '改回進行中' : '標為完成'}" onclick="pmTaskToggle('${t.id}')">${done ? svg('check', 11) : ''}</button>`}
+      : `<button type="button" class="pm-pl-check ${done ? 'on' : ''}" aria-pressed="${done}" title="${done ? '改回進行中' : '標為完成'}" onclick="pmTaskToggle('${t.id}',this)">${done ? svg('check', 11) : ''}</button>`}
     <button type="button" class="pm-pl-t" onclick="openDrawer('issue','${t.id}')">${esc(t.t)}</button>
+    ${ms ? `<span class="pm-pl-ms-tag">${esc(pmCut(ms.title, 18))}</span>` : ''}
     <span class="pm-pl-m">
-      ${review ? `<span class="pm-chip ${rv.tone}">${rv.label}</span><span class="pm-pl-who">審核人 ${esc(pmWho(t.reviewer))}</span>` : stChip(t.st)}
+      ${pmTaskChip(t)}${review ? `<span class="pm-pl-who">審核人 ${esc(pmWho(t.reviewer))}</span>` : ''}
       ${t.due ? `<span class="pm-pl-due ${late ? 'late' : ''}">${t.due.slice(5)}</span>` : ''}
-      ${pmAv(t.owner)}
+      ${pmOwnerBtn(t)}
       ${acts.join('')}
       ${mini('pen', `formPmTask('${t.id}')`)}
     </span>
@@ -430,19 +392,21 @@ function pmMsBlock(m) {
   const folder = m.folderId ? pmFolder(m.folderId) : null;
   return `<div class="pm-pl-ms">
     <div class="pm-pl-ms-h">
-      <button type="button" class="pm-pl-dia ${m.state === 'done' ? 'done' : ''}" aria-pressed="${m.state === 'done'}" title="${m.state === 'done' ? '改回進行中' : '標為已達成'}" onclick="pmMsToggle('${m.id}')">${svg('diamond', 12)}</button>
+      <button type="button" class="pm-pl-dia ${m.state === 'done' ? 'done' : ''}" aria-pressed="${m.state === 'done'}" title="${m.state === 'done' ? '改回進行中' : '標為已達成'}" onclick="pmMsToggle('${m.id}',this)">${svg('diamond', 12)}</button>
       <button type="button" class="pm-pl-t strong" onclick="formPmMilestone('${m.id}')">${esc(m.title)}</button>
+      ${pmStatusChip('milestone', m.id)}
       <span class="pm-pl-m">
         <span class="pm-pl-due ${late ? 'late' : ''}">${m.dueOn || '日期待補'}</span>
         ${late ? '<span class="pm-chip crit">逾期</span>' : ''}
         ${m.derivedFrom ? `<span class="pm-chip">${svg('lock', 10)} ${esc(m.derivedFrom)}</span>` : ''}
         ${folder ? `<button type="button" class="pm-chip pri pm-chip-btn" onclick="pmJump('drive','tree','計劃',{folder:'${folder.id}'})">${svg('folder', 10)} 交付夾</button>` : ''}
         <span class="pm-pl-cnt">${done}/${tasks.length}</span>
-        <button class="btn sm" onclick="formPmTask(null,{msId:'${m.id}'})">${svg('plus')} 任務</button>
+        ${mini('plus', `formPmTask(null,{msId:'${m.id}'})`)}
       </span>
     </div>
     ${m.accept ? `<div class="pm-pl-accept">驗收方式：${esc(m.accept)}</div>` : ''}
-    ${tasks.length ? tasks.map(pmTaskRow).join('') : '<div class="pm-pl-none">還沒有任務</div>'}
+    ${tasks.map(t => pmTaskRow(t)).join('')}
+    ${pmQuickInput('task', m.id, '新增任務，Enter 建立')}
   </div>`;
 }
 
@@ -453,27 +417,27 @@ function pmStageBlock(ph) {
     <div class="pm-pl-stage-h">
       <span class="pm-pl-st">${svg(PM_STAGE_ICON[st])}</span>
       <button type="button" class="pm-pl-t strong" onclick="formPmStage('${ph.id}')">${esc(ph.label)}</button>
-      <span class="pm-chip ${PM_STATE_TONE[st]}">${PM_STATE_LABEL[st]}</span>
+      ${pmStatusChip('stage', ph.id)}
       <span class="pm-pl-m">
         <span class="pm-pl-due">${[ph.startOn, ph.endOn].filter(Boolean).map(d => d.slice(5)).join(' → ')}</span>
         ${st === 'now' || st === 'late' ? `<button class="btn sm" onclick="pmStageClose('${ph.id}')">${svg('check')} 完成這個階段</button>` : ''}
-        <button class="btn sm" onclick="formPmMilestone(null,'${ph.id}')">${svg('plus')} 里程碑</button>
+        ${mini('plus', `formPmMilestone(null,'${ph.id}')`)}
       </span>
     </div>
-    ${ms.length ? ms.map(pmMsBlock).join('') : '<div class="pm-pl-none">這個階段還沒有里程碑</div>'}
+    ${ms.map(pmMsBlock).join('')}
+    ${pmQuickInput('ms', ph.id, '新增里程碑，Enter 建立')}
   </div>`;
 }
 
 function pmCycleBlock(c) {
   const stages = pmStages(c.id);
   const open = S.pmFold['cyc:' + c.id] !== true;
-  const tone = c.status === 'ACTIVE' ? 'pri' : c.status === 'ACCEPTED' || c.status === 'CLOSED' ? 'good' : '';
   return `<section class="pm-pl-cycle">
     <div class="pm-pl-cycle-h">
       <button type="button" class="pm-pl-fold ${open ? 'open' : ''}" aria-expanded="${open}" aria-label="收合或展開這一期" onclick="pmFoldToggle('cyc:${c.id}')">${svg('chevronRight', 13)}</button>
       <span class="pm-cycle-n">C${c.ordinal}</span>
       <button type="button" class="pm-pl-t strong" onclick="formPmCycle('${c.id}')">${esc(pmCycleName(c) + (c.title ? '｜' + c.title : ''))}</button>
-      <span class="pm-chip ${tone}">${PM_CYCLE_ST[c.status] || c.status}</span>
+      ${pmStatusChip('cycle', c.id)}
       <span class="pm-pl-m">
         <span class="pm-pl-due">${[c.startOn, c.endOn].filter(Boolean).join(' → ')}</span>
         ${c.budget != null ? `<span class="pm-pl-who">預算 ${nt(c.budget)}</span>` : ''}
@@ -511,28 +475,28 @@ PMV.plan = function (p) {
   ], { label: '計劃重點數字' });
 
   const bar = `<div class="pm-bar">
-    <button class="btn pri" onclick="formPmCycle()">${svg('plus')} 新增一期</button>
-    <button class="btn" onclick="formPmStage()">${svg('plus')} 階段</button>
-    <button class="btn" onclick="formPmMilestone()">${svg('plus')} 里程碑</button>
-    <button class="btn" onclick="formPmTask(null,{kind:'TODO'})">${svg('plus')} TODO</button>
+    ${cycles.length ? '' : `<button class="btn pri" onclick="pmInitForm()">${svg('layers')} 用範本初始化</button>`}
+    <button class="btn ${cycles.length ? 'pri' : ''}" onclick="formPmCycle()">${svg('plus')} 新增一期</button>
     <button class="btn" onclick="formPmTask(null,{kind:'REVIEW'})">${svg('plus')} 審核任務</button>
+    <span class="pm-sp"></span>
+    <span class="pm-dim">狀態都可以點；階段、里程碑、任務在各自那一列下面直接打字新增</span>
   </div>`;
 
   const tree = cycles.length
     ? cycles.map(pmCycleBlock).join('')
-    : pmEmpty('還沒有分期。建立第一期時可以一次帶出「提案 → 接案 → 執行 → 驗收 → 結案」五個階段。', `<button class="btn pri" onclick="formPmCycle()">${svg('plus')} 建立第一期</button>`);
+    : pmEmpty('還沒有分期。用範本可以一次建好第一期、五個階段與這類案子常見的里程碑。', `<button class="btn pri" onclick="pmInitForm()">${svg('layers')} 用範本初始化</button><button class="btn" onclick="formPmCycle()">${svg('plus')} 只建立第一期</button>`);
 
   const loose = [];
   if (looseStages.length) {
-    loose.push(pmBlock('未分期的階段', looseStages.length + ' 個', looseStages.map(pmStageBlock).join('')));
+    loose.push(pmBlock('未分期的階段', looseStages.length + ' 個', looseStages.map(ph => pmStageBlock(ph)).join('')));
   }
   if (looseMs.length) {
-    loose.push(pmBlock('未分階段的里程碑', looseMs.length + ' 個', looseMs.map(pmMsBlock).join('')));
+    loose.push(pmBlock('未分階段的里程碑', looseMs.length + ' 個', looseMs.map(m => pmMsBlock(m)).join('')));
   }
   if (looseTasks.length) {
     loose.push(pmBlock(
       '未掛里程碑的任務', looseTasks.length + ' 件',
-      looseTasks.slice(0, 12).map(pmTaskRow).join('') + (looseTasks.length > 12 ? `<div class="pm-pl-none">還有 ${looseTasks.length - 12} 件，在「工作」子視圖看全部</div>` : ''),
+      looseTasks.slice(0, 12).map(t => pmTaskRow(t)).join('') + (looseTasks.length > 12 ? `<div class="pm-pl-none">還有 ${looseTasks.length - 12} 件，在「工作」子視圖看全部</div>` : ''),
       `<button class="btn sm" onclick="pmGo('plan','work')">看全部工作</button>`
     ));
   }

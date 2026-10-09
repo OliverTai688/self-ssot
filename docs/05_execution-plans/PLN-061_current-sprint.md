@@ -1,5 +1,22 @@
 # Current Sprint
 
+## Owner-directed 單一專案路徑：狀態可點、留理由、範本初始化 — 2026-10-09
+
+`PROJUI-002` 已完成，Owner 同輪指示推送 `main`，**待 Owner 於正式站驗收**。Owner 要求逐條路徑截圖分析、每條三版提案、由 AI 依情境決策後實作。
+分析與提案在 [`RES-035`](../07_research-and-design/RES-035_single-project-paths-status-and-crud-research.md) 與
+[提案頁](../2_agent-input/generated/project-module-proposals/round2-single-project/index.html)（9 個區段各三版，含前後截圖）。
+
+現在：專案、期、階段、里程碑、任務、審核結果的狀態都可以點，就地小視窗選狀態、寫理由、Enter；往回走、結案、取消、退回一定要寫理由。
+每一筆變更是專案主頻道的一則系統訊息，總覽的「狀態紀錄」與對話都看得到。新專案可以用範本一次建好第一期、五個階段與里程碑；
+任務與里程碑可以在各自那一列下面直接打字新增；「工作」改成可換分組的清單，預設依負責人。
+
+修掉一個與介面無關但更嚴重的問題：任務的負責人從來沒有存進資料庫，重新整理後 Lily 動不了任何任務。
+**含一支 migration**（`20261009090000_project_task_owner`，`project_tasks` 加兩個可為 NULL 的欄位），部署時由 `prisma migrate deploy` 套用。
+
+驗收：`project:ui:check` 122/122、`tsc` 0、`pnpm build` exit 0；拋棄式本機 Postgres 上 migration 全串套用、`ops:roundtrip` 35/35，
+並以負責人與 Lily 兩個席位在瀏覽器實際操作、逐步查庫、重新整理後讀回。
+未做：總表列上直接改狀態、看板／表格／日曆裡的狀態、會議／檔案／財務的版面。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261009-single-project-status-crud.md)。
+
 ## Owner-directed 日誌貼紙第二張 `/doing` 進行中與「正在做的事」 — 2026-10-09
 
 `JRNL-STK-002` 已完成，Owner 同輪指示推送 `main`，**待 Owner 於正式站驗收**。

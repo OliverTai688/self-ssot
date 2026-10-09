@@ -270,6 +270,7 @@
 | [RES-030](../07_research-and-design/RES-030_yuanzhan-ui-implementation-rounds.md) | 圓展全部情境三輪研究、元件與 UI-memory 實作契約 |
 | [RES-033](../07_research-and-design/RES-033_project-workspace-five-resource-integration-research.md) | 專案工作區五大資源整合研究（聊天室／雲端硬碟／里程碑期階段／LINE 導入／會議資料區）：合併三個獨立子任務（UI 截圖盤點、架構設計、真實專案 migrate），裁決三項報告間衝突，確認 P0 阻斷點為 `createProjectForProfile` 未寫 `workspaceId`；含 15 個真實專案的階段對應表、R2 key 策略、LINE 平台限制的誠實結論與 Owner 決策包 |
 | [RES-034](../07_research-and-design/RES-034_project-area-index-and-header-research.md) | 專案區域介面研究與提案：問題診斷、需求理解分數與三輪研究（本地程式、Linear／Asana、NN/g 空白狀態）、採用的專案總表＋標題列＋設定清單、否決的做法、資料契約變更與驗收條件 |
+| [RES-035](../07_research-and-design/RES-035_single-project-paths-status-and-crud-research.md) | 單一專案路徑的截圖分析、每條路徑三版提案與決策、狀態管理規則（看得到就改得到、往回走要寫理由、理由存成主頻道系統訊息）、範本初始化、任務負責人落地的 migration 與驗收條件 |
 
 ## 08 Acceptance And QA
 

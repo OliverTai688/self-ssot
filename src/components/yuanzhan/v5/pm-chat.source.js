@@ -168,6 +168,8 @@ function pmChatPromote(mid) {
 }
 
 function pmChatMsg(m) {
+  // 狀態變更：一條細線加一行字，不帶頭像、不能刪。
+  if (pmIsStatusMsg(m)) return pmStatusLine(m);
   const meta = m.meta || {};
   const files = (meta.assets || []).map(rid => astOf(rid)).filter(Boolean);
   const mine = m.w === DB.me;

@@ -1,0 +1,103 @@
+/* ==================================================================
+   專案模組：可點的狀態籤、狀態小視窗、狀態紀錄、行內新增、任務清單
+   （RES-035 · PROJUI-002）
+
+   與其他 pm-*.css 同一組約束：顏色一律 var(--token, fallback)；
+   唯一有四邊外框與陰影的是小視窗本身 —— 它是覆蓋層，不是頁面上的區塊。
+   ================================================================== */
+
+/* ---------- 可點的狀態籤 ---------- */
+.pm-stc{display:inline-flex;align-items:center;gap:3px;flex-shrink:0;padding:2px 6px 2px 10px;border:1px solid var(--border-2,#333b45);border-radius:999px;background:transparent;color:var(--text-2,#99a2af);font:inherit;font-size:11.5px;line-height:1.5;white-space:nowrap;cursor:pointer}
+.pm-stc svg{width:10px;height:10px;flex-shrink:0;opacity:.6;transform:rotate(90deg)}
+.pm-stc:hover{border-color:var(--border-3,#465060);color:var(--text,#e9ecf1)}
+.pm-stc:hover svg{opacity:1}
+.pm-stc:focus-visible,.pm-own:focus-visible,.pm-pop-o:focus-visible,.pm-quick input:focus-visible{outline:2px solid var(--pri,#6cb6ff);outline-offset:2px}
+.pm-stc.pri{color:var(--pri,#6cb6ff);border-color:var(--pri-br,#2d5a7d);background:var(--pri-bg,#11212e)}
+.pm-stc.warn{color:var(--warn,#f2b95e);border-color:var(--warn,#f2b95e);background:var(--warn-bg,#2a2111)}
+.pm-stc.good{color:var(--ok,#5fd09a);border-color:var(--ok,#5fd09a);background:var(--ok-bg,#0f2620)}
+.pm-stc.crit{color:var(--danger,#ef8a82);border-color:var(--danger,#ef8a82);background:var(--danger-bg,#2b1614)}
+.pm-stc.off{color:var(--text-3,#626b77);border-color:var(--border,#232931)}
+.pm-ph-title .pm-stc{font-size:12.5px;padding:3px 7px 3px 11px}
+
+.pm-own{display:inline-flex;padding:0;background:none;border:0;border-radius:6px;cursor:pointer}
+.pm-own:hover .av{box-shadow:0 0 0 2px var(--pri-br,#2d5a7d)}
+.pm-own-none{background:transparent;border:1px dashed var(--border-3,#465060);color:var(--text-3,#626b77)}
+
+/* ---------- 小視窗 ---------- */
+.pm-pop-wrap{position:fixed;inset:0;z-index:70;display:none}
+.pm-pop-wrap.on{display:block}
+.pm-pop{position:fixed;width:320px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:14px;border:1px solid var(--border-2,#333b45);border-radius:10px;background:var(--surface-2,#161a20);box-shadow:var(--shadow,0 18px 44px rgba(0,0,0,.55))}
+.pm-pop-h{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.pm-pop-h b{font-size:13.5px;font-weight:600;line-height:1.5;color:var(--text,#e9ecf1);overflow-wrap:anywhere}
+.pm-pop-os{display:flex;flex-direction:column;gap:2px}
+.pm-pop-o{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;background:none;border:0;border-radius:6px;text-align:left;color:var(--text,#e9ecf1);font:inherit;font-size:13px;cursor:pointer}
+.pm-pop-o:hover{background:var(--hover-overlay,rgba(255,255,255,.035))}
+.pm-pop-o.on{background:var(--pri-bg,#11212e)}
+.pm-pop-o:disabled{cursor:not-allowed;color:var(--text-3,#626b77)}
+.pm-pop-o:disabled:hover{background:none}
+.pm-pop-o em{margin-left:auto;font-style:normal;font-size:11px;color:var(--text-3,#626b77);text-align:right}
+.pm-pop-dot{width:9px;height:9px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--border-3,#465060)}
+.pm-pop-o.on .pm-pop-dot{border-color:var(--pri,#6cb6ff);background:var(--pri,#6cb6ff)}
+.pm-pop-dot.pri{border-color:var(--pri,#6cb6ff)}
+.pm-pop-dot.warn{border-color:var(--warn,#f2b95e)}
+.pm-pop-dot.good{border-color:var(--ok,#5fd09a)}
+.pm-pop-dot.crit{border-color:var(--danger,#ef8a82)}
+.pm-pop-r{display:block;margin-top:12px}
+.pm-pop-r>span{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px;color:var(--text-2,#99a2af)}
+.pm-pop-r i{font-style:normal;font-size:11px;color:var(--text-3,#626b77)}
+.pm-pop-r i.must{color:var(--warn,#f2b95e)}
+.pm-pop-r textarea{display:block;width:100%;padding:7px 9px;border:1px solid var(--border-2,#333b45);border-radius:6px;background:var(--surface,#111418);color:var(--text,#e9ecf1);font:inherit;font-size:13px;line-height:1.6;resize:vertical}
+.pm-pop-r textarea:focus{outline:none;border-color:var(--pri,#6cb6ff)}
+.pm-pop-f{display:flex;align-items:center;gap:8px;margin-top:10px}
+.pm-pop-err{flex:1;font-size:12px;color:var(--danger,#ef8a82)}
+.pm-pop-log{margin-top:12px;padding-top:10px;border-top:1px solid var(--border,#232931)}
+.pm-pop-log .pm-sysline{padding:4px 0}
+
+/* ---------- 狀態紀錄（小視窗、總覽、聊天室共用） ---------- */
+.pm-sysline{display:flex;align-items:baseline;gap:10px;padding:6px 0 6px 12px;border-left:2px solid var(--border-2,#333b45);min-width:0}
+.pm-sysline-d{flex-shrink:0;font:11px var(--mono);color:var(--text-3,#626b77)}
+.pm-sysline-t{min-width:0;font-size:12.5px;line-height:1.6;color:var(--text-2,#99a2af);overflow-wrap:anywhere}
+.pm-sysline-t b{font-weight:560;color:var(--text,#e9ecf1)}
+.pm-sysline-t em{display:block;font-style:normal;color:var(--text,#e9ecf1)}
+.pm-syslog{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.pm-chat-log .pm-sysline{margin:6px 0}
+
+/* ---------- 行內新增 ---------- */
+.pm-quick{display:flex;align-items:center;gap:8px;margin:2px 0;padding:0 0 0 6px;color:var(--text-3,#626b77)}
+.pm-quick svg{width:12px;height:12px;flex-shrink:0}
+.pm-quick input{flex:1;min-width:0;padding:6px 4px;background:none;border:0;border-bottom:1px dashed transparent;color:var(--text,#e9ecf1);font:inherit;font-size:12.5px}
+.pm-quick input::placeholder{color:var(--text-3,#626b77)}
+.pm-quick input:hover{border-bottom-color:var(--border-2,#333b45)}
+.pm-quick input:focus{outline:none;border-bottom:1px solid var(--pri,#6cb6ff)}
+.pm-pl-stage>.pm-quick{margin-left:6px}
+/* 里程碑底下的那一格平常收起來：九個里程碑各掛一行「新增任務」比任務本身還吵。
+   滑到那個里程碑、或用 Tab 走進去時才展開；觸控裝置沒有 hover，一律展開。 */
+@media(hover:hover){
+  .pm-pl-ms>.pm-quick{max-height:0;margin:0;overflow:hidden;opacity:0;transition:max-height .12s,opacity .12s}
+  .pm-pl-ms:hover>.pm-quick,.pm-pl-ms:focus-within>.pm-quick{max-height:40px;margin:2px 0;opacity:1}
+}
+.pm-pl-ms-tag{flex-shrink:0;max-width:160px;padding:0 7px;border-left:1px solid var(--border-2,#333b45);font-size:11px;color:var(--text-3,#626b77);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- 計劃 › 工作 ---------- */
+.pm-wk-bar{margin-top:4px}
+.pm-wk-bar .pm-tseg button{padding:5px 11px;font-size:12.5px}
+.pm-wk-bar .pm-tcount{font:11.5px var(--mono);color:var(--text-3,#626b77)}
+.pm-view-plan>.pm-quick{margin:10px 0 4px;padding:4px 0 4px 6px;border-bottom:1px solid var(--border,#232931)}
+.pm-view-plan>.pm-quick input{font-size:13.5px;padding:8px 4px}
+.pm-wk-g{margin-top:18px}
+.pm-wk-h{display:flex;align-items:center;gap:8px;margin:0 0 2px;padding-bottom:6px;border-bottom:1px solid var(--border-2,#333b45);font-size:13px;font-weight:400}
+.pm-wk-h b{font-weight:600;color:var(--text,#e9ecf1)}
+.pm-wk-h i{font:600 12px var(--mono);font-style:normal;color:var(--text-3,#626b77)}
+.pm-wk-g .pm-pl-task:first-of-type{border-top:0}
+.pm-wk-g .pm-pl-t{font-size:13px}
+
+.pm-link-lead{margin-left:0}
+.pm-ph-switch span{white-space:nowrap}
+
+@media(max-width:760px){
+  /* 窄螢幕：小視窗改成貼底的抽屜，不再貼著狀態籤 —— 拇指搆得到，也不會被鍵盤蓋住。 */
+  .pm-pop-wrap.on{background:var(--overlay-backdrop,rgba(0,0,0,.5))}
+  .pm-pop{left:0!important;right:0;top:auto!important;bottom:0;width:auto;max-width:none;border-radius:14px 14px 0 0;border-bottom:0;padding:16px 16px 22px}
+  .pm-pop-o{padding:10px 8px;font-size:14px}
+  .pm-pl-ms-tag{display:none}
+}

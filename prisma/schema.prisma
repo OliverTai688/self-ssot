@@ -841,6 +841,13 @@ model ProjectTask {
 
   workbenchRef String? @map("workbench_ref")
 
+  /// 負責人的席位字串（yz / lily）。工作台以它決定「誰可以勾掉這件事」；
+  /// 沒有這一欄時，重新整理後每件任務的負責人都是空的，於是只有 yz 改得動。
+  /// 與 reviewerKey 同一個形狀：存席位、不存 Profile.id，停用成員時歷史不變。
+  ownerKey  String?   @map("owner_key")
+  /// 開始做的那一天。Cycle Time 從這裡起算；只有狀態離開 Todo 之後才有值。
+  startedOn DateTime? @map("started_on") @db.Date
+
   // ── 審核任務（PLN-075 S2 · Migration ②）──────────────────────────────────
   /// TODO 與審核是同一張表的兩種 kind，不是兩張表：兩張表的話
   /// 「這個里程碑還剩幾件事」必須 UNION 兩個來源，於是會有兩個答案。
