@@ -1,5 +1,14 @@
 # Current Sprint
 
+## Owner-directed 日誌貼紙第二張 `/doing` 進行中與「正在做的事」 — 2026-10-09
+
+`JRNL-STK-002` 已完成，Owner 同輪指示推送 `main`，**待 Owner 於正式站驗收**。
+任何一行打 `/doing`（或 `/進行中`）貼上藍色的進行中貼紙；做完在同一行打 `/done`，直接換成完成章。
+進行中不計入「完成的小事」；右側駕駛艙多一區「正在做的事」，前幾天還沒做完的會一路帶到今天。**沒有 schema 變更、沒有後端改動**。`UI-088` Revision Mode，未新增 UI ID。
+
+驗收：`ops:stickers:check` 50/50、`tsc` 0、`pnpm build` exit 0、既有日誌檢查無回歸、本機 showcase 真實鍵盤實測。
+未做：正式站與注音輸入法的實測。證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261009-journal-doing-sticker.md)。
+
 ## Owner-directed 稽核軌跡沒有存到 — 2026-10-07
 
 `AUDIT-TRAIL-001` 已完成並推上 main。Owner 看著稽核抽屜問「是不是資料也沒有儲存到」：資料本身與伺服器的命令紀錄

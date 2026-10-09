@@ -8433,6 +8433,10 @@ applyStoredSettings();
    （待辦是事前寫下、事後打勾；完成章是做完了才回頭蓋）。但蓋了章的那一行會被記下來：
    右側駕駛艙列出這一天完成的小事，物件卡片的標題列顯示這張物件裡蓋了幾個章。
 
+   第二張是 /doing 進行中：「這件事我正在做」。一行一張貼紙，所以做完之後在同一行
+   打 /done，進行中會直接換成完成章 —— 不必先撕掉。進行中不進完成的統計，
+   但右側駕駛艙另有一區「正在做的事」：還貼著進行中的行，前幾天留下來的也會一路帶到今天。
+
    資料：貼紙記在那一行自己身上 —— b.stk = { k, at, by }。日誌的行與文件物件段落的行
    都是整包存成 JSON 的 blocks，所以不需要新的集合、欄位或 migration，跟著原本的
    自動保存（render → opTouch）走；對方那一頭讀回來的 blocks 上就帶著章。
@@ -8451,10 +8455,17 @@ const STICKERS = [{
   ds: '蓋一個完成章 · 小事做完就蓋',
   src: '/stickers/done.svg',
   alias: ['完成']
+}, {
+  k: 'doing',
+  nm: '進行中',
+  ds: '正在做的事 · 做完在同一行打 /done 換成完成章',
+  src: '/stickers/doing.svg',
+  alias: ['進行中', 'wip']
 }];
 const STK_BY = Object.fromEntries(STICKERS.map(s => [s.k, s]));
-/* 只有這一張算「完成」；之後加的貼紙純粹是裝飾，不進完成的統計。 */
-const STK_DONE = 'done';
+/* 只有這一張算「完成」，只有 doing 算「正在做」；之後加的貼紙純粹是裝飾，不進任何統計。 */
+const STK_DONE = 'done',
+  STK_DOING = 'doing';
 
 /* 行首或空白之後的 /字。前面要求空白，網址（https://…）、日期（10/7）、路徑都不會誤觸。 */
 const STK_TRIGGER = /(?:^|\s)[\/／]([^\s\/／#@]{0,12})$/;
@@ -8504,7 +8515,7 @@ function stkStamp(b, k, start, len) {
   }
   focusB(b.id, Math.min(start, text.length));
   render();
-  if (had && had.k === k) toast(`這一行已經蓋過${esc(s.nm)}章了`);
+  if (had && had.k === k) toast(`這一行已經貼過「${esc(s.nm)}」了`);
 }
 /* 點貼紙的時候焦點不一定在那一行所在的書寫面上，bOf() 會被 BLKS_OVERRIDE 指到別處；
    所以自己找：自己的日誌，再來是自己能寫的物件。別人的行這裡找不到，也就撕不掉。 */
@@ -8610,10 +8621,10 @@ applySummon = function (n) {
   stkStamp(b, h.k, start, len);
 };
 
-/* ---- 記錄：哪些行蓋了完成章 ---- */
-/** 空白行蓋了章也不算：沒有寫下完成了什麼，就沒有東西可以記。 */
-function stkCounts(b) {
-  return !!b && TEXTY(b.t) && !!b.stk && b.stk.k === STK_DONE && !!(b.text || '').trim();
+/* ---- 記錄：哪些行蓋了完成章、哪些行還貼著進行中 ---- */
+/** 空白行貼了也不算：沒有寫下是什麼事，就沒有東西可以記。 */
+function stkCounts(b, k = STK_DONE) {
+  return !!b && TEXTY(b.t) && !!b.stk && b.stk.k === k && !!(b.text || '').trim();
 }
 /* 物件的段落裡還可以再嵌物件（Standup 的 Today 裡放一張任務），所以一路走到底。
    只讀 sec.blocks，不呼叫 ensureSecBlocks()：那支會替還沒展開過的段落補出 blocks，查詢不該改資料。
@@ -8646,34 +8657,61 @@ function stkDocChip(doc) {
   const tip = `完成的小事 ${lines.length} 件\n` + lines.slice(0, 12).map(b => '· ' + b.text.trim()).join('\n') + (lines.length > 12 ? '\n…' : '');
   return `<span class="stk-count" title="${esc(tip)}"><img src="${STK_BY[STK_DONE].src}" alt="完成">${lines.length}</span>`;
 }
-/** 這一天兩個人的日誌上（連同嵌在日誌裡的物件）蓋了完成章的行，照蓋章的時間排。 */
-function stkDayLines(day = S.jday) {
-  const out = [],
-    seen = new Set();
+/** 某一天兩個人的日誌上（連同嵌在日誌裡的物件）貼著 k 這張貼紙的行，照貼上的時間排。
+    seen 由呼叫端傳入時可以跨日共用：同一張物件被引用到好幾天的日誌上，也只算一次。 */
+function stkDayLines(day = S.jday, k = STK_DONE, seen = new Set()) {
+  const out = [];
   for (const who of Object.keys(DB.people)) {
     stkWalk(jcDoc(who, day)?.blocks, null, (b, i, doc) => {
-      if (stkCounts(b)) out.push({
+      if (stkCounts(b, k)) out.push({
         who: doc ? doc.author || who : who,
         b,
+        day,
         where: doc ? docObjectLabel(doc) : 'L' + (i + 1)
       });
     }, seen);
   }
   return out.sort((a, z) => (a.b.stk.at || 0) - (z.b.stk.at || 0));
 }
-function stkCockpitHtml() {
-  const rows = stkDayLines();
-  const body = rows.map(({
-    who,
-    b,
-    where
-  }) => `<button class="jc-obj stk-row" title="${esc(person(b.stk.by))} ${stkWhen(b.stk.at)} 蓋章 · 點一下跳到那一行" ${bind("click", (event, element) => {
-    stkJump(b.id);
-  })}><img class="stk-row-img" src="${STK_BY[STK_DONE].src}" alt=""><span class="jc-obj-t">${esc(b.text.trim())}</span><span class="jc-obj-s">${esc(jcShort(who))} ${esc(where)}</span></button>`).join('');
-  return `<div class="jc-sec" id="stkDone"><div class="jc-sec-t stk-sec-t"><span>完成的小事</span>${rows.length ? `<b>${rows.length}</b>` : ''}</div>${body || '<div class="rq-empty">做完一件小事，就在那一行打 /done 蓋個章</div>'}</div>`;
+/* 正在做的事不會在午夜自動做完：看「今天」的時候，前幾天還貼著進行中的行一起帶過來，
+   直到那一行換成完成章或貼紙被撕掉。回頭翻某一天，就只看那一天頁面上的。 */
+const STK_DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+function stkDoingLines() {
+  const seen = new Set(),
+    out = stkDayLines(S.jday, STK_DOING, seen);
+  if (S.jday !== TODAY) return out;
+  const earlier = new Set();
+  for (const who of Object.keys(DB.people)) for (const d of Object.keys(journals.team[who] || {})) if (STK_DAY_KEY.test(d) && d < TODAY) earlier.add(d);
+  for (const d of [...earlier].sort()) out.push(...stkDayLines(d, STK_DOING, seen));
+  return out.sort((a, z) => (a.b.stk.at || 0) - (z.b.stk.at || 0));
 }
-/* 那一行可能在收合的物件卡裡：先把包著它的卡片展開再找一次。 */
-function stkJump(id) {
+function stkRowHtml({
+  who,
+  b,
+  day,
+  where
+}) {
+  const s = STK_BY[b.stk.k],
+    at = day === S.jday ? where : +day.slice(5, 7) + '/' + +day.slice(8, 10);
+  return `<button class="jc-obj stk-row" title="${esc(person(b.stk.by))} ${stkWhen(b.stk.at)} 貼上「${esc(s.nm)}」 · 點一下跳到那一行" ${bind("click", (event, element) => {
+    stkJump(b.id, day);
+  })}><img class="stk-row-img" src="${s.src}" alt=""><span class="jc-obj-t">${esc(b.text.trim())}</span><span class="jc-obj-s">${esc(jcShort(who))} ${esc(at)}</span></button>`;
+}
+function stkSecHtml(id, title, rows, empty) {
+  return `<div class="jc-sec" id="${id}"><div class="jc-sec-t stk-sec-t"><span>${title}</span>${rows.length ? `<b>${rows.length}</b>` : ''}</div>${rows.map(stkRowHtml).join('') || `<div class="rq-empty">${empty}</div>`}</div>`;
+}
+function stkCockpitHtml() {
+  return stkSecHtml('stkDoing', '正在做的事', stkDoingLines(), '正在做的事，在那一行打 /doing') + stkSecHtml('stkDone', '完成的小事', stkDayLines(), '做完一件小事，就在那一行打 /done 蓋個章');
+}
+/* 那一行可能在別天的日誌上（從前幾天帶過來的進行中），也可能在收合的物件卡裡：
+   先翻到那一天，找不到再把包著它的卡片展開找一次。 */
+function stkJump(id, day) {
+  if (day && day !== S.jday) {
+    saveJournalDraft();
+    S.jday = day;
+    jcLineOpen = '';
+    render();
+  }
   const find = () => root.querySelector(`.jc .eb[data-id="${CSS.escape(id)}"], .jc [data-jc-bid="${CSS.escape(id)}"]`);
   let el = find();
   if (!el) {
@@ -9883,7 +9921,7 @@ setTimeout(rqTick, 1500);
    · 標題列一行：日誌 ‹ 日期 › 📅 [今天｜回顧｜標籤流] …… 「我開始一天了」時間
    · 左欄＝自己（編輯中，唯一可寫的 #doc），右欄＝對方（唯讀，點任一行即可留言）
    · 行內留言掛在該行下方；整頁留言縮成駕駛艙底部一行輸入框
-   · 右側駕駛艙：今日統計、回覆追蹤、今天誕生的物件（標出來源行）、完成的小事（/done，見 journal-stickers）、今日脈絡
+   · 右側駕駛艙：今日統計、回覆追蹤、今天誕生的物件（標出來源行）、正在做的事與完成的小事（/doing、/done，見 journal-stickers）、今日脈絡
    只作用在圓展空間的「今天」分頁；個人空間與回顧／標籤流沿用原本畫面。
    ───────────────────────────────────────────────────────────────────────── */
 /* 這幾個集合是從伺服器讀回來的（database 模式）。無條件指派會把剛讀回來的內容

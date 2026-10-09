@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="進行中">
+  <title>進行中</title>
+  <!--
+    日誌貼紙：/doing 進行中。格式同 done.svg（1:1、透明背景、自帶白色 die-cut 邊與極淡外框線）。
+    跟完成章是同一家族（縫線圈、同一顆亮點），但三樣都不同，縮到 20px 也不會看錯：
+    輪廓是圓不是花形、顏色是藍不是朱紅、圖樣是三顆跳動的點不是勾。
+  -->
+  <circle cx="64" cy="64" r="51" fill="none" stroke="#000" stroke-opacity=".16" stroke-width="11"/>
+  <circle cx="64" cy="64" r="51" fill="#fff" stroke="#fff" stroke-width="8.5"/>
+  <circle cx="64" cy="64" r="51" fill="#3d8ef0" stroke="#2a72d4" stroke-width="2.5"/>
+  <circle cx="64" cy="64" r="41" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2.2" stroke-linecap="round" stroke-dasharray=".1 6.6"/>
+  <circle cx="41" cy="69" r="9.5" fill="#fff"/>
+  <circle cx="64" cy="58" r="9.5" fill="#fff"/>
+  <circle cx="87" cy="69" r="9.5" fill="#fff"/>
+  <path d="M95 25c1.200 5 3 6.800 8 8-5 1.200-6.800 3-8 8-1.200-5-3-6.800-8-8 5-1.200 6.800-3 8-8Z" fill="#ffd65a" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+</svg>

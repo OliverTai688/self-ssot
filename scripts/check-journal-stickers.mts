@@ -8,6 +8,8 @@
  *   2. 網址、日期、路徑裡的斜線不會誤觸。
  *   3. 蓋了章的那一行會被記下來：右側「完成的小事」、物件卡片標題列的計數。
  *   4. 重新整理之後章還在，對方那一頭也看得到（章跟著 blocks 一起保存）。
+ *   5. /doing 貼上進行中；它不算完成，做完在同一行打 /done 直接換成完成章。
+ *   6. 右側「正在做的事」列出還貼著進行中的行，前幾天留下來的一路帶到今天。
  *
  * 副檔名是 .mts：用了 top-level await（理由同 check-link-object.mts）。
  */
@@ -25,6 +27,7 @@ function check(label: string, ok: unknown, detail?: unknown) {
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms))
 const text = (el: Element | null | undefined) => (el?.textContent || '').replace(/\s+/g, ' ').trim()
 const SRC = '/stickers/done.svg'
+const DOING = '/stickers/doing.svg'
 
 /**
  * jsdom 沒有 innerText（runtime 用它把書寫區同步回資料）、Range 沒有 getBoundingClientRect
@@ -38,6 +41,8 @@ function polyfill() {
   g.innerWidth = 1400
   const range = (win.Range as { prototype: Record<string, unknown> }).prototype
   if (!range.getBoundingClientRect) range.getBoundingClientRect = () => ({ top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0 })
+  // 點右側的一列會把那一行捲進畫面；jsdom 沒有版面，也就沒有這支。
+  ;((win.Element as { prototype: Record<string, unknown> }).prototype).scrollIntoView = function () {}
   const proto = (globalThis as unknown as { HTMLElement: { prototype: object } }).HTMLElement.prototype
   if (Object.getOwnPropertyDescriptor(proto, 'innerText')) return
   Object.defineProperty(proto, 'innerText', {
@@ -159,6 +164,29 @@ type Block = { id: string; t: string; text?: string; stk?: { k: string; at: numb
   check('點貼紙：撕掉，那一行的字還在', !rowOf(id2).querySelector('.stk') && text(lineOf(id2)) === '回覆客戶報價')
   check('右側跟著少一件', doneRows().length === 1)
 
+  // 8. 進行中：第二張貼紙。只是標註，不算完成；做完在同一行打 /done 直接換掉
+  const stampSrc = (id: string) => Array.from(rowOf(id).querySelectorAll('.stk img')).map((el) => el.getAttribute('src')).join()
+  typeInto(lineOf(id2), '回覆客戶報價 /d')
+  await tick(10)
+  const listed = all('#summonList .summon-i').map((el) => text(el.querySelector('.kb'))).join()
+  check('打到 /d：選單列出完成與進行中兩張', listed === '/done,/doing', listed)
+  typeInto(lineOf(id2), '回覆客戶報價 /doing ')
+  await tick(20)
+  check('/doing 加一個空白：那一行貼上進行中', stampSrc(id2) === DOING && text(lineOf(id2)) === '回覆客戶報價', stampSrc(id2))
+  check('進行中不計入完成的小事', doneRows().length === 1, doneRows().length)
+  const doingRows = () => all('#stkDoing .stk-row')
+  check('右側「正在做的事」列出這一行，用的是進行中那張圖', doingRows().length === 1 && text(doingRows()[0]).includes('回覆客戶報價') && doingRows()[0].querySelector('img')?.getAttribute('src') === DOING, text(root.querySelector('#stkDoing')))
+  typeInto(lineOf(id2), '回覆客戶報價 /done ')
+  await tick(20)
+  check('做完在同一行打 /done：進行中換成完成章，還是只有一張', stampSrc(id2) === SRC, stampSrc(id2))
+  check('換成完成章之後才計入完成的小事', doneRows().length === 2, doneRows().length)
+  check('同時從「正在做的事」離開', doingRows().length === 0, doingRows().length)
+  typeInto(lineOf(id3), '寫提案 /進行中')
+  await tick(10)
+  press(lineOf(id3), 'Enter')
+  await tick(20)
+  check('/進行中 也認得（選單 ↵）', stampSrc(id3) === DOING && text(lineOf(id3)) === '寫提案', stampSrc(id3))
+
   check('全程沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
   r.workbench.destroy()
 }
@@ -183,6 +211,7 @@ type Block = { id: string; t: string; text?: string; stk?: { k: string; at: numb
   }
 
   const DAY = operatingToday()
+  const PREV = new Date(Date.parse(DAY + 'T00:00:00Z') - 86400e3).toISOString().slice(0, 10)
   const YZ: YuanzhanSeat = { email: 'yz@example.test', actor: 'yz', role: 'owner', canSwitchActor: false }
   const stk = (by: string) => ({ k: 'done', at: Date.now() - 3600e3, by })
   const bookOf = (blocks: unknown[]) => ({ [DAY]: { title: DAY, visibility: 'company', blocks } })
@@ -196,10 +225,17 @@ type Block = { id: string; t: string; text?: string; stk?: { k: string; at: numb
   }
   const store = {
     dayLogs: [], todayIssues: [], lineComments: [], journalComments: [],
-    journal: bookOf([
-      { id: 'b-own', t: 'p', ind: 0, text: '今天自己寫的一行' },
-      { id: 'b-card', t: 'obj', ind: 0, text: '', obj: { ty: 'doc_object', rid: standup.id } },
-    ]),
+    journal: {
+      ...bookOf([
+        { id: 'b-own', t: 'p', ind: 0, text: '今天自己寫的一行' },
+        { id: 'b-card', t: 'obj', ind: 0, text: '', obj: { ty: 'doc_object', rid: standup.id } },
+      ]),
+      // 昨天寫下、到今天還沒做完的事
+      [PREV]: { title: PREV, visibility: 'company', blocks: [
+        { id: 'b-old', t: 'p', ind: 0, text: '寫合作提案', stk: { k: 'doing', at: Date.now() - 20 * 3600e3, by: 'yz' } },
+        { id: 'b-old-done', t: 'p', ind: 0, text: '昨天做完的事', stk: { k: 'done', at: Date.now() - 21 * 3600e3, by: 'yz' } },
+      ] },
+    },
     journalPeer: bookOf([{ id: 'p-1', t: 'p', ind: 0, text: '會議紀錄整理、上傳', stk: stk('lily') }]),
     docObjects: [standup],
   }
@@ -220,6 +256,10 @@ type Block = { id: string; t: string; text?: string; stk?: { k: string; at: numb
   check('讀回來的章畫得出來：物件段落裡的行', !!card()?.querySelector('.eb[data-id="s-1"] button.stk'))
   check('物件卡片標題列記下這張物件完成了 1 件', text(card()?.querySelector('.eb-doc-bar .stk-count')) === '1', text(card()?.querySelector('.eb-doc-bar')))
   const rows = () => all('#stkDone .stk-row').map(text)
+  const doing = () => all('#stkDoing .stk-row')
+  const short = String(+PREV.slice(5, 7)) + '/' + String(+PREV.slice(8, 10))
+  check('昨天還貼著進行中的行，今天的「正在做的事」帶過來並標出是哪一天', doing().length === 1 && text(doing()[0]).includes('寫合作提案') && text(doing()[0]).includes(short), doing().map(text))
+  check('昨天完成的事不會帶到今天的「完成的小事」', !rows().some((x) => x.includes('昨天做完的事')), rows())
   check('右側列出兩個人今天完成的小事（日誌的行＋物件裡的行）', rows().length === 2 && rows().some((x) => x.includes('文齡二修網站') && x.includes('Standup')) && rows().some((x) => x.includes('會議紀錄整理')), rows())
 
   // 自己的日誌蓋章 → 跟著日誌一起送出
@@ -264,6 +304,12 @@ type Block = { id: string; t: string; text?: string; stk?: { k: string; at: numb
   await tick(1900)
   const peeled = journalBlocks().find((b) => b.id === 'b-own')
   check('journal · 撕掉之後，保存的那一行不再帶章', !!peeled && !peeled.stk, peeled)
+
+  // 點帶過來的那一列 → 翻到昨天的日誌、看得到那一行；在那一頁只列當天的
+  doing()[0].click()
+  await tick(30)
+  check('點帶過來的那一列：翻到那一天，那一行在畫面上', text(root.querySelector('#jcDate b')).includes(PREV) && !!root.querySelector('#doc .eb[data-id="b-old"].rq-flash button.stk'), text(root.querySelector('#jcDate b')))
+  check('翻到昨天：兩區各只列那一天頁面上的', doing().length === 1 && rows().length === 1 && rows()[0].includes('昨天做完的事'), [doing().map(text), rows()])
 
   check('database · 沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
   r.workbench.destroy()

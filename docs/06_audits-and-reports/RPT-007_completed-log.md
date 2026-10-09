@@ -4395,3 +4395,17 @@ prototype 模式標示「僅本頁」；`opSettle()` 在三個取基準線的地
 資料變更仍由帶著它的那筆命令（多半是自動保存）記錄，但少了「之前 → 之後」的細節。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261007-audit-trail-persist.md`
+
+## 2026-10-09 — 日誌貼紙第二張：`/doing` 進行中與「正在做的事」（JRNL-STK-002）
+
+Owner 要求設計一張進行中的貼紙並加上去。新增 `public/stickers/doing.svg`（藍色圓章、三顆跳動的點，
+與完成章同一家族但輪廓、顏色、圖樣都不同），貼紙表多一列：`/doing`、`/進行中`、`/wip`。
+一行一張貼紙，做完在同一行打 `/done` 直接換成完成章；進行中不計入完成的小事。
+Owner 看過後追加：右側駕駛艙在「完成的小事」上面多一區「正在做的事」，列出還貼著進行中的行；
+看今天時，前幾天還沒做完的一起帶過來並標出日期，點了翻到那一天。沒有 schema 變更、沒有後端改動。
+
+驗證：`ops:stickers:check` 50/50、`tsc` 0、`pnpm build` exit 0、`check-journal-day-state` 34/34、`check-decision-reply` 36/36、
+`verify-agenda-object` 103/103、`verify-journal-review` 34/34、`check-project-module-ui` 91/91；本機 showcase 真實鍵盤實測。
+在由 `origin/main` 開出的獨立 worktree 裡實作。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261009-journal-doing-sticker.md`
