@@ -261,6 +261,8 @@ function agSetOwner(id, who) {
          ...(st.assignedAt ? ['對方右上角的通知匣會出現這一筆'] : [])]
       : ['收回指派，退回議題', '不再計算逾期'];
   });
+  // 指派與否決定它叫議題還是任務：麵包屑、標籤、欄位都要跟著換，整頁重畫。
+  agRepaintPage(id);
 }
 
 function agSetDue(id, due) {
@@ -274,6 +276,7 @@ function agSetDue(id, due) {
     d.updatedAt = Date.now();
     return [next ? `到期日設為 ${next}` : '清除到期日，回到未排期'];
   });
+  agRepaintPageState(id);
 }
 
 /**
@@ -292,15 +295,42 @@ function agCarryTo(id, day) {
     d.updatedAt = Date.now();
     return [`延到 ${to}`, `提出於 ${st.bornDay}，已經帶過 ${st.carried.length} 次`];
   });
+  agRepaintPageState(id);
 }
 
 /* 結案與重新開啟都改變了頁尾該出現哪幾顆按鈕，但 commit() 的 render() 只重畫工作台，
  * 抽屜的頁尾不在它的範圍裡 —— 不補這一下，結案成功之後畫面仍停在「完成並結案」，
  * 看起來就像沒反應。 */
-function agRepaintPage(id) {
+function agPageOpen(id) {
   const stack = S.stack || [];
   const top = stack[stack.length - 1];
-  if (top && top.type === 'doc_object' && top.id === id) paintDrawer();
+  return !!top && top.type === 'doc_object' && top.id === id;
+}
+function agRepaintPage(id) {
+  if (agPageOpen(id)) paintDrawer();
+}
+
+/* 議題頁上的欄位與討論也不在 render() 的範圍裡：render() 重畫工作台，獨立頁面只補段落正文
+ * （repaintDocPageBody）。在議題頁按「送出」，那一則其實已經寫進資料、背後的日誌卡片也更新了，
+ * 但眼前這一頁仍然是「討論 · 0」、輸入框裡的字也還在 —— 看起來就是送不出去。
+ * 改到期日、延期也是同一回事：狀態 pill 與「帶過」停在舊的。
+ *
+ * 只換這兩塊而不整頁重畫，是為了不動到同一頁上正在寫的標題與段落。
+ * 欄位逐列換，而且跳過正在輸入日期的那一列：到期日是 <input type="date">，用鍵盤逐段輸入時
+ * 每湊成一個合法日期就觸發一次 change，整塊換掉會把輸入打斷。只認輸入框本身 ——
+ * Chromium 點按鈕會把焦點給按鈕，連按鈕也算的話，按「明天」那一列反而不會更新。 */
+function agRepaintPageState(id) {
+  if (!agPageOpen(id)) return;
+  const d = agFind(id), body = root.querySelector('#drBody');
+  if (!d || !body) return;
+  const fresh = doc.createElement('div');
+  fresh.innerHTML = agFieldsHtml(d) + agThreadHtml(d, 'page');
+  const rows = body.querySelectorAll('.ag-fields > .ag-f'), next = fresh.querySelectorAll('.ag-fields > .ag-f');
+  const focused = shadow.activeElement;
+  const typing = focused && focused.matches('input.ag-date') ? focused : null;
+  rows.forEach((row, i) => { if (next[i] && !(typing && row.contains(typing))) row.replaceWith(next[i]); });
+  const thread = body.querySelector('.ag-thread.page'), thread2 = fresh.querySelector('.ag-thread.page');
+  if (thread && thread2) thread.replaceWith(thread2);
 }
 
 function agComplete(id) {
@@ -345,14 +375,20 @@ function agSay(id) {
   const x = (agDrafts.get(id) || '').trim();
   if (!x) return toast('先寫點什麼再送出');
   const st = agState(d);
+  // 同一個議題的輸入框會同時長在兩處：日誌卡片，和打開的議題頁。回焦點要回到使用者正在用的那一個。
+  const inPage = agPageOpen(id);
   // commit() 自己會 render()，所以要在 commit 之前排好回焦點，否則這一次渲染會吃不到。
-  runtime._afterRender = () => root.querySelector('[data-ag-input="' + id + '"]')?.focus();
+  if (!inPage) runtime._afterRender = () => root.querySelector('[data-ag-input="' + id + '"]')?.focus();
   commit('update', '議題物件', docObjectName(d), () => {
     st.msgs.push({ w: DB.me, x, ts: nowts().slice(0, 5), at: Date.now() });
     agDrafts.delete(id);
     d.updatedAt = Date.now();
     return [`討論累積 ${st.msgs.length} 則`];
   });
+  if (inPage) {
+    agRepaintPageState(id);
+    root.querySelector('#drBody [data-ag-input="' + id + '"]')?.focus();
+  }
 }
 
 /** 附件沿用既有的上傳管線（DB.files → R2 或本頁記憶體），議題這邊只記 id 與檔名。 */
@@ -367,6 +403,7 @@ function agAttach(id) {
       d.updatedAt = Date.now();
       return [`附件 ${st.files.length} 個`, '檔案同時進入文件庫'];
     });
+    agRepaintPageState(id);
   });
 }
 
@@ -479,6 +516,18 @@ function agDueControls(d) {
   </span>`;
 }
 
+/** 議題頁上方的欄位。抽屜第一次畫與之後的局部重畫（agRepaintPageState）共用這一份。 */
+function agFieldsHtml(d) {
+  const st = agState(d);
+  return `<div class="ag-fields">
+        <div class="ag-f"><span class="k">提出</span><span class="v"><b>${esc(st.bornDay || d.day)}</b> · ${esc(person(d.author))}</span></div>
+        <div class="ag-f"><span class="k">負責</span><span class="v">${agOwnerControls(d)}</span></div>
+        <div class="ag-f"><span class="k">到期</span><span class="v">${agDueControls(d)}</span></div>
+        <div class="ag-f"><span class="k">帶過</span><span class="v">${st.carried.length ? `<b>${st.carried.length} 次</b> · ${esc(st.carried.join('、'))}` : '沒有延期過'}</span></div>
+        <div class="ag-f"><span class="k">狀態</span><span class="v">${agStatePill(d) || '<span class="ag-pill soft">議題 · 尚未指派負責人</span>'}</span></div>
+      </div>`;
+}
+
 const agBaseDrawer = DRAWERS.doc_object;
 DRAWERS.doc_object = id => {
   const d = agFind(id);
@@ -494,13 +543,7 @@ DRAWERS.doc_object = id => {
         <span class="doc-page-sync-tag">● 與日誌即時雙向連動</span>
       </span>`,
     body: `
-      <div class="ag-fields">
-        <div class="ag-f"><span class="k">提出</span><span class="v"><b>${esc(st.bornDay || d.day)}</b> · ${esc(person(d.author))}</span></div>
-        <div class="ag-f"><span class="k">負責</span><span class="v">${agOwnerControls(d)}</span></div>
-        <div class="ag-f"><span class="k">到期</span><span class="v">${agDueControls(d)}</span></div>
-        <div class="ag-f"><span class="k">帶過</span><span class="v">${st.carried.length ? `<b>${st.carried.length} 次</b> · ${esc(st.carried.join('、'))}` : '沒有延期過'}</span></div>
-        <div class="ag-f"><span class="k">狀態</span><span class="v">${agStatePill(d) || '<span class="ag-pill soft">議題 · 尚未指派負責人</span>'}</span></div>
-      </div>
+      ${agFieldsHtml(d)}
       <div class="doc-page-workspace">
         ${d.secs.map((sec, idx) => renderDocSectionBody(d, sec, idx, meta)).join('')}
       </div>

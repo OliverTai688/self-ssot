@@ -4432,3 +4432,30 @@ Owner 要求對單一專案的每條路徑截圖分析、考慮專案／里程�
 未做：總表列上直接改狀態、看板／表格／日曆裡的狀態、會議／檔案／財務的版面、淺色主題的目視確認。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261009-single-project-status-crud.md`
+
+## 2026-10-12 — 議題頁討論送得出去、日誌在 iPhone 上可以寫（AGENDA-PAGE-001）
+
+Owner 附截圖回報兩件事：議題的討論區按發送好像發送不了；用手機貼上再按 Enter，那一行會消失。
+
+**議題頁。** 本機重現：按送出之後背後的日誌卡片已經是「討論 · 1」，議題頁仍是「討論 · 0」、輸入框的字還在。資料有寫進去，
+是畫面沒跟上 —— `render()` 只重畫 `#inner`，獨立頁面只補 `.doc-page-workspace`，欄位與討論區在它外面。
+`agenda-object.source.js` 新增 `agRepaintPageState()`（只換欄位列與討論區，正在輸入日期的那一列跳過），
+`agSay`／`agAttach`／`agSetDue`／`agCarryTo` 之後呼叫；`agSetOwner` 之後整頁重畫（議題↔任務的稱呼會變）。
+送出後的焦點回到議題頁的輸入框，而不是背後卡片上同一個議題的那一個。
+
+**手機。** Chromium 重現不出來，改用 Playwright 的 WebKit 實測：`document.getSelection()` 回的位置退到 shadow host 外面，
+`addRange()` 對 shadow 內的 range 不作用。結果是 `caretOff()` 永遠 0（Enter 把整行推到下一行、`!`／`#`／`@`／`/` 選單不開）、
+`setCaret()` 把游標丟掉（換行後打字沒反應）、貼上被判定「游標不在這一行」而整段吃掉。
+`runtime-prelude.source.js` 的 `selection()` 在沒有 `shadowRoot.getSelection` 的引擎上改回一個同介面的包裝：
+讀走 `getComposedRanges()`，寫走 `setBaseAndExtent()`。引擎那邊一行都沒改，Chromium 走原路。
+
+驗證：新增 `pnpm ops:agenda-page:check`（jsdom，21/21；對舊 runtime 10/21）與 `pnpm ops:engines:verify`
+（真實引擎，webkit／chromium × 桌面／手機尺寸 4 組各 13 條全過，連跑 3 次；對舊版 webkit 第一步就卡住、chromium 議題頁 7 條失敗）。
+`ops:stickers:check` 50/50、`ops:links:check` 24/24 無回歸。`tsc` 5 個錯誤與未含本輪改動的 `main`（2d4260e867）逐一相同，
+是本機共用的 Prisma client 沒有重新生成；`ops:reply-jump:check` 21/22 與 `ops:runtime:check` 跑不起來也都是 `main` 上既有的（`PROJMOD-007`）。
+沒有跑 `pnpm build`。沒有碰資料庫，沒有對正式站做任何操作。
+
+還沒做到的：實體 iPhone 實測（螢幕鍵盤、注音組字、長按貼上只有實機有）；iOS 16 以下維持原狀；
+建立任務之後游標沒有回到下一行（兩個引擎都一樣的既有行為）。
+
+證據：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-agenda-page-send-and-webkit-caret.md`

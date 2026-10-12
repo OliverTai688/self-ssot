@@ -3,7 +3,48 @@ const runtime = {};
 const doc = root.ownerDocument;
 const shadow = root.getRootNode();
 const getById = id => root.querySelector('[id="'+CSS.escape(String(id))+'"]');
-const selection = () => shadow.getSelection ? shadow.getSelection() : doc.getSelection();
+/* 游標與選取範圍。Shadow DOM 裡的選取，各家瀏覽器給法不同：
+ *   · Chromium 有 shadowRoot.getSelection()，直接用。
+ *   · WebKit（iPhone／iPad 上所有瀏覽器都是它）沒有。document.getSelection() 回的是一個退到
+ *     host 外面的位置，addRange() 對 shadow 內的 range 則完全不作用。於是 caretOff() 永遠是 0、
+ *     setCaret() 先 removeAllRanges() 再 addRange() 等於把游標丟掉、貼上因為「游標不在這一行裡」
+ *     被整個吃掉 —— 手機上按 Enter 是把整行推到下一行，接著打字沒有反應。
+ * WebKit 的正路是 getComposedRanges() 讀、setBaseAndExtent() 寫。這裡包成同一個介面，
+ * 引擎那邊用到的五個成員（rangeCount／getRangeAt／removeAllRanges／addRange／toString）不必改。 */
+const composedRange = sel => {
+  let list = [];
+  try { list = sel.getComposedRanges({ shadowRoots: [shadow] }); } catch { list = []; }
+  // Safari 17 的第一版簽名是 getComposedRanges(...shadowRoots)，收到物件會丟 TypeError。
+  if (!list.length || !shadow.contains(list[0].startContainer)) {
+    try { const legacy = sel.getComposedRanges(shadow); if (legacy.length) list = legacy; } catch { /* 新簽名不吃這種寫法 */ }
+  }
+  const at = list[0];
+  if (!at) return null;
+  try {
+    const range = doc.createRange();
+    range.setStart(at.startContainer, at.startOffset);
+    range.setEnd(at.endContainer, at.endOffset);
+    return range;
+  } catch {
+    return null;
+  }
+};
+const composedSelection = sel => ({
+  get rangeCount() { return composedRange(sel) ? 1 : 0; },
+  getRangeAt() {
+    const range = composedRange(sel);
+    if (!range) throw new DOMException('No selection range', 'IndexSizeError');
+    return range;
+  },
+  removeAllRanges() { sel.removeAllRanges(); },
+  addRange(range) { sel.setBaseAndExtent(range.startContainer, range.startOffset, range.endContainer, range.endOffset); },
+  toString() { const range = composedRange(sel); return range ? range.toString() : ''; }
+});
+const selection = () => {
+  if (shadow.getSelection) return shadow.getSelection();
+  const sel = doc.getSelection();
+  return sel && typeof sel.getComposedRanges === 'function' ? composedSelection(sel) : sel;
+};
 const controller = new AbortController();
 const timers = new Set();
 const setTimeout = (fn,ms) => {const id=globalThis.setTimeout(()=>{timers.delete(id);fn()},ms);timers.add(id);return id;};

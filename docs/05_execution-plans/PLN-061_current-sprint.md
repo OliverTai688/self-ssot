@@ -1,5 +1,24 @@
 # Current Sprint
 
+## Owner-directed 議題頁討論送不出去、手機貼上再按 Enter 那一行不見 — 2026-10-12
+
+`AGENDA-PAGE-001` 已完成並推上 main。兩個回報是兩個根因：
+
+- **議題頁按「送出」沒反應**：那一則其實寫進去了（背後的日誌卡片有更新），但 `commit()` 的 `render()` 只重畫工作台與議題頁的段落正文，
+  欄位與討論區不在範圍內，眼前這一頁停在「討論 · 0」。到期日、延期、指派在議題頁上也是同一回事。
+  改成做完就局部重畫那兩塊（`agRepaintPageState`），指派因為會改整頁的稱呼，走整頁重畫。
+- **手機貼上再按 Enter**：WebKit（iPhone 上所有瀏覽器）讀不到 Shadow DOM 裡的游標，`addRange()` 也寫不進去 ——
+  Enter 把整行推到下一行、之後打字沒反應、貼上被吃掉、行內選單不開。`selection()` 在這類引擎上改走
+  `getComposedRanges()` 讀、`setBaseAndExtent()` 寫，介面不變，Chromium 行為不變。
+
+`UI-088` Revision Mode，未新增 UI ID；沒有 schema 與後端改動。
+
+留意：沒有在實體 iPhone 上測（用的是 Playwright 的 WebKit）；iOS 16 以下沒有 `getComposedRanges()`，不在修正範圍。
+
+驗收：`ops:agenda-page:check` 21/21（對舊 runtime 10/21）、`ops:engines:verify` webkit／chromium × 桌面／手機 4 組全過。
+`tsc` 的 5 個錯誤與 `main` 相同（本機 Prisma client 未重新生成），與本輪無關。
+證據：[本輪報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-agenda-page-send-and-webkit-caret.md)。
+
 ## Owner-directed 單一專案路徑：狀態可點、留理由、範本初始化 — 2026-10-09
 
 `PROJUI-002` 已完成，Owner 同輪指示推送 `main`，**待 Owner 於正式站驗收**。Owner 要求逐條路徑截圖分析、每條三版提案、由 AI 依情境決策後實作。
