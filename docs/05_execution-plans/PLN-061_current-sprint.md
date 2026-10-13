@@ -1105,3 +1105,5 @@ DONE — UI-only；D10 owner-approved，UI-088。依 RES-030 三輪研究移植�
 Owner 採納 `RES-036` 並回覆六題（只用 LINE／授權導入／綁定時一句揭露／AI 分析須人選取、去識別化、人確認／一專案多群／代碼綁定）。**目前卡在 `LINESIG-S0`**：Owner 核准 `AUT-010`（含揭露文字與保留期限）並在 LINE Developers 開通 channel。核准後的下一步是 `LINESIG-S1`（webhook 收件匣、成員綁定、個人推播），它不碰群組、可獨立上線。`LINESIG-S3b` 的去識別化引擎是純函式，可不等 LINE 連線先做。任務列在 `PLN-060` 的 LINESIG 區段。
 
 **2026-10-13 `LINESIG-UI` 完成，待 Owner 於正式站驗收**：Owner 指示先出三版 HTML 提案、AI 選定後實作。訊號頁改為四個分頁；潛在訊號可分流（採納成任務、併入留言、忽略必選原因、稍後）；對話分析工作區可用 LINE 匯出檔或貼上的文字走完選取、去識別化、確認三關，第四關送出在模型供應商指定前是關著的。無伺服器、schema、migration 變更。提案頁：`docs/2_agent-input/generated/signal-proposals/round1-signal-inbox/index.html`；差異與機檢見 `RES-036` §13。`LINESIG-S0` 仍待 Owner，未因此解除。
+
+**2026-10-13 Owner 核准 `AUT-010`**（揭露文字與保留期限照提案）。同日完成 `LINESIG-S1a`：公開 webhook（只認簽章、先落地再回應、不存訊息內文）、成員以一次性代碼加網站確認連結 LINE、封鎖偵測、測試推播，以及「來源與推播」的我的 LINE。於本機拋棄式資料庫驗證，**尚未推 `main`**：推送會在正式庫套用 migration `20261013090000_line_identity_and_webhook_inbox`（三張新表）並開啟公開 route，等 Owner 指示。正式站要通，Owner 還要設定 `LINE_CHANNEL_SECRET`／`LINE_CHANNEL_ACCESS_TOKEN` 並在 LINE 後台填 webhook URL。每日摘要推播拆到 `LINESIG-S1b`。對照表見 `AUT-010` §14。

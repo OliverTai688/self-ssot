@@ -9,6 +9,7 @@
  *   C. 對話分析：遮蔽、還原、排除、確認失效、上限、送出是關著的
  *   D. database 模式的寫入契約：貼上、判讀、確認都不送出任何東西；
  *      採納送出一件任務＋一則留言，併入只送一則留言
+ *   E. 我的 LINE（LINESIG-S1）：代碼 → 等確認 → 已連結 → 解除；狀態只讀伺服器
  */
 import { mountAll } from './operating-runtime-harness'
 
@@ -283,6 +284,105 @@ for (const mode of ['showcase', 'empty'] as const) {
   check('已處理 · 採納與併入各一筆，連到任務', !!t.byText('tbody tr', '回覆王志明：報價單分期') && !!t.byText('tbody tr', '結案問卷'))
   check('D · 全程沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
   r.workbench.destroy()
+  g.fetch = realFetch
+}
+
+/* ------------------------------------------------------------------ */
+/* E. 我的 LINE（狀態由伺服器給，這裡用假的 BFF）                      */
+/* ------------------------------------------------------------------ */
+{
+  type Me = { state: string; codeExpiresAt: string | null; pendingExpiresAt: string | null; displayName: string | null; pictureUrl: string | null; pushEnabled: boolean; linkedAt: string | null }
+  const me = (over: Partial<Me>): Me => ({ state: 'none', codeExpiresAt: null, pendingExpiresAt: null, displayName: null, pictureUrl: null, pushEnabled: false, linkedAt: null, ...over })
+  const soon = new Date(Date.now() + 9 * 60000).toISOString()
+  let server: Record<string, unknown> = { configured: true, lastWebhookAt: new Date().toISOString(), bot: { basicId: '@yzbot', displayName: '圓展 OS' }, canBind: true, me: me({}), team: [{ actor: 'yz', state: 'none', pushEnabled: false }, { actor: 'lily', state: 'none', pushEnabled: false }], quota: null }
+  const posts: string[] = []
+  const gets: string[] = []
+  const g = globalThis as unknown as Record<string, unknown>
+  const realFetch = g.fetch
+  const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
+  g.fetch = async (url: unknown, init?: { method?: string; body?: string }) => {
+    if (!String(url).startsWith('/api/company/line')) return ok({ version: 1 })
+    if (init?.method !== 'POST') { gets.push(String(url)); return ok(server) }
+    const { action } = JSON.parse(init.body || '{}') as { action: string }
+    posts.push(action)
+    if (action === 'code') { server = { ...server, me: me({ state: 'code', codeExpiresAt: soon }) }; return ok({ code: 'YZ-ABCD-EFGH', expiresAt: soon, status: server }) }
+    if (action === 'confirm') { server = { ...server, me: me({ state: 'linked', displayName: '王小明', pushEnabled: true, linkedAt: new Date().toISOString() }) }; return ok({ notified: true, status: server }) }
+    if (action === 'test') return ok({ status: { ...server, quota: { used: 47, limit: 200 } } })
+    if (action === 'unlink' || action === 'reject') { server = { ...server, me: me({}) }; return ok({ status: server }) }
+    return { ok: false, status: 400, json: async () => ({ error: '不認得的動作。' }) }
+  }
+  const r = await mountAll('empty', undefined, (state) => { state.dataSource = 'database' })
+  const t = tools(r.root)
+  const panelOf = (title: string) => t.all('.panel').find((p) => text(p.querySelector('.panel-h h3')) === title)
+  r.workbench.navigate('signal', 3)
+  await tick(40)
+  check('LINE · 讀伺服器狀態；用量只在這一頁問一次', gets.length === 2 && gets.filter((u) => /quota=1/.test(u)).length === 1, gets.join())
+  check('LINE · 四個步驟都打勾、顯示已連線', t.all('.sg-ck.ok').length === 4 && /已連線/.test(text(panelOf('LINE 官方帳號'))))
+  check('LINE · 未連結時只有一顆「連結我的 LINE」', /未連結/.test(text(panelOf('我的 LINE'))) && !!t.byText('.btn', '連結我的 LINE') && !t.one('.sg-code'))
+  check('LINE · 負責人看得到誰連了', /戴宇星\s*未連結/.test(text(panelOf('成員'))) && /Lily\s*未連結/.test(text(panelOf('成員'))), text(panelOf('成員')))
+
+  await t.click(t.byText('.btn', '連結我的 LINE'))
+  await tick(20)
+  check('LINE · 產生代碼：顯示代碼、官方帳號 ID 與有效時間', posts.join() === 'code' && text(t.one('.sg-code')) === 'YZ-ABCD-EFGH' && /@yzbot/.test(text(panelOf('我的 LINE'))) && /前有效/.test(text(panelOf('我的 LINE'))) && /等待代碼/.test(text(panelOf('我的 LINE'))))
+  check('LINE · 提醒不要在群組裡傳', /群組裡的代碼無效/.test(text(panelOf('我的 LINE'))))
+
+  // 代碼被傳給官方帳號：伺服器進到等待確認，畫面靠輪詢跟上。
+  server = { ...server, me: me({ state: 'pending', displayName: '王小明', pictureUrl: 'https://profile.line-scdn.net/x', pendingExpiresAt: soon, pushEnabled: true }) }
+  await tick(3300)
+  check('LINE · 等待確認：顯示 LINE 的名字，問「這是你嗎」', /這是你的 LINE 帳號嗎/.test(text(panelOf('我的 LINE'))) && /王小明/.test(text(panelOf('我的 LINE'))) && !t.one('.sg-code') && !!t.one('.sg-pic'))
+  check('LINE · 還沒按確認之前不顯示已連結', !/已連結/.test(text(panelOf('我的 LINE'))) && posts.join() === 'code')
+
+  await t.click(t.byText('.btn', '是我，完成連結'))
+  await tick(20)
+  check('LINE · 按「是我」才連結', posts.join() === 'code,confirm' && /已連結/.test(text(panelOf('我的 LINE'))) && /正常/.test(text(panelOf('我的 LINE'))) && !!t.byText('.btn', '傳一則測試推播'))
+  const polls = gets.length
+  await tick(3300)
+  check('LINE · 連結後不再輪詢', gets.length === polls, `${polls} → ${gets.length}`)
+
+  await t.click(t.byText('.btn', '傳一則測試推播'))
+  await tick(20)
+  check('LINE · 測試推播送出後帶回本月用量', posts.at(-1) === 'test' && /本月已用 47／200 則/.test(text(panelOf('推播預覽'))))
+
+  await t.click(t.byText('.btn', '解除連結'))
+  check('LINE · 解除連結先問一次，不直接送', posts.at(-1) === 'test' && !!t.byText('.btn', '確定解除'))
+  await t.click(t.byText('.btn', '取消', panelOf('我的 LINE')))
+  check('LINE · 取消後維持連結', posts.at(-1) === 'test' && !t.byText('.btn', '確定解除') && /已連結/.test(text(panelOf('我的 LINE'))))
+  await t.click(t.byText('.btn', '解除連結'))
+  await t.click(t.byText('.btn', '確定解除'))
+  await tick(20)
+  check('LINE · 確定後才解除，回到未連結', posts.at(-1) === 'unlink' && !!t.byText('.btn', '連結我的 LINE'))
+
+  server = { ...server, me: me({ state: 'linked', displayName: '王小明', pushEnabled: false, linkedAt: new Date().toISOString() }) }
+  r.workbench.navigate('signal', 1)
+  await tick(10)
+  ;(g.Date as unknown as { now: () => number }).now = ((real) => () => real() + 120000)(Date.now.bind(Date))
+  r.workbench.navigate('signal', 3)
+  await tick(40)
+  check('LINE · 封鎖官方帳號：顯示推播失效，沒有測試推播', /推播失效/.test(text(panelOf('我的 LINE'))) && /解除封鎖就會恢復/.test(text(panelOf('我的 LINE'))) && !t.byText('.btn', '傳一則測試推播'))
+  r.workbench.navigate('signal', 0)
+  await tick(20)
+  check('LINE · 待處理頁的來源欄跟著顯示', /我的 LINE\s*推播失效/.test(text(panelOf('來源'))), text(panelOf('來源')))
+
+  check('LINE · 畫面與請求裡沒有 LINE userId、密鑰', !/U[0-9a-f]{32}|channel secret：|access token：/i.test(text(r.root)))
+  check('E · 全程沒有 runtime 錯誤', r.errors.length === 0, r.errors.slice(0, 3))
+  r.workbench.destroy()
+
+  // 共用帳號、未設定密鑰
+  server = { configured: true, lastWebhookAt: null, bot: null, canBind: false, me: me({}), team: [], quota: null }
+  const r2 = await mountAll('empty', undefined, (state) => { state.dataSource = 'database' })
+  const t2 = tools(r2.root)
+  r2.workbench.navigate('signal', 3)
+  await tick(40)
+  check('LINE · 共用帳號：沒有連結按鈕', /共用帳號/.test(text(r2.root)) && !t2.byText('.btn', '連結我的 LINE'))
+  check('LINE · webhook 還沒驗證：第四步沒打勾、顯示尚未開通', t2.all('.sg-ck.ok').length === 3 && /尚未開通/.test(text(r2.root)))
+  r2.workbench.destroy()
+  server = { configured: false, lastWebhookAt: null, bot: null, canBind: true, me: me({}), team: [], quota: null }
+  const r3 = await mountAll('empty', undefined, (state) => { state.dataSource = 'database' })
+  const t3 = tools(r3.root)
+  r3.workbench.navigate('signal', 3)
+  await tick(40)
+  check('LINE · 密鑰未設定：沒有連結按鈕，說明等誰', !t3.byText('.btn', '連結我的 LINE') && t3.all('.sg-ck.ok').length === 2 && /等 Owner 本人操作/.test(text(r3.root)))
+  r3.workbench.destroy()
   g.fetch = realFetch
 }
 

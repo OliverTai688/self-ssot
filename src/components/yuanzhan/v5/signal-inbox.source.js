@@ -9,8 +9,9 @@
      這一檔沒有碰 rqLate／rqBlockers／openSignals，就是這條規則的實作。
    - 採納把它變成一件任務（走 commit()，會保存、會進稽核），LINE 原話掛在任務留言上。
 
-   LINE 還沒接上（webhook、身分綁定、群組綁定都在 AUT-010 核准之後），
-   所以這一版的對話來源是 LINE App 匯出的 .txt 或直接貼上。貼上的對話、判讀出來的
+   成員的 LINE 連結（LINESIG-S1）接在「來源與推播」：代碼 → 傳給官方帳號 → 回網站按「是我」。
+   狀態一律讀伺服器（/api/company/line），這裡不保存也不推導連結狀態。
+   群組還沒接上（LINESIG-S2），所以對話來源仍是 LINE App 匯出的 .txt 或直接貼上。貼上的對話、判讀出來的
    潛在訊號、遮蔽決定都只在這個分頁的記憶體裡：不上傳、不保存、重新整理就沒有。
    會留下來的只有採納後的任務與併入後的留言。
 
@@ -31,11 +32,72 @@ function sgBlankAn() {
   return { raw: '', title: '', msgs: [], speakers: [], sides: {}, from: '', to: '', min: '', max: '', proj: '', terms: [], restored: [], excluded: [], keepAmounts: true, confirmed: null, pick: '', pickKind: 'person', found: null, demo: false, byId: {}, kept: [] };
 }
 /** 分頁記憶體。刻意不放進 DB：DB 會被整包快照與比對，客戶的對話不該混進去。 */
-const SG = { cands: [], open: null, filter: 'all', showLater: false, runs: [], an: sgBlankAn() };
+const SG = { cands: [], open: null, filter: 'all', showLater: false, runs: [], an: sgBlankAn(), line: null, lineAt: 0, lineLoading: false, lineBusy: '', lineAsk: '', lineCode: null, lineTimer: 0, lineQuotaAsked: false };
 
-/* LINE 連線狀態。webhook 與綁定上線（LINESIG-S1／S2）之後改讀伺服器給的狀態；
-   在那之前它是一個常數，畫面上所有「尚未開通」都從這裡來，不各自寫死。 */
-function sgLine() { return { connected: false, me: false, groups: [], unclaimed: [], used: 0, quota: 200 }; }
+/* ---------- LINE 連結狀態（伺服器是唯一的來源）---------- */
+
+const SG_LINE_ENDPOINT = '/api/company/line';
+const SG_LINE_NONE = { state: 'none', codeExpiresAt: null, pendingExpiresAt: null, displayName: null, pictureUrl: null, pushEnabled: false, linkedAt: null };
+/** 畫面上所有「尚未開通／未連結」都從這裡來，不各自判斷。預覽模式沒有伺服器狀態，一律是未開通。 */
+function sgLine() {
+  const d = SG.line || {}, me = d.me && d.me.state ? d.me : SG_LINE_NONE;
+  return { live: OP_LIVE, loaded: !!SG.line, configured: !!d.configured, verified: !!d.lastWebhookAt, lastWebhookAt: d.lastWebhookAt || '', bot: d.bot || null,
+    canBind: d.canBind !== false, me, team: Array.isArray(d.team) ? d.team : [], quota: d.quota || null, groups: [] };
+}
+function sgLineSet(data) {
+  if (!data || typeof data !== 'object') return;
+  if (!data.quota && SG.line && SG.line.quota) data.quota = SG.line.quota;
+  SG.line = data;
+  if (!data.me || data.me.state !== 'code') SG.lineCode = null;
+}
+const sgLineKey = () => JSON.stringify([SG.line && SG.line.me, SG.line && SG.line.configured, SG.line && SG.line.lastWebhookAt, SG.line && SG.line.team]);
+function sgLineOnPage() { return S.wb === 'signal' && (S.tab === 0 || S.tab === 3); }
+async function sgLineLoad() {
+  if (!OP_LIVE || SG.lineLoading) return;
+  SG.lineLoading = true;
+  const before = sgLineKey();
+  try {
+    // 用量要多打兩次 LINE API，只在「來源與推播」第一次打開時問。
+    const quota = S.wb === 'signal' && S.tab === 3 && !SG.lineQuotaAsked;
+    if (quota) SG.lineQuotaAsked = true;
+    const res = await fetch(SG_LINE_ENDPOINT + (quota ? '?quota=1' : ''));
+    const data = await res.json().catch(() => null);
+    if (res.ok) sgLineSet(data);
+  } catch (e) { /* 讀不到就維持上一次的狀態；下一次進來會再試 */ }
+  SG.lineLoading = false; SG.lineAt = Date.now();
+  if (sgLineKey() !== before && sgLineOnPage()) render();
+  sgLinePoll();
+}
+/** 進到訊號頁時，狀態超過一分鐘就重讀。render 之後才發請求，不會擋畫面。 */
+function sgLineEnsure() {
+  const stale = Date.now() - SG.lineAt > 60000, needQuota = S.tab === 3 && !SG.lineQuotaAsked;
+  if (OP_LIVE && !SG.lineLoading && (stale || needQuota)) sgLineLoad(); else sgLinePoll();
+}
+/* 等代碼被傳出去、等本人按確認的那幾分鐘，每三秒問一次；離開這一頁就停。 */
+function sgLinePoll() {
+  clearTimeout(SG.lineTimer); SG.lineTimer = 0;
+  const st = SG.line && SG.line.me && SG.line.me.state;
+  if ((st === 'code' || st === 'pending') && S.wb === 'signal' && S.tab === 3) SG.lineTimer = setTimeout(() => { SG.lineTimer = 0; if (S.wb === 'signal' && S.tab === 3) sgLineLoad(); }, 3000);
+}
+const SG_LINE_DONE = { code: '代碼已產生，10 分鐘內有效', confirm: 'LINE 帳號已連結', reject: '已放掉那個 LINE 帳號', unlink: '已解除連結', test: '已送出測試推播，看一下手機' };
+async function sgLineAct(action) {
+  if (SG.lineBusy) return;
+  SG.lineBusy = action; SG.lineAsk = ''; render();
+  try {
+    const res = await fetch(SG_LINE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) toast(esc((data && data.error) || '這個動作沒有完成'));
+    else {
+      sgLineSet(data.status);
+      if (action === 'code' && data.code) SG.lineCode = { code: String(data.code), expiresAt: String(data.expiresAt || '') };
+      toast(action === 'confirm' && data.notified === false ? 'LINE 帳號已連結；但確認訊息沒有送到，可能是封鎖了官方帳號' : SG_LINE_DONE[action]);
+    }
+  } catch (e) { toast('連不上伺服器，這個動作沒有完成'); }
+  SG.lineBusy = ''; SG.lineAt = Date.now(); render(); sgLinePoll();
+}
+function sgLineAsk(what) { SG.lineAsk = SG.lineAsk === what ? '' : what; render(); }
+const sgClock = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${sgPad(d.getHours())}:${sgPad(d.getMinutes())}`; };
+const sgDay = iso => { const d = new Date(iso); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${sgClock(iso)}`; };
 
 const sgPad = n => String(n).padStart(2, '0');
 function sgNow() { const d = new Date(); return `${d.getFullYear()}-${sgPad(d.getMonth() + 1)}-${sgPad(d.getDate())} ${sgPad(d.getHours())}:${sgPad(d.getMinutes())}`; }
@@ -276,12 +338,13 @@ function sgMaybeSection() {
 }
 function sgSourcePanel() {
   const line = sgLine(), row = (k, v) => `<div class="sg-kv"><span>${k}</span>${v}</div>`;
-  const off = '<span class="chip c-w">尚未開通</span>', dash = '<span class="sg-meta">—</span>';
+  const off = '<span class="chip c-w">尚未開通</span>', dash = '<span class="sg-meta">—</span>', on = line.configured && line.verified;
+  const mine = line.me.state === 'linked' ? (line.me.pushEnabled ? '<span class="chip c-o">已連結</span>' : '<span class="chip c-d">推播失效</span>') : line.me.state === 'pending' ? '<span class="chip c-w">等你確認</span>' : '<span class="chip c-n">未連結</span>';
   return panel('來源', '', `<div class="sg-kvs">
-      ${row('LINE 官方帳號', line.connected ? '<span class="chip c-o">已連線</span>' : off)}
-      ${row('我的 LINE', line.connected ? (line.me ? '<span class="chip c-o">已連結</span>' : '<span class="chip c-n">未連結</span>') : dash)}
-      ${row('已綁定群組', line.connected ? `<span class="sg-meta">${line.groups.length} 個</span>` : dash)}
-      ${row('個人推播', line.connected && line.me ? `<span class="sg-meta">本月 ${line.used}／${line.quota} 則</span>` : dash)}
+      ${row('LINE 官方帳號', on ? '<span class="chip c-o">已連線</span>' : off)}
+      ${row('我的 LINE', line.configured ? mine : dash)}
+      ${row('已綁定群組', '<span class="sg-meta">尚未開放</span>')}
+      ${row('個人推播', line.quota ? `<span class="sg-meta">本月 ${line.quota.used}${line.quota.limit == null ? '' : '／' + line.quota.limit} 則</span>` : dash)}
     </div>
     <div class="sg-side-a"><button class="btn sm" onclick="nav('signal',1)">${svg('message', 12)} 分析一段對話</button><button class="btn sm" onclick="nav('signal',3)">來源與推播 ${svg('goto', 11)}</button></div>`);
 }
@@ -389,26 +452,71 @@ listen('mouseup', e => {
 
 /* ---------- 來源與推播 ---------- */
 
+function sgWho(me) {
+  const pic = typeof me.pictureUrl === 'string' && me.pictureUrl.startsWith('https://') ? `<img class="sg-pic" src="${esc(me.pictureUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
+  return `<span class="sg-who-line">${pic}<b>${esc(me.displayName || '（LINE 沒有提供名稱）')}</b></span>`;
+}
+/** 「我的 LINE」的四個狀態。每個狀態只放現在能按的東西。 */
+function sgMyLine(line) {
+  const me = line.me, busy = SG.lineBusy, btn = (action, label, cls) => `<button class="btn sm ${cls || ''}" onclick="sgLineAct('${action}')" ${busy ? 'disabled' : ''}>${busy === action ? '處理中…' : label}</button>`;
+  if (!line.live) return [`<div class="note">這個環境是預覽模式，沒有 LINE 連結。</div>`, '<span class="chip c-n">未連結</span>'];
+  if (!line.configured) return [`<div class="note">官方帳號開通後，在這裡連結你的 LINE，才會收到個人推播。只推給已連結的成員本人，不會推進任何群組。</div>`, '<span class="chip c-n">未連結</span>'];
+  if (!line.canBind) return [`<div class="note">共用帳號不代表任何一個人，不能連結 LINE。請用自己的帳號登入。</div>`, '<span class="chip c-n">不適用</span>'];
+  if (me.state === 'linked') {
+    return [`<div class="sg-kvs">
+        <div class="sg-kv"><span>LINE 帳號</span>${sgWho(me)}</div>
+        <div class="sg-kv"><span>推播</span>${me.pushEnabled ? '<span class="chip c-o">正常</span>' : '<span class="chip c-d">失效</span>'}</div>
+        ${me.linkedAt ? `<div class="sg-kv"><span>連結於</span><span class="sg-meta">${esc(sgDay(me.linkedAt))}</span></div>` : ''}</div>
+      ${me.pushEnabled ? '' : `<div class="sg-warn">${svg('warn', 13)} 你封鎖了官方帳號，推播送不到。在 LINE 解除封鎖就會恢復。</div>`}
+      <div class="sg-side-a">${me.pushEnabled ? btn('test', svg('bell', 12) + ' 傳一則測試推播') : ''}
+        ${SG.lineAsk === 'unlink' ? `<span class="sg-meta">解除後就收不到推播</span>${btn('unlink', '確定解除', 'dgr')}<button class="btn sm" onclick="sgLineAsk('unlink')">取消</button>` : `<button class="btn sm" onclick="sgLineAsk('unlink')" ${busy ? 'disabled' : ''}>解除連結</button>`}</div>`,
+      me.pushEnabled ? '<span class="chip c-o">已連結</span>' : '<span class="chip c-d">推播失效</span>'];
+  }
+  if (me.state === 'pending') {
+    return [`<div class="sg-ask"><div class="sg-meta">有人把你的代碼傳給了官方帳號。這是你的 LINE 帳號嗎？</div>${sgWho(me)}
+        ${me.displayName ? '' : `<div class="sg-warn">${svg('warn', 13)} LINE 沒有提供這個帳號的名稱，沒辦法顯示給你核對。確定是你自己剛剛傳的代碼才按「是我」。</div>`}
+        <div class="sg-side-a">${btn('confirm', svg('check', 12) + ' 是我，完成連結', 'pri')}${btn('reject', '不是我')}</div>
+        <div class="sg-meta">不是你的帳號就按「不是我」—— 那代表代碼被別人拿去用了。${me.pendingExpiresAt ? `${esc(sgClock(me.pendingExpiresAt))} 前要確認。` : ''}</div></div>`,
+      '<span class="chip c-w">等你確認</span>'];
+  }
+  if (me.state === 'code') {
+    const code = SG.lineCode, id = line.bot && line.bot.basicId;
+    return [`<ol class="sg-bind">
+        <li>在手機的 LINE 加官方帳號好友${id ? `：搜尋 ID <b class="sg-code-s">${esc(id)}</b>，或<a class="sg-link" href="https://line.me/R/ti/p/${encodeURIComponent(id)}" target="_blank" rel="noopener noreferrer">開啟加好友連結</a>` : ''}</li>
+        <li>在和官方帳號的一對一聊天室，傳這組代碼${code ? `<div class="sg-code">${esc(code.code)}</div>` : '<div class="sg-meta">代碼只顯示一次，重新整理後看不到了。請重新產生。</div>'}</li>
+        <li>回到這一頁，確認顯示的是你的 LINE 帳號</li></ol>
+      <div class="sg-side-a"><span class="sg-meta">${me.codeExpiresAt ? `${esc(sgClock(me.codeExpiresAt))} 前有效 · ` : ''}不要在群組裡傳，群組裡的代碼無效</span><span class="sp"></span>${btn('code', '重新產生代碼')}</div>`,
+      '<span class="chip c-p">等待代碼</span>'];
+  }
+  return [`<div class="note">連結後才會收到個人推播。只推給你本人，不會推進任何群組。</div><div class="sg-side-a">${btn('code', svg('plus', 12) + ' 連結我的 LINE', 'pri')}</div>`, '<span class="chip c-n">未連結</span>'];
+}
 function sgSources() {
   const line = sgLine(), late = rqLate().length, mine = rqToMe().filter(r => rqState(r) !== 'late').length, sure = buildSignals().filter(s => !s.done).length, maybe = sgOpenCands().length;
-  const step = (ok, t, d) => `<div class="sg-ck ${ok ? 'ok' : ''}"><i>${ok ? svg('check', 10) : ''}</i><div><div>${t}</div><div class="sg-meta">${d}</div></div></div>`;
+  const step = (ok, t, d) => `<div class="sg-ck ${ok ? 'ok' : ''}"><i>${ok ? svg('check', 10) : ''}</i><div><div>${t}</div>${d ? `<div class="sg-meta">${d}</div>` : ''}</div></div>`;
   const preview = [late ? `逾期 ${late} 件` : '', mine ? `待我回覆 ${mine} 件` : '', sure ? `確定訊號 ${sure} 則` : '', maybe ? `${maybe} 則 LINE 訊號待確認` : ''].filter(Boolean);
+  const hook = line.live && typeof location !== 'undefined' ? location.origin + '/api/line/webhook' : '';
+  const on = line.configured && line.verified, [myBody, myChip] = sgMyLine(line);
+  const team = line.team.length ? panel('成員', '誰已經連結', `<div class="sg-kvs">${line.team.map(t => `<div class="sg-kv"><span>${esc(person(t.actor))}</span>${t.state === 'linked' ? (t.pushEnabled ? '<span class="chip c-o">已連結</span>' : '<span class="chip c-d">推播失效</span>') : '<span class="chip c-n">未連結</span>'}</div>`).join('')}</div>`) : '';
   return `<div class="g g21"><div class="g" style="align-content:start">
-      ${panel('LINE 官方帳號', '', `<div class="sg-cks">
+      ${panel('LINE 官方帳號', line.bot && line.bot.displayName ? esc(line.bot.displayName) : '', `<div class="sg-cks">
         ${step(true, '方向已定', '只用 LINE；成員用一次性代碼加網站確認連結；群組在網站上綁到專案')}
-        ${step(false, '核准授權邊界、群組揭露文字與保留期限', '等 Owner 決定')}
-        ${step(false, '在 LINE Developers 建立官方帳號的 channel，開啟「允許加入群組」', '等 Owner 本人操作')}
-        ${step(line.connected, 'webhook 驗證通過', '前兩步完成後才會開始')}</div>`, `<span class="chip ${line.connected ? 'c-o' : 'c-w'}">${line.connected ? '已連線' : '尚未開通'}</span>`)}
-      ${panel('群組', line.groups.length + ' 個已綁定', `<div class="note">開通後把官方帳號邀進 LINE 群，新的群組會出現在這裡等你綁到專案。一個專案可以綁多個群，一個群只屬於一個專案。還沒綁定的群不保存任何訊息內文。</div>
+        ${step(true, '授權邊界、群組揭露文字與保留期限已核准', '2026-10-13')}
+        ${step(line.configured, '官方帳號的密鑰已放進這個環境', line.configured ? '' : '等 Owner 本人操作：在 LINE Developers 建立 Messaging API channel，把 channel secret 與 access token 設成環境變數')}
+        ${step(line.verified, 'webhook 驗證通過', line.verified ? '最近一次收到 ' + esc(sgDay(line.lastWebhookAt)) : hook ? '在 LINE 後台填入 webhook URL 並按 Verify：<span class="sg-code-s">' + esc(hook) + '</span>' : '密鑰設定後才會開始')}</div>`, `<span class="chip ${on ? 'c-o' : 'c-w'}">${on ? '已連線' : '尚未開通'}</span>`)}
+      ${panel('群組', '尚未開放', `<div class="note">之後把官方帳號邀進 LINE 群，新的群組會出現在這裡等你綁到專案。一個專案可以綁多個群，一個群只屬於一個專案。現在官方帳號被拉進群會自動離開，不保存任何群組訊息。</div>
         <div class="sg-side-a"><button class="btn sm" onclick="nav('signal',1)">${svg('message', 12)} 現在先用匯出檔分析一段對話</button></div>`)}
     </div><div class="g" style="align-content:start">
-      ${panel('我的 LINE', '', `<div class="note">開通後在這裡連結你的 LINE，才會收到個人推播。只推給已連結的成員本人，不會推進任何群組。</div>`, `<span class="chip c-n">未連結</span>`)}
+      ${panel('我的 LINE', '', myBody, myChip)}
+      ${team}
       ${panel('推播預覽', '每日 09:00 與 18:00', `<div class="tg"><div class="hd">${svg('bell', 12)} 圓展 OS</div><b>${TODAY.slice(5).replace('-', '/')} 待處理</b><br>${preview.map(t => '• ' + t).join('<br>') || '• 沒有需要注意的事'}</div>
-        <div class="note" style="margin-top:8px">尚未啟用，這是開通後會收到的樣子。潛在訊號只推數量，不推內文。</div>`)}
+        <div class="note" style="margin-top:8px">每日摘要尚未啟用，這是之後會收到的樣子。潛在訊號只推數量，不推內文。${line.quota ? `本月已用 ${line.quota.used}${line.quota.limit == null ? '' : '／' + line.quota.limit} 則。` : ''}</div>`)}
     </div></div>`;
 }
 
-VIEWS.signal = tab => (tab === 1 ? sgAnalysis() : tab === 2 ? sgHandled() : tab === 3 ? sgSources() : sgInbox());
+VIEWS.signal = tab => {
+  if (tab === 0 || tab === 3) sgLineEnsure();
+  return tab === 1 ? sgAnalysis() : tab === 2 ? sgHandled() : tab === 3 ? sgSources() : sgInbox();
+};
 
 /* 示範模式：讓待處理頁一開始就看得到兩層訊號長什麼樣。真實資料模式下這裡什麼都不做。 */
 if (initialState.mode === 'showcase') {

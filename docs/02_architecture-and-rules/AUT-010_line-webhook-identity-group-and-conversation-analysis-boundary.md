@@ -2,7 +2,7 @@
 
 **Document ID:** AUT-010
 **Date:** 2026-10-12
-**Status:** PROPOSED contract —— §1 的六項方向為 owner-confirmed（2026-10-12）；§2 以後的具體邊界、§5 的揭露文字與 §8 的保留期限待 Owner 核准。核准前不建 webhook route、不跑 migration、不對任何群組發話
+**Status:** OWNER-APPROVED（2026-10-13）—— Owner 核准本文件 §2–§9 的邊界，§5 的揭露文字與 §8 的保留期限照提案原文。§1 的六項方向已於 2026-10-12 確認。核准的是「可以依此實作」：正式環境變數、migration 套用到正式庫、webhook URL 填入 LINE 後台、模型供應商指定，仍各自需要 Owner 的操作或指示（§12）
 **Source:** [RES-036](../07_research-and-design/RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md)、[RES-033](../07_research-and-design/RES-033_project-workspace-five-resource-integration-research.md) §5 與 OD-H、[PLN-024](../05_execution-plans/PLN-024_messaging-source-adapter-contract.md)、[AUT-007](AUT-007_ai-input-source-workflow-connector-runtime-approval.md)、[AUT-008](AUT-008_team-membership-project-role-invitation-and-ai-feedback-boundary.md)、[ARC-028](ARC-028_nanda-agent-protocol-alignment.md)
 
 本文件處理 `AGENTS.md` §11 的四個高風險面：Auth／Permission（公開 webhook、LINE 身分）、Public output（bot 在客戶群發話、推播）、External agent collaboration（對話送模型供應商）、以及客戶對話這類個資的保存。
@@ -76,7 +76,7 @@ LINE Platform
 | 個人推播（每日摘要、逾期提醒） | 已連結且未封鎖的成員，一對一 | 確定訊號可帶標題；**潛在訊號只帶數量，不帶原話**；不含金額、薪資、他人私人空間的內容 |
 | 群組揭露 | 剛完成綁定的群組，**每群一次** | 下方那一句，不加其他內容 |
 
-揭露文字（提案，待 Owner 核准或改寫）：
+揭露文字（Owner 2026-10-13 核准，照原文）：
 
 > 大家好，我是圓展的專案助理。本群組的對話會同步到圓展的專案工作區，供專案成員查閱。
 
@@ -120,7 +120,7 @@ LINE Platform
 
 規則式的潛在訊號（「外部提問逾時未回」「@ 到已連結成員」）在系統內執行、不外送，不在本節限制內。
 
-## 8. 保留與刪除（提案數值，待核准）
+## 8. 保留與刪除（Owner 2026-10-13 核准）
 
 | 資料 | 保留 |
 |---|---|
@@ -206,11 +206,47 @@ AgentFacts-lite 草案（S3b 實作時寫入 `internal-agent-manifests.agentfact
 
 ## 12. 待 Owner
 
-1. 核准本文件（§2–§4、§6、§7、§9 的邊界）。
-2. 核准或改寫 §5 的揭露文字。
-3. 核准或調整 §8 的保留期限。
+1. ~~核准本文件（§2–§4、§6、§7、§9 的邊界）。~~ 2026-10-13 核准。
+2. ~~核准或改寫 §5 的揭露文字。~~ 2026-10-13 照原文核准。
+3. ~~核准或調整 §8 的保留期限。~~ 2026-10-13 照提案核准。
 4. S3b 開工前指定模型供應商與模型。
 5. 本人操作：在 LINE Developers 建立 provider 與 Messaging API channel；開啟「允許加入群組」；填入 webhook URL；把 channel secret 與 access token 放進正式環境變數。若日後要加 LINE Login，必須建在同一個 provider 底下（userId 以 provider 為範圍，channel 建立後不能搬）。
+
+## 14. S1a 實作紀錄（2026-10-13，`LINESIG-S1a`）
+
+依本文件 §2、§3、§5、§8、§9 實作 webhook 收件匣與成員綁定。與條文的對應，以及實作時定下來的細節：
+
+| 條文 | 實作 |
+|---|---|
+| §2 路徑 | `POST /api/line/webhook`（`src/app/api/line/webhook/route.ts`）。不讀 cookie、不呼叫 `requireUser()`；只匯出 POST |
+| §2 簽章 | `verifyLineSignature`：對 `request.text()` 的原始字串做 HMAC-SHA256、Base64、常數時間比對。期望值以 `openssl` 另外算出來對照 |
+| §2 不符即丟棄 | 回空的 200、不寫任何列；只留一行不含內容的 log。沒有設定密鑰的環境同樣什麼都不收 |
+| §2 先落地再回應 | 簽章通過的事件寫入 `line_webhook_events` 後回 200；處理放在 `after()`。落地失敗回空的 500 讓 LINE 重送 |
+| §2 去重 | `webhook_event_id` 唯一鍵＋`skipDuplicates`；處理前逐列認領（`claimed_at`），兩個請求同時處理也只做一次 |
+| §2 不可信輸入 | 落地前去內容：訊息內文不存；一對一聊天室裡長得像代碼的字串在落地前就換成雜湊 |
+| §3 代碼 | `YZ-XXXX-XXXX`，32 個字 × 8 碼＝40 bit；以 channel secret 為金鑰的 HMAC 存雜湊；10 分鐘、單次使用；每個 LINE 帳號每小時錯 5 次後不受理 |
+| §3 群組裡的代碼無效 | 群組事件不產生代碼雜湊，等於沒看到 |
+| §3 網站確認 | webhook 只能把綁定推進到 `pending`（10 分鐘）；`confirm` 只作用在呼叫者自己的席位。BFF 沒有任何欄位能指定「替誰」 |
+| §3 一對一關係 | `line_identities` 的兩個唯一鍵：`(workspace, actor_key)` 與 `(workspace, line_user_id)` |
+| §3 封鎖 | `unfollow` → `push_enabled = false`；`follow` 恢復。不刪綁定 |
+| §3 管理者可見範圍 | 負責人的回應多一個 `team`（誰連了、推播是否有效）。任何回應都不含 `line_user_id` |
+| §5 對外輸出 | 只有固定文字：代碼已收到／無效／次數過多／衝突（reply，免費）、已連結與測試推播（push，各 1 則）。`listPushRecipients()` 是唯一產生收件人的地方 |
+| §8 保留 | 處理完 30 天的事件、到期或使用後 24 小時的代碼，在每次處理收件匣時順手清除 |
+| §9 稽核 | 連結成立與解除各寫一列 `operating_command_logs`（entity「LINE 連結」），不含 userId |
+
+與條文不同或條文沒寫到的地方：
+
+1. **「已連結」不是用 reply 送的。** 確認發生在網站上，當下沒有 replyToken（與 §5 群組揭露是同一個原因）。改用一則 push，用掉 1 則額度。
+2. **共用帳號不能綁定。** `canSwitchActor` 的席位不代表任何一個人，產生代碼會被拒絕。
+3. **S1 不碰群組。** bot 被拉進群（`join`）就立刻離開；群組訊息只留一列不含內容的事件。§4 的未認領流程等 S2。開通時「允許加入群組」可以先不開。
+4. **LINE 沒有提供名稱時**（個人資料 API 失敗）確認畫面會明說無法核對，不顯示空白讓人直接按。
+5. **每日摘要與逾期提醒尚未實作**（`LINESIG-S1b`）：確定訊號目前在瀏覽器裡推導，伺服器端要先有同一份規則才排得了程。這一段只有測試推播。
+
+新增環境變數（只在伺服器）：`LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN`。兩者缺一，webhook 不收、綁定動作回 `line_not_configured`。
+
+Migration `20261013090000_line_identity_and_webhook_inbox`：三張新表，純新增，不改、不讀既有的表，無回填。回復為 `DROP TABLE` 三張表。
+
+實作前要確認的三點，現況：replyToken 的有效時間未從官方頁面取得明文（實作在收到事件後立即使用，不依賴它）；另外兩點屬於 S2。
 
 ## 13. 來源
 

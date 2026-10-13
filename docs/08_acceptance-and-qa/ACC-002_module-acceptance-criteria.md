@@ -2410,3 +2410,29 @@ Verification:
 已知：潛在訊號、處理紀錄、分析紀錄與補上的遮蔽詞只留在分頁記憶體，重新整理後消失；採納後的任務與留言會保存。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-signal-inbox-ui.md`
+
+## LINE webhook 與成員綁定（UI-088 · LINESIG-S1a，2026-10-13）
+
+機檢：`pnpm ops:line:check`（純契約）、`pnpm ops:line:proof`（拋棄式本機資料庫）、`pnpm ops:signal:check`（畫面）。依據 `AUT-010` §14。
+
+- [x] 簽章錯誤或缺少的 webhook 請求不寫入任何列；回應是空的。
+- [x] 同一個 `webhookEventId` 重送只處理一次。
+- [x] 過期、用過或錯誤的代碼不產生綁定。
+- [x] 代碼正確但本人未在網站確認：推播名單不含此人。
+- [x] 在群組裡傳代碼無效，代碼不會被用掉。
+- [x] 封鎖官方帳號的成員不在推播名單裡，畫面顯示推播失效。
+- [x] 資料庫與收件匣裡沒有代碼原值、沒有訊息內文。
+- [x] 別人不能替你確認；共用帳號不能產生代碼；已連結時要先解除才能換帳號。
+- [x] 一個 LINE 帳號不能綁到第二個席位。
+- [x] 一小時內錯五次後不再受理。
+- [x] BFF 回應與畫面不含 LINE userId、channel secret、access token。
+- [x] 連結成立與解除各留一筆稽核。
+- [x] 官方帳號被拉進群組會立刻離開，群組訊息不保存內容。
+- [x] 沒有設定密鑰的環境：webhook 不收、綁定動作被擋、畫面顯示尚未開通與等誰。
+- [ ] 推上正式站（Owner 指示後）；正式庫套用 migration。
+- [ ] Owner 設定兩個環境變數、在 LINE 後台填 webhook URL 並按 Verify；「來源與推播」四個步驟全部打勾。
+- [ ] 兩個席位各自用真的 LINE 帳號連結並收到測試推播。
+
+未涵蓋：每日摘要與逾期提醒（`LINESIG-S1b`）、群組（`LINESIG-S2`）。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-line-webhook-and-member-binding.md`

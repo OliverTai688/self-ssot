@@ -2508,6 +2508,80 @@ model OperatingCommandLog {
   @@map("operating_command_logs")
 }
 
+/// LINE 帳號 ↔ 成員席位（AUT-010 §3 · LINESIG-S1）。
+///
+/// 一個席位一列，狀態在同一列上變化：pending（代碼正確、等本人在網站按「是我」）
+/// → linked → unlinked。兩個唯一鍵就是 §3 的兩條規則：一個席位同時只有一個 LINE 帳號、
+/// 一個 LINE 帳號只屬於一個席位。解除連結時 lineUserId 清成 NULL，所以同一個帳號可以再綁。
+/// 外部聯絡人（客戶、廠商）不在這張表，等 S2 的群組鏡射。
+model LineIdentity {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String    @map("workspace_id") @db.Uuid
+  /// 席位字串（'yz' | 'lily'），與 operating_command_logs.actor_key 同一個定義
+  actorKey         String    @map("actor_key")
+  profileId        String?   @map("profile_id") @db.Uuid
+  /// LINE userId（provider 範圍）。不進任何 DTO。
+  lineUserId       String?   @map("line_user_id")
+  displayName      String?   @map("display_name")
+  pictureUrl       String?   @map("picture_url")
+  /// pending | linked | unlinked
+  status           String    @default("pending")
+  /// 封鎖官方帳號（unfollow）後為 false；重新加好友（follow）恢復
+  pushEnabled      Boolean   @default(true) @map("push_enabled")
+  pendingExpiresAt DateTime? @map("pending_expires_at")
+  linkedAt         DateTime? @map("linked_at")
+  unlinkedAt       DateTime? @map("unlinked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, actorKey], map: "line_identities_actor_key")
+  @@unique([workspaceId, lineUserId], map: "line_identities_line_user_key")
+  @@map("line_identities")
+}
+
+/// 一次性綁定代碼（AUT-010 §3）。只存雜湊；10 分鐘有效、單次使用。
+/// 到期或使用後 24 小時清除（§8）。
+model LineBindCode {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  actorKey    String    @map("actor_key")
+  profileId   String?   @map("profile_id") @db.Uuid
+  /// HMAC-SHA256(channel secret, 正規化後的代碼)
+  codeHash    String    @unique(map: "line_bind_codes_code_hash_key") @map("code_hash")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([workspaceId, actorKey, expiresAt], map: "line_bind_codes_actor_idx")
+  @@map("line_bind_codes")
+}
+
+/// LINE webhook 收件匣（AUT-010 §2）。簽章通過的事件先落地再回 200，之後才處理。
+///
+/// payload 是去掉內容之後的事件：沒有訊息內文、沒有代碼原值（代碼在落地前就換成雜湊）。
+/// webhookEventId 的唯一鍵讓重送與重複投遞只會有一列。處理完成後 30 天清除（§8）。
+model LineWebhookEvent {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webhookEventId String    @unique(map: "line_webhook_events_event_id_key") @map("webhook_event_id")
+  eventType      String    @map("event_type")
+  sourceType     String?   @map("source_type")
+  lineUserId     String?   @map("line_user_id")
+  groupId        String?   @map("group_id")
+  occurredAt     DateTime  @map("occurred_at")
+  isRedelivery   Boolean   @default(false) @map("is_redelivery")
+  payload        Json      @default("{}")
+  /// 處理結果的代號（code_ok、code_bad、followed…），也是代碼嘗試次數的計數依據
+  outcome        String?
+  attempts       Int       @default(0)
+  claimedAt      DateTime? @map("claimed_at")
+  processedAt    DateTime? @map("processed_at")
+  receivedAt     DateTime  @default(now()) @map("received_at")
+
+  @@index([processedAt, receivedAt], map: "line_webhook_events_pending_idx")
+  @@index([lineUserId, outcome, receivedAt], map: "line_webhook_events_attempt_idx")
+  @@map("line_webhook_events")
+}
+
 model TimeSpine {
   id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String     @map("workspace_id") @db.Uuid

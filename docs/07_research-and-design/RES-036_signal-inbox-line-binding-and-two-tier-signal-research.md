@@ -3,7 +3,7 @@
 - 日期：2026-10-12
 - 觸發：Owner 看著訊號頁截圖提出三件事 —— ① 這個介面的提案 ② 推播管道要 Telegram 還是 LINE；若 LINE，使用者怎麼初始化可追蹤的 LINE 帳號、怎麼把群組在網站上綁到專案、一個專案可綁多個群 ③ 怎麼處理「來自日誌的確定訊號」與「來自 LINE 訊息分析的潛在訊號」
 - 畫面：`UI-088` 圓展營運工作台 · 訊號（2026-10-13 介面已實作，見 §13；LINE 連線、綁定與 AI 送出尚未實作）
-- 狀態：**Owner 已採納（2026-10-12，§8 六題全數回覆）**。D4 由 Owner 改寫為「人主動選取 → 去識別化 → 人確認 → 才送 AI」，見 §6.4 與 §7.3。實作邊界見 [`AUT-010`](../02_architecture-and-rules/AUT-010_line-webhook-identity-group-and-conversation-analysis-boundary.md)；該文件核准前不建 webhook route、不跑 migration
+- 狀態：**Owner 已採納（2026-10-12，§8 六題全數回覆）**。D4 由 Owner 改寫為「人主動選取 → 去識別化 → 人確認 → 才送 AI」，見 §6.4 與 §7.3。實作邊界見 [`AUT-010`](../02_architecture-and-rules/AUT-010_line-webhook-identity-group-and-conversation-analysis-boundary.md)（Owner 2026-10-13 核准，揭露文字與保留期限照提案）
 - 前置：[`RES-033`](RES-033_project-workspace-five-resource-integration-research.md) §5 與 OD-H（LINE 導入需 Owner 明確授權）、[`PLN-024`](../05_execution-plans/PLN-024_messaging-source-adapter-contract.md)（LINE／Telegram adapter 契約）、`AUT-007`（connector runtime approval）
 
 ---
@@ -296,8 +296,8 @@ bot 會出現在群組成員名單裡，客戶看得到。Owner 已同意（D3�
 
 仍待 Owner 的事（都不擋 S1 開工以外的東西，細節在 `AUT-010` §12）：
 
-1. 核准 `AUT-010`（webhook 邊界、未認領不存內文、保留期限）。
-2. 核准揭露那一句的文字。
+1. ~~核准 `AUT-010`（webhook 邊界、未認領不存內文、保留期限）。~~ 2026-10-13 核准。
+2. ~~核准揭露那一句的文字。~~ 2026-10-13 照原文核准。
 3. S3b 開工前指定模型供應商，並確認其輸入不用於訓練與保留條款。
 4. 只能本人操作：在 LINE Developers 建 provider 與 Messaging API channel、開啟「允許加入群組」、填 webhook URL、把 channel secret 與 access token 放進正式環境變數。
 
@@ -362,7 +362,7 @@ S3a 與 S3b 互不依賴，可以對調順序。去識別化引擎（S3b 的核�
 | 客戶訊息夾帶對模型的指示 | 模型無工具、輸出驗格式、結果只是待採納的提案 |
 | 客戶群已有其他官方帳號 | bot 進不去，介面直接說明並導向 `.txt` 匯入 |
 
-**停止條件**：`AUT-010` 未核准前不建 webhook route、不跑 migration；揭露文字未核准前不對任何群組發話；模型供應商未指定前不把任何 LINE 內文（即使已去識別化）送出；任何一次 AI 分析都必須有一筆人按下確認的紀錄，沒有例外路徑。
+**停止條件**：（`AUT-010` 與揭露文字已於 2026-10-13 核准，前兩條解除。）模型供應商未指定前不把任何 LINE 內文（即使已去識別化）送出；任何一次 AI 分析都必須有一筆人按下確認的紀錄，沒有例外路徑。
 
 ---
 
@@ -421,3 +421,20 @@ Owner 指示：訊號頁先出三版 HTML 提案、由 AI 選定後實作。提�
 - `pnpm ops:signal:check`：畫面 73 條、規則判讀 30 條、去識別化 40 條。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-signal-inbox-ui.md`
+
+---
+
+## 14. 成員綁定上線前的實作（2026-10-13，`LINESIG-S1a`）
+
+Owner 於 2026-10-13 核准 `AUT-010`（揭露文字與保留期限照提案）。§9 的 S1 拆成兩段：
+
+| 段 | 內容 | 狀態 |
+|---|---|---|
+| S1a | webhook 收件匣、成員代碼綁定＋網站確認、測試推播、「來源與推播」的我的 LINE | 已實作，本機拋棄式資料庫驗證；待 Owner 指示推上正式站 |
+| S1b | 每日摘要與逾期提醒的排程推播 | 未做。確定訊號目前只在瀏覽器裡推導，要先把七條規則搬到伺服器 |
+
+§4.1 的第 ④ 步更正：「bot 用 replyToken 回已連結」做不到，確認在網站上發生，當下沒有 replyToken。改為一則 push。
+
+流程的實際樣子：設定頁顯示 `YZ-XXXX-XXXX` 與官方帳號 ID（沒有 QR：專案裡沒有產生 QR 的套件，沒有為此新增相依）。使用者在一對一聊天室傳代碼，頁面每三秒問一次伺服器，出現 LINE 的名字與頭像後按「是我」。
+
+對照表與差異在 `AUT-010` §14。證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-line-webhook-and-member-binding.md`

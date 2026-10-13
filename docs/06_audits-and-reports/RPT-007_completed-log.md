@@ -4493,3 +4493,17 @@ Owner 問訊號的介面為什麼還沒更新，並指示先出三版 HTML 提�
 未驗證：沒有在真實資料庫上做採納的來回（伺服器程式未變，寫入形狀與既有的行內新增任務、物件留言相同，以攔截命令核對）。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-signal-inbox-ui.md`
+
+## 2026-10-13 — Owner 核准 AUT-010；LINE webhook 收件匣與成員綁定（LINESIG-S1a，未推 main）
+
+Owner 核准 `AUT-010`，揭露文字與保留期限照提案。已寫回 `AUT-010`（狀態改為 OWNER-APPROVED、§12 前三項劃掉）與 `RES-036`。
+
+同輪實作 S1 的前半（S1a）：`POST /api/line/webhook`（只認簽章、原始字串驗簽、先落地再回 200、`after()` 處理、去重與認領）、`/api/company/line`（狀態、產生代碼、確認、不是我、解除、測試推播；每個動作只作用在自己的席位）、三張新表與 migration、訊號頁「來源與推播」的我的 LINE。訊息內文與代碼原值不落地。S1 不碰群組：被拉進群就離開。每日摘要推播拆成 `LINESIG-S1b`。
+
+驗證：`pnpm ops:line:check` 26/26；`pnpm ops:line:proof` 42/42（拋棄式本機 Postgres 16，含 `AUT-010` §11 S1 的六條必須失敗情境）；`ops:proof:migrate` 全串套用成功，`prisma migrate diff` 對新表無差異；`ops:roundtrip` 35 PASS；`pnpm ops:signal:check` 94／30／40；`project:ui:check` 122/122；`tsc` exit 0；`pnpm build` exit 0。真實瀏覽器端到端（本機 dev server、mock 登入、假密鑰、自簽 webhook）：未簽與錯簽不留列、Verify 留一列、群組裡的代碼無效、一對一代碼 → 等你確認 → 是我 → 已連結、unfollow → 推播失效；查庫與畫面一致。
+
+未驗證：沒有接真的 LINE channel（沒有密鑰）—— LINE 端的 reply、push、個人資料、額度查詢只以假的實作測過呼叫時機與內容，沒有實際打通。沒有推 `main`、沒有碰正式庫。
+
+待 Owner：指示是否推上正式站（會在正式庫套用 migration 並開啟公開 route）；之後設定 `LINE_CHANNEL_SECRET`／`LINE_CHANNEL_ACCESS_TOKEN`，在 LINE 後台填 webhook URL 並按 Verify。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-line-webhook-and-member-binding.md`
