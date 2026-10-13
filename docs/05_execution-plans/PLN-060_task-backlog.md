@@ -774,3 +774,20 @@ Path note: rows written before `DOC-002` may contain historical pre-migration do
 DONE — UI-only；D10 owner-approved，UI-088。依 RES-030 三輪研究移植原始 8 工作區／30 分頁、完整操作與抽屜；保留雙空間、作者權限、公式和 showcase/empty。驗收為原版逐頁視覺對照＋兩模式 CRUD／鍵盤／手機；不變更正式 auth、DB、通知或部署。
 
 [驗證報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260913-yuanzhan-v5-fidelity.md)：21 組主要操作＋18 組細節操作、60 個雙模式分頁、31 個原版比對區域、factory／typecheck／lint／完整建置通過。正式多人與持久化另期。
+
+## LINESIG — 訊號工作台 LINE 整合（RES-036／AUT-010，2026-10-12）
+
+Owner 2026-10-12 回覆六題：只用 LINE、授權導入（關閉 RES-033 OD-H）、綁定時一句揭露、AI 分析改為「人選取 → 去識別化 → 人確認 → 才送出」、一專案多群／一群一專案、代碼＋網站確認。畫面屬 `UI-088` Revision Mode（Owner 直接指示，未新增 UI ID）。
+
+| ID | 任務 | 模組 | 負責 | 狀態 | 優先 | 風險 | 前置 | 可能動到的檔案 | 驗收 | 驗證 | 備註 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| LINESIG-S0 | 核准 `AUT-010`、揭露文字與保留期限；在 LINE Developers 開通 channel 並設定正式環境變數 | 授權／營運設定 | Owner | IN_REVIEW | P0 | HIGH | RES-036 | `AUT-010` | `AUT-010` 狀態改為 owner-approved；channel 已開「允許加入群組」；兩個密鑰只在伺服器環境 | Owner 回覆；設定頁（S1 完成後）顯示 webhook 已驗證 | 只有 Owner 能做 |
+| LINESIG-UI | 訊號頁介面先行：四個分頁（待處理／對話分析／已處理／來源與推播）、確定訊號標來源與篩選、潛在訊號分流（採納成任務／併入留言／忽略必選原因／稍後）、對話分析工作區（貼上或匯出檔 → 規則去識別化 → 並排確認；送出關著）、本機規則判讀三種 | 圓展營運工作台／訊號（`UI-088`） | Claude | DONE（2026-10-13，待 Owner 驗收） | P0 | LOW | RES-036 §13 | `signal-inbox.source.js`／`.css`（新）、`conversation-deid.ts`、`conversation-signals.ts`（新）、`scripts/generate-yuanzhan-v5.mjs`、`scripts/check-signal-inbox.mts`、`scripts/check-conversation-signals.mts`、`scripts/verify-conversation-deid.mjs` | 潛在訊號不計徽章、不擋收工；忽略必選原因；採納送出任務＋留言、併入只送留言；確認後改動即失效；疑似人名未決定不能確認；沒採納的內容不離開瀏覽器 | `pnpm ops:signal:check`（73＋30＋40）；`tsc`；`pnpm build`；Playwright 1440／375／淺色主題 | 無伺服器、schema、migration 變更。潛在訊號與分析紀錄只在分頁記憶體，`SignalCandidate` 落地（S3a）後才跨重整 |
+| LINESIG-S1 | webhook 收件匣（簽章、去重、先落地再回 200）、成員代碼綁定＋網站確認、`NotificationChannel` 與個人推播摘要、訊號頁右欄改為「來源」 | 圓展營運工作台／訊號（`UI-088`） | Claude | TODO | P0 | HIGH | LINESIG-S0 | `src/app/api/line/webhook/route.ts`、`src/lib/services/line-*.service.ts`、`prisma/schema.prisma`＋新 migration（`LineIdentity`、`LineBindCode`、`LineWebhookEvent`）、`src/components/yuanzhan/v5/`（新 `signal-sources.source.js`／css，不手改 `runtime.js`） | 兩個席位各自綁定並收到測試推播；每日摘要依時段送出且只含確定訊號；封鎖 bot 後設定頁顯示推播失效；本月用量可見 | `AUT-010` §11 S1 六條負向測試；拋棄式本機 Postgres 套 migration；`tsc`、`pnpm build`；簽章以固定向量測試 | 不碰群組。停止條件：需要改既有表或既有授權路徑時先停 |
+| LINESIG-S2 | 群組 join → 未認領 → 網站認領到專案 → `LINE_MIRROR` 頻道鏡射；媒體抓取；專案設定的群組清單；綁定揭露 | 圓展營運工作台／專案＋訊號 | Claude | TODO | P0 | HIGH | LINESIG-S1；揭露文字核准 | `line-group.service.ts`、migration（`LineGroup`、`ProjectLineGroupBinding`，條件式唯一索引）、`pm-chat.source.js`、`pm-overview.source.js`（移除鎖頭）、專案設定 | 一個專案綁兩個群、各成一個唯讀頻道；未認領群 72h 自動退群；解除綁定後歷史保留；揭露每群只送一次 | `AUT-010` §11 S2 六條；`pnpm project:ui:check`；兩個測試群實測 | 客戶群已有其他官方帳號時 bot 進不去 → 介面說明並導向匯入 |
+| LINESIG-S3a | 兩條規則的潛在訊號（外部提問逾時未回、@ 到已連結成員）、分流（採納／併入／忽略／稍後）、採納後進回覆追蹤 | 圓展營運工作台／訊號 | Claude | TODO | P1 | MEDIUM | LINESIG-S2 | migration（`SignalCandidate`）、`signal-candidate.service.ts`、`replies.source.js`（LINE 來源列）、訊號頁潛在訊號區 | 潛在訊號不擋收工、不計徽章；採納的提問以該則 LINE 訊息時間起算 24h；忽略必填原因 | `AUT-010` §11 S3a 三條；固定對話語料的規則測試 | 不用模型 |
+| LINESIG-S3b | 對話分析工作區：選取區間 → 規則去識別化 → 並排人工確認 → 伺服器重組送出 → 結果還原成潛在訊號；分析紀錄 | 圓展營運工作台／訊號（新分頁「對話分析」） | Claude | TODO | P1 | HIGH | LINESIG-S2；Owner 指定模型供應商 | `conversation-deid.ts`（純函式）、`conversation-analysis.service.ts`、migration（`ConversationAnalysisRun`、`DeidTerm`）、新 `signal-analysis.source.js`／css、`internal-agent-manifests.agentfacts-lite.json` | 沒有確認就送不出去；送出內容與確認時逐字相同；結果連回原訊息；補遮蔽可記住 | `AUT-010` §11 S3b 六條；去識別化以固定語料做黃金檔測試（可在無 LINE 連線下先完成）；manifest 驗證腳本 | 與 S3a 互不依賴，可對調。NANDA gate 已在 `AUT-010` §10 |
+| LINESIG-S4 | 結案建議、LINE `.txt` 匯出檔匯入歷史、以忽略原因與採納率調整規則 | 圓展營運工作台／訊號＋專案 | Claude | TODO | P2 | MEDIUM | LINESIG-S3a | 匯入解析器、`ProjectChatOrigin.LINE_IMPORT` 路徑 | 匯入的歷史以分隔線區分且不重複；結案仍須人按 | 匯出檔樣本測試 | — |
+
+研究與邊界：[RES-036](../07_research-and-design/RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md)、[AUT-010](../02_architecture-and-rules/AUT-010_line-webhook-identity-group-and-conversation-analysis-boundary.md)。[證據報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-signal-line-two-tier-research.md)
+

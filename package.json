@@ -166,7 +166,8 @@
     "ops:links:check": "tsx scripts/check-link-object.mts",
     "ops:stickers:check": "tsx scripts/check-journal-stickers.mts",
     "ops:agenda-page:check": "tsx scripts/check-agenda-page.mts",
-    "ops:engines:verify": "node scripts/verify-journal-engines.mjs"
+    "ops:engines:verify": "node scripts/verify-journal-engines.mjs",
+    "ops:signal:check": "tsx scripts/check-signal-inbox.mts && tsx scripts/check-conversation-signals.mts && node scripts/verify-conversation-deid.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",

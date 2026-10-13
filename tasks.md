@@ -506,3 +506,12 @@ DONE — implementation；Owner 核可全部採用並同意分頁改名「標籤
 驗收 11 條見 `journal-tagstream-object-index-proposals.html`；其中 1/3/4/5/6/7/8 由 `scripts/verify-object-index.mjs` 自動化（19/19 PASS，無需瀏覽器）。**2／9／11 待 Owner 在本機 `npm run dev` 確認。**
 
 [驗證報告](docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260923-journal-object-index.md)
+
+
+## LINESIG — 訊號工作台 LINE 整合（2026-10-12）
+
+IN_REVIEW（S0）— Owner 已採納 `RES-036` 並回覆六題；`AUT-010` 待核准。S1–S4 為 TODO，任務列、驗收與負向測試在 `docs/05_execution-plans/PLN-060_task-backlog.md` 的 LINESIG 區段。核准前不建 webhook route、不跑 migration、不對群組發話。
+
+DONE（`LINESIG-UI`，2026-10-13，待 Owner 驗收）— 訊號頁介面先行：四個分頁、兩層訊號、潛在訊號分流、對話分析工作區（匯出檔或貼上；送出關著）。只動前端與純函式，機檢 `pnpm ops:signal:check`。
+
+[研究](docs/07_research-and-design/RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md) · [授權邊界](docs/02_architecture-and-rules/AUT-010_line-webhook-identity-group-and-conversation-analysis-boundary.md) · [證據報告](docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-signal-line-two-tier-research.md)

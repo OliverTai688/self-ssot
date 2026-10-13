@@ -4459,3 +4459,37 @@ Owner 附截圖回報兩件事：議題的討論區按發送好像發送不了�
 建立任務之後游標沒有回到下一行（兩個引擎都一樣的既有行為）。
 
 證據：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-agenda-page-send-and-webkit-caret.md`
+
+## 2026-10-12 — 訊號工作台 LINE 整合：研究、Owner 六項決定與授權邊界（LINESIG-S0，研究與契約，無程式變更）
+
+Owner 看著訊號頁截圖要求提案：推播管道 Telegram 或 LINE、LINE 帳號初始化與群組綁定到專案（一專案多群）、日誌的確定訊號與 LINE 分析的潛在訊號如何處理。
+
+盤點：Telegram 只是一張預覽卡，無 bot、無 route、無綁定；LINE 在 schema 有 `LINE_MIRROR` 頻道與訊息欄位，但缺「群組 ↔ 專案」與「LINE 帳號 ↔ 成員」兩個綁定模型。兩者都從零開始。
+
+產出：`RES-036`（管道比較、平台硬限制、成員與群組綁定流程、兩層訊號、訊號頁版面、分段）；Owner 當日回覆六題後改為已採納，其中 D4 由 Owner 改寫為「人主動選取一段對話 → 去識別化 → 人確認 → 才送 AI」，據此重寫 §6.4 並新增「對話分析」分頁。`AUT-010`（webhook 邊界、身分、群組、對外輸出、可見性、AI 分析邊界、保留、稽核、NANDA gate 與 AgentFacts-lite 草案、各段負向測試）。`PLN-060`／`PLN-061`／`tasks.md` 新增 LINESIG-S0..S4。關閉 RES-033 的 OD-H。
+
+更正：初版寫「綁定揭露用 replyToken 發」，但認領在網站上進行、當下沒有 replyToken；改為一次性 push（用掉群人數則額度）。
+
+驗證：無程式、schema、migration 或環境變更，未執行建置。事實依據為 LINE 官方文件（群組限制、userId 範圍、計費）與本機程式碼閱讀。
+
+待 Owner：核准 `AUT-010`、揭露文字、保留期限；開通 LINE channel；S3b 前指定模型供應商。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-signal-line-two-tier-research.md`
+
+## 2026-10-13 — 訊號頁介面先行：兩層訊號、對話分析工作區、來源與推播（LINESIG-UI）
+
+Owner 問訊號的介面為什麼還沒更新，並指示先出三版 HTML 提案、由 AI 選定後實作。
+
+提案：四個畫面各三版，寫在 `docs/2_agent-input/generated/signal-proposals/round1-signal-inbox/index.html`，四個都選 A（單頁往下接、卡片就地展開、一頁四關並排、開通步驟清單）。
+
+實作：新增 `signal-inbox.source.js`／`.css`，訊號頁改為四個分頁。確定訊號每列標來源並可篩選；潛在訊號用虛線框接在下方，可採納成任務（原話掛留言）、併入既有、忽略（必選原因）、稍後。對話分析工作區讀 LINE 匯出檔或貼上的文字，規則去識別化後原文與送出版本並排，確認記指紋，改動即失效；送出 AI 分析在模型供應商指定前是關著的。新增純函式 `conversation-signals.ts`（提問未回、承諾與期限、交付物三種規則）。右欄與第四個分頁顯示 LINE 尚未開通與卡在哪一步。
+
+沒有動：伺服器、schema、migration、環境變數。`AUT-010` 仍待核准，未建 webhook。潛在訊號與分析紀錄只在分頁記憶體。
+
+驗證：`node scripts/generate-yuanzhan-v5.mjs`（712 handler templates）；`tsc` exit 0；`pnpm ops:signal:check` 73／30／40 全過；`project:ui:check` 122/122 與其餘 ops 檢查通過；`pnpm build` exit 0；Playwright 於 1440、375、淺色主題走過四個分頁，無頁面錯誤、無橫向溢出。`ops:reply-jump:check` 21/22 與 `ops:journal-space:check` 8/9 的失敗在未含本輪改動的主 checkout 上相同。
+
+另以 Playwright 實測：選 `.txt` 檔讀入、在原文欄選取文字帶進補遮蔽並遮住。
+
+未驗證：沒有在真實資料庫上做採納的來回（伺服器程式未變，寫入形狀與既有的行內新增任務、物件留言相同，以攔截命令核對）。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-signal-inbox-ui.md`

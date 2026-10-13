@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>訊號頁：截圖分析與三版提案</title>
+<style>
+:root{--bg:#0a0c0f;--s1:#111418;--s2:#161a20;--s3:#1d232b;--bd:#232931;--bd2:#333b45;--t:#e9ecf1;--t2:#99a2af;--t3:#626b77;--pri:#6cb6ff;--pribg:#11212e;--pribr:#2d5a7d;--ok:#5fd09a;--okbg:#0f2620;--warn:#f2b95e;--warnbg:#2a2111;--dgr:#ef8a82;--dgrbg:#2b1614;--info:#a78bf5;--infobg:#1c1830;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:14px/1.7 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:100vh}
+nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:22px 14px;border-right:1px solid var(--bd);background:var(--s1)}
+nav h1{margin:0 0 4px;font-size:15px}
+nav p{margin:0 0 16px;font-size:12px;color:var(--t3)}
+nav button{display:block;width:100%;margin:2px 0;padding:8px 10px;background:none;border:0;border-left:2px solid transparent;color:var(--t2);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+nav button.on{color:var(--t);border-left-color:var(--pri);background:var(--pribg)}
+nav button small{display:block;font-size:11px;color:var(--t3)}
+main{padding:28px 34px 80px;min-width:0;max-width:1180px}
+h2{margin:0 0 4px;font-size:21px}
+.lead{margin:0 0 20px;color:var(--t2)}
+h3{margin:30px 0 10px;padding-bottom:7px;border-bottom:1px solid var(--bd2);font-size:14px}
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.shots figure{margin:0}
+.shots img{display:block;width:100%;border:1px solid var(--bd2);border-radius:6px}
+.shots figcaption{margin-top:5px;font-size:12px;color:var(--t3)}
+ol.find{margin:0;padding-left:20px}
+ol.find li{margin:5px 0}
+ol.find b{color:var(--warn);font-weight:600}
+.vtabs{display:flex;gap:4px;margin:0 0 12px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.vtabs button{margin-bottom:-1px;padding:8px 16px;background:none;border:0;border-bottom:2px solid transparent;color:var(--t3);font:inherit;cursor:pointer}
+.vtabs button.on{color:var(--t);border-bottom-color:var(--pri)}
+.vtabs button.pick::after{content:"採用";margin-left:8px;padding:1px 7px;border-radius:999px;background:var(--ok);color:#06140d;font-size:10.5px;font-weight:700}
+.var{display:none}
+.var.on{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,1fr);gap:22px}
+.mock{padding:16px;border:1px solid var(--bd2);border-radius:8px;background:var(--s1);font-size:13px;min-width:0;overflow:auto}
+.pc h4{margin:0 0 6px;font-size:13px}
+.pc ul{margin:0 0 14px;padding-left:18px;font-size:13px;color:var(--t2)}
+.pc .good{color:var(--ok)}.pc .bad{color:var(--dgr)}
+.decide{margin-top:18px;padding:14px 16px 14px 18px;border-left:3px solid var(--ok);background:var(--s1)}
+.decide h4{margin:0 0 6px;font-size:13px;color:var(--ok)}
+.decide p{margin:4px 0;font-size:13.5px}
+.decide .no{color:var(--t2)}
+/* 示意元件 */
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--bd)}
+.row:last-child{border-bottom:0}
+.sp{flex:1}
+.h{font-weight:600}
+.dim{color:var(--t3);font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:1px 9px;border:1px solid var(--bd2);border-radius:999px;font-size:11.5px;color:var(--t2);white-space:nowrap}
+.chip.pri{color:var(--pri);border-color:var(--pribr);background:var(--pribg)}
+.chip.ok{color:var(--ok);border-color:var(--ok)}
+.chip.warn{color:var(--warn);border-color:var(--warn);background:var(--warnbg)}
+.chip.dgr{color:var(--dgr);border-color:var(--dgr)}
+.chip.info{color:var(--info);border-color:var(--info);background:var(--infobg)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--bd2);border-radius:6px;background:var(--s2);color:var(--t);font-size:12px;white-space:nowrap}
+.btn.pri{border-color:var(--pribr);background:var(--pribg);color:var(--pri)}
+.btn.off{opacity:.45}
+.tabs{display:flex;gap:16px;margin:-4px 0 12px;border-bottom:1px solid var(--bd);font-size:12.5px;color:var(--t3)}
+.tabs span{padding:5px 0}
+.tabs .on{color:var(--t);border-bottom:2px solid var(--pri)}
+.cols{display:grid;gap:10px}
+.box{padding:10px 12px;border:1px solid var(--bd);border-radius:6px;background:var(--s2);min-width:0}
+.box>.hd{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:12px;color:var(--t2)}
+.box>.hd b{color:var(--t);font-size:13px}
+.late{border:1.5px solid var(--dgr);background:var(--dgrbg)}
+.cand{margin:8px 0;padding:10px 12px;border:1px dashed var(--bd2);border-radius:8px;background:var(--bg)}
+.cand q{display:block;margin:5px 0;padding-left:10px;border-left:2px solid var(--info);color:var(--t);quotes:none}
+.dz{border:1px dashed var(--bd2);border-radius:8px;padding:10px 12px;background:transparent}
+.dz>.hd{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--t2)}
+.dz>.hd b{color:var(--info);font-size:13px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:12px}
+.steps span{padding:3px 10px;border:1px solid var(--bd2);border-radius:999px;color:var(--t3)}
+.steps .on{color:var(--pri);border-color:var(--pribr);background:var(--pribg)}
+.steps .ok{color:var(--ok);border-color:var(--ok)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.pair>div{padding:7px 10px;border-bottom:1px solid var(--bd);min-width:0}
+.pair>div:nth-child(odd){border-right:1px solid var(--bd);color:var(--t2)}
+.pair .th{background:var(--s2);font-size:11.5px;color:var(--t3)}
+.mk{padding:0 4px;border-radius:3px;background:var(--pribg);color:var(--pri);font-family:var(--mono);font-size:12px}
+.sus{padding:0 3px;border-radius:3px;background:var(--warnbg);color:var(--warn);border-bottom:1px dashed var(--warn)}
+.x{color:var(--t3);text-decoration:line-through}
+table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+table.t th{padding:6px 8px;text-align:left;color:var(--t3);font-weight:500;border-bottom:1px solid var(--bd2);white-space:nowrap}
+table.t td{padding:7px 8px;border-bottom:1px solid var(--bd)}
+.ck{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--bd)}
+.ck:last-child{border-bottom:0}
+.ck i{flex:none;width:16px;height:16px;margin-top:3px;border:1.5px solid var(--bd2);border-radius:50%}
+.ck.ok i{border-color:var(--ok);background:var(--ok)}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}nav{position:static;height:auto}.var.on{grid-template-columns:1fr}main{padding:20px 16px 60px}.pair{grid-template-columns:1fr}.pair>div:nth-child(odd){border-right:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><h1>訊號頁</h1><p>UI-088 · RES-036 · 2026-10-13<br>四個畫面，各三版，已選定並實作</p><div id="nav"></div></nav>
+<main id="main"></main>
+</div>
+<script>
+const chip=(t,c='')=>`<span class="chip ${c}">${t}</span>`;
+const btn=(t,c='')=>`<span class="btn ${c}">${t}</span>`;
+const tabs=on=>`<div class="tabs">${['待處理','對話分析','已處理','來源與推播'].map((t,i)=>`<span class="${i===on?'on':''}">${t}</span>`).join('')}</div>`;
+const cand=(kind,grp,who,quote,extra='')=>`<div class="cand"><div class="row" style="padding:0;border:0">${chip(kind,'info')}<span class="dim">LINE · ${grp} · ${who}</span><span class="sp"></span><span class="dim">依據 規則</span></div><q>${quote}</q><div class="row" style="padding:0;border:0"><span class="dim">${extra}</span><span class="sp"></span>${btn('採納 ▾','pri')}${btn('併入既有')}${btn('忽略')}${btn('稍後')}</div></div>`;
+const replyBoard=`<div class="box late"><div class="hd"><b>回覆追蹤</b><span>逾期 1 件 · 待我回覆 1 · 等對方 1</span><span class="sp"></span>${btn('處理逾期')}</div><div class="dim">（維持現狀：逾期區、三欄、收工檢查）</div></div>`;
+const sure=`<div class="box"><div class="hd"><b>確定訊號</b><span>10 則</span><span class="sp"></span>${chip('全部 10','pri')}${chip('逾期 3')}${chip('未回寫 2')}${chip('契約 5')}</div>
+ <div class="row">${chip('逾期','dgr')}<span>柏翰成效報告 已逾期</span><span class="sp"></span><span class="dim">任務 · 到期 09/10</span>${btn('標記已處理')}</div>
+ <div class="row">${chip('未回寫','info')}<span>09/11 有待決事項</span><span class="sp"></span><span class="dim">日誌 · 09/11</span>${btn('標記已處理')}</div>
+ <div class="row">${chip('契約','pri')}<span>3 筆交易缺原始憑證</span><span class="sp"></span><span class="dim">金流</span>${btn('標記已處理')}</div></div>`;
+const maybe=`<div class="dz"><div class="hd"><b>潛在訊號 · 待你確認</b><span>2 則 · 不擋收工、不計徽章</span><span class="sp"></span>${btn('全部忽略')}</div>
+ ${cand('對方提問未回','柏翰客戶群','王志明','報價單可以分兩期付嗎？','已 5 小時沒有我方發言')}
+ ${cand('承諾與期限','柏翰客戶群','戴宇星','週五前把問卷初稿給您','建議期限 10/16')}</div>`;
+const sources=`<div class="box"><div class="hd"><b>來源</b></div>
+ <div class="row"><span>LINE 官方帳號</span><span class="sp"></span>${chip('尚未開通','warn')}</div>
+ <div class="row"><span>我的 LINE</span><span class="sp"></span>${chip('未連結')}</div>
+ <div class="row"><span>已綁定群組</span><span class="sp"></span><span class="dim">0</span></div>
+ <div class="row"><span>個人推播</span><span class="sp"></span><span class="dim">未啟用</span></div>
+ <div class="dim" style="margin-top:6px">${btn('前往來源與推播')}</div></div>`;
+
+const PAGES=[
+{name:'1 待處理的版面',lead:'第一個視窗要回答「現在有什麼要我處理」。確定訊號與潛在訊號放在同一頁，但不能讓人分不出哪些會擋收工。',
+ shots:[['before-0.jpg','現況：回覆追蹤在上，待處理清單與 Telegram 預覽在下'],['before-2.jpg','現況：Agent 規則分頁是一頁規則說明']],
+ find:['右欄三塊（<b>Telegram 推播預覽、訊號分布、規則提示</b>）在日常沒有資訊：預覽不會送出、分布長條多半是 0、提示是說明文字。','待處理清單的每一列<b>看不出來自哪裡</b>（日誌、任務、金流、出勤），只能點進去才知道。','「Agent 規則」是一整頁規則手冊；<b>AGENTS.md §15 規定產品頁不放規則手冊</b>。','沒有任何地方能看到<b>LINE 與推播現在是什麼狀態</b>，也沒有潛在訊號的位置。'],
+ vars:[
+ {k:'A',t:'單頁往下接',pick:true,mock:tabs(0)+`<div class="cols">${replyBoard}<div class="cols" style="grid-template-columns:1.8fr 1fr">${`<div class="cols">${sure}${maybe}</div>`}${sources}</div></div>`,
+  good:['注意力順序由上到下就是處理順序：逾期 → 待我回覆 → 確定 → 潛在 → 來源','潛在訊號用虛線框接在確定訊號下面，一眼分得出兩種；空的時候整段不畫','沿用現有的回覆追蹤與面板，不重做已經在用的東西'],
+  bad:['訊號很多時要捲動才看得到潛在訊號（用上方的數量籤補）']},
+ {k:'B',t:'三欄收件匣',mock:tabs(0)+`<div class="cols" style="grid-template-columns:1fr 1.6fr 1fr"><div class="box"><div class="hd"><b>全部 13</b></div><div class="row">${chip('逾期','dgr')}週一拍攝補光燈？</div><div class="row">${chip('逾期','dgr')}柏翰成效報告</div><div class="row">${chip('潛在','info')}報價單分兩期？</div><div class="row">${chip('未回寫','info')}09/11 待決</div></div><div class="box"><div class="hd"><b>柏翰成效報告 已逾期</b></div><div class="dim">到期 09/10，已過 2 天 · Owner 戴宇星</div><div style="margin-top:10px">${btn('開啟任務','pri')}${btn('標記已處理')}</div></div>${sources}</div>`,
+  good:['不離開頁面就能看細節','鍵盤上下鍵逐筆處理的節奏好'],
+  bad:['回覆追蹤的三欄與逾期區要拆掉重排，等於重做已經在用的畫面','確定與潛在混在同一條清單，只靠一顆籤區分，最容易讓人誤以為潛在訊號也有義務','細節區大多只是重複抽屜已有的內容']},
+ {k:'C',t:'確定｜潛在 分成子分頁',mock:tabs(0)+`<div class="row" style="border:0">${chip('確定 10','pri')}${chip('潛在 2')}<span class="sp"></span>${chip('LINE 尚未開通','warn')}</div><div class="cols">${replyBoard}${sure}</div>`,
+  good:['兩種訊號完全不會混淆','每一頁都短'],
+  bad:['潛在訊號多一層才看得到，等於預設沒人會看','來源狀態縮成一顆籤，未認領的群組沒有位置','分頁裡再分頁，手機上兩排籤']}],
+ decide:['採用 A。兩層訊號的規則是「潛在訊號不產生義務」，A 用位置與外框把這件事畫出來，而且不動回覆追蹤。','B 的鍵盤逐筆處理值得之後加在 A 的清單上；C 把潛在訊號藏太深。','右欄改成「來源」，推播預覽搬到「來源與推播」，分布長條改成清單上方的篩選籤，規則說明搬到使用手冊。']},
+
+{name:'2 潛在訊號怎麼分流',lead:'每一筆潛在訊號都可能是錯的。畫面要讓人先看到原話，再決定它算不算一件事。',
+ shots:[],
+ find:['潛在訊號<b>現在不存在</b>，這一塊是全新的。','四個動作（採納、併入既有、忽略、稍後）都要留下紀錄；<b>忽略必須選原因</b>，否則日後無法調整規則。','採納時要能<b>改專案、負責人、期限</b>，因為一個群可能談好幾個專案。'],
+ vars:[
+ {k:'A',t:'卡片＋就地展開',pick:true,mock:`<div class="dz"><div class="hd"><b>潛在訊號 · 待你確認</b><span>2 則</span><span class="sp"></span>${btn('全部忽略')}</div>${cand('對方提問未回','柏翰客戶群','王志明','報價單可以分兩期付嗎？','已 5 小時沒有我方發言')}
+ <div class="cand" style="border-style:solid;border-color:var(--pribr)"><div class="row" style="padding:0;border:0">${chip('承諾與期限','info')}<span class="dim">LINE · 柏翰客戶群 · 戴宇星</span></div><q>週五前把問卷初稿給您</q>
+ <div class="row" style="border:0"><span class="dim">任務</span>${chip('週五前把問卷初稿給您')}</div><div class="row" style="border:0"><span class="dim">專案</span>${chip('柏翰 Google Workspace ▾')}<span class="dim">負責人</span>${chip('戴宇星 ▾')}<span class="dim">期限</span>${chip('10/16 ▾')}<span class="sp"></span>${btn('確定採納','pri')}${btn('取消')}</div></div></div>`,
+  good:['原話永遠在最上面，先讀再決定','採納的選項就地展開，不跳視窗、不離開清單','忽略展開成四個原因籤，點一下就完成'],
+  bad:['一次只展開一張；要大量處理時比表格慢（用「全部忽略」補）']},
+ {k:'B',t:'一次看一張',mock:`<div class="box" style="max-width:460px;margin:auto"><div class="hd"><b>1 / 2</b><span class="sp"></span><span class="dim">← → 切換　A 採納　I 忽略</span></div>${chip('對方提問未回','info')}<q style="display:block;margin:10px 0;font-size:16px">報價單可以分兩期付嗎？</q><div class="dim">柏翰客戶群 · 王志明 · 10/12 09:14 · 已 5 小時沒有我方發言</div><div style="margin-top:14px">${btn('採納','pri')}${btn('併入既有')}${btn('忽略')}${btn('稍後')}</div></div>`,
+  good:['專注，判斷品質最好','鍵盤操作快'],
+  bad:['看不到整批有多少、哪些是同一段對話','多一個獨立的模式，潛在訊號就不在待處理頁上了','兩人團隊一天幾則，用不到這麼重的流程']},
+ {k:'C',t:'表格批次',mock:`<table class="t"><tr><th></th><th>種類</th><th>原話</th><th>群組</th><th>建議</th><th></th></tr><tr><td>☐</td><td>${chip('提問未回','info')}</td><td>報價單可以分兩期付嗎？</td><td class="dim">柏翰客戶群</td><td class="dim">回覆</td><td>${btn('採納')}</td></tr><tr><td>☐</td><td>${chip('承諾','info')}</td><td>週五前把問卷初稿給您</td><td class="dim">柏翰客戶群</td><td class="dim">任務 10/16</td><td>${btn('採納')}</td></tr></table><div style="margin-top:8px">${btn('忽略所選')}</div>`,
+  good:['密度最高，批次處理最快','可排序、可篩選'],
+  bad:['原話被擠成一格，長句子看不完；判讀錯誤最容易在這裡被略過','採納時要改專案與期限，表格放不下，還是得開視窗','手機上是橫向捲動的表格']}],
+ decide:['採用 A。這一步的重點是「先讀原話」，卡片把原話放在最顯眼的位置。','C 的批次能力只取一項：整批忽略。B 的鍵盤操作留待用量大了再加。','採納的去處是一件<b>任務</b>（現有、會保存的寫入路徑），LINE 原話掛在任務的留言上；併入既有則只掛留言。「回覆追蹤卡以 LINE 訊息時間起算」需要請求表支援外部發話者，屬 LINESIG-S3a。']},
+
+{name:'3 對話分析工作區',lead:'人選一段對話 → 系統遮蔽 → 人逐處確認 → 才可能送出。送出前，畫面上要看得到每一個會離開系統的字。',
+ shots:[],
+ find:['Owner 的要求（D4）：<b>人主動選取一段時間的對話；分析前先去識別化，並經人確認後才送 AI</b>。沒有自動分析。','去識別化只用規則與字典，<b>抓不到字典裡沒有的名字</b>，所以人工確認是真正的控制點，介面不能寫「已去識別化」。','LINE 尚未開通之前，對話的來源是 <b>LINE App 匯出的 .txt 或直接貼上</b>；內容只留在這個分頁。','模型供應商尚未指定，所以<b>送出那一步在這一版是鎖住的</b>；規則判讀在本機執行，不需要送出。'],
+ vars:[
+ {k:'A',t:'一頁四關，左右並排',pick:true,mock:tabs(1)+`<div class="steps"><span class="ok">1 選取 · 10 則</span><span class="on">2 去識別化 · 遮蔽 14 處</span><span>3 確認</span><span>4 送出</span></div>
+ <div class="row" style="border:0">${chip('柏翰客戶群 ▾')}${chip('10/12 – 10/12 ▾')}<span class="dim">10 則 · 送出 8 則 · 約 240 字</span><span class="sp"></span>${chip('保留金額 ✓','ok')}</div>
+ <div class="pair"><div class="th">原文</div><div class="th">將送出的版本</div>
+ <div>王志明會計師　報價單可以分兩期付嗎？第一期 9 萬先匯到永豐 012-345-678901</div><div><span class="mk">客戶-A</span>　報價單可以分兩期付嗎？第一期 9 萬先匯到永豐 <span class="mk">〔號碼〕</span></div>
+ <div>王志明會計師　陳小姐那邊請直接打 0912-345-678</div><div><span class="mk">客戶-A</span>　<span class="sus">陳小姐</span>那邊請直接打 <span class="mk">〔電話〕</span></div>
+ <div class="x">Lily　[貼圖]</div><div class="dim">略去</div></div>
+ <div class="row" style="border:0;margin-top:8px">${chip('疑似人名 1 處未處理','warn')}<span class="dim">電話 2 · 號碼 1 · 發話者 9 · 公司 2</span><span class="sp"></span>${btn('已檢查，確認這一份','pri')}</div>`,
+  good:['原文與送出版本逐則對齊，漏網的名字最容易被看到','四關的進度一直在上方，知道自己在哪一步、後面還有什麼','點遮蔽處還原、框選文字補遮蔽，都在同一個地方'],
+  bad:['窄螢幕放不下並排（760px 以下改成上下堆疊：原文在上、送出版本在下）']},
+ {k:'B',t:'精靈，一步一頁',mock:`<div class="steps"><span class="ok">1</span><span class="on">2 去識別化</span><span>3</span><span>4</span></div><div class="box"><div class="hd"><b>已遮蔽 14 處</b></div><div><span class="mk">客戶-A</span>　報價單可以分兩期付嗎？第一期 9 萬先匯到永豐 <span class="mk">〔號碼〕</span></div><div><span class="mk">客戶-A</span>　<span class="sus">陳小姐</span>那邊請直接打 <span class="mk">〔電話〕</span></div></div><div style="margin-top:10px">${btn('上一步')}${btn('下一步：確認','pri')}</div>`,
+  good:['每一步畫面單純','手機上最好排'],
+  bad:['確認那一頁看不到原文，等於叫人核對一份沒有對照的東西','回頭改區間要退兩步，遮蔽決定容易讓人擔心會不會不見','「下一步」會被一路按過去，確認變成形式']},
+ {k:'C',t:'單欄，行內切換',mock:`<div class="row" style="border:0">${chip('顯示：送出版本','pri')}${chip('原文')}<span class="sp"></span>${btn('確認這一份','pri')}</div><div class="box"><div><span class="mk">客戶-A</span>　報價單可以分兩期付嗎？第一期 9 萬先匯到永豐 <span class="mk">〔號碼〕</span></div><div><span class="mk">客戶-A</span>　<span class="sus">陳小姐</span>那邊請直接打 <span class="mk">〔電話〕</span></div></div><div class="dim" style="margin-top:6px">滑過遮蔽處顯示原字</div>`,
+  good:['最省空間，長對話最好讀','手機與桌面同一套'],
+  bad:['要靠滑過或切換才看得到原文，觸控裝置上做不到「滑過」','沒被遮蔽的漏網名字，在只看送出版本時不會特別顯眼 —— 這正是要抓的東西']},
+ ],
+ decide:['採用 A，窄螢幕退成上下堆疊。並排是唯一能讓人「對照著看」的排法，而對照正是這一關存在的理由。','B 把確認做成「下一步」，會被按過去。C 在觸控裝置上看不到原文。','用語：摘要寫「已遮蔽 N 處，請確認」，不寫「已去識別化」。確認後再改任何一處，確認就失效。']},
+
+{name:'4 來源與推播',lead:'取代「Agent 規則」分頁。回答三件事：LINE 現在通了沒、還差誰做什麼、推播長什麼樣。',
+ shots:[['before-2.jpg','現況：這個位置是「Agent 規則」說明頁']],
+ find:['LINE 的開通有幾步<b>只能 Owner 本人在 LINE 後台做</b>；頁面要說清楚卡在哪一步，而不是只顯示「未啟用」。','成員綁定、群組綁定的介面要等 webhook 上線才有東西可以操作；<b>現在畫出來的只能是狀態與步驟</b>，不能有按了沒反應的按鈕。','推播預覽原本放在待處理頁右欄，但它是<b>設定的預覽</b>，不是每天要看的東西。'],
+ vars:[
+ {k:'A',t:'狀態清單＋群組表＋推播預覽',pick:true,mock:tabs(3)+`<div class="cols" style="grid-template-columns:1.4fr 1fr"><div class="cols"><div class="box"><div class="hd"><b>LINE 官方帳號</b>${chip('尚未開通','warn')}</div>
+ <div class="ck ok"><i></i><div>方向已定<div class="dim">只用 LINE、bot 可進客戶群、代碼＋網站確認</div></div></div>
+ <div class="ck"><i></i><div>核准授權邊界<div class="dim">等 Owner · AUT-010</div></div></div>
+ <div class="ck"><i></i><div>在 LINE Developers 建立 channel、開啟「允許加入群組」<div class="dim">等 Owner 本人操作</div></div></div>
+ <div class="ck"><i></i><div>webhook 驗證通過<div class="dim">前兩步完成後</div></div></div></div>
+ <div class="box"><div class="hd"><b>群組</b><span>0 個已綁定</span></div><div class="dim">開通後，把 bot 邀進群組，新群組會出現在這裡等你綁到專案。一個專案可以綁多個群，一個群只屬於一個專案。</div></div></div>
+ <div class="cols"><div class="box"><div class="hd"><b>我的 LINE</b>${chip('未連結')}</div><div class="dim">開通後可用一次性代碼連結，連結後才會收到個人推播。</div></div><div class="box"><div class="hd"><b>推播預覽</b><span>每日 09:00、18:00</span></div><div class="dim" style="font-family:var(--mono)">圓展 OS<br>10/13 待處理<br>• 逾期 1 件<br>• 待我回覆 1 件<br>• 3 則 LINE 訊號待確認</div><div class="dim" style="margin-top:6px">尚未啟用，這是開通後會收到的樣子</div></div></div></div>`,
+  good:['一眼看出卡在哪一步、等誰','沒有任何按了沒反應的按鈕；開通後同一個位置直接長出操作','推播預覽標明是預覽，潛在訊號只出現數量'],
+  bad:['開通前這一頁大半是狀態，資訊量低（這是事實，不是版面問題）']},
+ {k:'B',t:'四張卡片',mock:`<div class="cols" style="grid-template-columns:1fr 1fr"><div class="box"><div class="hd"><b>官方帳號</b></div>${chip('尚未開通','warn')}</div><div class="box"><div class="hd"><b>我的 LINE</b></div>${chip('未連結')}</div><div class="box"><div class="hd"><b>群組</b></div><span class="dim">0</span></div><div class="box"><div class="hd"><b>推播</b></div><span class="dim">未啟用</span></div></div>`,
+  good:['整齊','四個主題一目了然'],
+  bad:['只說得出「沒有」，說不出「為什麼、差什麼」','群組多了之後卡片裝不下清單，還是要改成表格','AGENTS.md §12 明說優先操作面，少用卡片排版']},
+ {k:'C',t:'完整設定頁（含未開通的表單）',mock:`<div class="box"><div class="hd"><b>連結我的 LINE</b></div><div class="row" style="border:0">${btn('產生代碼','off')}<span class="dim">尚未開通</span></div></div><div class="box" style="margin-top:8px"><div class="hd"><b>連結 LINE 群</b></div><div class="row" style="border:0">${btn('連結 LINE 群','off')}<span class="dim">尚未開通</span></div></div><div class="box" style="margin-top:8px"><div class="hd"><b>推播時段</b></div>${chip('09:00')}${chip('18:00')}</div>`,
+  good:['開通當天不用再改版面','看得到之後會有哪些設定'],
+  bad:['滿頁停用的按鈕，看起來像壞掉','推播時段現在改了也不會存，是假的設定','把還沒核准的流程畫成既定介面']}],
+ decide:['採用 A。開通前這一頁的工作是把「卡在哪、等誰」說清楚；開通後每一列換成實際的狀態與操作。','不做 C：停用的表單與不會保存的設定，比沒有更糟。','成員綁定與群組認領的操作介面隨 LINESIG-S1／S2 的後端一起上，不先畫空殼。']}
+,
+{name:'5 實作結果',lead:'選定的四版已實作在訊號頁。LINE 尚未開通，所以對話的來源是匯出檔或貼上；貼上的內容只留在這個分頁。',
+ shots:[['after-1-inbox-top.jpg','待處理：回覆追蹤維持原樣'],['after-2-potential-signals.jpg','確定訊號標出來源；潛在訊號用虛線框接在下面，採納就地展開'],['after-3-analysis-side-by-side.jpg','對話分析：原文與將送出的版本逐則並排，疑似人名要先決定'],['after-4-analysis-confirmed.jpg','確認後記下誰、何時、指紋；送出 AI 分析是關著的（淺色主題同版）'],['after-5-sources.jpg','來源與推播：卡在哪一步、等誰'],['after-6-analysis-375.jpg','375px：並排改成上下堆疊']],
+ find:['與提案不同的地方：採納的去處統一為<b>任務</b>（原話掛留言），沒有做今日議題；規則判讀做了三種（提問未回、承諾與期限、交付物），<b>條件變更留給 AI</b>，因為規則分不出「改成分兩期」與「改天再聊」。','疑似人名<b>沒決定之前不能確認</b>（遮蔽，或標成不是人名），比提案多一道。','潛在訊號與分析紀錄<b>只留在這個分頁</b>；會保存的只有採納後的任務與併入後的留言。伺服器端沒有任何變更。','機檢：<code>pnpm ops:signal:check</code>（畫面 73 條、規則 30 條、去識別化 40 條）。'],
+ vars:[],decide:[]}
+];
+const nav=document.getElementById('nav'),main=document.getElementById('main');
+function show(n){
+ const p=PAGES[n],pick=Math.max(0,p.vars.findIndex(v=>v.pick));
+ [...nav.children].forEach((b,i)=>b.classList.toggle('on',i===n));
+ main.innerHTML=`<h2>${p.name.replace(/^\d+\s+/,'')}</h2><p class="lead">${p.lead}</p>
+  ${p.shots.length?`<h3>現況截圖</h3><div class="shots">${p.shots.map(s=>`<figure><img src="shots/${s[0]}" alt="${s[1]}"><figcaption>${s[1]}</figcaption></figure>`).join('')}</div>`:''}
+  <h3>${p.vars.length?'分析':'結果'}</h3><ol class="find">${p.find.map(f=>`<li>${f}</li>`).join('')}</ol>
+  ${p.vars.length?`<h3>三版提案</h3><div class="vtabs">${p.vars.map((v,i)=>`<button class="${i===pick?'on':''} ${v.pick?'pick':''}" data-v="${i}">${v.k}　${v.t}</button>`).join('')}</div>
+  ${p.vars.map((v,i)=>`<div class="var ${i===pick?'on':''}" data-v="${i}"><div class="mock">${v.mock}</div><div class="pc"><h4 class="good">好處</h4><ul>${v.good.map(x=>`<li>${x}</li>`).join('')}</ul><h4 class="bad">代價</h4><ul>${v.bad.map(x=>`<li>${x}</li>`).join('')}</ul></div></div>`).join('')}
+  <div class="decide"><h4>選定</h4>${p.decide.map((d,i)=>`<p class="${i?'no':''}">${d}</p>`).join('')}</div>`:''}`;
+ main.querySelectorAll('.vtabs button').forEach(b=>b.onclick=()=>{main.querySelectorAll('.vtabs button,.var').forEach(e=>e.classList.toggle('on',e.dataset.v===b.dataset.v))});
+ scrollTo(0,0);
+}
+nav.innerHTML=PAGES.map((p,i)=>{const v=p.vars.find(v=>v.pick);return `<button data-n="${i}">${p.name}<small>${v?v.k+'　'+v.t:'截圖與機檢'}</small></button>`}).join('');
+nav.querySelectorAll('button').forEach(b=>b.onclick=()=>show(+b.dataset.n));
+show(0);
+</script>
+</body>
+</html>

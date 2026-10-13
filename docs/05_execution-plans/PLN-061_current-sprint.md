@@ -1099,3 +1099,9 @@ Agent protocol track: `AGENT-005` created the internal manifest inventory, `AGEN
 DONE — UI-only；D10 owner-approved，UI-088。依 RES-030 三輪研究移植原始 8 工作區／30 分頁、完整操作與抽屜；保留雙空間、作者權限、公式和 showcase/empty。驗收為原版逐頁視覺對照＋兩模式 CRUD／鍵盤／手機；不變更正式 auth、DB、通知或部署。
 
 [驗證報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20260913-yuanzhan-v5-fidelity.md)：21 組主要操作＋18 組細節操作、60 個雙模式分頁、31 個原版比對區域、factory／typecheck／lint／完整建置通過。正式多人與持久化另期。
+
+## LINESIG — 訊號工作台 LINE 整合（2026-10-12）
+
+Owner 採納 `RES-036` 並回覆六題（只用 LINE／授權導入／綁定時一句揭露／AI 分析須人選取、去識別化、人確認／一專案多群／代碼綁定）。**目前卡在 `LINESIG-S0`**：Owner 核准 `AUT-010`（含揭露文字與保留期限）並在 LINE Developers 開通 channel。核准後的下一步是 `LINESIG-S1`（webhook 收件匣、成員綁定、個人推播），它不碰群組、可獨立上線。`LINESIG-S3b` 的去識別化引擎是純函式，可不等 LINE 連線先做。任務列在 `PLN-060` 的 LINESIG 區段。
+
+**2026-10-13 `LINESIG-UI` 完成，待 Owner 於正式站驗收**：Owner 指示先出三版 HTML 提案、AI 選定後實作。訊號頁改為四個分頁；潛在訊號可分流（採納成任務、併入留言、忽略必選原因、稍後）；對話分析工作區可用 LINE 匯出檔或貼上的文字走完選取、去識別化、確認三關，第四關送出在模型供應商指定前是關著的。無伺服器、schema、migration 變更。提案頁：`docs/2_agent-input/generated/signal-proposals/round1-signal-inbox/index.html`；差異與機檢見 `RES-036` §13。`LINESIG-S0` 仍待 Owner，未因此解除。
