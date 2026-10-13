@@ -147,3 +147,9 @@ Owner 決定是否推上正式站。推送的效果：正式庫新增三張表�
 通過的訊號：第四步顯示「最近一次收到」的時間；連結後按測試推播，手機收到一則。
 
 之後的實作：`LINESIG-S1b`（每日摘要推播）。
+
+## 推送後（2026-10-13）
+
+Owner 指示推送。`086f90cc6f` 部署成功；`prisma migrate status`（正式庫，唯讀）：22 migrations、up to date。
+正式站：未簽章 `POST /api/line/webhook` → 200、0 bytes；`GET` → 405；未登入 `GET /api/company/line` → 401。
+正式環境尚無 LINE 密鑰；真 LINE 帳號的連結與推播仍未驗證。

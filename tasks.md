@@ -514,6 +514,6 @@ IN_REVIEW（S0）— Owner 已採納 `RES-036` 並回覆六題；`AUT-010` 待�
 
 DONE（`LINESIG-UI`，2026-10-13，待 Owner 驗收）— 訊號頁介面先行：四個分頁、兩層訊號、潛在訊號分流、對話分析工作區（匯出檔或貼上；送出關著）。只動前端與純函式，機檢 `pnpm ops:signal:check`。
 
-IN_REVIEW（`LINESIG-S1a`，2026-10-13）— Owner 已核准 `AUT-010`。webhook 收件匣與成員 LINE 綁定已實作並於本機拋棄式資料庫驗證（`pnpm ops:line:check`、`pnpm ops:line:proof`）；未推 `main`，等 Owner 指示（會套用 migration、開啟公開 route）。之後是 `LINESIG-S1b` 每日摘要推播。
+IN_REVIEW（`LINESIG-S1a`，2026-10-13）— Owner 已核准 `AUT-010`。webhook 收件匣與成員 LINE 綁定已實作並於本機拋棄式資料庫驗證（`pnpm ops:line:check`、`pnpm ops:line:proof`）；Owner 同日指示推送，`086f90cc6f` 已部署、正式庫已套用 migration；待 Owner 設定 LINE 密鑰與 webhook URL 後驗收。之後是 `LINESIG-S1b` 每日摘要推播。
 
 [研究](docs/07_research-and-design/RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md) · [授權邊界](docs/02_architecture-and-rules/AUT-010_line-webhook-identity-group-and-conversation-analysis-boundary.md) · [證據報告](docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-signal-line-two-tier-research.md)

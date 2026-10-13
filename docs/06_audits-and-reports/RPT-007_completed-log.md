@@ -4507,3 +4507,11 @@ Owner 核准 `AUT-010`，揭露文字與保留期限照提案。已寫回 `AUT-0
 待 Owner：指示是否推上正式站（會在正式庫套用 migration 並開啟公開 route）；之後設定 `LINE_CHANNEL_SECRET`／`LINE_CHANNEL_ACCESS_TOKEN`，在 LINE 後台填 webhook URL 並按 Verify。
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261013-line-webhook-and-member-binding.md`
+
+## 2026-10-13 — LINESIG-S1a 推上正式站
+
+Owner 指示「提交並推上 main」。`086f90cc6f` 推送後 Vercel 部署成功；`prisma migrate status` 對正式庫回報 22 個 migration、schema up to date。
+
+正式站探測：未簽章的 `POST /api/line/webhook` 回 200、body 0 bytes；`GET` 回 405；未登入的 `GET /api/company/line` 回 401。
+
+尚未驗證：正式環境還沒有 `LINE_CHANNEL_SECRET`／`LINE_CHANNEL_ACCESS_TOKEN`，所以 webhook 目前不收任何東西，也還沒有任何一個真的 LINE 帳號連結過。下一步在 Owner：設定密鑰、填 webhook URL 並按 Verify、關閉官方帳號的自動回應，然後在訊號頁「來源與推播」連結並傳測試推播。

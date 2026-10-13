@@ -2429,7 +2429,7 @@ Verification:
 - [x] 連結成立與解除各留一筆稽核。
 - [x] 官方帳號被拉進群組會立刻離開，群組訊息不保存內容。
 - [x] 沒有設定密鑰的環境：webhook 不收、綁定動作被擋、畫面顯示尚未開通與等誰。
-- [ ] 推上正式站（Owner 指示後）；正式庫套用 migration。
+- [x] 推上正式站（Owner 2026-10-13 指示，`086f90cc6f`）；正式庫套用 migration（`prisma migrate status`：up to date）。未簽章的 POST 回空的 200、GET 回 405、未登入打 `/api/company/line` 回 401。
 - [ ] Owner 設定兩個環境變數、在 LINE 後台填 webhook URL 並按 Verify；「來源與推播」四個步驟全部打勾。
 - [ ] 兩個席位各自用真的 LINE 帳號連結並收到測試推播。
 
