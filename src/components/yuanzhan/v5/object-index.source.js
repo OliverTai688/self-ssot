@@ -242,10 +242,20 @@ function oiBornCell(r) {
   if (r.born) return `<td class="oi-mono">${esc(oiFmtTime(r.born))}</td>`;
   return `<td class="oi-mono oi-dim" title="這個物件沒有建立時刻，顯示的是來源日">${esc(oiFmtDay(r.day))}</td>`;
 }
+/* 狀態欄：議題物件即時推導（agenda-object.source.js 的 agStatusInfo／agConcCredit），
+   每次 render 重算，另一個席位的變更由 operating-persistence 的輪詢合併後一起反映。
+   其他型別目前沒有統一的狀態語意，留白而不是硬湊一個。 */
+function oiStatusCell(r) {
+  const d = r.ty === 'doc_object' && typeof agFind === 'function' ? agFind(r.id) : null;
+  if (!d) return '<td class="oi-dim">—</td>';
+  const credit = agConcCredit(d);
+  return `<td class="oi-st">${agStatePill(d)}${credit ? `<span class="oi-st-by">${esc(credit)}</span>` : ''}</td>`;
+}
 function oiRowHtml(r) {
   return `<tr>
     <td><span class="chip ${r.chip}">${esc(r.tyNm)}</span></td>
     <td><span class="oi-nm">${esc(r.name)}</span>${oiCodeBadge(r.code)}${r.snip ? `<span class="oi-snip">${r.snip}</span>` : ''}</td>
+    ${oiStatusCell(r)}
     ${oiBornCell(r)}
     <td>${oiSrcCell(r)}</td>
     <td class="oi-mono oi-dim">${r.updated ? esc(oiFmtTime(r.updated)) : '—'}</td>
@@ -258,7 +268,7 @@ function oiGroupRow(m, all) {
   const inM = all.filter(r => oiMonth(r.day) === m), marks = [];
   inM.forEach(r => { if (r.landmark && marks.indexOf(r.landmark) < 0 && marks.length < 2) marks.push(r.landmark); });
   const label = m ? m.slice(0, 4) + ' 年 ' + Number(m.slice(5, 7)) + ' 月' : '無日期';
-  return `<tr class="oi-grp"><td colspan="6">${esc(label)}<span class="n">${inM.length}</span>${marks.length ? `<span class="lmk">${esc(marks.join(' · '))}</span>` : ''}</td></tr>`;
+  return `<tr class="oi-grp"><td colspan="7">${esc(label)}<span class="n">${inM.length}</span>${marks.length ? `<span class="lmk">${esc(marks.join(' · '))}</span>` : ''}</td></tr>`;
 }
 
 function oiEmpty() {
@@ -282,9 +292,9 @@ function oiTable(page, all) {
     body += oiRowHtml(r);
   });
   return `<div class="tbl-wrap"><table class="tbl oi-tbl">
-    <thead><tr><th class="oi-w1">型別</th><th>物件</th><th class="oi-w2">建立時間</th>
+    <thead><tr><th class="oi-w1">型別</th><th>物件</th><th class="oi-w6">狀態</th><th class="oi-w2">建立時間</th>
       <th class="oi-w3">來源日誌</th><th class="oi-w4">最後更新</th><th class="oi-w5"></th></tr></thead>
-    <tbody>${body || `<tr><td colspan="6">${oiEmpty()}</td></tr>`}</tbody></table></div>`;
+    <tbody>${body || `<tr><td colspan="7">${oiEmpty()}</td></tr>`}</tbody></table></div>`;
 }
 
 function oiTimeline(page) {

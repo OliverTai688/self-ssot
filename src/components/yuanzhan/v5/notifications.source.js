@@ -24,7 +24,7 @@ root.querySelector('#densBtn')?.remove();
  if(!audit)return;
  const btn=doc.createElement('button');
  btn.className='iconbtn';btn.id='noticeBtn';btn.type='button';
- btn.title='通知：有人 @ 我、請我回覆，或在我的日誌留言';
+ btn.title='通知：有人 @ 我、請我回覆、寫了議題結論，或在我的日誌留言';
  btn.setAttribute('aria-label','通知');
  btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/></svg><i class="n" id="noticeN">0</i>`;
  btn.addEventListener('click',()=>openNotices());
@@ -58,6 +58,8 @@ function ntItems(){
  // 任務指派：資料形狀由 agenda-object.source.js 提供，這裡只負責併進通知匣。
  // 與其他來源一樣是從既有資料推導，沒有自己的表。
  out.push(...agAssignNotices());
+ // 議題結論：有人寫了結論等我決定、或我提的結論有了結果。同樣從物件推導。
+ out.push(...agCloseNotices());
  for(const c of DB.lineComments){
   if(c.author!==DB.me||c.w===DB.me)continue;
   out.push({kind:'line',ref:c.id,at:Date.parse(c.day+'T'+(c.ts||'00:00')+':00')||0,seen:true,tone:'',
@@ -81,7 +83,7 @@ function openNotices(){openDrawer('notice','x',true)}
 function ntOpen(kind,ref){
  if(kind==='notice'||kind==='reply')return rqJump(ref);
  if(kind==='ask')return rqJump(ref,true);
- if(kind==='task'){closeDrawer();return openDocPage(ref)}
+ if(kind==='task'||kind==='agclose'||kind==='agverdict'){closeDrawer();return openDocPage(ref)}
  const c=kind==='line'?DB.lineComments.find(x=>x.id===ref)
   :DB.journalComments.find(x=>x.id===ref);
  if(!c)return toast('這則留言已不存在');
@@ -98,6 +100,7 @@ function ntMarkAllSeen(){
  let n=0;
  for(const r of DB.requests)if(r.to===DB.me&&!r.seenAt&&(r.kind==='notice'||rqPending(r))){r.seenAt=Date.now();n++}
  n+=agMarkAssignSeen();
+ n+=agMarkCloseSeen();
  if(n)opTouch();
  return n;
 }
@@ -125,7 +128,7 @@ DRAWERS.notice=()=>{
  };
 };
 
-const NT_LABEL={notice:'只通知 · 不用回覆',ask:'需要你回覆',task:'指派給你的任務',reply:'你的請求有回覆',line:'行內留言',page:'整頁留言'};
+const NT_LABEL={notice:'只通知 · 不用回覆',ask:'需要你回覆',task:'指派給你的任務',agclose:'請你決定是否結案',agverdict:'你提的結論有結果',reply:'你的請求有回覆',line:'行內留言',page:'整頁留言'};
 
 function paintNoticeBadge(){
  const el=root.querySelector('#noticeN');if(!el)return;

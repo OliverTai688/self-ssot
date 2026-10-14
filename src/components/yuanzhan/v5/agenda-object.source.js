@@ -50,6 +50,14 @@ function agState(d) {
   // 通知匣本來就是從既有資料推導的（沒有自己的表），這兩個時間戳讓任務也能這樣推導。
   if (st.assignedAt === undefined) st.assignedAt = 0;
   if (st.assignSeenAt === undefined) st.assignSeenAt = 0;
+  // 結論與結案的責任紀錄：誰寫的結論、誰同意結案。
+  // proposal＝非建立者送出、等建立者決定的結論；verdict＝建立者的決定，用來通知提出的人。
+  if (st.concBy === undefined) st.concBy = '';
+  if (st.concAt === undefined) st.concAt = 0;
+  if (st.closedBy === undefined) st.closedBy = '';
+  if (st.proposal === undefined) st.proposal = null;
+  if (st.verdict === undefined) st.verdict = null;
+  if (!Array.isArray(st.concLog)) st.concLog = [];
   return st;
 }
 function agIs(d) { return !!d && d.type === 'agenda'; }
@@ -64,12 +72,25 @@ function agResponsible(d) { return agState(d).owner || d.author; }
 function agTaskState(d) {
   const st = agState(d);
   if (st.doneAt) return 'done';
+  if (st.proposal) return 'review';        // 有人寫了結論、等建立者決定 —— 議題與任務都適用
   if (!st.owner) return 'issue';           // 議題不進逾期計算
   if (st.due && st.due < TODAY) return 'over';
   if (st.msgs.length) return 'doing';
   return 'todo';
 }
-const AG_STATE_LABEL = { done: '已完成', issue: '議題', over: '逾期', doing: '進行中', todo: '待辦' };
+const AG_STATE_LABEL = { done: '已完成', review: '待確認結案', issue: '議題', over: '逾期', doing: '進行中', todo: '待辦' };
+/**
+ * 給「看得到狀態」的地方用（物件索引、議題卡、議題頁）：議題也要有狀態。
+ * agTaskState 的 'issue' 只說「沒有負責人」，不說進度；這裡把它再分成開放／討論中。
+ * pill class 沿用既有的四色三階（todo/doing/over/done），待確認結案另走 review。
+ */
+function agStatusInfo(d) {
+  const k = agTaskState(d), st = agState(d);
+  if (k === 'done') return { k: 'done', cls: 'done', label: agIsTask(d) ? '已完成' : '已結案' };
+  if (k === 'review') return { k: 'review', cls: 'review', label: '待確認結案' };
+  if (k === 'issue') return st.msgs.length ? { k: 'discuss', cls: 'doing', label: '討論中' } : { k: 'open', cls: 'todo', label: '開放' };
+  return { k, cls: k, label: AG_STATE_LABEL[k] };
+}
 function agFind(id) { const d = (DB.docObjects || []).find(x => x.id === id); return agIs(d) ? d : null; }
 function agAll() { return (DB.docObjects || []).filter(agIs); }
 function agDone(d) { return !!agState(d).doneAt; }
@@ -336,7 +357,13 @@ function agRepaintPageState(id) {
 function agComplete(id) {
   const d = agFind(id);
   if (!d) return;
-  if (!agOwned(d)) return deny();
+  // 結案是建立者的決定。其他人（含被指派的負責人）寫結論走「提出結論」，由建立者同意或繼續討論。
+  if (d.author !== DB.me) {
+    openDocPage(id);
+    return toast(`在「提出結論」寫下結論後送出，${person(d.author)} 會收到通知並決定是否結案`);
+  }
+  // 已經有人提出結論在等：建立者按結案＝同意那一份。
+  if (agState(d).proposal) return agAccept(id);
   /* 按鈕是 mousedown 才讓焦點離開可編輯區的，最後一段文字（尤其注音組字剛結束那一下）
    * 有機會還沒回寫到 model。讀結論之前先回寫一次，否則「剛打完就按結案」會被誤判成沒有結論，
    * 而那一次誤判還會重畫獨立頁面，把畫面上看得到的字一起洗掉。 */
@@ -347,9 +374,14 @@ function agComplete(id) {
   }
   const st = agState(d);
   commit('update', '議題物件', docObjectName(d), () => {
-    st.doneAt = Date.now();
-    d.updatedAt = Date.now();
-    return ['議題結案，結論留在物件裡', '從收工檢查與右欄移除'];
+    const now = Date.now();
+    st.doneAt = now;
+    st.concBy = DB.me;
+    st.concAt = now;
+    st.closedBy = DB.me;
+    st.concLog.push({ act: 'close', by: DB.me, at: now });
+    d.updatedAt = now;
+    return ['議題結案，結論留在物件裡', `結論由 ${person(DB.me)} 撰寫`, '從收工檢查與右欄移除'];
   });
   agRepaintPage(id);
 }
@@ -361,11 +393,157 @@ function agReopen(id) {
   const st = agState(d);
   commit('update', '議題物件', docObjectName(d), () => {
     st.doneAt = 0;
+    st.concLog.push({ act: 'reopen', by: DB.me, at: Date.now() });
     d.updatedAt = Date.now();
-    return ['重新開啟這個議題'];
+    return ['重新開啟這個議題', st.concBy ? `上一次的結論（${person(st.concBy)} 撰寫）仍留在結論段` : ''].filter(Boolean);
   });
   agRepaintPage(id);
 }
+
+/* ---------- 結論：誰都能寫，建立者決定要不要結案 ----------
+ *
+ * 結論段是建立者的正文（docWritable 只給作者編輯），所以其他人寫結論走另一條路：
+ * 送出一份「結論提案」，記下是誰寫的，並通知建立者。建立者兩個選擇：
+ *   · 同意並結案 —— 提案寫進結論段，記錄撰寫人與確認人，議題結案。
+ *   · 繼續討論 —— 提案原文移進討論串（不丟字），議題維持開啟。
+ * 不論哪一種，提出的人都會收到結果通知。 */
+
+const agConcDrafts = new Map();
+
+function agPropose(id) {
+  const d = agFind(id);
+  if (!d) return;
+  const st = agState(d);
+  if (st.doneAt) return toast('這個議題已經結案');
+  if (d.author === DB.me) return toast('你是建立者：直接在「結論」段寫下決定，再按「完成並結案」');
+  if (st.proposal && st.proposal.by !== DB.me) return toast(`${person(st.proposal.by)} 已經提出結論，等 ${person(d.author)} 決定中`);
+  const x = (agConcDrafts.get(id) || '').trim();
+  if (!x) return toast('先寫下結論、決定或下一步，再送出');
+  commit('update', '議題物件', docObjectName(d), () => {
+    const now = Date.now();
+    st.proposal = { by: DB.me, at: now, text: x, seenAt: 0 };
+    st.verdict = null;
+    st.concLog.push({ act: 'propose', by: DB.me, at: now, text: x });
+    agConcDrafts.delete(id);
+    d.updatedAt = now;
+    return [`${person(DB.me)} 提出結論`, `已通知 ${person(d.author)} 決定是否結案`];
+  });
+  agRepaintPage(id);
+}
+
+/** 提案者自己撤回（例如發現寫錯了）。撤回不通知建立者 —— 通知本來就是從 proposal 推導的，它消失就不再出現。 */
+function agWithdraw(id) {
+  const d = agFind(id);
+  if (!d) return;
+  const st = agState(d);
+  if (!st.proposal || st.proposal.by !== DB.me) return deny();
+  commit('update', '議題物件', docObjectName(d), () => {
+    agConcDrafts.set(id, st.proposal.text);   // 撤回的字放回輸入框，改一改可以再送
+    st.concLog.push({ act: 'withdraw', by: DB.me, at: Date.now() });
+    st.proposal = null;
+    d.updatedAt = Date.now();
+    return ['撤回結論提案'];
+  });
+  agRepaintPage(id);
+}
+
+/** 建立者同意：提案寫進結論段（結論段原本有字就接在後面），記下撰寫人與確認人，結案。 */
+function agAccept(id) {
+  const d = agFind(id);
+  if (!d) return;
+  const st = agState(d), pr = st.proposal;
+  if (!pr) return;
+  if (d.author !== DB.me) return deny();
+  syncAll();
+  commit('update', '議題物件', docObjectName(d), () => {
+    const now = Date.now();
+    const blocks = ensureSecBlocks(d.secs[1]);
+    const lines = pr.text.split(/\n+/).map(t => t.trim()).filter(Boolean)
+      .map(text => ({ id: newBid(), t: 'p', ind: 0, text }));
+    if (!agConclusion(d)) blocks.length = 0;
+    blocks.push(...lines);
+    st.doneAt = now;
+    st.concBy = pr.by;
+    st.concAt = pr.at;
+    st.closedBy = DB.me;
+    st.concLog.push({ act: 'accept', by: DB.me, at: now, of: pr.by });
+    st.verdict = { act: 'accept', to: pr.by, by: DB.me, at: now, seenAt: 0 };
+    st.proposal = null;
+    d.updatedAt = now;
+    return [`同意 ${person(pr.by)} 的結論並結案`, `結論由 ${person(pr.by)} 撰寫，${person(DB.me)} 確認`, `已通知 ${person(pr.by)}`];
+  });
+  agRepaintPage(id);
+}
+
+/** 建立者選擇繼續討論：提案原文移進討論串（不丟字），可附一句理由，議題維持開啟。 */
+function agContinue(id) {
+  const d = agFind(id);
+  if (!d) return;
+  const st = agState(d), pr = st.proposal;
+  if (!pr) return;
+  if (d.author !== DB.me) return deny();
+  const note = (agConcDrafts.get(id + ':note') || '').trim();
+  commit('update', '議題物件', docObjectName(d), () => {
+    const now = Date.now(), ts = nowts().slice(0, 5);
+    st.msgs.push({ w: pr.by, x: '結論提案（未結案）：' + pr.text, ts, at: pr.at, kind: 'proposal' });
+    if (note) st.msgs.push({ w: DB.me, x: note, ts, at: now });
+    st.concLog.push({ act: 'continue', by: DB.me, at: now, of: pr.by, note });
+    st.verdict = { act: 'continue', to: pr.by, by: DB.me, at: now, seenAt: 0, note };
+    st.proposal = null;
+    agConcDrafts.delete(id + ':note');
+    d.updatedAt = now;
+    return [`${person(DB.me)} 選擇繼續討論`, '提案原文已移進討論串', `已通知 ${person(pr.by)}`];
+  });
+  agRepaintPage(id);
+}
+
+/** 「結論由誰寫、誰確認」一行字。議題頁欄位、物件索引共用。 */
+function agConcCredit(d) {
+  const st = agState(d);
+  if (st.proposal) return `${person(st.proposal.by)} 提出結論 · 等 ${person(d.author)} 決定`;
+  if (!st.concBy) return '';
+  const by = person(st.concBy);
+  if (!st.doneAt) return `上次結論 ${by} 撰寫 · 已重新開啟`;
+  return st.closedBy && st.closedBy !== st.concBy ? `結論 ${by} 撰寫 · ${person(st.closedBy)} 確認結案` : `結論 ${by} 撰寫並結案`;
+}
+
+/** 結論區塊：卡片與議題頁共用。依「我是誰」與「目前有沒有提案」決定長相。 */
+function agConcHtml(d, where) {
+  const st = agState(d), pr = st.proposal, mine = d.author === DB.me;
+  let inner = '';
+  if (st.doneAt) {
+    if (!st.concBy) return '';
+    inner = `<div class="ag-conc-h">${svg('check', 12)} ${esc(agConcCredit(d))}</div>`;
+  } else if (pr) {
+    const head = `<div class="ag-conc-h">${rqAv(pr.by)} <b>${esc(person(pr.by))}</b> 提出結論 <span class="rq-meta">${esc(ntTimeSafe(pr.at))}</span></div>
+      <div class="ag-conc-x">${esc(pr.text)}</div>`;
+    if (mine) {
+      inner = head + `<div class="rq-compose ag-compose">
+        <input data-ag-note="${d.id}" aria-label="繼續討論的理由（選填）" placeholder="繼續討論的理由（選填）…" value="${esc(agConcDrafts.get(d.id + ':note') || '')}"
+          oninput="event.stopPropagation();agConcDrafts.set('${d.id}:note',this.value)" onkeydown="event.stopPropagation()">
+        <button class="btn sm" onclick="agContinue('${d.id}')">${svg('message', 12)} 繼續討論</button>
+        <button class="btn sm pri" onclick="agAccept('${d.id}')">${svg('check', 12)} 同意並結案</button></div>`;
+    } else if (pr.by === DB.me) {
+      inner = head + `<div class="ag-conc-foot"><span class="rq-meta">已通知 ${esc(person(d.author))}，等他決定結案或繼續討論</span>
+        <button class="btn sm" onclick="agWithdraw('${d.id}')">撤回</button></div>`;
+    } else {
+      inner = head + `<div class="ag-conc-foot"><span class="rq-meta">等 ${esc(person(d.author))} 決定</span></div>`;
+    }
+  } else if (!mine) {
+    const v = st.verdict && st.verdict.to === DB.me && st.verdict.act === 'continue'
+      ? `<div class="ag-conc-h">${svg('message', 12)} ${esc(person(st.verdict.by))} 選擇繼續討論${st.verdict.note ? '：' + esc(st.verdict.note) : ''}</div>` : '';
+    inner = v + `<div class="ag-conc-h">${svg('flag', 12)} 提出結論 <span class="rq-meta">送出後通知 ${esc(person(d.author))}，由他決定結案或繼續討論</span></div>
+      <div class="rq-compose ag-compose ag-conc-compose">
+        <textarea data-ag-conc="${d.id}" rows="2" aria-label="結論：${esc(docObjectName(d))}" placeholder="結論、決定與下一步…"
+          oninput="event.stopPropagation();agConcDrafts.set('${d.id}',this.value)" onkeydown="event.stopPropagation()">${esc(agConcDrafts.get(d.id) || '')}</textarea>
+        <button class="btn sm pri" onclick="agPropose('${d.id}')">${svg('send', 12)} 送出結論</button></div>`;
+  } else {
+    return '';
+  }
+  return `<div class="ag-conc ${where} ${pr ? 'pending' : ''}" contenteditable="false">${inner}</div>`;
+}
+/** 通知匣的 ntTime 住在 notifications.source.js（載入順序在後），這裡呼叫時才解析。 */
+function ntTimeSafe(ms) { return typeof ntTime === 'function' ? ntTime(ms) : ''; }
 
 /* ---------- 討論與附件 ---------- */
 
@@ -411,10 +589,11 @@ function agAttach(id) {
 
 /** 狀態 pill：顏色只在這裡出現。四個狀態各自走 --ag-<state>-{bg,br,ink} 三階。 */
 function agStatePill(d) {
-  const k = agTaskState(d);
-  if (k === 'issue') return '';                       // 議題不宣告狀態，避免與「待辦」混淆
-  const ic = k === 'done' ? 'check' : k === 'over' ? 'refresh' : 'dot';
-  return `<span class="ag-pill ${k}">${svg(ic, k === 'done' ? 11 : 9)} ${AG_STATE_LABEL[k]}</span>`;
+  // 議題也宣告狀態（開放／討論中／待確認結案／已結案）—— 物件索引與卡片要即時看得出進度。
+  // 用字刻意跟任務的「待辦／進行中」分開，兩者不會混淆。
+  const i = agStatusInfo(d);
+  const ic = i.k === 'done' ? 'check' : i.k === 'over' ? 'refresh' : i.k === 'review' ? 'flag' : 'dot';
+  return `<span class="ag-pill ${i.cls}">${svg(ic, i.k === 'done' ? 11 : 9)} ${i.label}</span>`;
 }
 /** 負責人 pill：頭像已經帶顏色，外框保持中性，不再多開一組色。 */
 function agOwnerPill(d) {
@@ -486,6 +665,7 @@ renderDocObjectCard = function (b) {
     </div>
     ${collapsed ? '' : `<div class="eb-doc-inline-body">
       ${d.secs.map((sec, idx) => renderDocSectionBody(d, sec, idx, meta)).join('')}
+      ${agConcHtml(d, 'card')}
       ${agThreadHtml(d, 'card')}
     </div>`}
   </div>`;
@@ -524,7 +704,8 @@ function agFieldsHtml(d) {
         <div class="ag-f"><span class="k">負責</span><span class="v">${agOwnerControls(d)}</span></div>
         <div class="ag-f"><span class="k">到期</span><span class="v">${agDueControls(d)}</span></div>
         <div class="ag-f"><span class="k">帶過</span><span class="v">${st.carried.length ? `<b>${st.carried.length} 次</b> · ${esc(st.carried.join('、'))}` : '沒有延期過'}</span></div>
-        <div class="ag-f"><span class="k">狀態</span><span class="v">${agStatePill(d) || '<span class="ag-pill soft">議題 · 尚未指派負責人</span>'}</span></div>
+        <div class="ag-f"><span class="k">狀態</span><span class="v">${agStatePill(d)}${agIsTask(d) ? '' : ' <span class="ag-pill soft">議題 · 尚未指派負責人</span>'}</span></div>
+        <div class="ag-f"><span class="k">結論</span><span class="v">${esc(agConcCredit(d) || (d.author === DB.me ? '還沒有結論' : `還沒有結論 · 任何人都可以提出，由 ${person(d.author)} 決定結案`))}</span></div>
       </div>`;
 }
 
@@ -547,13 +728,14 @@ DRAWERS.doc_object = id => {
       <div class="doc-page-workspace">
         ${d.secs.map((sec, idx) => renderDocSectionBody(d, sec, idx, meta)).join('')}
       </div>
+      ${agConcHtml(d, 'page')}
       ${agThreadHtml(d, 'page')}
     `,
     foot: `
       ${st.doneAt
-        ? `<button class="btn" onclick="agReopen('${d.id}')">${svg('refresh', 12)} 重新開啟</button>`
-        : `<button class="btn" onclick="agCarryTo('${d.id}','${dadd(TODAY, 1)}')">${svg('goto', 12)} 延到明天</button>
-           <button class="btn pri" onclick="agComplete('${d.id}')">${svg('check', 12)} 完成並結案</button>`}
+        ? (agOwned(d) ? `<button class="btn" onclick="agReopen('${d.id}')">${svg('refresh', 12)} 重新開啟</button>` : '')
+        : `${agOwned(d) ? `<button class="btn" onclick="agCarryTo('${d.id}','${dadd(TODAY, 1)}')">${svg('goto', 12)} 延到明天</button>` : ''}
+           ${d.author === DB.me ? `<button class="btn pri" onclick="agComplete('${d.id}')">${svg('check', 12)} ${st.proposal ? '同意並結案' : '完成並結案'}</button>` : ''}`}
       <button class="btn" onclick="copyDocMarkdown('${d.id}')">${svg('copy', 12)} 複製全文</button>
       <button class="btn dgr" style="margin-left:auto" onclick="deleteDocObject('${d.id}')">${svg('trash', 12)} 刪除議題</button>
     `,
@@ -615,6 +797,44 @@ function agAssignNotices(who = DB.me) {
     };
   });
 }
+/**
+ * 結論通知：
+ *   · 給建立者：有人提出結論，等你決定（同意結案／繼續討論）。
+ *   · 給提出的人：建立者的決定。
+ * 一樣從物件本身推導，不另開表；已讀記在 proposal.seenAt／verdict.seenAt。
+ */
+function agCloseNotices(who = DB.me) {
+  const out = [];
+  agAll().forEach(d => {
+    const st = agState(d);
+    if (st.proposal && d.author === who && st.proposal.by !== who) {
+      out.push({
+        kind: 'agclose', ref: d.id, at: st.proposal.at, seen: !!st.proposal.seenAt, tone: 'ask',
+        title: `${person(st.proposal.by)} 寫了結論，請你決定是否結案`,
+        text: docObjectName(d) + ' · ' + st.proposal.text
+      });
+    }
+    const v = st.verdict;
+    if (v && v.to === who && v.by !== who) {
+      out.push({
+        kind: 'agverdict', ref: d.id, at: v.at, seen: !!v.seenAt, tone: v.act === 'accept' ? 'replied' : 'ask',
+        title: v.act === 'accept' ? `${person(v.by)} 同意你的結論並結案` : `${person(v.by)} 選擇繼續討論`,
+        text: docObjectName(d) + (v.note ? ' · ' + v.note : '')
+      });
+    }
+  });
+  return out;
+}
+function agMarkCloseSeen(who = DB.me) {
+  let n = 0;
+  agAll().forEach(d => {
+    const st = agState(d);
+    if (st.proposal && d.author === who && st.proposal.by !== who && !st.proposal.seenAt) { st.proposal.seenAt = Date.now(); n++; }
+    if (st.verdict && st.verdict.to === who && !st.verdict.seenAt) { st.verdict.seenAt = Date.now(); n++; }
+  });
+  return n;
+}
+
 /** 打開通知匣＝讀過。回傳這次標掉幾筆，讓呼叫端算總數。 */
 function agMarkAssignSeen(who = DB.me) {
   let n = 0;
@@ -732,3 +952,15 @@ buildCmdk = () => {
     ic: 'flag', run: () => { if (open[0]) openDocPage(open[0].id); else nav('journal', 0); }
   }];
 };
+
+/* ---------- 即時：別的席位改了議題，打開的議題頁跟著換 ----------
+ * operating-persistence 的輪詢合併了遠端資料之後呼叫這裡。render() 只重畫工作台，
+ * 抽屜不在範圍內 —— 不補這一下，建立者開著議題頁時對方送來的結論提案看不到。
+ * 正在輸入（標題、段落、輸入框）時不重畫，避免把打到一半的字洗掉。 */
+function agLiveRepaint() {
+  const stack = S.stack || [], top = stack[stack.length - 1];
+  if (!top || !root.querySelector('#drawer.on')) return;
+  const a = shadow.activeElement;
+  if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+  if ((top.type === 'doc_object' && agFind(top.id)) || top.type === 'notice') paintDrawer();
+}

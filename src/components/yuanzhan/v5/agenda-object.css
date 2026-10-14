@@ -14,6 +14,7 @@
 .ag-pill.due{border-color:var(--ag-doing-br,#2c3a5c);color:var(--ag-doing-ink,#4ea1ff);background:var(--ag-doing-bg,#0f1726)}
 .ag-pill.warn{border-color:var(--ag-todo-br,#333b45);color:var(--ag-todo-ink,#959fad);background:var(--ag-todo-bg,#161a20)}
 .ag-pill.over{border-color:var(--ag-over-br,#5e2a2c);color:var(--ag-over-ink,#ff8a8c);background:var(--ag-over-bg,#2a1416);font-weight:600}
+.ag-pill.review{border-color:var(--rq-warn-br,#6a4520);color:var(--rq-warn,#f0924f);background:var(--rq-warn-bg,#2a1a0c);font-weight:600}
 .ag-pill.done{border-color:var(--ag-done-br,#2a4a3a);color:var(--ag-done-ink,#5fd09a);background:var(--ag-done-bg,#10221a)}
 /* 負責人：任務才有。頭像（.rq-av）已帶顏色，外框保持中性，不再多開一組色。 */
 .ag-pill.own{border-color:var(--border-2);color:var(--text-2);background:var(--surface-2);gap:5px}
@@ -101,3 +102,14 @@ button.ag-file:hover{background:var(--hover-overlay,var(--surface-3));color:var(
   .ag-rv-row{grid-template-columns:auto 1fr}
   .ag-rv-r{grid-column:2;justify-content:flex-start;margin-top:6px}
 }
+
+/* ---- 結論提案：任何人都能寫，建立者決定結案或繼續討論 ---- */
+.ag-conc{margin:10px 0 4px;padding:10px 12px;border:1px solid var(--border-2);border-radius:10px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}
+.ag-conc.pending{border-color:var(--rq-warn-br,#6a4520);background:var(--rq-warn-bg,#2a1a0c)}
+.ag-conc-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--text-2)}
+.ag-conc-h b{color:var(--text)}
+.ag-conc-x{white-space:pre-wrap;font-size:13px;line-height:1.6;color:var(--text);padding-left:2px}
+.ag-conc-foot{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.ag-conc-compose textarea{flex:1;min-width:160px;resize:vertical;min-height:44px;font:inherit;font-size:13px;line-height:1.5;
+  padding:6px 8px;border:1px solid var(--border-2);border-radius:8px;background:var(--surface);color:var(--text)}
+.ag-conc-compose{align-items:flex-end}

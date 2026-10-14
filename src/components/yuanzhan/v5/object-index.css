@@ -44,7 +44,10 @@
 .oi-tbl th{position:sticky;top:0;z-index:2;background:var(--surface-2,#f7f8fa)}
 .oi-tbl td{vertical-align:middle}
 .oi-tbl .oi-w1{width:96px}.oi-tbl .oi-w2{width:112px}.oi-tbl .oi-w3{width:236px}
-.oi-tbl .oi-w4{width:104px}.oi-tbl .oi-w5{width:74px}
+.oi-tbl .oi-w4{width:104px}.oi-tbl .oi-w5{width:74px}.oi-tbl .oi-w6{width:168px}
+/* 狀態欄：議題的狀態 pill，底下一行小字記「結論誰寫、誰確認」。 */
+.oi-st{white-space:normal}
+.oi-st-by{display:block;margin-top:3px;font-size:11px;line-height:1.35;color:var(--text-3,#8a9099)}
 .oi-nm{font-weight:500;color:var(--text,#191c20)}
 .oi-mono{font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:12px;white-space:nowrap}
 .oi-dim{color:var(--text-3,#8a9099)}

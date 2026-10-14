@@ -381,6 +381,9 @@ function opPaintStatus() {
  * 所以先做到「看得出來」：回到這個分頁時比對伺服器版本，落後就提示。
  * 這比靜靜地讓兩份資料分岔好，也比自動覆蓋安全。
  */
+/** 即時輪詢間隔。兩人制、只比版本號，15 秒的成本很低，又短到「對方剛寫的結論」不必等。 */
+const OP_LIVE_POLL_MS = 15000;
+
 async function opCheckRemoteVersion() {
   if (!OP_LIVE || OP_SENDING) return;
   try {
@@ -493,6 +496,23 @@ if (OP_LIVE) {
     if (doc.visibilityState === 'visible') opCheckRemoteVersion();
   }, { signal: controller.signal });
   opSyncVersion();
+
+  /* 即時：分頁開著的時候也要看得到另一個席位的變更（議題狀態、結論提案、通知徽章）。
+   * 只比對版本號，落後才合併；合併本身是逐列、保留未送出的編輯（opMergeRemote）。
+   * 正在輸入、組字、或佇列裡還有沒送出的東西時跳過這一輪 —— render() 會重畫書寫區，
+   * 打到一半的字與游標不能被輪詢打斷。 */
+  // 只在有生命週期（abort signal）可以收掉計時器的環境啟動，卸載時一起清掉。
+  if (controller.signal) {
+    const opLiveTimer = setInterval(async () => {
+      if (doc.visibilityState !== 'visible' || OP_SENDING || OP_QUEUE.length) return;
+      const a = shadow.activeElement;
+      if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+      const before = OP_VERSION;
+      await opCheckRemoteVersion();
+      if (OP_VERSION !== before && typeof agLiveRepaint === 'function') agLiveRepaint();
+    }, OP_LIVE_POLL_MS);
+    controller.signal.addEventListener('abort', () => clearInterval(opLiveTimer));
+  }
 }
 
 /* ==================================================================

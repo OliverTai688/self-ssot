@@ -123,7 +123,7 @@ const stubs = {
 };
 
 const names = Object.keys(stubs);
-const exported = 'return {agCreate,agPromote,agFind,agAll,agState,agOpenToday,agDueLabel,agSetDue,agCarryTo,agComplete,agReopen,agSay,agAttach,agDrafts,agTodayBody,agCloseRows,agCarryAllOpen,agPills,agThreadHtml,agConclusion,renderDocObjectCard,DRAWERS,buildCmdk,DOC_METAS,TPL,SUMMON,agIsTask,agResponsible,agTaskState,agSetOwner,agParseDue,agParseTask,agTasks,agOverdue,agStatePill,agOwnerPill,agOwned,agReviewGroups,agReviewHtml,agReviewStats,VIEWS,agCarryAllOpen,agAssignedToMe,agAssignNotices,agMarkAssignSeen,agCloseRows};';
+const exported = 'return {agCreate,agPromote,agFind,agAll,agState,agOpenToday,agDueLabel,agSetDue,agCarryTo,agComplete,agReopen,agSay,agAttach,agDrafts,agTodayBody,agCloseRows,agCarryAllOpen,agPills,agThreadHtml,agConclusion,renderDocObjectCard,DRAWERS,buildCmdk,DOC_METAS,TPL,SUMMON,agIsTask,agResponsible,agTaskState,agSetOwner,agParseDue,agParseTask,agTasks,agOverdue,agStatePill,agOwnerPill,agOwned,agReviewGroups,agReviewHtml,agReviewStats,VIEWS,agCarryAllOpen,agAssignedToMe,agAssignNotices,agMarkAssignSeen,agCloseRows,agPropose,agAccept,agContinue,agWithdraw,agConcDrafts,agCloseNotices,agMarkCloseSeen,agStatusInfo,agConcCredit,agConcHtml};';
 const api = new Function(...names, code + '\n' + exported)(...names.map(n => stubs[n]));
 
 /* ---- 驗收 1：型別註冊 → 物件索引 facet 與 # 召喚選單都拿得到 ---- */
@@ -377,10 +377,10 @@ ok('T10f #選單只有一個入口，但打「任務」也找得到（ds 帶得�
   return !!it && (it.nm + it.ds).includes('任務'); })());
 
 /* ---- 顏色：狀態只由 pill 表達 ---- */
-ok('T11 狀態 pill 走 --ag-<state> 三階 class，議題不宣告狀態', (() => {
+ok('T11 狀態 pill 走 --ag-<state> 三階 class；議題也宣告狀態（開放／討論中），用字與任務分開', (() => {
   const d = api.agCreate(mkLine('待辦一件事'), { owner: 'lily' });
-  const pill = api.agStatePill(d);
-  return pill.includes('ag-pill todo') && api.agStatePill(tIssue) === ''; })());
+  const pill = api.agStatePill(d), ip = api.agStatePill(tIssue);
+  return pill.includes('ag-pill todo') && pill.includes('待辦') && /開放|討論中/.test(ip) && !ip.includes('待辦'); })());
 ok('T11b 負責人 pill 用既有頭像，沒有自己另開一組色',
   api.agOwnerPill(api.agCreate(mkLine('指派一件事'), { owner: 'lily' })).includes('ag-pill own'));
 
@@ -538,6 +538,103 @@ const nt = fs.readFileSync(path.join(V5, 'notifications.source.js'), 'utf8');
 ok('S9 通知匣接上任務指派（併入、跳轉、已讀、標籤四處）',
   nt.includes('agAssignNotices()') && nt.includes("kind==='task'")
   && nt.includes('agMarkAssignSeen()') && nt.includes("task:'指派給你的任務'"));
+
+/* ---- 驗收 C：結論誰都能寫，建立者決定結案或繼續討論 ---- */
+const asWho = (w, fn) => { const me = DB.me; DB.me = w; try { return fn(); } finally { DB.me = me; } };
+ok('C1 非建立者按「完成」不會直接結案，改導去提出結論', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('週會要不要改週四'));
+  asWho('lily', () => api.agComplete(d.id));
+  return !api.agState(d).doneAt && toasts[toasts.length - 1].includes('提出結論');
+})());
+ok('C2 空白結論不送出', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('空白結論'));
+  asWho('lily', () => { api.agConcDrafts.set(d.id, '   '); api.agPropose(d.id); });
+  return !api.agState(d).proposal;
+})());
+let cDoc;
+ok('C3 非建立者提出結論：記下是誰寫的，狀態變成待確認結案', (() => {
+  DB.docObjects.length = 0;
+  cDoc = api.agCreate(mkLine('週會時間'));
+  asWho('lily', () => { api.agConcDrafts.set(cDoc.id, '改到週四下午\n下週開始'); api.agPropose(cDoc.id); });
+  const st = api.agState(cDoc);
+  return st.proposal && st.proposal.by === 'lily' && api.agTaskState(cDoc) === 'review'
+    && api.agStatusInfo(cDoc).label === '待確認結案' && api.agStatePill(cDoc).includes('ag-pill review')
+    && st.concLog.some(x => x.act === 'propose' && x.by === 'lily');
+})());
+ok('C4 建立者收到通知（未讀），提出的人自己不會收到', (() => {
+  const toAuthor = api.agCloseNotices('yz'), toLily = api.agCloseNotices('lily');
+  return toAuthor.length === 1 && toAuthor[0].kind === 'agclose' && !toAuthor[0].seen
+    && toAuthor[0].title.includes('Lily') && toLily.length === 0;
+})());
+ok('C5 打開通知匣就算讀過', (() => {
+  const n = api.agMarkCloseSeen('yz');
+  return n === 1 && api.agCloseNotices('yz')[0].seen === true;
+})());
+ok('C6 卡片／議題頁：建立者看到「同意並結案／繼續討論」，提出者看到「撤回」', (() => {
+  const a = api.agConcHtml(cDoc, 'page'), b = asWho('lily', () => api.agConcHtml(cDoc, 'page'));
+  return a.includes('agAccept') && a.includes('agContinue') && b.includes('agWithdraw') && !b.includes('agAccept');
+})());
+ok('C7 非建立者不能代替建立者同意', (() => {
+  const d0 = denies.length;
+  asWho('lily', () => api.agAccept(cDoc.id));
+  return !api.agState(cDoc).doneAt && denies.length === d0 + 1;
+})());
+ok('C8 建立者同意：結論寫進結論段，記錄撰寫人＝提出者、確認人＝建立者，結案', (() => {
+  api.agAccept(cDoc.id);
+  const st = api.agState(cDoc);
+  return !!st.doneAt && st.concBy === 'lily' && st.closedBy === 'yz' && !st.proposal
+    && api.agConclusion(cDoc) === '改到週四下午\n下週開始'
+    && api.agConcCredit(cDoc).includes('Lily') && api.agConcCredit(cDoc).includes('宇星');
+})());
+ok('C9 提出者收到「同意並結案」的結果通知', (() => {
+  const n = api.agCloseNotices('lily');
+  return n.length === 1 && n[0].kind === 'agverdict' && n[0].title.includes('同意');
+})());
+ok('C10 建立者選擇繼續討論：提案原文移進討論串（不丟字）、附理由、議題維持開啟並通知提出者', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('要不要換記帳軟體'));
+  asWho('lily', () => { api.agConcDrafts.set(d.id, '換成 A 軟體'); api.agPropose(d.id); });
+  api.agConcDrafts.set(d.id + ':note', '先比較費用');
+  api.agContinue(d.id);
+  const st = api.agState(d), v = api.agCloseNotices('lily');
+  return !st.doneAt && !st.proposal && st.msgs.some(m => m.w === 'lily' && m.x.includes('換成 A 軟體'))
+    && st.msgs.some(m => m.w === 'yz' && m.x === '先比較費用')
+    && api.agStatusInfo(d).label === '討論中'
+    && v.length === 1 && v[0].title.includes('繼續討論');
+})());
+ok('C11 提出者可以撤回，字放回輸入框', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('撤回測試'));
+  asWho('lily', () => { api.agConcDrafts.set(d.id, '寫錯了'); api.agPropose(d.id); api.agWithdraw(d.id); });
+  return !api.agState(d).proposal && api.agConcDrafts.get(d.id) === '寫錯了' && api.agCloseNotices('yz').length === 0;
+})());
+ok('C12 建立者自己結案也記下撰寫人', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('自己結案'));
+  d.secs[1].blocks = [{ id: newBid(), t: 'p', ind: 0, text: '就這樣' }];
+  api.agComplete(d.id);
+  const st = api.agState(d);
+  return !!st.doneAt && st.concBy === 'yz' && st.closedBy === 'yz' && api.agConcCredit(d).includes('撰寫並結案');
+})());
+ok('C13 有提案在等時，建立者按「完成並結案」＝同意那份提案', (() => {
+  DB.docObjects.length = 0;
+  const d = api.agCreate(mkLine('按結案等於同意'));
+  asWho('lily', () => { api.agConcDrafts.set(d.id, 'Lily 的結論'); api.agPropose(d.id); });
+  api.agComplete(d.id);
+  return !!api.agState(d).doneAt && api.agState(d).concBy === 'lily';
+})());
+ok('C14 舊資料讀回時補上結論欄位預設', (() => {
+  const st = api.agState({ day: TODAY, agenda: { due: '', bornDay: TODAY, carried: [], doneAt: 0, msgs: [], files: [] } });
+  return st.concBy === '' && st.proposal === null && Array.isArray(st.concLog);
+})());
+const oiSrc = fs.readFileSync(path.join(V5, 'object-index.source.js'), 'utf8');
+ok('S10 物件索引多一欄狀態，讀議題的即時推導', oiSrc.includes('oiStatusCell') && oiSrc.includes('agStatePill(d)') && oiSrc.includes('colspan="7"'));
+ok('S11 通知匣接上結論通知（併入、跳轉、已讀、標籤）',
+  nt.includes('agCloseNotices()') && nt.includes("kind==='agclose'") && nt.includes('agMarkCloseSeen()') && nt.includes("agclose:'"));
+const per = fs.readFileSync(path.join(V5, 'operating-persistence.source.js'), 'utf8');
+ok('S12 分頁開著時輪詢遠端版本，輸入中跳過', per.includes('OP_LIVE_POLL_MS') && per.includes('isContentEditable') && per.includes('agLiveRepaint'));
 
 /* ---------------- 報告 ---------------- */
 const pad = s => s + ' '.repeat(Math.max(0, 62 - [...s].reduce((a, c) => a + (c.charCodeAt(0) > 255 ? 2 : 1), 0)));
