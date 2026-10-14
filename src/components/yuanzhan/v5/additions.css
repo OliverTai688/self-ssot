@@ -47,6 +47,10 @@
 
 /* 多選區塊高亮 */
 .eb.msel{background:var(--pri-bg)!important;outline:1px solid var(--pri-br)!important;border-radius:5px}
+/* 整行選取期間，第一行仍然帶著焦點（鍵盤事件要送得到）；把游標與原生反白藏起來，
+   畫面上才只剩一種高亮。 */
+.msel-on .eb-tx{caret-color:transparent}
+.msel-on .eb-tx::selection{background:transparent}
 
 /* 日誌文字原生全選取 */
 .doc{outline:none!important;user-select:text!important}
