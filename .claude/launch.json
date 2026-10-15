@@ -1,0 +1,67 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "yuanzhan-showcase",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/start-yuanzhan-ui-preview.mjs",
+        "showcase",
+        "3011"
+      ],
+      "port": 3011,
+      "url": "http://127.0.0.1:3011"
+    },
+    {
+      "name": "yuanzhan-empty",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/start-yuanzhan-ui-preview.mjs",
+        "empty",
+        "3012"
+      ],
+      "port": 3012,
+      "url": "http://127.0.0.1:3012"
+    },
+    {
+      "name": "operating-local-db",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PERSONAL_OS_AUTH_MODE=mock",
+        "PERSONAL_OS_DEV_USER_EMAIL=test@yzedtech.com",
+        "YUANZHAN_SEATS=test@yzedtech.com:yz",
+        "PERSONAL_OS_OPERATING_DATA_SOURCE=database",
+        "node",
+        "node_modules/next/dist/bin/next",
+        "dev",
+        "--webpack",
+        "--hostname",
+        "localhost",
+        "--port",
+        "3000"
+      ],
+      "port": 3000,
+      "url": "http://localhost:3000"
+    },
+    {
+      "name": "operating-local-db-3010",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PERSONAL_OS_AUTH_MODE=mock",
+        "PERSONAL_OS_DEV_USER_EMAIL=test@yzedtech.com",
+        "YUANZHAN_SEATS=test@yzedtech.com:yz",
+        "PERSONAL_OS_OPERATING_DATA_SOURCE=database",
+        "node",
+        "node_modules/next/dist/bin/next",
+        "dev",
+        "--webpack",
+        "--hostname",
+        "localhost",
+        "--port",
+        "3010"
+      ],
+      "port": 3010,
+      "url": "http://localhost:3010"
+    }
+  ]
+}

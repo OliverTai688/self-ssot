@@ -1,0 +1,58 @@
+{
+ "cams": [
+  {
+   "at": "s2.start+0.3",
+   "box": "omni",
+   "scale": 1.6,
+   "fy": 0.3
+  },
+  {
+   "at": "s2.start+s2.enter+0.3",
+   "box": "modal",
+   "scale": 1.5
+  },
+  {
+   "at": "s8.start+s8.confirm+0.4",
+   "box": "ctx",
+   "scale": 1.5
+  }
+ ],
+ "keys": [
+  {
+   "at": "s2.start+s2.enter",
+   "label": "Enter"
+  }
+ ],
+ "rings": [
+  {
+   "from": "s4.start+0.5",
+   "to": "s4.end-0.2",
+   "box": "row1",
+   "pad": 4
+  },
+  {
+   "from": "s6.start+0.5",
+   "to": "s6.end-0.2",
+   "box": "row2",
+   "pad": 4
+  },
+  {
+   "from": "s7.start+0.6",
+   "to": "s7.end-0.2",
+   "box": "carry",
+   "pad": 6
+  },
+  {
+   "from": "s8.start+1.6",
+   "to": "s8.start+s8.confirm",
+   "box": "confirm",
+   "pad": 6
+  },
+  {
+   "from": "s8.start+s8.ctx",
+   "to": "s8.end-0.2",
+   "box": "ctx",
+   "pad": 8
+  }
+ ]
+}

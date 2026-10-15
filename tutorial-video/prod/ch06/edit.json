@@ -1,0 +1,102 @@
+{
+ "cams": [
+  {
+   "at": "s2.start+0.2",
+   "box": "line",
+   "scale": 1.45,
+   "fy": 0.2
+  },
+  {
+   "at": "s2.start+s2.bang+0.3",
+   "box": "menu",
+   "scale": 1.5,
+   "fy": 0.36
+  },
+  {
+   "at": "s4.start+s4.enter+0.4",
+   "box": "pill",
+   "scale": 1.5
+  },
+  {
+   "at": "s4.start+s4.side-0.6",
+   "box": "sidenew",
+   "scale": 1.5
+  },
+  {
+   "at": "s6.start+s6.up+0.5",
+   "box": "agcard",
+   "scale": 1.35,
+   "fy": 0.4
+  },
+  {
+   "at": "s7.start+s7.open+0.3",
+   "box": "drawer",
+   "scale": 1.25,
+   "fy": 0.5
+  },
+  {
+   "at": "s8.start+0.1",
+   "box": "fields",
+   "scale": 1.7
+  },
+  {
+   "at": "s8.start+s8.close+0.4",
+   "box": "agcard2",
+   "scale": 1.6
+  }
+ ],
+ "keys": [
+  {
+   "at": "s2.start+s2.bang",
+   "label": "!"
+  },
+  {
+   "at": "s4.start+s4.enter",
+   "label": "Enter"
+  }
+ ],
+ "rings": [
+  {
+   "from": "s4.start+s4.enter+1.0",
+   "to": "s4.start+s4.side-0.7",
+   "box": "pill",
+   "pad": 6
+  },
+  {
+   "from": "s4.start+s4.side",
+   "to": "s4.end-0.2",
+   "box": "sidenew",
+   "pad": 6
+  },
+  {
+   "from": "s5.start+0.6",
+   "to": "s5.start+s5.done",
+   "box": "donebtn",
+   "pad": 6
+  },
+  {
+   "from": "s6.start+0.5",
+   "to": "s6.start+s6.up",
+   "box": "upbtn",
+   "pad": 6
+  },
+  {
+   "from": "s7.start+0.3",
+   "to": "s7.start+s7.open",
+   "box": "arrow",
+   "pad": 6
+  },
+  {
+   "from": "s8.start+s8.close+1.2",
+   "to": "s8.end-0.2",
+   "box": "agcard2",
+   "pad": 6
+  },
+  {
+   "from": "s9.start+1.0",
+   "to": "s9.end-0.3",
+   "box": "duepill",
+   "pad": 6
+  }
+ ]
+}

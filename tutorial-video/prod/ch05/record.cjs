@@ -1,0 +1,20 @@
+const rec=require('../lib/rec.cjs');
+(async()=>{
+  const r=await rec.open('ch05');const {p}=r;
+  const empty=p.locator('#jcMine #doc .eb-tx[data-id="b22"]');await r.focus(empty,0.04);
+  await r.grab('line',empty);const jump=p.getByRole('button',{name:'跳到那一行'});await r.grab('banner',jump.locator('xpath=..'));await r.grab('jump',jump);
+  await r.sync();
+  await r.shot('s2',async m=>{await r.sleep(300);await r.click(empty,{dx:-200});await r.sleep(300);await r.type('展場報價單可以今天給我嗎 ',95);await r.sleep(300);await p.keyboard.type('?@',{delay:250});m('ask');await p.locator('#summon.on').waitFor();await r.sleep(300);await r.grab('menu',p.locator('#summon'))});
+  await r.shot('s3',async m=>{const it=p.locator('#summon .summon-i');await r.sleep(1500);await r.hover(it.nth(0));await r.sleep(2300);await r.hover(it.nth(1));await r.sleep(3200);await r.hover(it.nth(2));await r.sleep(1500)});
+  await r.shot('s4',async m=>{await r.hover(p.locator('#summon .summon-i').nth(0));await r.sleep(500);await p.keyboard.press('Enter');m('enter');await r.sleep(150);await r.focus(empty,0.25);const pills=p.locator('#jcMine #doc .eb:has(.eb-tx[data-id="b22"]) .rq-pills');await r.grab('pills',pills);await r.hover(pills,{dy:24})});
+  await r.shot('s5',async m=>{await r.sleep(400);const c=p.locator('aside.jc-side .rq-side').getByText('展場報價單可以今天給我嗎').first();await c.scrollIntoViewIfNeeded();await r.sleep(200);await r.grab('sidecard',c.locator('xpath=..'));await r.hover(c)});
+  await r.shot('s6',async m=>{await r.sleep(300)},{pad:0.9});
+  await r.shot('s7',async m=>{await r.focus(empty,0.04);await r.grab('line7',empty);await r.click(empty,{dx:100});await p.keyboard.press('End');await p.keyboard.press('Enter');await r.sleep(300);await r.type('背板要用霧面還是亮面 ',95);await p.keyboard.type('?@',{delay:250});await p.locator('#summon.on').waitFor();await r.sleep(900);await p.keyboard.press('Shift+Enter');m('se');await r.sleep(150);const dec=p.locator('#jcMine #doc input.rq-optin').first().locator('xpath=../..');await r.focus(dec,0.3);await r.grab('dec',dec)},{pad:0.5});
+  await r.shot('s8',async m=>{const ins=p.locator('#jcMine #doc input.rq-optin');await r.click(ins.nth(0));await r.type('霧面',160);await r.sleep(300);await r.click(ins.nth(1));await r.type('亮面',160);await r.sleep(600);await r.click(p.locator('#jcMine #doc').getByRole('button',{name:'送出'}));m('send')},{pad:0.8});
+  await r.shot('s9',async m=>{await r.sleep(2200);await r.hover(jump.locator('xpath=..'),{dx:-300});await r.sleep(3500);await r.hover(jump);await r.sleep(900);await r.unlock();await r.click(jump);m('jump');await r.sleep(1300)},{pad:0.4});
+  await r.shot('s10',async m=>{const card=p.locator('#jcMine .rq-in.late');await r.focus(card,0.08);await r.grab('recv',card);await r.hover(card.locator('.rq-in-t'));await r.sleep(2600);await r.click(card.locator('.rq-acts .btn.red'));m('reply');await r.sleep(300);await card.locator('.rq-compose input').click();await r.type('加一台，我來借',110);await r.sleep(500);await p.keyboard.press('Enter');m('sent')},{pad:1.2});
+  await r.shot('s11',async m=>{const b=p.locator('#jcMine .rq-in').first().getByRole('button',{name:/收到，晚點處理/});await r.focus(p.locator('#jcMine .rq-in').first(),0.08);await r.sleep(300);await r.grab('ack',b);await r.grab('recv2',p.locator('#jcMine .rq-in').first());await r.hover(b)});
+  await r.shot('s12',async m=>{const o=p.locator('#jcMine .rq-optbtn').first();await r.sleep(600);await r.hover(o);await r.sleep(1200);await r.click(o);m('pick')});
+  await r.shot('s13',async m=>{const n=p.locator('aside.jc-side').getByRole('button',{name:'輕推'}).first();await n.scrollIntoViewIfNeeded();await r.sleep(400);await r.grab('nudge',n);await r.hover(n);await r.sleep(2600);await r.click(n);m('nudge')});
+  r.mark('done');await r.close();
+})().catch(e=>{console.error('FAIL',e.message);process.exit(1)});

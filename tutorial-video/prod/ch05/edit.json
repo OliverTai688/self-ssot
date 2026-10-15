@@ -1,0 +1,117 @@
+{
+ "cams": [
+  {
+   "at": "s2.start+0.2",
+   "box": "line",
+   "scale": 1.45,
+   "fy": 0.2
+  },
+  {
+   "at": "s2.start+s2.ask+0.3",
+   "box": "menu",
+   "scale": 1.5,
+   "fy": 0.36
+  },
+  {
+   "at": "s4.start+s4.enter+0.3",
+   "box": "pills",
+   "scale": 1.6
+  },
+  {
+   "at": "s5.start+0.2",
+   "box": "sidecard",
+   "scale": 1.5
+  },
+  {
+   "at": "s6.start",
+   "full": true
+  },
+  {
+   "at": "s7.start+0.4",
+   "box": "line7",
+   "scale": 1.45,
+   "fy": 0.2
+  },
+  {
+   "at": "s7.start+s7.se+0.4",
+   "box": "dec",
+   "scale": 1.45,
+   "fy": 0.3
+  },
+  {
+   "at": "s9.start+0.2",
+   "full": true
+  },
+  {
+   "at": "s10.start+0.5",
+   "box": "recv",
+   "scale": 1.45,
+   "fy": 0.3
+  },
+  {
+   "at": "s10.start+s10.sent+0.3",
+   "full": true
+  },
+  {
+   "at": "s11.start+0.6",
+   "box": "recv2",
+   "scale": 1.45,
+   "fy": 0.3
+  },
+  {
+   "at": "s12.start+s12.pick+0.4",
+   "full": true
+  },
+  {
+   "at": "s13.start+0.2",
+   "box": "nudge",
+   "scale": 1.6
+  }
+ ],
+ "keys": [
+  {
+   "at": "s2.start+s2.ask",
+   "label": "? @"
+  },
+  {
+   "at": "s4.start+s4.enter",
+   "label": "Enter"
+  },
+  {
+   "at": "s7.start+s7.se",
+   "label": "Shift + Enter"
+  }
+ ],
+ "rings": [
+  {
+   "from": "s4.start+s4.enter+1.2",
+   "to": "s4.end-0.3",
+   "box": "pills",
+   "pad": 6
+  },
+  {
+   "from": "s5.start+1.0",
+   "to": "s5.end-0.3",
+   "box": "sidecard",
+   "pad": 8
+  },
+  {
+   "from": "s9.start+2.4",
+   "to": "s9.start+s9.jump",
+   "box": "banner",
+   "pad": 0
+  },
+  {
+   "from": "s11.start+0.9",
+   "to": "s11.end-0.3",
+   "box": "ack",
+   "pad": 6
+  },
+  {
+   "from": "s13.start+0.9",
+   "to": "s13.start+s13.nudge",
+   "box": "nudge",
+   "pad": 6
+  }
+ ]
+}

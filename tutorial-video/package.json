@@ -1,0 +1,10 @@
+{
+  "name": "journal-tutorial-video",
+  "private": true,
+  "description": "日誌教學影片：Playwright 錄真實介面 + HyperFrames 合成字幕與章節卡",
+  "scripts": {
+    "record:sample": "node record/ch02-sample.cjs",
+    "render:sample": "cd sample && hyperframes render -o ../out-sample.mp4"
+  },
+  "dependencies": { "hyperframes": "0.8.114", "playwright": "1.63.0", "gsap": "3.14.2" }
+}

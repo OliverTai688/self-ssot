@@ -1,0 +1,92 @@
+{
+ "cams": [
+  {
+   "at": "s2.start+0.2",
+   "box": "line",
+   "scale": 1.45,
+   "fy": 0.2
+  },
+  {
+   "at": "s2.start+s2.at+0.2",
+   "box": "menu",
+   "scale": 1.4,
+   "fy": 0.36
+  },
+  {
+   "at": "s3.start+s3.enter+0.3",
+   "box": "card",
+   "scale": 1.5
+  },
+  {
+   "at": "s5.start+0.4",
+   "box": "line5",
+   "scale": 1.45,
+   "fy": 0.2
+  },
+  {
+   "at": "s5.start+s5.ask+0.4",
+   "box": "menu2",
+   "scale": 1.5,
+   "fy": 0.36
+  },
+  {
+   "at": "s6.start+0.5",
+   "box": "pill",
+   "scale": 1.6
+  },
+  {
+   "at": "s7.start+0.2",
+   "box": "bell",
+   "scale": 1.8
+  },
+  {
+   "at": "s7.start+s7.open+0.3",
+   "box": "drawer",
+   "scale": 1.5
+  }
+ ],
+ "keys": [
+  {
+   "at": "s2.start+s2.at",
+   "label": "@"
+  },
+  {
+   "at": "s3.start+s3.enter",
+   "label": "Enter"
+  },
+  {
+   "at": "s5.start+s5.ask",
+   "label": "? @"
+  },
+  {
+   "at": "s5.start+s5.pick",
+   "label": "Enter"
+  }
+ ],
+ "rings": [
+  {
+   "from": "s4.start+0.6",
+   "to": "s4.end-0.3",
+   "box": "card",
+   "pad": 6
+  },
+  {
+   "from": "s5.start+s5.sel",
+   "to": "s5.start+s5.pick",
+   "box": "notify",
+   "pad": 2
+  },
+  {
+   "from": "s6.start+0.8",
+   "to": "s6.end-0.3",
+   "box": "pill",
+   "pad": 6
+  },
+  {
+   "from": "s7.start+1.2",
+   "to": "s7.start+s7.open",
+   "box": "bell",
+   "pad": 8
+  }
+ ]
+}

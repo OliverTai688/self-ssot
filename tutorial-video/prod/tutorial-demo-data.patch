@@ -1,0 +1,139 @@
+--- /home/claude/v5-seed.orig.js	2026-10-03 14:31:47.046143160 +0800
++++ src/lib/ui-data/yuanzhan/v5-seed.js	2026-10-03 15:56:43.280472271 +0800
+@@ -18,36 +18,36 @@
+     {id:'G3',t:'Q4 新增付費客戶 3 家',period:'2026 Q4',pct:33}
+   ],
+   projects:[
+-    {id:'PRJ-2026-004',t:'柏翰 · Google Workspace 導入',client:'印刷業柏翰',goal:'G3',type:'行銷服務型',
++    {id:'PRJ-2026-004',t:'秋季展 · 攤位籌備',client:'展覽主辦單位',goal:'G3',type:'行銷服務型',
+      owner:'lily',status:'驗收中',rate:20,cap:25,budget:90000,repo:'v0.9',start:'2026-08-04',
+      delivery:['全公司 28 帳號導入完成','2 小時教育訓練','導入後 30 日成效報告']},
+-    {id:'PRJ-2026-007',t:'AI landoffice SSOT',client:'地政士事務所',goal:'G1',type:'產品交付型',
++    {id:'PRJ-2026-007',t:'官網改版',client:'內部專案',goal:'G1',type:'產品交付型',
+      owner:'yz',status:'進行中',rate:8,cap:15,budget:60000,repo:'—',start:'2026-07-15',
+      delivery:['介面 refactor','tenant test 通過','可發布']},
+-    {id:'PRJ-2026-009',t:'AI BA SSOT',client:'內部產品',goal:'G1',type:'產品交付型',
++    {id:'PRJ-2026-009',t:'新品型錄製作',client:'內部專案',goal:'G1',type:'產品交付型',
+      owner:'yz',status:'進行中',rate:0,cap:0,budget:30000,repo:'—',start:'2026-06-02',delivery:[]},
+-    {id:'PRJ-2026-011',t:'會計 SSOT',client:'洽談中',goal:'G3',type:'未確認',
++    {id:'PRJ-2026-011',t:'冬季快閃店',client:'洽談中',goal:'G3',type:'未確認',
+      owner:'yz',status:'商機',rate:0,cap:0,budget:0,repo:'—',start:'—',delivery:[]}
+   ],
+   issues:[
+-    {id:'LAND-012',t:'develop interface and tenant test',p:'PRJ-2026-007',owner:'yz',size:'M',st:'Doing',created:'2026-09-10',started:'2026-09-12',done:'',blocker:'tenant 測試資料未備齊',exp:'tenant 切換在 3 個租戶下皆正確',ev:2,pri:1,due:'2026-09-18',
++    {id:'LAND-012',t:'官網首頁改版',p:'PRJ-2026-007',owner:'yz',size:'M',st:'Doing',created:'2026-09-10',started:'2026-09-12',done:'',blocker:'tenant 測試資料未備齊',exp:'tenant 切換在 3 個租戶下皆正確',ev:2,pri:1,due:'2026-09-18',
+      rel:[{ty:'wait',id:'BA-032',t:'品質會員模組'},{ty:'doc',id:'D2',t:'Company Handbook 03.3'}],
+      cf:{'交付形式':'PR + 測試','客戶可見':'是'},sub:['建三個租戶測資','寫 RLS policy','跑隔離測試']},
+-    {id:'BA-031',t:'邀請函模組',p:'PRJ-2026-009',owner:'yz',size:'M',st:'Doing',created:'2026-08-28',started:'2026-09-01',done:'',blocker:'',exp:'可寄出並追蹤開啟率',ev:0,pri:2,due:'2026-09-05',
++    {id:'BA-031',t:'設計參展邀請函',p:'PRJ-2026-009',owner:'yz',size:'M',st:'Doing',created:'2026-08-28',started:'2026-09-01',done:'',blocker:'',exp:'可寄出並追蹤開啟率',ev:0,pri:2,due:'2026-09-05',
+      rel:[{ty:'block',id:'BA-032',t:'品質會員模組'}],cf:{'交付形式':'模組'},sub:['寄送流程','開啟率追蹤']},
+-    {id:'OCE-004',t:'10 月發表計劃簡報海報整理',p:'PRJ-2026-009',owner:'yz',size:'S',st:'Review',created:'2026-09-07',started:'2026-09-09',done:'',blocker:'',exp:'簡報 + 海報各一版',ev:1,due:'2026-09-20',pri:3,rel:[],cf:{},sub:[]},
+-    {id:'GWS-018',t:'成效報告初稿',p:'PRJ-2026-004',owner:'lily',size:'M',st:'Done',created:'2026-08-30',started:'2026-09-02',done:'2026-09-05',blocker:'',exp:'導入前後數據對比',ev:3,pri:3,rel:[],cf:{},sub:[]},
+-    {id:'GWS-017',t:'教育訓練簡報',p:'PRJ-2026-004',owner:'lily',size:'S',st:'Done',created:'2026-08-29',started:'2026-09-01',done:'2026-09-02',blocker:'',exp:'2 小時訓練教材',ev:1,pri:3,rel:[],cf:{},sub:[]},
+-    {id:'GWS-016',t:'訪談逐字稿整理',p:'PRJ-2026-004',owner:'lily',size:'S',st:'Done',created:'2026-09-01',started:'2026-09-03',done:'2026-09-04',blocker:'',exp:'5 場訪談重點',ev:1,pri:3,rel:[],cf:{},sub:[]},
+-    {id:'BNI-009',t:'BNI 一對一輸入 5 筆',p:'PRJ-2026-011',owner:'yz',size:'S',st:'Done',created:'2026-09-06',started:'2026-09-08',done:'2026-09-09',blocker:'',exp:'CRM 建檔',ev:1,pri:3,rel:[],cf:{},sub:[]},
+-    {id:'BA-032',t:'品質會員模組',p:'PRJ-2026-009',owner:'yz',size:'L',st:'Todo',created:'2026-09-05',started:'',done:'',blocker:'',exp:'分級與權益邏輯',ev:0,due:'2026-10-10',pri:4,rel:[],cf:{},sub:[]},
+-    {id:'NUV-003',t:'nuva 網站文字',p:'PRJ-2026-009',owner:'yz',size:'S',st:'Todo',created:'2026-09-08',started:'',done:'',blocker:'',exp:'首頁 5 段文案',ev:0,pri:4,rel:[],cf:{},sub:[]}
++    {id:'OCE-004',t:'展場海報與背板設計',p:'PRJ-2026-009',owner:'yz',size:'S',st:'Review',created:'2026-09-07',started:'2026-09-09',done:'',blocker:'',exp:'簡報 + 海報各一版',ev:1,due:'2026-09-20',pri:3,rel:[],cf:{},sub:[]},
++    {id:'GWS-018',t:'攤位動線規劃',p:'PRJ-2026-004',owner:'lily',size:'M',st:'Done',created:'2026-08-30',started:'2026-09-02',done:'2026-09-05',blocker:'',exp:'導入前後數據對比',ev:3,pri:3,rel:[],cf:{},sub:[]},
++    {id:'GWS-017',t:'展場人員排班表',p:'PRJ-2026-004',owner:'lily',size:'S',st:'Done',created:'2026-08-29',started:'2026-09-01',done:'2026-09-02',blocker:'',exp:'2 小時訓練教材',ev:1,pri:3,rel:[],cf:{},sub:[]},
++    {id:'GWS-016',t:'參展廠商名單整理',p:'PRJ-2026-004',owner:'lily',size:'S',st:'Done',created:'2026-09-01',started:'2026-09-03',done:'2026-09-04',blocker:'',exp:'5 場訪談重點',ev:1,pri:3,rel:[],cf:{},sub:[]},
++    {id:'BNI-009',t:'場地費用請款',p:'PRJ-2026-011',owner:'yz',size:'S',st:'Done',created:'2026-09-06',started:'2026-09-08',done:'2026-09-09',blocker:'',exp:'CRM 建檔',ev:1,pri:3,rel:[],cf:{},sub:[]},
++    {id:'BA-032',t:'型錄內容校對',p:'PRJ-2026-009',owner:'yz',size:'L',st:'Todo',created:'2026-09-05',started:'',done:'',blocker:'',exp:'分級與權益邏輯',ev:0,due:'2026-10-10',pri:4,rel:[],cf:{},sub:[]},
++    {id:'NUV-003',t:'官網文案撰寫',p:'PRJ-2026-009',owner:'yz',size:'S',st:'Todo',created:'2026-09-08',started:'',done:'',blocker:'',exp:'首頁 5 段文案',ev:0,pri:4,rel:[],cf:{},sub:[]}
+   ],
+   history:[],  // 由 genHistory() 產生的已完成樣本（供 P50/P85 與預測使用）
+   events:[
+-    {id:'E1',d:'2026-09-16',t:'會計 SSOT 會面',layer:'專案',star:true,derived:'',link:'PRJ-2026-011',remind:'前 1 日',note:'第一次正式洽談'},
++    {id:'E1',d:'2026-09-16',t:'冬季快閃店場勘',layer:'專案',star:true,derived:'',link:'PRJ-2026-011',remind:'前 1 日',note:'第一次正式洽談'},
+     {id:'E2',d:'2026-09-18',t:'月營運會議',layer:'日常',star:false,derived:'',link:'',remind:'前 1 日',note:'確認下月 WIP 上限與里程碑項目'},
+-    {id:'E3',d:'2026-09-28',t:'柏翰案驗收到期',layer:'專案',star:true,derived:'契約 §13.2',link:'PRJ-2026-004',remind:'前 7/3/1 日',note:'逾期未提出書面異議視為驗收通過，自動解鎖獎金閘門③'},
++    {id:'E3',d:'2026-09-28',t:'秋季展進場日',layer:'專案',star:true,derived:'契約 §13.2',link:'PRJ-2026-004',remind:'前 7/3/1 日',note:'逾期未提出書面異議視為驗收通過，自動解鎖獎金閘門③'},
+     {id:'E4',d:'2026-10-01',t:'發薪日',layer:'行政',star:true,derived:'契約 §7.2',link:'',remind:'前 3 日',note:''},
+     {id:'E5',d:'2026-10-01',t:'Lily 到職',layer:'行政',star:true,derived:'契約 §1.2',link:'',remind:'前 7 日',note:'Onboarding Stage 1 起算'},
+     {id:'E6',d:'2026-10-15',t:'勞健保繳費',layer:'行政',star:false,derived:'法定',link:'',remind:'前 3 日',note:''},
+@@ -55,15 +55,15 @@
+     {id:'E8',d:'2026-10-30',t:'30 日階段對話',layer:'行政',star:true,derived:'契約 §22.3',link:'',remind:'前 3 日',note:'須留下書面紀錄'}
+   ],
+   txns:[
+-    {id:'T1',d:'2026-09-02',t:'雲端主機 Supabase',p:'PRJ-2026-007',cat:'工具',amt:-4200,pass:false,v:['發票'],note:'月費'},
++    {id:'T1',d:'2026-09-02',t:'雲端主機月費',p:'PRJ-2026-007',cat:'工具',amt:-4200,pass:false,v:['發票'],note:'月費'},
+     {id:'T2',d:'2026-09-05',t:'外包 UI 設計',p:'PRJ-2026-004',cat:'外包',amt:-28000,pass:false,v:['發票','合約','匯款單'],note:'統編 24xxxxxx'},
+-    {id:'T3',d:'2026-09-08',t:'柏翰 服務收入',p:'PRJ-2026-004',cat:'收入',amt:120000,pass:false,v:['發票'],note:'未稅'},
++    {id:'T3',d:'2026-09-08',t:'秋季展贊助收入',p:'PRJ-2026-004',cat:'收入',amt:120000,pass:false,v:['發票'],note:'未稅'},
+     {id:'T4',d:'2026-09-08',t:'Meta 廣告',p:'PRJ-2026-004',cat:'媒體',amt:-60000,pass:true,v:['發票'],note:'代收代付，不計入可分配毛利'},
+     {id:'T5',d:'2026-09-09',t:'cowork 咖啡',p:'公司層級',cat:'場地',amt:-260,pass:false,v:[],note:'待補憑證'},
+     {id:'T6',d:'2026-09-11',t:'金流手續費',p:'PRJ-2026-004',cat:'金流',amt:-1800,pass:false,v:['對帳單'],note:''},
+     {id:'T7',d:'2026-09-11',t:'素材授權費',p:'PRJ-2026-004',cat:'素材',amt:-22200,pass:false,v:['發票'],note:''},
+     {id:'T8',d:'2026-09-12',t:'Claude / OpenAI 用量',p:'公司層級',cat:'工具',amt:-6800,pass:false,v:['發票'],note:''},
+-    {id:'T9',d:'2026-08-20',t:'AI landoffice 首期款',p:'PRJ-2026-007',cat:'收入',amt:180000,pass:false,v:['發票'],note:''},
++    {id:'T9',d:'2026-08-20',t:'官網改版首期款',p:'PRJ-2026-007',cat:'收入',amt:180000,pass:false,v:['發票'],note:''},
+     {id:'T10',d:'2026-08-22',t:'外包後端',p:'PRJ-2026-007',cat:'外包',amt:-32000,pass:false,v:['發票'],note:''},
+     {id:'T11',d:'2026-08-25',t:'第三方工具',p:'PRJ-2026-007',cat:'工具',amt:-4200,pass:false,v:['發票'],note:''},
+     {id:'T12',d:'2026-08-28',t:'金流手續費',p:'PRJ-2026-007',cat:'金流',amt:-1800,pass:false,v:['對帳單'],note:''}
+@@ -122,48 +122,40 @@
+                {src:'日誌 09/05 交付紀錄',what:'轉為 Evidence',to:'04_evidence'}]}
+   },
+   decisions:[
+-    {id:'D-024',t:'企業 QA 報名改為併入 CRM lead 物件',st:'現行',ctx:'BNI 引薦量上升，兩套名單開始不一致',ev:'9 月重複名單比對結果',owner:'yz',date:'2026-09-11',sup:'D-018'},
+-    {id:'D-018',t:'企業 QA 報名資料先進入獨立 Sheet',st:'已被推翻',ctx:'驗證階段資料量低，整合 CRM 成本高於價值',ev:'QA registration workflow test',owner:'yz',date:'2026-09-10',sup:''},
+-    {id:'D-021',t:'tenant 隔離採 RLS 為主要邊界',st:'現行',ctx:'應用層過濾容易因新查詢路徑而漏',ev:'rls-policy.sql + 12 項隔離測試',owner:'yz',date:'2026-09-06',sup:''}
++    {id:'D-024',t:'背板材質統一採用霧面',st:'現行',ctx:'BNI 引薦量上升，兩套名單開始不一致',ev:'9 月重複名單比對結果',owner:'yz',date:'2026-09-11',sup:'D-018'},
++    {id:'D-018',t:'攤位位置先選入口右側',st:'已被推翻',ctx:'驗證階段資料量低，整合 CRM 成本高於價值',ev:'QA registration workflow test',owner:'yz',date:'2026-09-10',sup:''},
++    {id:'D-021',t:'參展贈品改為環保袋',st:'現行',ctx:'應用層過濾容易因新查詢路徑而漏',ev:'rls-policy.sql + 12 項隔離測試',owner:'yz',date:'2026-09-06',sup:''}
+   ],
+   journal:{
+     '2026-09-12':{title:'20260912　週六',blocks:[
+       {id:'b1',t:'h2',ind:0,text:'Standup'},
+       {id:'b2',t:'h3',ind:0,text:'Yesterday'},
+-      {id:'b3',t:'p',ind:1,text:'介面收斂草稿完成'},
+-      {id:'b4',t:'p',ind:1,text:'BNI 一對一輸入 5 筆'},
++      {id:'b3',t:'p',ind:1,text:'秋季展攤位設計初稿完成'},
++      {id:'b4',t:'p',ind:1,text:'向三家燈具廠商詢價'},
+       {id:'b5',t:'h3',ind:0,text:'Today'},
+-      {id:'b6',t:'p',ind:1,text:'refactor 目前的介面，準備發布'},
+-      {id:'b7',t:'obj',ind:1,text:'',obj:{ty:'issue',rid:'LAND-012'}},
++      {id:'b6',t:'p',ind:1,text:'確認場地進場時間與卸貨動線'},
+       {id:'b8',t:'h3',ind:0,text:'Blocker'},
+-      {id:'b9',t:'p',ind:1,text:'tenant 測試資料未備齊'},
++      {id:'b9',t:'p',ind:1,text:'印刷廠報價還沒回'},
+       {id:'b10',t:'h3',ind:0,text:'Need Decision'},
+-      {id:'b11',t:'p',ind:1,text:'週四會計 SSOT 要不要帶價格表'},
++      {id:'b11',t:'p',ind:1,text:'背板材質要用霧面還是亮面'},
+       {id:'b12',t:'divider',ind:0,text:''},
+-      {id:'b13',t:'h2',ind:0,text:'地政士的推論'},
+-      {id:'b14',t:'p',ind:0,text:'介面收斂之後，真正的風險不在畫面，在租戶邊界。'},
+-      {id:'b15',t:'p',ind:1,text:'如果租戶切換會漏資料，那介面做得再好也不能發布。'},
+-      {id:'b16',t:'todo',ind:1,text:'準備三個租戶測資',done:false},
+-      {id:'b17',t:'todo',ind:1,text:'寫 RLS policy',done:true},
+-      {id:'b18',t:'h2',ind:0,text:'商務'},
+-      {id:'b19',t:'obj',ind:1,text:'',obj:{ty:'project',rid:'PRJ-2026-011'}},
+-      {id:'b20',t:'obj',ind:1,text:'',obj:{ty:'txn',rid:'T5'}},
+-      {id:'b21',t:'quote',ind:0,text:'今天有點想媽媽和大阿姨。這些體驗會回向給他們，我的聽眾一直只有他們兩個人。'},
++      {id:'b13',t:'h2',ind:0,text:'秋季展籌備'},
++      {id:'b14',t:'p',ind:0,text:'攤位動線要讓人一走進來就看到主視覺。'},
++      {id:'b16',t:'todo',ind:1,text:'確認攤位電力配置',done:false},
++      {id:'b17',t:'todo',ind:1,text:'送出參展申請',done:true},
+       {id:'b22',t:'p',ind:0,text:''}
+     ]},
+     '2026-09-11':{title:'20260911　週五',blocks:[
+       {id:'c1',t:'h2',ind:0,text:'Standup'},
+       {id:'c2',t:'h3',ind:0,text:'Today'},
+-      {id:'c3',t:'p',ind:1,text:'BNI 更新代理人、製作綠燈會員模組'},
+-      {id:'c4',t:'obj',ind:0,text:'',obj:{ty:'decision',rid:'D-024'}},
+-      {id:'c5',t:'p',ind:0,text:'印刷業柏翰協助報帳代購 Google Workspace'}
++      {id:'c3',t:'p',ind:1,text:'整理參展廠商名單，寄出邀請函'},
++      {id:'c5',t:'p',ind:0,text:'跟場地方通電話，確認攤位位置在入口右側'}
+     ]},
+     '2026-09-10':{title:'20260910　週四',blocks:[
+-      {id:'d1',t:'p',ind:0,text:'現在在地政士這邊開始進行專案開發，也許是長久也許是短順。'},
+-      {id:'d2',t:'obj',ind:1,text:'',obj:{ty:'decision',rid:'D-018'}},
++      {id:'d1',t:'p',ind:0,text:'秋季展確定參加，開始排籌備時程。'},
+       {id:'d3',t:'h3',ind:0,text:'今日小行政'},
+-      {id:'d4',t:'p',ind:1,text:'research ocean economy'},
+-      {id:'d5',t:'p',ind:1,text:'research personal twin（輔大）'}
++      {id:'d4',t:'p',ind:1,text:'申請展場工作證'},
++      {id:'d5',t:'p',ind:1,text:'訂搬運車'}
+     ]}
+   },
+   threads:[

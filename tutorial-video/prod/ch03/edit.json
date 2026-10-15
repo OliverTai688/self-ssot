@@ -1,0 +1,93 @@
+{
+ "cams": [
+  {
+   "at": "s2.start+0.2",
+   "box": "line",
+   "scale": 1.45,
+   "fy": 0.2
+  },
+  {
+   "at": "s3.start+0.2",
+   "box": "menu",
+   "scale": 1.45,
+   "fy": 0.36
+  },
+  {
+   "at": "s4.start+s4.pick+0.2",
+   "box": "drawer",
+   "scale": 1.2,
+   "fy": 0.5
+  },
+  {
+   "at": "s5.start+0.1",
+   "box": "dsec",
+   "scale": 1.9
+  },
+  {
+   "at": "s6.start+s6.back+0.2",
+   "box": "card",
+   "scale": 1.4
+  },
+  {
+   "at": "s8.start+0.2",
+   "box": "line2",
+   "scale": 1.45,
+   "fy": 0.2
+  },
+  {
+   "at": "s8.start+s8.enter+0.3",
+   "box": "form",
+   "scale": 1.3
+  },
+  {
+   "at": "s9.start+0.2",
+   "box": "issue",
+   "scale": 1.5
+  },
+  {
+   "at": "s10.start+0.1",
+   "box": "btn",
+   "scale": 1.7
+  }
+ ],
+ "keys": [
+  {
+   "at": "s2.start+s2.hash",
+   "label": "#"
+  },
+  {
+   "at": "s8.start+s8.hash",
+   "label": "#"
+  },
+  {
+   "at": "s8.start+s8.enter",
+   "label": "Enter"
+  }
+ ],
+ "rings": [
+  {
+   "from": "s6.start+0.5",
+   "to": "s6.start+s6.back",
+   "box": "done",
+   "pad": 6
+  },
+  {
+   "from": "s7.start+s7.arrow",
+   "to": "s7.end-0.2",
+   "box": "arrow",
+   "pad": 6
+  },
+  {
+   "from": "s9.start+1.2",
+   "to": "s9.end-0.3",
+   "box": "issue",
+   "pad": 6
+  },
+  {
+   "from": "s10.start+1.0",
+   "to": "s10.end-0.3",
+   "box": "btn",
+   "pad": 6
+  }
+ ]
+}

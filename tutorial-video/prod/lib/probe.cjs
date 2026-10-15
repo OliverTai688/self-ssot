@@ -1,0 +1,15 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});const p=await b.newPage({viewport:{width:1440,height:810}});
+await p.goto('http://127.0.0.1:3011/company/operating',{timeout:120000});await p.locator('#wbName').waitFor({timeout:60000});
+await p.locator('.rail-i').filter({has:p.locator('em',{hasText:/^日誌$/})}).click();await p.locator('#jcMine #doc').waitFor();await p.waitForTimeout(600);
+const sk=async(sel,depth=3)=>{try{return await p.locator(sel).first().evaluate((el,depth)=>{const w=(e,d)=>{let s='<'+e.tagName.toLowerCase()+(e.id?'#'+e.id:'')+(e.className&&typeof e.className==='string'?'.'+e.className.trim().split(/\s+/).join('.'):'');const t=[...e.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent.trim()).join('').slice(0,24);if(t)s+=' "'+t+'"';s+='>';if(d>0)for(const c of e.children)s+=w(c,d-1);return s};return w(el,depth)},depth)}catch(e){return '(none '+sel+')'}};
+console.log('HEAD',await sk('#jcDate >> xpath=..',3));
+console.log('MINEHEAD',await sk('#jcMine',2));
+console.log('PEER',(await sk('#jcPeer',4)).slice(0,1500));
+console.log('SIDE',(await sk('#jcMine >> xpath=../*[last()]',3)).slice(0,2500));
+console.log('DOCOBJ',(await sk('#doc .eb >> nth=0',5)).slice(0,1800));
+const e=p.locator('#jcMine #doc .eb-tx[data-id="b22"]');await e.click();await p.keyboard.type('#');await p.waitForTimeout(500);
+console.log('SUMMON',(await sk('#summon',4)).slice(0,1500));
+await p.keyboard.type('issue');await p.waitForTimeout(400);await p.keyboard.press('Enter');await p.waitForTimeout(800);
+console.log('ISSUEFORM',(await sk('#formModalWrap.on, #modalWrap.on',6)).slice(0,2500));
+await b.close()})().catch(e=>{console.error('FAIL',e.message);process.exit(1)});

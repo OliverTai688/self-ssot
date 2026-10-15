@@ -1,0 +1,18 @@
+{
+  "cams": [
+    {"at": "s2.start+0.2", "box": "line", "scale": 1.55},
+    {"at": "s3.start+0.5", "box": "start", "scale": 1.9},
+    {"at": "s4.start", "box": "line", "scale": 1.55},
+    {"at": "s6.start+0.6", "full": true}
+  ],
+  "keys": [
+    {"at": "s2.start+s2.enter", "label": "Enter"},
+    {"at": "s4.start+s4.enter", "label": "Enter"},
+    {"at": "s4.start+s4.tab", "label": "Tab"},
+    {"at": "s5.start+s5.shifttab", "label": "Shift + Tab"}
+  ],
+  "rings": [
+    {"from": "s3.start+1.4", "to": "s3.end-0.3", "box": "start", "pad": 10, "wide": 90},
+    {"from": "s6.start+1.6", "to": "s6.end-0.3", "box": "peer", "pad": -6, "h": 420}
+  ]
+}
