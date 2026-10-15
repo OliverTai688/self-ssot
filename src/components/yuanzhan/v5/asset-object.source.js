@@ -297,7 +297,7 @@ function astCard(b) {
   if (!a) return '<div class="eb-obj">檔案已刪除</div>';
   const meta = astMeta(a.kind);
   const head = `<div class="eb-obj-h"><span class="chip ${meta.chip}">${esc(AST_LABELS[a.kind] || '檔案')}</span>
-    <span class="ti">${esc(a.name)}</span>
+    <span class="ti" ${typeof objRenAttr === 'function' ? objRenAttr('asset', a.id) : ''}>${esc(a.name)}</span>
     <span class="m" style="font-family:var(--mono);font-size:10.5px;color:var(--text-3)">${esc(a.id)}</span></div>`;
 
   if (a.status === 'uploading') {

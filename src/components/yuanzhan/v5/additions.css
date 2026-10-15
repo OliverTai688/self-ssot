@@ -396,3 +396,29 @@
 select.tc-in{font-family:inherit;cursor:pointer}
 td.num .tc-in,td.num .tc-v{text-align:right}
 td.k .tc-v{white-space:normal}
+
+/* ---- 物件引用膠囊（回覆裡引用截圖、檔案、議題…）與點兩下改名 ---- */
+.obj-refs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.obj-refs.draft{margin:6px 0 2px}
+.obj-ref{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:2px 9px;border-radius:999px;border:1px solid var(--border-2);
+  background:var(--surface-2);color:var(--text-2);font-size:12px;line-height:1.6;cursor:pointer;font-family:var(--sans)}
+.obj-ref:hover{border-color:var(--pri-br,var(--border-3));color:var(--text)}
+.obj-ref.gone{opacity:.6;text-decoration:line-through;cursor:default}
+.obj-ref-k{color:var(--text-3);font-size:11px}
+.obj-ref-n{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px}
+.obj-ref-wrap{display:inline-flex;align-items:center;gap:2px}
+.obj-ref-x{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:0;background:transparent;color:var(--text-3);cursor:pointer}
+.obj-ref-x:hover{background:var(--surface-3);color:var(--text)}
+.rq-refpick{margin-top:6px;border:1px solid var(--border-2);border-radius:8px;background:var(--surface);padding:6px;display:flex;flex-direction:column;gap:4px}
+.rq-refpick input{height:26px;padding:0 8px;border-radius:6px;border:1px solid var(--border-2);background:var(--surface-2);color:var(--text);font-size:12.5px}
+.rq-refpick-list{display:flex;flex-direction:column;max-height:240px;overflow:auto}
+.rq-refpick-it{display:flex;align-items:center;gap:7px;padding:5px 6px;border:0;border-radius:6px;background:transparent;color:var(--text-2);font-size:12.5px;text-align:left;cursor:pointer;min-width:0}
+.rq-refpick-it:hover,.rq-refpick-it:focus-visible{background:var(--surface-2);color:var(--text)}
+.rq-refpick-it .k{color:var(--text-3);font-size:11px;flex:none}
+.rq-refpick-it .n{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.rq-refpick-it .d{margin-left:auto;color:var(--text-3);font-size:11px;flex:none;white-space:nowrap}
+[data-obj-ren]{cursor:text}
+[data-obj-ren]:hover{text-decoration:underline dotted var(--text-3);text-underline-offset:3px}
+.obj-ren-on{outline:1px solid var(--pri-br,var(--border-3));outline-offset:2px;border-radius:4px;background:var(--surface);
+  text-decoration:none!important;cursor:text;white-space:pre-wrap;user-select:text!important;-webkit-user-select:text!important}
+@media (max-width:640px){.rq-refpick-it .d{display:none}.obj-ref-n{max-width:180px}}

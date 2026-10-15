@@ -711,7 +711,7 @@ renderDocObjectCard = function (b) {
     <div class="eb-doc-bar">
       <div class="eb-doc-bar-left" onclick="toggleDocCollapse('${d.id}')">
         <span class="chip ${meta.chip}">${svg('flag', 11)} ${docObjectLabel(d, meta)}</span>
-        <span class="eb-doc-bar-title">${esc(docObjectName(d))}</span>
+        <span class="eb-doc-bar-title" ${typeof objRenAttr === 'function' ? objRenAttr('doc_object', d.id) : ''}>${esc(docObjectName(d))}</span>
         <span class="ag-pills">${agPills(d)}</span>
         ${stkDocChip(d)}
       </div>

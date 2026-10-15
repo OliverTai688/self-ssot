@@ -10,6 +10,7 @@ import {
   createPendingAsset,
   failAsset,
   finalizeAsset,
+  renameAsset,
   reopenAssetUpload,
   resolveDownloadGrant,
 } from "@/lib/services/operating-assets.service"
@@ -192,6 +193,22 @@ export async function PATCH(request: NextRequest) {
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
     const assetId = typeof body?.assetId === "string" ? body.assetId : ""
     if (!assetId) return errorResponse(400, "missing_asset_id", "缺少檔案代號。")
+
+    // 改顯示名稱（日誌卡片上點兩下改名）。帶 name 就是改名，不是 finalize。
+    if (typeof body?.name === "string") {
+      const renamed = await renameAsset({
+        workspaceId: actor.workspaceId,
+        assetId,
+        name: body.name,
+        authorKey: actor.authorKey,
+        isOwnerSeat: actor.isOwnerSeat,
+      })
+      if (!renamed.ok) return errorResponse(422, renamed.code, renamed.error)
+      return NextResponse.json(
+        { assetId: renamed.asset.id, name: renamed.asset.displayName },
+        { headers: noStoreHeaders }
+      )
+    }
 
     // 使用者取消或前端自己就知道傳壞了：直接標 failed，不必浪費一次 HeadObject。
     if (body?.outcome === "failed") {

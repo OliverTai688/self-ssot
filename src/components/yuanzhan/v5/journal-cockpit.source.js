@@ -35,6 +35,8 @@ function jcObjChip(o){
   if(!d)return['已刪除','c-n'];
   const m=metaOf(d);return[docObjectLabel(d,m),m.chip||'c-n'];
  }
+ // 檔案（截圖、聲音、影片、附件）與連結：標籤與名稱交給 obj-names.source.js 的共用查表。
+ if((o.ty==='asset'||o.ty==='link')&&typeof objFind==='function')return objFind(o.ty,o.rid)?[objRefLabel(o.ty,o.rid),o.ty==='link'?'c-t':'c-o']:['已刪除','c-n'];
  return JC_TYPES[o.ty]||[o.ty,'c-n'];
 }
 function jcNow(){return nowts().slice(0,5)}
@@ -158,7 +160,7 @@ function jcObjects(){
  for(const who of Object.keys(DB.people)){const d=jcDoc(who);(d?.blocks||[]).forEach((b,i)=>{if(b.t==='obj'&&b.obj)out.push({who,line:i+1,o:b.obj})})}
  return out;
 }
-function jcObjName(o){if(o.ty==='doc_object'){const d=(DB.docObjects||[]).find(x=>x.id===o.rid);return d?docObjectName(d):'已刪除'}const x=o.ty==='issue'?ISS(o.rid):o.ty==='txn'?TX(o.rid):o.ty==='project'?P(o.rid):o.ty==='decision'?DB.decisions.find(y=>y.id===o.rid):EVT(o.rid);return x?.t||'已刪除'}
+function jcObjName(o){if((o.ty==='asset'||o.ty==='link')&&typeof objFind==='function')return objFind(o.ty,o.rid)?objRefName(o.ty,o.rid):'已刪除';if(o.ty==='doc_object'){const d=(DB.docObjects||[]).find(x=>x.id===o.rid);return d?docObjectName(d):'已刪除'}const x=o.ty==='issue'?ISS(o.rid):o.ty==='txn'?TX(o.rid):o.ty==='project'?P(o.rid):o.ty==='decision'?DB.decisions.find(y=>y.id===o.rid):EVT(o.rid);return x?.t||'已刪除'}
 function jcStats(objs){
  let done=0,total=0,money=0;
  for(const who of Object.keys(DB.people))(jcDoc(who)?.blocks||[]).forEach(b=>{if(b.t==='todo'&&b.text.trim()){total++;if(b.done)done++}});

@@ -238,7 +238,7 @@ function lkCard(b) {
   if (!l) return '<div class="eb-obj">連結已刪除</div>';
   const refs = lkRefCount(l.id);
   return `<div class="eb-obj lk-card" onclick="lkOpen('${l.id}')" title="開啟 ${esc(l.url)}">
-    <div class="eb-obj-h"><span class="chip c-t">連結</span><span class="ti">${esc(l.title)}</span>
+    <div class="eb-obj-h"><span class="chip c-t">連結</span><span class="ti" ${typeof objRenAttr === 'function' ? objRenAttr('link', l.id) : ''}>${esc(l.title)}</span>
       <span class="m lk-code">${esc(l.id)}</span></div>
     <div class="lk-url">${svg('goto', 11)}<span>${esc(lkShort(l.url, 90))}</span></div>
     ${l.note ? `<div class="lk-note">${esc(l.note)}</div>` : ''}

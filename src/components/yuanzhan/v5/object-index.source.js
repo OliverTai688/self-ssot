@@ -254,7 +254,7 @@ function oiStatusCell(r) {
 function oiRowHtml(r) {
   return `<tr>
     <td><span class="chip ${r.chip}">${esc(r.tyNm)}</span></td>
-    <td><span class="oi-nm">${esc(r.name)}</span>${oiCodeBadge(r.code)}${r.snip ? `<span class="oi-snip">${r.snip}</span>` : ''}</td>
+    <td><span class="oi-nm" ${r.ty === 'doc_object' || r.ty === 'asset' || r.ty === 'link' ? (typeof objRenAttr === 'function' ? objRenAttr(r.ty, r.id) : '') : ''}>${esc(r.name)}</span>${oiCodeBadge(r.code)}${r.snip ? `<span class="oi-snip">${r.snip}</span>` : ''}</td>
     ${oiStatusCell(r)}
     ${oiBornCell(r)}
     <td>${oiSrcCell(r)}</td>

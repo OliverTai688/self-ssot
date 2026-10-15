@@ -372,7 +372,7 @@ function renderDocObjectCard(b) {
     <div class="eb-doc-bar">
       <div class="eb-doc-bar-left" onclick="toggleDocCollapse('${doc.id}')">
         <span class="chip ${meta.chip}">${meta.nm}</span>
-        <span class="eb-doc-bar-title">${esc(name)}</span>
+        <span class="eb-doc-bar-title" ${typeof objRenAttr === 'function' ? objRenAttr('doc_object', doc.id) : ''}>${esc(name)}</span>
         <span class="eb-doc-bar-meta">${isCollapsed ? esc(docObjectTimestamp(doc)) : `${doc.day} · ${person(doc.author)}${doc.secs.reduce((a,sec)=>a+secWordCount(sec),0) ? ' · '+doc.secs.reduce((a,sec)=>a+secWordCount(sec),0)+' 字' : ''}`}</span>
         ${stkDocChip(doc)}
         ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 可留言</span>'}

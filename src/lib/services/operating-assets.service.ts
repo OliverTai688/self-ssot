@@ -224,6 +224,34 @@ export async function reopenAssetUpload(params: {
   return db.operatingAsset.update({ where: { id: asset.id }, data: { status: "uploading" } })
 }
 
+/** 顯示名稱的上限。名稱是給人看的標籤，不是檔名；參考碼與 object key 都不會因改名而變。 */
+export const ASSET_NAME_MAX = 120
+
+/**
+ * 改檔案的顯示名稱（日誌卡片上點兩下改名）。
+ *
+ * 只有作者與公司負責人（OWNER 席位）可以改 —— 與前端 objCanRename 同一條規則。
+ * 讀得到不等於改得了：team 空間的檔案全員看得到，但名稱是作者給的。
+ * 只動 display_name；參考碼（日誌與引用存的那一個）與 object key 都不變（RES-018）。
+ */
+export async function renameAsset(params: {
+  workspaceId: string
+  assetId: string
+  name: string
+  authorKey: string
+  isOwnerSeat: boolean
+}) {
+  const name = params.name.replace(/\s+/g, " ").trim().slice(0, ASSET_NAME_MAX)
+  if (!name) return { ok: false as const, code: "empty_name", error: "名稱不能是空的。" }
+  const asset = await db.operatingAsset.findFirst({
+    where: { id: params.assetId, workspaceId: params.workspaceId, deletedAt: null },
+  })
+  if (!asset) throw new AssetNotFoundError()
+  if (asset.authorKey !== params.authorKey && !params.isOwnerSeat) throw new AssetForbiddenError()
+  const updated = await db.operatingAsset.update({ where: { id: asset.id }, data: { displayName: name } })
+  return { ok: true as const, asset: updated }
+}
+
 export async function failAsset(params: { workspaceId: string; assetId: string }) {
   await db.operatingAsset.updateMany({
     where: { id: params.assetId, workspaceId: params.workspaceId, status: "uploading" },

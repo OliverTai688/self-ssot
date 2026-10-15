@@ -17,6 +17,9 @@ DB.todayIssues=DB.todayIssues||[];
 /* 收工時刻本身記在今日脈絡上（kind='close'）；這裡只是查詢索引，由 journal-cockpit 重建。 */
 DB.dayClose={};
 const rqDrafts=new Map(), rqDeferDrafts=new Map(), rqOpenReply=new Set();
+/* 回覆裡的物件引用（截圖、聲音、影片、檔案、議題、任務…）。存 {ty,rid,ic}，名稱畫的時候才查
+   （obj-names.source.js 的 objRefName），物件改名後引用一起變。rqRefPick：引用選單開著的那幾則與搜尋字。 */
+const rqDraftRefs=new Map(), rqRefPick=new Map();
 let rqDecision=null;
 if(initialState.mode==='showcase'){
  const now=Date.now(),yzDoc=journals.team.yz[TODAY],lilyDoc=journals.team.lily[TODAY];
@@ -220,14 +223,15 @@ function rqToggleReply(id){if(rqOpenReply.has(id))rqOpenReply.delete(id);else{rq
 function rqReply(id,choice){
  const r=rqFind(id);if(!r)return;if(!rqInvolves(r))return deny();if(r.resolvedAt)return toast('這個請求已結案');
  const x=(rqDrafts.get(id)||'').trim();
- if(choice==null&&!x)return toast('請先輸入回覆');
+ const refs=choice==null?(rqDraftRefs.get(id)||[]).map(f=>({ty:f.ty,rid:f.rid})):[];
+ if(choice==null&&!x&&!refs.length)return toast('請先輸入回覆或引用一個物件');
  if(choice!=null&&(r.to!==DB.me||r.kind!=='decision'))return deny();
  if(choice!=null&&r.choice!=null)return toast('這張決策卡已經有決定了');
- rqDrafts.delete(id);rqOpenReply.delete(id);
+ rqDrafts.delete(id);rqOpenReply.delete(id);rqDraftRefs.delete(id);rqRefPick.delete(id);
  commit('update',choice!=null?'決策回覆':'請求回覆',rqText(r),()=>{
   const now=Date.now();
   // day 記的是「在哪一天做的決定」：答的人那一頭的決策紀錄要掛在那一天的日誌上。
-  r.replies.push({w:DB.me,x:choice==null?x:'',choice,at:now,ts:nowts(),...(choice!=null?{day:TODAY}:{})});
+  r.replies.push({w:DB.me,x:choice==null?x:'',choice,at:now,ts:nowts(),...(choice!=null?{day:TODAY}:{}),...(refs.length?{refs}:{})});
   if(choice!=null)r.choice=choice;
   if(r.to===DB.me){r.firstReplyAt??=now;r.seenAt??=now}
   return[choice!=null?`決定：<b>${esc(choice)}</b>，連同其他選項記在雙方的日誌上`:'回覆已掛在原本那一行下面',r.to===DB.me?'計時停止，紅色提醒解除':'對方會在同一串看到'];
@@ -334,12 +338,72 @@ function rqDecidedHtml(who,day){
 /* ---- 共用：訊息串與動作列 ---- */
 function rqMsgs(r){
  // 只有選項、沒有附文字的那一則已經由決策紀錄卡表達，不再重複印一行。
- return r.replies.filter(m=>!(m.choice!=null&&!m.x&&rqDecided(r))).map(m=>`<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice!=null?` <span class="rq-pill done">${svg('diamond',11)} ${esc(m.choice)}</span>`:''}${m.x?`<div class="rq-msg-x">${esc(m.x)}</div>`:''}</div></div>`).join('');
+ return r.replies.filter(m=>!(m.choice!=null&&!m.x&&rqDecided(r))).map(m=>`<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice!=null?` <span class="rq-pill done">${svg('diamond',11)} ${esc(m.choice)}</span>`:''}${m.x?`<div class="rq-msg-x">${esc(m.x)}</div>`:''}${(m.refs||[]).length?`<div class="obj-refs">${m.refs.map(objRefChip).join('')}</div>`:''}</div></div>`).join('');
 }
 function rqReplyBox(r){
  if(!rqOpenReply.has(r.id))return '';
- return `<div class="rq-compose"><input data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to===DB.me?r.from:r.to))}…" value="${esc(rqDrafts.get(r.id)||'')}" oninput="rqDrafts.set('${r.id}',this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();rqReply('${r.id}')}"><button class="btn sm pri" onclick="rqReply('${r.id}')">送出</button><button class="btn sm" onclick="rqToggleReply('${r.id}')">取消</button></div>`;
+ const refs=rqDraftRefs.get(r.id)||[];
+ return `<div class="rq-compose"><input data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to===DB.me?r.from:r.to))}…（打 @ 引用物件）" value="${esc(rqDrafts.get(r.id)||'')}" oninput="rqReplyInput('${r.id}',this.value)" onkeydown="rqReplyKey(event,'${r.id}')"><button class="btn sm" title="引用截圖、聲音、影片、檔案、議題、任務…" onclick="rqRefToggle('${r.id}')">${svg('at',12)} 引用</button><button class="btn sm pri" onclick="rqReply('${r.id}')">送出</button><button class="btn sm" onclick="rqToggleReply('${r.id}')">取消</button></div>
+ ${refs.length?`<div class="obj-refs draft">${refs.map((f,i)=>`<span class="obj-ref-wrap">${objRefChip(f)}<button type="button" class="obj-ref-x" aria-label="移除引用" onclick="rqRefRemove('${r.id}',${i})">${svg('x',10)}</button></span>`).join('')}</div>`:''}
+ ${rqRefPick.has(r.id)?rqRefPanel(r.id):''}`;
 }
+/* ---- 回覆裡的引用選單 ----
+   兩個入口：「引用」按鈕，或在回覆框打 @ 加關鍵字（與日誌的 @ 引用同一個心智模型）。
+   選單裡打字只換清單、不整頁重畫，焦點才不會跳掉。 */
+const RQ_REF_AT=/(?:^|\s)[@＠]([^\s@＠]{0,20})$/;
+function rqReplyInput(id,v){
+ rqDrafts.set(id,v);
+ const m=v.match(RQ_REF_AT), wasAt=!!rqRefPick.get(id+':at');
+ if(m){const first=!rqRefPick.has(id);rqRefPick.set(id,m[1]);rqRefPick.set(id+':at','1');rqRefPaint(id,!first)}
+ else if(wasAt){rqRefPick.delete(id);rqRefPick.delete(id+':at');rqRefPaint(id,false)}
+}
+function rqReplyKey(e,id){
+ if(e.isComposing)return;
+ if(rqRefPick.has(id)&&e.key==='Enter'){const h=objRefHits(rqRefPick.get(id))[0];if(h){e.preventDefault();return rqRefAdd(id,h.ty,h.rid,h.ic)}}
+ if(e.key==='Escape'&&rqRefPick.has(id)){e.preventDefault();rqRefPick.delete(id);rqRefPick.delete(id+':at');return rqRefPaint(id,false)}
+ if(e.key==='Enter'){e.preventDefault();rqReply(id)}
+}
+function rqRefToggle(id){
+ if(rqRefPick.has(id)){rqRefPick.delete(id);rqRefPick.delete(id+':at')}else rqRefPick.set(id,'');
+ runtime._afterRender=()=>root.querySelector('[data-rq-refq="'+id+'"]')?.focus();
+ render();
+}
+function rqRefPanel(id){
+ const q=rqRefPick.get(id)||'', fromAt=!!rqRefPick.get(id+':at');
+ return `<div class="rq-refpick" contenteditable="false">
+  ${fromAt?'':`<input data-rq-refq="${id}" aria-label="搜尋要引用的物件" placeholder="搜尋截圖、檔案、議題、任務…" value="${esc(q)}" oninput="rqRefSearch('${id}',this.value)" onkeydown="rqRefSearchKey(event,'${id}')">`}
+  <div class="rq-refpick-list" data-rq-reflist="${id}">${rqRefList(id)}</div></div>`;
+}
+function rqRefList(id){
+ const hits=objRefHits(rqRefPick.get(id)||'');
+ if(!hits.length)return '<div class="rq-empty">找不到符合的物件</div>';
+ return hits.map(h=>`<button type="button" class="rq-refpick-it" onclick="rqRefAdd('${id}','${esc(h.ty)}','${esc(h.rid)}','${esc(h.ic||'')}')">${svg(objRefIcon(h.ty,h.rid),12)}<span class="k">${esc(objRefLabel(h.ty,h.rid))}</span><span class="n">${esc(objRefName(h.ty,h.rid))}</span><span class="d">${esc(h.ds||'')}</span></button>`).join('');
+}
+function rqRefSearch(id,v){rqRefPick.set(id,v);rqRefPaint(id,true)}
+function rqRefSearchKey(e,id){
+ if(e.isComposing)return;
+ if(e.key==='Enter'){e.preventDefault();const h=objRefHits(rqRefPick.get(id))[0];if(h)rqRefAdd(id,h.ty,h.rid,h.ic)}
+ if(e.key==='Escape'){e.preventDefault();rqRefToggle(id)}
+}
+/* 只換清單那一塊：選單第一次出現（從 @ 進來）才需要整個 render。 */
+function rqRefPaint(id,open){
+ const lists=root.querySelectorAll('[data-rq-reflist="'+id+'"]');
+ if(open&&lists.length){lists.forEach(el=>{el.innerHTML=rqRefList(id)});return}
+ const focus=shadow.activeElement, keep=focus&&focus.matches&&focus.matches('[data-rq-input="'+id+'"]')?focus.selectionStart:null;
+ runtime._afterRender=()=>{const el=root.querySelector('[data-rq-input="'+id+'"]');if(el&&keep!=null){el.focus();el.setSelectionRange(keep,keep)}};
+ render();
+}
+function rqRefAdd(id,ty,rid,ic){
+ const list=rqDraftRefs.get(id)||[];
+ if(!list.some(f=>f.ty===ty&&f.rid===rid))list.push({ty,rid,ic});
+ rqDraftRefs.set(id,list);
+ // 從 @ 進來的：把打到一半的 @關鍵字 從回覆文字裡拿掉，引用改由下方膠囊表達。
+ if(rqRefPick.get(id+':at')){const t=(rqDrafts.get(id)||'').replace(RQ_REF_AT,'').trimEnd();rqDrafts.set(id,t?t+' ':'')}
+ rqRefPick.delete(id);rqRefPick.delete(id+':at');
+ runtime._afterRender=()=>{const el=root.querySelector('[data-rq-input="'+id+'"]');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length)}};
+ render();
+}
+function rqRefRemove(id,i){const list=rqDraftRefs.get(id)||[];list.splice(i,1);rqDraftRefs.set(id,list);render()}
 function rqOptions(r){
  if(r.kind!=='decision'||r.to!==DB.me||r.choice!=null||r.resolvedAt)return '';
  return `<div class="opts rq-opts">${r.options.map((o,i)=>`<button class="rq-optbtn" onclick="rqChoose('${r.id}',${i})">${esc(o)}</button>`).join('')}</div>`;

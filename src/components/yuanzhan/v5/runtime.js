@@ -8796,6 +8796,10 @@ DB.dayClose = {};
 const rqDrafts = new Map(),
   rqDeferDrafts = new Map(),
   rqOpenReply = new Set();
+/* 回覆裡的物件引用（截圖、聲音、影片、檔案、議題、任務…）。存 {ty,rid,ic}，名稱畫的時候才查
+   （obj-names.source.js 的 objRefName），物件改名後引用一起變。rqRefPick：引用選單開著的那幾則與搜尋字。 */
+const rqDraftRefs = new Map(),
+  rqRefPick = new Map();
 let rqDecision = null;
 if (initialState.mode === 'showcase') {
   const now = Date.now(),
@@ -9335,11 +9339,17 @@ function rqReply(id, choice) {
   if (!rqInvolves(r)) return deny();
   if (r.resolvedAt) return toast('這個請求已結案');
   const x = (rqDrafts.get(id) || '').trim();
-  if (choice == null && !x) return toast('請先輸入回覆');
+  const refs = choice == null ? (rqDraftRefs.get(id) || []).map(f => ({
+    ty: f.ty,
+    rid: f.rid
+  })) : [];
+  if (choice == null && !x && !refs.length) return toast('請先輸入回覆或引用一個物件');
   if (choice != null && (r.to !== DB.me || r.kind !== 'decision')) return deny();
   if (choice != null && r.choice != null) return toast('這張決策卡已經有決定了');
   rqDrafts.delete(id);
   rqOpenReply.delete(id);
+  rqDraftRefs.delete(id);
+  rqRefPick.delete(id);
   commit('update', choice != null ? '決策回覆' : '請求回覆', rqText(r), () => {
     const now = Date.now();
     // day 記的是「在哪一天做的決定」：答的人那一頭的決策紀錄要掛在那一天的日誌上。
@@ -9351,6 +9361,9 @@ function rqReply(id, choice) {
       ts: nowts(),
       ...(choice != null ? {
         day: TODAY
+      } : {}),
+      ...(refs.length ? {
+        refs
       } : {})
     });
     if (choice != null) r.choice = choice;
@@ -9532,22 +9545,157 @@ function rqDecidedHtml(who, day) {
 /* ---- 共用：訊息串與動作列 ---- */
 function rqMsgs(r) {
   // 只有選項、沒有附文字的那一則已經由決策紀錄卡表達，不再重複印一行。
-  return r.replies.filter(m => !(m.choice != null && !m.x && rqDecided(r))).map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice != null ? ` <span class="rq-pill done">${svg('diamond', 11)} ${esc(m.choice)}</span>` : ''}${m.x ? `<div class="rq-msg-x">${esc(m.x)}</div>` : ''}</div></div>`).join('');
+  return r.replies.filter(m => !(m.choice != null && !m.x && rqDecided(r))).map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice != null ? ` <span class="rq-pill done">${svg('diamond', 11)} ${esc(m.choice)}</span>` : ''}${m.x ? `<div class="rq-msg-x">${esc(m.x)}</div>` : ''}${(m.refs || []).length ? `<div class="obj-refs">${m.refs.map(objRefChip).join('')}</div>` : ''}</div></div>`).join('');
 }
 function rqReplyBox(r) {
   if (!rqOpenReply.has(r.id)) return '';
-  return `<div class="rq-compose"><input data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to === DB.me ? r.from : r.to))}…" value="${esc(rqDrafts.get(r.id) || '')}" ${bind("input", (event, element) => {
-    rqDrafts.set(r.id, element.value);
+  const refs = rqDraftRefs.get(r.id) || [];
+  return `<div class="rq-compose"><input data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to === DB.me ? r.from : r.to))}…（打 @ 引用物件）" value="${esc(rqDrafts.get(r.id) || '')}" ${bind("input", (event, element) => {
+    rqReplyInput(r.id, element.value);
   })} ${bind("keydown", (event, element) => {
-    if (event.key === 'Enter' && !event.isComposing) {
-      event.preventDefault();
-      rqReply(r.id);
-    }
-  })}><button class="btn sm pri" ${bind("click", (event, element) => {
+    rqReplyKey(event, r.id);
+  })}><button class="btn sm" title="引用截圖、聲音、影片、檔案、議題、任務…" ${bind("click", (event, element) => {
+    rqRefToggle(r.id);
+  })}>${svg('at', 12)} 引用</button><button class="btn sm pri" ${bind("click", (event, element) => {
     rqReply(r.id);
   })}>送出</button><button class="btn sm" ${bind("click", (event, element) => {
     rqToggleReply(r.id);
-  })}>取消</button></div>`;
+  })}>取消</button></div>
+ ${refs.length ? `<div class="obj-refs draft">${refs.map((f, i) => `<span class="obj-ref-wrap">${objRefChip(f)}<button type="button" class="obj-ref-x" aria-label="移除引用" ${bind("click", (event, element) => {
+    rqRefRemove(r.id, i);
+  })}>${svg('x', 10)}</button></span>`).join('')}</div>` : ''}
+ ${rqRefPick.has(r.id) ? rqRefPanel(r.id) : ''}`;
+}
+/* ---- 回覆裡的引用選單 ----
+   兩個入口：「引用」按鈕，或在回覆框打 @ 加關鍵字（與日誌的 @ 引用同一個心智模型）。
+   選單裡打字只換清單、不整頁重畫，焦點才不會跳掉。 */
+const RQ_REF_AT = /(?:^|\s)[@＠]([^\s@＠]{0,20})$/;
+function rqReplyInput(id, v) {
+  rqDrafts.set(id, v);
+  const m = v.match(RQ_REF_AT),
+    wasAt = !!rqRefPick.get(id + ':at');
+  if (m) {
+    const first = !rqRefPick.has(id);
+    rqRefPick.set(id, m[1]);
+    rqRefPick.set(id + ':at', '1');
+    rqRefPaint(id, !first);
+  } else if (wasAt) {
+    rqRefPick.delete(id);
+    rqRefPick.delete(id + ':at');
+    rqRefPaint(id, false);
+  }
+}
+function rqReplyKey(e, id) {
+  if (e.isComposing) return;
+  if (rqRefPick.has(id) && e.key === 'Enter') {
+    const h = objRefHits(rqRefPick.get(id))[0];
+    if (h) {
+      e.preventDefault();
+      return rqRefAdd(id, h.ty, h.rid, h.ic);
+    }
+  }
+  if (e.key === 'Escape' && rqRefPick.has(id)) {
+    e.preventDefault();
+    rqRefPick.delete(id);
+    rqRefPick.delete(id + ':at');
+    return rqRefPaint(id, false);
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    rqReply(id);
+  }
+}
+function rqRefToggle(id) {
+  if (rqRefPick.has(id)) {
+    rqRefPick.delete(id);
+    rqRefPick.delete(id + ':at');
+  } else rqRefPick.set(id, '');
+  runtime._afterRender = () => root.querySelector('[data-rq-refq="' + id + '"]')?.focus();
+  render();
+}
+function rqRefPanel(id) {
+  const q = rqRefPick.get(id) || '',
+    fromAt = !!rqRefPick.get(id + ':at');
+  return `<div class="rq-refpick" contenteditable="false">
+  ${fromAt ? '' : `<input data-rq-refq="${id}" aria-label="搜尋要引用的物件" placeholder="搜尋截圖、檔案、議題、任務…" value="${esc(q)}" ${bind("input", (event, element) => {
+    rqRefSearch(id, element.value);
+  })} ${bind("keydown", (event, element) => {
+    rqRefSearchKey(event, id);
+  })}>`}
+  <div class="rq-refpick-list" data-rq-reflist="${id}">${rqRefList(id)}</div></div>`;
+}
+function rqRefList(id) {
+  const hits = objRefHits(rqRefPick.get(id) || '');
+  if (!hits.length) return '<div class="rq-empty">找不到符合的物件</div>';
+  return hits.map(h => `<button type="button" class="rq-refpick-it" ${bind("click", (event, element) => {
+    rqRefAdd(id, esc(h.ty), esc(h.rid), esc(h.ic || ''));
+  })}>${svg(objRefIcon(h.ty, h.rid), 12)}<span class="k">${esc(objRefLabel(h.ty, h.rid))}</span><span class="n">${esc(objRefName(h.ty, h.rid))}</span><span class="d">${esc(h.ds || '')}</span></button>`).join('');
+}
+function rqRefSearch(id, v) {
+  rqRefPick.set(id, v);
+  rqRefPaint(id, true);
+}
+function rqRefSearchKey(e, id) {
+  if (e.isComposing) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const h = objRefHits(rqRefPick.get(id))[0];
+    if (h) rqRefAdd(id, h.ty, h.rid, h.ic);
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    rqRefToggle(id);
+  }
+}
+/* 只換清單那一塊：選單第一次出現（從 @ 進來）才需要整個 render。 */
+function rqRefPaint(id, open) {
+  const lists = root.querySelectorAll('[data-rq-reflist="' + id + '"]');
+  if (open && lists.length) {
+    lists.forEach(el => {
+      el.innerHTML = rqRefList(id);
+    });
+    return;
+  }
+  const focus = shadow.activeElement,
+    keep = focus && focus.matches && focus.matches('[data-rq-input="' + id + '"]') ? focus.selectionStart : null;
+  runtime._afterRender = () => {
+    const el = root.querySelector('[data-rq-input="' + id + '"]');
+    if (el && keep != null) {
+      el.focus();
+      el.setSelectionRange(keep, keep);
+    }
+  };
+  render();
+}
+function rqRefAdd(id, ty, rid, ic) {
+  const list = rqDraftRefs.get(id) || [];
+  if (!list.some(f => f.ty === ty && f.rid === rid)) list.push({
+    ty,
+    rid,
+    ic
+  });
+  rqDraftRefs.set(id, list);
+  // 從 @ 進來的：把打到一半的 @關鍵字 從回覆文字裡拿掉，引用改由下方膠囊表達。
+  if (rqRefPick.get(id + ':at')) {
+    const t = (rqDrafts.get(id) || '').replace(RQ_REF_AT, '').trimEnd();
+    rqDrafts.set(id, t ? t + ' ' : '');
+  }
+  rqRefPick.delete(id);
+  rqRefPick.delete(id + ':at');
+  runtime._afterRender = () => {
+    const el = root.querySelector('[data-rq-input="' + id + '"]');
+    if (el) {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  };
+  render();
+}
+function rqRefRemove(id, i) {
+  const list = rqDraftRefs.get(id) || [];
+  list.splice(i, 1);
+  rqDraftRefs.set(id, list);
+  render();
 }
 function rqOptions(r) {
   if (r.kind !== 'decision' || r.to !== DB.me || r.choice != null || r.resolvedAt) return '';
@@ -10006,6 +10154,8 @@ function jcObjChip(o) {
     const m = metaOf(d);
     return [docObjectLabel(d, m), m.chip || 'c-n'];
   }
+  // 檔案（截圖、聲音、影片、附件）與連結：標籤與名稱交給 obj-names.source.js 的共用查表。
+  if ((o.ty === 'asset' || o.ty === 'link') && typeof objFind === 'function') return objFind(o.ty, o.rid) ? [objRefLabel(o.ty, o.rid), o.ty === 'link' ? 'c-t' : 'c-o'] : ['已刪除', 'c-n'];
   return JC_TYPES[o.ty] || [o.ty, 'c-n'];
 }
 function jcNow() {
@@ -10314,6 +10464,7 @@ function jcObjects() {
   return out;
 }
 function jcObjName(o) {
+  if ((o.ty === 'asset' || o.ty === 'link') && typeof objFind === 'function') return objFind(o.ty, o.rid) ? objRefName(o.ty, o.rid) : '已刪除';
   if (o.ty === 'doc_object') {
     const d = (DB.docObjects || []).find(x => x.id === o.rid);
     return d ? docObjectName(d) : '已刪除';
@@ -11219,7 +11370,7 @@ function renderDocObjectCard(b) {
     toggleDocCollapse(doc.id);
   })}>
         <span class="chip ${meta.chip}">${meta.nm}</span>
-        <span class="eb-doc-bar-title">${esc(name)}</span>
+        <span class="eb-doc-bar-title" ${typeof objRenAttr === 'function' ? objRenAttr('doc_object', doc.id) : ''}>${esc(name)}</span>
         <span class="eb-doc-bar-meta">${isCollapsed ? esc(docObjectTimestamp(doc)) : `${doc.day} · ${person(doc.author)}${doc.secs.reduce((a, sec) => a + secWordCount(sec), 0) ? ' · ' + doc.secs.reduce((a, sec) => a + secWordCount(sec), 0) + ' 字' : ''}`}</span>
         ${stkDocChip(doc)}
         ${docWritable(doc) ? '' : '<span class="eb-doc-ro-tag">唯讀 · 可留言</span>'}
@@ -12426,7 +12577,7 @@ renderDocObjectCard = function (b) {
     toggleDocCollapse(d.id);
   })}>
         <span class="chip ${meta.chip}">${svg('flag', 11)} ${docObjectLabel(d, meta)}</span>
-        <span class="eb-doc-bar-title">${esc(docObjectName(d))}</span>
+        <span class="eb-doc-bar-title" ${typeof objRenAttr === 'function' ? objRenAttr('doc_object', d.id) : ''}>${esc(docObjectName(d))}</span>
         <span class="ag-pills">${agPills(d)}</span>
         ${stkDocChip(d)}
       </div>
@@ -13236,7 +13387,7 @@ function oiStatusCell(r) {
 function oiRowHtml(r) {
   return `<tr>
     <td><span class="chip ${r.chip}">${esc(r.tyNm)}</span></td>
-    <td><span class="oi-nm">${esc(r.name)}</span>${oiCodeBadge(r.code)}${r.snip ? `<span class="oi-snip">${r.snip}</span>` : ''}</td>
+    <td><span class="oi-nm" ${r.ty === 'doc_object' || r.ty === 'asset' || r.ty === 'link' ? typeof objRenAttr === 'function' ? objRenAttr(r.ty, r.id) : '' : ''}>${esc(r.name)}</span>${oiCodeBadge(r.code)}${r.snip ? `<span class="oi-snip">${r.snip}</span>` : ''}</td>
     ${oiStatusCell(r)}
     ${oiBornCell(r)}
     <td>${oiSrcCell(r)}</td>
@@ -19736,7 +19887,7 @@ function astCard(b) {
   if (!a) return '<div class="eb-obj">檔案已刪除</div>';
   const meta = astMeta(a.kind);
   const head = `<div class="eb-obj-h"><span class="chip ${meta.chip}">${esc(AST_LABELS[a.kind] || '檔案')}</span>
-    <span class="ti">${esc(a.name)}</span>
+    <span class="ti" ${typeof objRenAttr === 'function' ? objRenAttr('asset', a.id) : ''}>${esc(a.name)}</span>
     <span class="m" style="font-family:var(--mono);font-size:10.5px;color:var(--text-3)">${esc(a.id)}</span></div>`;
   if (a.status === 'uploading') {
     // 還在傳的時候就看得到是哪一張圖：本機那一份已經在手上，不必等網路。
@@ -20546,7 +20697,7 @@ function lkCard(b) {
   return `<div class="eb-obj lk-card" ${bind("click", (event, element) => {
     lkOpen(l.id);
   })} title="開啟 ${esc(l.url)}">
-    <div class="eb-obj-h"><span class="chip c-t">連結</span><span class="ti">${esc(l.title)}</span>
+    <div class="eb-obj-h"><span class="chip c-t">連結</span><span class="ti" ${typeof objRenAttr === 'function' ? objRenAttr('link', l.id) : ''}>${esc(l.title)}</span>
       <span class="m lk-code">${esc(l.id)}</span></div>
     <div class="lk-url">${svg('goto', 11)}<span>${esc(lkShort(l.url, 90))}</span></div>
     ${l.note ? `<div class="lk-note">${esc(l.note)}</div>` : ''}
@@ -27039,6 +27190,291 @@ render = function (...args) {
   if (MSEL.ids.length > 1) msPaint();
   return out;
 };
+
+/* ── 物件名稱：在哪裡都叫得出來、在哪裡都改得了 ─────────────────────────────
+ *
+ * 兩件事收在同一個檔案，因為它們讀的是同一張「物件 → 名稱」的表：
+ *
+ *   一、引用。回覆、留言這類「不是日誌正文」的書寫面，也要能指著一個物件說話 ——
+ *       「參考 10-15 的截圖」光靠文字對方得自己去找。引用存的是 {ty, rid}，
+ *       名稱每次畫的時候才查，所以物件改名之後，所有引用它的地方一起變。
+ *
+ *   二、改名。物件名稱點兩下直接改。單擊的原本行為（展開卡片、打開抽屜）延後 260ms，
+ *       雙擊就取消單擊、進入編輯；不這樣做的話，第一下單擊的 render() 會把正要被雙擊的
+ *       那個節點換掉，雙擊永遠接不到。
+ *
+ * 可以改名的：日誌誕生的物件（文件物件＝議題／任務／Standup…、檔案＝截圖／聲音／影片／附件、連結）。
+ * 誰能改：作者，以及公司負責人（isOwner）。工作項目、專案、交易這些有自己的編輯表單，不在這裡改。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/* ---------- 一、物件 → 名稱／標籤／圖示 ---------- */
+
+const OBJ_LEDGER_LABEL = {
+  issue: '工作',
+  project: '專案',
+  txn: '交易',
+  decision: '決策',
+  event: '事件'
+};
+const OBJ_LEDGER_ICON = {
+  issue: 'issue',
+  project: 'project',
+  txn: 'txn',
+  decision: 'commit',
+  event: 'timeline'
+};
+const OBJ_LEDGER_LIST = {
+  issue: () => DB.issues,
+  project: () => DB.projects,
+  txn: () => DB.txns,
+  decision: () => DB.decisions,
+  event: () => DB.events
+};
+function objFind(ty, rid) {
+  if (ty === 'doc_object') return (DB.docObjects || []).find(x => x.id === rid) || null;
+  if (ty === 'asset') return (DB.assets || []).find(x => x.id === rid) || null;
+  if (ty === 'link') return (DB.links || []).find(x => x.id === rid) || null;
+  const list = OBJ_LEDGER_LIST[ty];
+  return list ? (list() || []).find(x => x.id === rid) || null : null;
+}
+function objRefName(ty, rid) {
+  const o = objFind(ty, rid);
+  if (!o) return '（物件已刪除）';
+  if (ty === 'doc_object') return docObjectName(o);
+  if (ty === 'asset') return o.name || o.id;
+  if (ty === 'link') return o.title || o.url || o.id;
+  return o.t || o.id;
+}
+function objRefLabel(ty, rid) {
+  const o = objFind(ty, rid);
+  if (ty === 'doc_object') return o ? docObjectLabel(o, metaOf(o)) : '物件';
+  if (ty === 'asset') return o ? AST_LABELS[o.kind] || '檔案' : '檔案';
+  if (ty === 'link') return '連結';
+  return OBJ_LEDGER_LABEL[ty] || '物件';
+}
+function objRefIcon(ty, rid) {
+  const o = objFind(ty, rid);
+  if (ty === 'doc_object') return o && o.type === 'agenda' ? 'flag' : 'journal';
+  if (ty === 'asset') return o ? astMeta(o.kind).ic : 'paperclip';
+  if (ty === 'link') return 'goto';
+  return OBJ_LEDGER_ICON[ty] || 'dot';
+}
+function objRefOpen(ty, rid) {
+  if (!objFind(ty, rid)) return toast('這個物件已經不存在');
+  if (ty === 'doc_object') return openDocPage(rid);
+  objJump(ty, rid);
+}
+
+/** 引用膠囊：圖示＋型別＋名稱，點一下開物件、點兩下改名（有權限時）。 */
+function objRefChip(ref) {
+  const gone = !objFind(ref.ty, ref.rid);
+  return `<button type="button" class="obj-ref ${gone ? 'gone' : ''}" title="${gone ? '物件已刪除' : '開啟'}"
+    ${bind("click", (event, element) => {
+    event.stopPropagation();
+    objRefOpen(esc(ref.ty), esc(ref.rid));
+  })}>${svg(objRefIcon(ref.ty, ref.rid), 11)}
+    <span class="obj-ref-k">${esc(objRefLabel(ref.ty, ref.rid))}</span>
+    <span class="obj-ref-n" ${objRenAttr(ref.ty, ref.rid)}>${esc(objRefName(ref.ty, ref.rid))}</span></button>`;
+}
+
+/** 引用選單的候選：沿用 @ 引用的同一份清單（mentionHits），只留物件、不留人。 */
+function objRefHits(q) {
+  return (typeof mentionHits === 'function' ? mentionHits(q || '') : []).filter(h => h && h.ty && h.rid && h.ty !== 'person').slice(0, 8);
+}
+
+/* ---------- 二、改名 ---------- */
+
+const OBJ_RENAMABLE = {
+  doc_object: 1,
+  asset: 1,
+  link: 1
+};
+const OBJ_NAME_MAX = 120;
+function objCanRename(ty, rid) {
+  if (!OBJ_RENAMABLE[ty]) return false;
+  const o = objFind(ty, rid);
+  if (!o) return false;
+  return o.author === DB.me || isOwner();
+}
+/** 名稱元素帶上這兩個屬性，雙擊就能改。沒有權限就什麼都不帶 —— 游標與提示也不出現。 */
+function objRenAttr(ty, rid) {
+  return objCanRename(ty, rid) ? `data-obj-ren="${esc(ty)}|${esc(rid)}" title="點兩下改名稱"` : '';
+}
+
+/** 打開的獨立頁面或抽屜也要跟著換名字；render() 只重畫工作台。 */
+function objRenRepaint() {
+  const stack = S.stack || [];
+  if (stack.length && root.querySelector('#drawer.on')) paintDrawer();
+}
+function objRename(ty, rid, raw) {
+  const o = objFind(ty, rid);
+  if (!o) return false;
+  if (!objCanRename(ty, rid)) {
+    deny();
+    return false;
+  }
+  const name = String(raw || '').replace(/\s+/g, ' ').trim().slice(0, OBJ_NAME_MAX);
+  if (!name) {
+    toast('名稱不能是空的');
+    return false;
+  }
+  if (name === objRefName(ty, rid)) return false;
+  if (ty === 'asset') return astRename(o, name);
+  commit('update', ty === 'link' ? '連結物件' : '文件物件', name, () => {
+    if (ty === 'doc_object') {
+      o.title = name;
+      o.titleAuto = false;
+      o.updatedAt = Date.now();
+    } else {
+      o.title = name;
+      o.updatedAt = Date.now();
+    }
+    return ['改名為「' + esc(name) + '」', '參考碼不變；引用它的回覆、卡片與物件索引一起更新'];
+  });
+  objRenRepaint();
+  return true;
+}
+
+/**
+ * 檔案不走命令佇列（bytes 在儲存桶、列在 operating_assets），改名要打 uploads API。
+ * 先改畫面、再送出；伺服器拒絕就改回來並說明 —— 不讓畫面停在一個沒存進去的名字上。
+ */
+function astRename(a, name) {
+  const before = a.name;
+  a.name = name;
+  render();
+  objRenRepaint();
+  if (!OP_LIVE || !a.assetId) {
+    toast('已改名為「' + esc(name) + '」' + (OP_LIVE ? '' : '（示例模式，不會保存）'));
+    return true;
+  }
+  fetch(UPLOAD_ENDPOINT, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      assetId: a.assetId,
+      name
+    })
+  }).then(async res => {
+    if (res.ok) return toast('已改名為「' + esc(name) + '」');
+    const body = await res.json().catch(() => ({}));
+    a.name = before;
+    render();
+    objRenRepaint();
+    toast('改名沒有保存：' + esc(body.error || 'HTTP ' + res.status));
+  }).catch(() => {
+    a.name = before;
+    render();
+    objRenRepaint();
+    toast('改名沒有保存：連不上伺服器');
+  });
+  return true;
+}
+
+/* ---------- 三、點兩下編輯 ---------- */
+
+let objRenTimer = 0;
+const OBJ_REPLAYED = new WeakSet();
+function objRenTarget(e) {
+  const el = e.target && e.target.closest ? e.target.closest('[data-obj-ren]') : null;
+  if (!el) return null;
+  const [ty, rid] = String(el.dataset.objRen || '').split('|');
+  return ty && rid && objCanRename(ty, rid) ? {
+    el,
+    ty,
+    rid
+  } : null;
+}
+function objStartRename(el, ty, rid) {
+  if (el.isContentEditable) return;
+  const original = objRefName(ty, rid);
+  el.textContent = original;
+  el.setAttribute('contenteditable', 'true');
+  el.classList.add('obj-ren-on');
+  el.focus();
+  const range = doc.createRange();
+  range.selectNodeContents(el);
+  const sel = shadow.getSelection ? shadow.getSelection() : window.getSelection();
+  if (sel) {
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  let done = false;
+  const stop = ev => ev.stopPropagation();
+  const finish = save => {
+    if (done) return;
+    done = true;
+    el.removeAttribute('contenteditable');
+    el.classList.remove('obj-ren-on');
+    ['keydown', 'keyup', 'keypress', 'input', 'beforeinput', 'paste', 'mousedown', 'click'].forEach(t => el.removeEventListener(t, t === 'keydown' ? onKey : t === 'paste' ? onPaste : stop, true));
+    el.removeEventListener('blur', onBlur);
+    const next = el.textContent;
+    if (!save || !objRename(ty, rid, next)) el.textContent = original;
+  };
+  const onKey = ev => {
+    ev.stopPropagation();
+    if (ev.isComposing) return;
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      finish(true);
+      el.blur();
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      finish(false);
+      el.blur();
+    }
+  };
+  const onPaste = ev => {
+    ev.stopPropagation();
+    ev.preventDefault();
+    const text = ev.clipboardData && ev.clipboardData.getData('text/plain') || '';
+    doc.execCommand('insertText', false, text.replace(/\s+/g, ' '));
+  };
+  const onBlur = () => finish(true);
+  // 全部掛在捕獲階段並擋下冒泡：這個名稱可能長在日誌 #doc 裡，
+  // 不擋的話 docKey／docInput 會把這裡的 Enter 與輸入當成日誌正文處理。
+  el.addEventListener('keydown', onKey, true);
+  el.addEventListener('paste', onPaste, true);
+  ['keyup', 'keypress', 'input', 'beforeinput', 'mousedown', 'click'].forEach(t => el.addEventListener(t, stop, true));
+  el.addEventListener('blur', onBlur);
+}
+
+/* 單擊延後、雙擊改名。只攔「有權限改名」的名稱元素，其他地方的點擊完全不經過這裡。 */
+root.addEventListener('click', e => {
+  if (OBJ_REPLAYED.has(e)) return;
+  const hit = objRenTarget(e);
+  if (!hit || hit.el.isContentEditable) return;
+  e.stopPropagation();
+  e.preventDefault();
+  clearTimeout(objRenTimer);
+  if (e.detail >= 2) return;
+  objRenTimer = setTimeout(() => {
+    if (!hit.el.isConnected || hit.el.isContentEditable) return;
+    const replay = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+    OBJ_REPLAYED.add(replay);
+    hit.el.dispatchEvent(replay);
+  }, 260);
+}, {
+  capture: true,
+  signal: controller.signal
+});
+root.addEventListener('dblclick', e => {
+  const hit = objRenTarget(e);
+  if (!hit) return;
+  e.stopPropagation();
+  e.preventDefault();
+  clearTimeout(objRenTimer);
+  objStartRename(hit.el, hit.ty, hit.rid);
+}, {
+  capture: true,
+  signal: controller.signal
+});
 paintUser();
 renderRail();
 render();
