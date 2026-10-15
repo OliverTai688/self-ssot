@@ -703,7 +703,7 @@ function agThreadHtml(d, where) {
     focus: () => (agPageOpen(d.id) ? root.querySelector('#drBody [data-ag-input="' + d.id + '"]') : null) || root.querySelector('[data-ag-input="' + d.id + '"]')
   });
   const box = st.doneAt ? '' : `<div class="rq-compose ag-compose">
-    <input data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…（打 @ 引用物件）" value="${esc(agDrafts.get(d.id) || '')}" oninput="agDrafts.set('${d.id}',this.value);if(agHasRefs)orInput('${key}',this.value)" onkeydown="if(agHasRefs&&orKey(event,'${key}'))return;if(event.key==='Enter'&&!event.isComposing){event.preventDefault();agSay('${d.id}')}">
+    <textarea rows="1" class="rq-ta" data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…（Enter 送出 · Shift+Enter 換行 · @ 引用物件）" oninput="agDrafts.set('${d.id}',this.value);if(agHasRefs)orInput('${key}',this.value);this.style.height='auto';this.style.height=Math.min(this.scrollHeight,160)+'px';" onkeydown="if(agHasRefs&&orKey(event,'${key}'))return;if(event.key==='Enter'){event.stopPropagation();if(!event.shiftKey&&!event.isComposing){event.preventDefault();agSay('${d.id}')}}">${esc(agDrafts.get(d.id) || '')}</textarea>
     ${agHasRefs ? orButton(key) : ''}
     <button class="btn sm" onclick="agAttach('${d.id}')">${svg('paperclip', 12)} 附檔</button>
     <button class="btn sm pri" onclick="agSay('${d.id}')">${svg('send', 12)} 送出</button></div>

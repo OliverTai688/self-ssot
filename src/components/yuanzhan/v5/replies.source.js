@@ -250,6 +250,30 @@ function rqNudge(id){
  r.nudges.push({at:Date.now(),ts:nowts()});
  toast(`${rqState(r)==='late'?'已追蹤':'已輕推'} <b>${esc(person(r.to))}</b>：${esc(rqText(r))}`);render();
 }
+/* 撤回回覆：回到「待我回覆」。
+   起因是回覆框按 Shift+Enter 就把寫到一半的字送出了 —— 送出等於「已回覆」，請求從日誌上收走，
+   而且沒有任何辦法拿回來。撤回只給被問的人、只撤自己最後一則、而且對方還沒在後面接話
+   （接了話就是一段對話了，抽掉中間一句會讓對方那一句沒頭沒尾）。字放回回覆框，可以接著寫。 */
+function rqCanUndoReply(r){
+ if(!r||r.to!==DB.me||r.resolvedAt||r.choice!=null||!r.firstReplyAt)return false;
+ const last=r.replies[r.replies.length-1];
+ return !!last&&last.w===DB.me&&last.choice==null;
+}
+function rqUndoReply(id){
+ const r=rqFind(id);if(!rqCanUndoReply(r))return deny();
+ const last=r.replies[r.replies.length-1];
+ commit('update','撤回回覆',rqText(r),()=>{
+  r.replies.pop();
+  // 還有自己更早的回覆就維持「已回覆」，只拿掉最後這一則；一則都不剩才回到待回覆、重新計時。
+  if(!r.replies.some(m=>m.w===r.to))r.firstReplyAt=null;
+  return[r.firstReplyAt?'撤回最後一則回覆':'撤回回覆，回到「待我回覆」','寫到一半的字放回回覆框'];
+ });
+ if(!last.ack){rqDrafts.set(id,last.x||'');if((last.refs||[]).length&&typeof orAdd==='function')last.refs.forEach(f=>{const l=orRefs.get(rqRefKey(id))||[];if(!l.some(x=>x.ty===f.ty&&x.rid===f.rid))l.push(f);orRefs.set(rqRefKey(id),l)})}
+ rqOpenReply.add(id);
+ // 收到的請求收在自己「今天」的日誌裡；跳過去並把焦點放進回覆框，游標在字尾。
+ rqJump(id,true);
+ setTimeout(()=>{const el=root.querySelector('[data-rq-input="'+id+'"]');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);el.style.height='auto';el.style.height=Math.min(el.scrollHeight,160)+'px'}},60);
+}
 function rqResolve(id){
  const r=rqFind(id);if(!r||!rqInvolves(r))return deny();
  rqOpenReply.delete(id);
@@ -344,7 +368,7 @@ function rqReplyBox(r){
  if(!rqOpenReply.has(r.id))return '';
  const key=rqRefKey(r.id);
  orBind(key,{get:()=>rqDrafts.get(r.id)||'',set:v=>rqDrafts.set(r.id,v),focus:()=>root.querySelector('[data-rq-input="'+r.id+'"]')});
- return `<div class="rq-compose"><input data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to===DB.me?r.from:r.to))}…（打 @ 引用物件）" value="${esc(rqDrafts.get(r.id)||'')}" oninput="rqDrafts.set('${r.id}',this.value);orInput('${key}',this.value)" onkeydown="if(orKey(event,'${key}'))return;if(event.key==='Enter'&&!event.isComposing){event.preventDefault();rqReply('${r.id}')}">${orButton(key)}<button class="btn sm pri" onclick="rqReply('${r.id}')">送出</button><button class="btn sm" onclick="rqToggleReply('${r.id}')">取消</button></div>
+ return `<div class="rq-compose"><textarea rows="1" class="rq-ta" data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to===DB.me?r.from:r.to))}…（Enter 送出 · Shift+Enter 換行 · @ 引用物件）" oninput="rqDrafts.set('${r.id}',this.value);orInput('${key}',this.value);this.style.height='auto';this.style.height=Math.min(this.scrollHeight,160)+'px';" onkeydown="if(orKey(event,'${key}'))return;if(event.key==='Enter'){event.stopPropagation();if(!event.shiftKey&&!event.isComposing){event.preventDefault();rqReply('${r.id}')}}">${esc(rqDrafts.get(r.id)||'')}</textarea>${orButton(key)}<button class="btn sm pri" onclick="rqReply('${r.id}')">送出</button><button class="btn sm" onclick="rqToggleReply('${r.id}')">取消</button></div>
  ${orTray(key)}`;
 }
 function rqOptions(r){
@@ -356,7 +380,7 @@ function rqActions(r,{incoming}={}){
  if(r.resolvedAt)return '';
  if(r.to===DB.me){
   if(r.kind==='decision'&&r.choice==null)return rqOptions(r)+`<div class="rq-acts">${r.firstReplyAt?'':`<button class="btn sm" onclick="rqAck('${r.id}')">收到，晚點處理${incoming?'（停止計時）':''}</button>`}</div>`;
-  return `<div class="rq-acts"><button class="btn sm ${late&&!r.firstReplyAt?'red':''}" onclick="rqToggleReply('${r.id}')">回覆</button>${r.firstReplyAt?`<button class="btn sm" onclick="rqResolve('${r.id}')">${svg('check',12)} 標記已解決</button>`:`<button class="btn sm" onclick="rqAck('${r.id}')">收到，晚點處理${incoming?'（停止計時）':''}</button>`}</div>`;
+  return `<div class="rq-acts"><button class="btn sm ${late&&!r.firstReplyAt?'red':''}" onclick="rqToggleReply('${r.id}')">回覆</button>${r.firstReplyAt?`<button class="btn sm" onclick="rqResolve('${r.id}')">${svg('check',12)} 標記已解決</button>`:`<button class="btn sm" onclick="rqAck('${r.id}')">收到，晚點處理${incoming?'（停止計時）':''}</button>`}${rqCanUndoReply(r)?`<button class="btn sm" title="拿掉我最後一則回覆，回到待我回覆，字會放回回覆框" onclick="rqUndoReply('${r.id}')">${svg('undo',12)} 撤回回覆</button>`:''}</div>`;
  }
  if(r.from===DB.me){
   if(r.firstReplyAt)return `<div class="rq-acts"><button class="btn sm" onclick="rqToggleReply('${r.id}')">回覆…</button><button class="btn sm" onclick="rqResolve('${r.id}')">${svg('check',12)} 標記已解決</button></div>`;
@@ -495,7 +519,7 @@ function rqBoardCard(r){
 function rqDoneCard(r){
  const spent=rqDur((r.firstReplyAt-r.sentAt)/HOUR);
  const who=r.to===DB.me?`${person(r.to)}回覆`:rqReplyWord(r);
- return `<div class="rq-card done"><div class="rq-card-t rq-strike">${esc(rqText(r))}</div><div class="rq-card-m">${r.kind==='decision'?'<span class="rq-pill dec">'+svg('diamond',11)+'</span>':''}${esc(r.to===DB.me&&r.choice!=null?rqReplyWord(r):who)} · 花了 ${spent}${r.resolvedAt?' · 已解決':''}</div>${r.resolvedAt?'':`<div class="rq-acts"><button class="btn sm" onclick="rqResolve('${r.id}')">${svg('check',12)} 標記已解決</button><button class="rq-src" onclick="rqJump('${r.id}')">${esc(rqSource(r))}</button></div>`}</div>`;
+ return `<div class="rq-card done"><div class="rq-card-t rq-strike">${esc(rqText(r))}</div><div class="rq-card-m">${r.kind==='decision'?'<span class="rq-pill dec">'+svg('diamond',11)+'</span>':''}${esc(r.to===DB.me&&r.choice!=null?rqReplyWord(r):who)} · 花了 ${spent}${r.resolvedAt?' · 已解決':''}</div>${r.resolvedAt?'':`<div class="rq-acts"><button class="btn sm" onclick="rqResolve('${r.id}')">${svg('check',12)} 標記已解決</button>${rqCanUndoReply(r)?`<button class="btn sm" title="拿掉我最後一則回覆，回到待我回覆，字會放回回覆框" onclick="rqUndoReply('${r.id}')">${svg('undo',12)} 撤回回覆</button>`:''}<button class="rq-src" onclick="rqJump('${r.id}')">${esc(rqSource(r))}</button></div>`}</div>`;
 }
 function rqCol(title,cls,list,card,empty){
  return `<div class="rq-col"><div class="rq-col-h ${cls}"><span>${title}</span><span class="rq-meta">${list.length}</span></div>${list.map(card).join('')||`<div class="rq-empty">${empty}</div>`}</div>`;

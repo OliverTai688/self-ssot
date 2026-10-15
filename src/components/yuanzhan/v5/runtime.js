@@ -9400,6 +9400,46 @@ function rqNudge(id) {
   toast(`${rqState(r) === 'late' ? '已追蹤' : '已輕推'} <b>${esc(person(r.to))}</b>：${esc(rqText(r))}`);
   render();
 }
+/* 撤回回覆：回到「待我回覆」。
+   起因是回覆框按 Shift+Enter 就把寫到一半的字送出了 —— 送出等於「已回覆」，請求從日誌上收走，
+   而且沒有任何辦法拿回來。撤回只給被問的人、只撤自己最後一則、而且對方還沒在後面接話
+   （接了話就是一段對話了，抽掉中間一句會讓對方那一句沒頭沒尾）。字放回回覆框，可以接著寫。 */
+function rqCanUndoReply(r) {
+  if (!r || r.to !== DB.me || r.resolvedAt || r.choice != null || !r.firstReplyAt) return false;
+  const last = r.replies[r.replies.length - 1];
+  return !!last && last.w === DB.me && last.choice == null;
+}
+function rqUndoReply(id) {
+  const r = rqFind(id);
+  if (!rqCanUndoReply(r)) return deny();
+  const last = r.replies[r.replies.length - 1];
+  commit('update', '撤回回覆', rqText(r), () => {
+    r.replies.pop();
+    // 還有自己更早的回覆就維持「已回覆」，只拿掉最後這一則；一則都不剩才回到待回覆、重新計時。
+    if (!r.replies.some(m => m.w === r.to)) r.firstReplyAt = null;
+    return [r.firstReplyAt ? '撤回最後一則回覆' : '撤回回覆，回到「待我回覆」', '寫到一半的字放回回覆框'];
+  });
+  if (!last.ack) {
+    rqDrafts.set(id, last.x || '');
+    if ((last.refs || []).length && typeof orAdd === 'function') last.refs.forEach(f => {
+      const l = orRefs.get(rqRefKey(id)) || [];
+      if (!l.some(x => x.ty === f.ty && x.rid === f.rid)) l.push(f);
+      orRefs.set(rqRefKey(id), l);
+    });
+  }
+  rqOpenReply.add(id);
+  // 收到的請求收在自己「今天」的日誌裡；跳過去並把焦點放進回覆框，游標在字尾。
+  rqJump(id, true);
+  setTimeout(() => {
+    const el = root.querySelector('[data-rq-input="' + id + '"]');
+    if (el) {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+    }
+  }, 60);
+}
 function rqResolve(id) {
   const r = rqFind(id);
   if (!r || !rqInvolves(r)) return deny();
@@ -9550,16 +9590,21 @@ function rqReplyBox(r) {
     set: v => rqDrafts.set(r.id, v),
     focus: () => root.querySelector('[data-rq-input="' + r.id + '"]')
   });
-  return `<div class="rq-compose"><input data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to === DB.me ? r.from : r.to))}…（打 @ 引用物件）" value="${esc(rqDrafts.get(r.id) || '')}" ${bind("input", (event, element) => {
+  return `<div class="rq-compose"><textarea rows="1" class="rq-ta" data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to === DB.me ? r.from : r.to))}…（Enter 送出 · Shift+Enter 換行 · @ 引用物件）" ${bind("input", (event, element) => {
     rqDrafts.set(r.id, element.value);
     orInput(key, element.value);
+    element.style.height = 'auto';
+    element.style.height = Math.min(element.scrollHeight, 160) + 'px';
   })} ${bind("keydown", (event, element) => {
     if (orKey(event, key)) return;
-    if (event.key === 'Enter' && !event.isComposing) {
-      event.preventDefault();
-      rqReply(r.id);
+    if (event.key === 'Enter') {
+      event.stopPropagation();
+      if (!event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        rqReply(r.id);
+      }
     }
-  })}>${orButton(key)}<button class="btn sm pri" ${bind("click", (event, element) => {
+  })}>${esc(rqDrafts.get(r.id) || '')}</textarea>${orButton(key)}<button class="btn sm pri" ${bind("click", (event, element) => {
     rqReply(r.id);
   })}>送出</button><button class="btn sm" ${bind("click", (event, element) => {
     rqToggleReply(r.id);
@@ -9588,7 +9633,9 @@ function rqActions(r, {
       rqResolve(r.id);
     })}>${svg('check', 12)} 標記已解決</button>` : `<button class="btn sm" ${bind("click", (event, element) => {
       rqAck(r.id);
-    })}>收到，晚點處理${incoming ? '（停止計時）' : ''}</button>`}</div>`;
+    })}>收到，晚點處理${incoming ? '（停止計時）' : ''}</button>`}${rqCanUndoReply(r) ? `<button class="btn sm" title="拿掉我最後一則回覆，回到待我回覆，字會放回回覆框" ${bind("click", (event, element) => {
+      rqUndoReply(r.id);
+    })}>${svg('undo', 12)} 撤回回覆</button>` : ''}</div>`;
   }
   if (r.from === DB.me) {
     if (r.firstReplyAt) return `<div class="rq-acts"><button class="btn sm" ${bind("click", (event, element) => {
@@ -9809,7 +9856,9 @@ function rqDoneCard(r) {
   const who = r.to === DB.me ? `${person(r.to)}回覆` : rqReplyWord(r);
   return `<div class="rq-card done"><div class="rq-card-t rq-strike">${esc(rqText(r))}</div><div class="rq-card-m">${r.kind === 'decision' ? '<span class="rq-pill dec">' + svg('diamond', 11) + '</span>' : ''}${esc(r.to === DB.me && r.choice != null ? rqReplyWord(r) : who)} · 花了 ${spent}${r.resolvedAt ? ' · 已解決' : ''}</div>${r.resolvedAt ? '' : `<div class="rq-acts"><button class="btn sm" ${bind("click", (event, element) => {
     rqResolve(r.id);
-  })}>${svg('check', 12)} 標記已解決</button><button class="rq-src" ${bind("click", (event, element) => {
+  })}>${svg('check', 12)} 標記已解決</button>${rqCanUndoReply(r) ? `<button class="btn sm" title="拿掉我最後一則回覆，回到待我回覆，字會放回回覆框" ${bind("click", (event, element) => {
+    rqUndoReply(r.id);
+  })}>${svg('undo', 12)} 撤回回覆</button>` : ''}<button class="rq-src" ${bind("click", (event, element) => {
     rqJump(r.id);
   })}>${esc(rqSource(r))}</button></div>`}</div>`;
 }
@@ -10233,20 +10282,25 @@ function jcLineHtml(author, b) {
     ${c.x ? `<div class="jc-lc-text">${esc(c.x)}</div>` : ''}${orChips(c.refs)}
    </div>
   </div>`).join('')}
-  ${open ? `<div class="jc-lc-in"><span class="av rq-av xs ${DB.people[DB.me]?.cls || ''}">${DB.people[DB.me]?.s || '我'}</span><input data-jc-input="${k}" aria-label="行內留言" placeholder="回覆對話串…（打 @ 引用物件；Enter 送出, Esc 取消)" value="${esc(jcDrafts.get(k) || '')}" ${bind("input", (event, element) => {
+  ${open ? `<div class="jc-lc-in"><span class="av rq-av xs ${DB.people[DB.me]?.cls || ''}">${DB.people[DB.me]?.s || '我'}</span><textarea rows="1" class="rq-ta" data-jc-input="${k}" aria-label="行內留言" placeholder="回覆對話串…（Enter 送出 · Shift+Enter 換行 · @ 引用物件 · Esc 取消）" ${bind("input", (event, element) => {
     jcDrafts.set(k, element.value);
     orInput(rk, element.value);
+    element.style.height = 'auto';
+    element.style.height = Math.min(element.scrollHeight, 160) + 'px';
   })} ${bind("keydown", (event, element) => {
     if (orKey(event, rk)) return;
-    if (event.key === 'Enter' && !event.isComposing) {
-      event.preventDefault();
-      jcSendLine(author, b.id);
+    if (event.key === 'Enter') {
+      event.stopPropagation();
+      if (!event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        jcSendLine(author, b.id);
+      }
     }
     if (event.key === 'Escape') {
       event.preventDefault();
       jcOpenLine(author, b.id);
     }
-  })}>${orButton(rk)}<button class="btn sm pri" ${bind("click", (event, element) => {
+  })}>${esc(jcDrafts.get(k) || '')}</textarea>${orButton(rk)}<button class="btn sm pri" ${bind("click", (event, element) => {
     event.stopPropagation();
     jcSendLine(author, b.id);
   })}>送出</button><button class="btn sm" ${bind("click", (event, element) => {
@@ -12439,16 +12493,21 @@ function agThreadHtml(d, where) {
     focus: () => (agPageOpen(d.id) ? root.querySelector('#drBody [data-ag-input="' + d.id + '"]') : null) || root.querySelector('[data-ag-input="' + d.id + '"]')
   });
   const box = st.doneAt ? '' : `<div class="rq-compose ag-compose">
-    <input data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…（打 @ 引用物件）" value="${esc(agDrafts.get(d.id) || '')}" ${bind("input", (event, element) => {
+    <textarea rows="1" class="rq-ta" data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…（Enter 送出 · Shift+Enter 換行 · @ 引用物件）" ${bind("input", (event, element) => {
     agDrafts.set(d.id, element.value);
     if (agHasRefs) orInput(key, element.value);
+    element.style.height = 'auto';
+    element.style.height = Math.min(element.scrollHeight, 160) + 'px';
   })} ${bind("keydown", (event, element) => {
     if (agHasRefs && orKey(event, key)) return;
-    if (event.key === 'Enter' && !event.isComposing) {
-      event.preventDefault();
-      agSay(d.id);
+    if (event.key === 'Enter') {
+      event.stopPropagation();
+      if (!event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        agSay(d.id);
+      }
     }
-  })}>
+  })}>${esc(agDrafts.get(d.id) || '')}</textarea>
     ${agHasRefs ? orButton(key) : ''}
     <button class="btn sm" ${bind("click", (event, element) => {
     agAttach(d.id);

@@ -422,3 +422,10 @@ td.k .tc-v{white-space:normal}
 .obj-ren-on{outline:1px solid var(--pri-br,var(--border-3));outline-offset:2px;border-radius:4px;background:var(--surface);
   text-decoration:none!important;cursor:text;white-space:pre-wrap;user-select:text!important;-webkit-user-select:text!important}
 @media (max-width:640px){.rq-refpick-it .d{display:none}.obj-ref-n{max-width:180px}}
+
+/* ---- 回覆／議題討論／行內留言：多行輸入框（Enter 送出、Shift+Enter 換行）---- */
+textarea.rq-ta{flex:1;min-width:160px;min-height:28px;max-height:160px;height:28px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-2);
+  background:var(--surface);color:var(--text);font:inherit;font-size:12.5px;line-height:1.45;resize:none;overflow-y:auto;box-sizing:border-box}
+.jc-lc-in textarea.rq-ta{min-width:0;background:var(--surface-2)}
+.rq-compose{align-items:flex-start}
+.rq-msg-x{white-space:pre-wrap;word-break:break-word}
