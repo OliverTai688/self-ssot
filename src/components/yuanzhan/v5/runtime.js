@@ -8796,10 +8796,9 @@ DB.dayClose = {};
 const rqDrafts = new Map(),
   rqDeferDrafts = new Map(),
   rqOpenReply = new Set();
-/* 回覆裡的物件引用（截圖、聲音、影片、檔案、議題、任務…）。存 {ty,rid,ic}，名稱畫的時候才查
-   （obj-names.source.js 的 objRefName），物件改名後引用一起變。rqRefPick：引用選單開著的那幾則與搜尋字。 */
-const rqDraftRefs = new Map(),
-  rqRefPick = new Map();
+/* 回覆裡的物件引用（截圖、聲音、影片、檔案、議題、任務…）走 obj-names.source.js 的共用引用輸入，
+   key 是 'rq:'+請求 id。存 {ty,rid}，名稱畫的時候才查，物件改名後引用一起變。 */
+const rqRefKey = id => 'rq:' + id;
 let rqDecision = null;
 if (initialState.mode === 'showcase') {
   const now = Date.now(),
@@ -9339,17 +9338,13 @@ function rqReply(id, choice) {
   if (!rqInvolves(r)) return deny();
   if (r.resolvedAt) return toast('這個請求已結案');
   const x = (rqDrafts.get(id) || '').trim();
-  const refs = choice == null ? (rqDraftRefs.get(id) || []).map(f => ({
-    ty: f.ty,
-    rid: f.rid
-  })) : [];
+  const refs = choice == null ? orRefsOf(rqRefKey(id)) : [];
   if (choice == null && !x && !refs.length) return toast('請先輸入回覆或引用一個物件');
   if (choice != null && (r.to !== DB.me || r.kind !== 'decision')) return deny();
   if (choice != null && r.choice != null) return toast('這張決策卡已經有決定了');
   rqDrafts.delete(id);
   rqOpenReply.delete(id);
-  rqDraftRefs.delete(id);
-  rqRefPick.delete(id);
+  orClear(rqRefKey(id));
   commit('update', choice != null ? '決策回覆' : '請求回覆', rqText(r), () => {
     const now = Date.now();
     // day 記的是「在哪一天做的決定」：答的人那一頭的決策紀錄要掛在那一天的日誌上。
@@ -9545,157 +9540,31 @@ function rqDecidedHtml(who, day) {
 /* ---- 共用：訊息串與動作列 ---- */
 function rqMsgs(r) {
   // 只有選項、沒有附文字的那一則已經由決策紀錄卡表達，不再重複印一行。
-  return r.replies.filter(m => !(m.choice != null && !m.x && rqDecided(r))).map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice != null ? ` <span class="rq-pill done">${svg('diamond', 11)} ${esc(m.choice)}</span>` : ''}${m.x ? `<div class="rq-msg-x">${esc(m.x)}</div>` : ''}${(m.refs || []).length ? `<div class="obj-refs">${m.refs.map(objRefChip).join('')}</div>` : ''}</div></div>`).join('');
+  return r.replies.filter(m => !(m.choice != null && !m.x && rqDecided(r))).map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${m.ts}</span>${m.choice != null ? ` <span class="rq-pill done">${svg('diamond', 11)} ${esc(m.choice)}</span>` : ''}${m.x ? `<div class="rq-msg-x">${esc(m.x)}</div>` : ''}${orChips(m.refs)}</div></div>`).join('');
 }
 function rqReplyBox(r) {
   if (!rqOpenReply.has(r.id)) return '';
-  const refs = rqDraftRefs.get(r.id) || [];
+  const key = rqRefKey(r.id);
+  orBind(key, {
+    get: () => rqDrafts.get(r.id) || '',
+    set: v => rqDrafts.set(r.id, v),
+    focus: () => root.querySelector('[data-rq-input="' + r.id + '"]')
+  });
   return `<div class="rq-compose"><input data-rq-input="${r.id}" aria-label="回覆：${esc(rqText(r))}" placeholder="回覆 ${esc(person(r.to === DB.me ? r.from : r.to))}…（打 @ 引用物件）" value="${esc(rqDrafts.get(r.id) || '')}" ${bind("input", (event, element) => {
-    rqReplyInput(r.id, element.value);
+    rqDrafts.set(r.id, element.value);
+    orInput(key, element.value);
   })} ${bind("keydown", (event, element) => {
-    rqReplyKey(event, r.id);
-  })}><button class="btn sm" title="引用截圖、聲音、影片、檔案、議題、任務…" ${bind("click", (event, element) => {
-    rqRefToggle(r.id);
-  })}>${svg('at', 12)} 引用</button><button class="btn sm pri" ${bind("click", (event, element) => {
+    if (orKey(event, key)) return;
+    if (event.key === 'Enter' && !event.isComposing) {
+      event.preventDefault();
+      rqReply(r.id);
+    }
+  })}>${orButton(key)}<button class="btn sm pri" ${bind("click", (event, element) => {
     rqReply(r.id);
   })}>送出</button><button class="btn sm" ${bind("click", (event, element) => {
     rqToggleReply(r.id);
   })}>取消</button></div>
- ${refs.length ? `<div class="obj-refs draft">${refs.map((f, i) => `<span class="obj-ref-wrap">${objRefChip(f)}<button type="button" class="obj-ref-x" aria-label="移除引用" ${bind("click", (event, element) => {
-    rqRefRemove(r.id, i);
-  })}>${svg('x', 10)}</button></span>`).join('')}</div>` : ''}
- ${rqRefPick.has(r.id) ? rqRefPanel(r.id) : ''}`;
-}
-/* ---- 回覆裡的引用選單 ----
-   兩個入口：「引用」按鈕，或在回覆框打 @ 加關鍵字（與日誌的 @ 引用同一個心智模型）。
-   選單裡打字只換清單、不整頁重畫，焦點才不會跳掉。 */
-const RQ_REF_AT = /(?:^|\s)[@＠]([^\s@＠]{0,20})$/;
-function rqReplyInput(id, v) {
-  rqDrafts.set(id, v);
-  const m = v.match(RQ_REF_AT),
-    wasAt = !!rqRefPick.get(id + ':at');
-  if (m) {
-    const first = !rqRefPick.has(id);
-    rqRefPick.set(id, m[1]);
-    rqRefPick.set(id + ':at', '1');
-    rqRefPaint(id, !first);
-  } else if (wasAt) {
-    rqRefPick.delete(id);
-    rqRefPick.delete(id + ':at');
-    rqRefPaint(id, false);
-  }
-}
-function rqReplyKey(e, id) {
-  if (e.isComposing) return;
-  if (rqRefPick.has(id) && e.key === 'Enter') {
-    const h = objRefHits(rqRefPick.get(id))[0];
-    if (h) {
-      e.preventDefault();
-      return rqRefAdd(id, h.ty, h.rid, h.ic);
-    }
-  }
-  if (e.key === 'Escape' && rqRefPick.has(id)) {
-    e.preventDefault();
-    rqRefPick.delete(id);
-    rqRefPick.delete(id + ':at');
-    return rqRefPaint(id, false);
-  }
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    rqReply(id);
-  }
-}
-function rqRefToggle(id) {
-  if (rqRefPick.has(id)) {
-    rqRefPick.delete(id);
-    rqRefPick.delete(id + ':at');
-  } else rqRefPick.set(id, '');
-  runtime._afterRender = () => root.querySelector('[data-rq-refq="' + id + '"]')?.focus();
-  render();
-}
-function rqRefPanel(id) {
-  const q = rqRefPick.get(id) || '',
-    fromAt = !!rqRefPick.get(id + ':at');
-  return `<div class="rq-refpick" contenteditable="false">
-  ${fromAt ? '' : `<input data-rq-refq="${id}" aria-label="搜尋要引用的物件" placeholder="搜尋截圖、檔案、議題、任務…" value="${esc(q)}" ${bind("input", (event, element) => {
-    rqRefSearch(id, element.value);
-  })} ${bind("keydown", (event, element) => {
-    rqRefSearchKey(event, id);
-  })}>`}
-  <div class="rq-refpick-list" data-rq-reflist="${id}">${rqRefList(id)}</div></div>`;
-}
-function rqRefList(id) {
-  const hits = objRefHits(rqRefPick.get(id) || '');
-  if (!hits.length) return '<div class="rq-empty">找不到符合的物件</div>';
-  return hits.map(h => `<button type="button" class="rq-refpick-it" ${bind("click", (event, element) => {
-    rqRefAdd(id, esc(h.ty), esc(h.rid), esc(h.ic || ''));
-  })}>${svg(objRefIcon(h.ty, h.rid), 12)}<span class="k">${esc(objRefLabel(h.ty, h.rid))}</span><span class="n">${esc(objRefName(h.ty, h.rid))}</span><span class="d">${esc(h.ds || '')}</span></button>`).join('');
-}
-function rqRefSearch(id, v) {
-  rqRefPick.set(id, v);
-  rqRefPaint(id, true);
-}
-function rqRefSearchKey(e, id) {
-  if (e.isComposing) return;
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    const h = objRefHits(rqRefPick.get(id))[0];
-    if (h) rqRefAdd(id, h.ty, h.rid, h.ic);
-  }
-  if (e.key === 'Escape') {
-    e.preventDefault();
-    rqRefToggle(id);
-  }
-}
-/* 只換清單那一塊：選單第一次出現（從 @ 進來）才需要整個 render。 */
-function rqRefPaint(id, open) {
-  const lists = root.querySelectorAll('[data-rq-reflist="' + id + '"]');
-  if (open && lists.length) {
-    lists.forEach(el => {
-      el.innerHTML = rqRefList(id);
-    });
-    return;
-  }
-  const focus = shadow.activeElement,
-    keep = focus && focus.matches && focus.matches('[data-rq-input="' + id + '"]') ? focus.selectionStart : null;
-  runtime._afterRender = () => {
-    const el = root.querySelector('[data-rq-input="' + id + '"]');
-    if (el && keep != null) {
-      el.focus();
-      el.setSelectionRange(keep, keep);
-    }
-  };
-  render();
-}
-function rqRefAdd(id, ty, rid, ic) {
-  const list = rqDraftRefs.get(id) || [];
-  if (!list.some(f => f.ty === ty && f.rid === rid)) list.push({
-    ty,
-    rid,
-    ic
-  });
-  rqDraftRefs.set(id, list);
-  // 從 @ 進來的：把打到一半的 @關鍵字 從回覆文字裡拿掉，引用改由下方膠囊表達。
-  if (rqRefPick.get(id + ':at')) {
-    const t = (rqDrafts.get(id) || '').replace(RQ_REF_AT, '').trimEnd();
-    rqDrafts.set(id, t ? t + ' ' : '');
-  }
-  rqRefPick.delete(id);
-  rqRefPick.delete(id + ':at');
-  runtime._afterRender = () => {
-    const el = root.querySelector('[data-rq-input="' + id + '"]');
-    if (el) {
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-    }
-  };
-  render();
-}
-function rqRefRemove(id, i) {
-  const list = rqDraftRefs.get(id) || [];
-  list.splice(i, 1);
-  rqDraftRefs.set(id, list);
-  render();
+ ${orTray(key)}`;
 }
 function rqOptions(r) {
   if (r.kind !== 'decision' || r.to !== DB.me || r.choice != null || r.resolvedAt) return '';
@@ -10297,10 +10166,13 @@ function jcOpenLine(author, id) {
   if (jcLineOpen) runtime._afterRender = () => root.querySelector('[data-jc-input="' + k + '"]')?.focus();
   render();
 }
+/* 行內留言也能引用物件（obj-names.source.js 的共用引用輸入），key 是 'lc:'+作者:行。 */
+const jcRefKey = k => 'lc:' + k;
 function jcSendLine(author, id) {
   const k = jcLineKey(author, id),
-    x = (jcDrafts.get(k) || '').trim();
-  if (!x) return toast('請先輸入留言');
+    x = (jcDrafts.get(k) || '').trim(),
+    refs = orRefsOf(jcRefKey(k));
+  if (!x && !refs.length) return toast('請先輸入留言或引用一個物件');
   const allBlocks = jcDoc(author)?.blocks || (author === DB.me ? jdoc()?.blocks : []);
   // 那一行可能不在日誌的行裡，而是在嵌入的文件物件（Standup、任務…）的段落裡。只找日誌
   // 會找不到，命令紀錄上這筆留言的名稱就是空的，事後查不出是留在哪一行。
@@ -10309,6 +10181,7 @@ function jcSendLine(author, id) {
   })?.block;
   jcDrafts.delete(k);
   jcLineOpen = '';
+  orClear(jcRefKey(k));
   commit('create', '行內留言', ((b?.text || '').trim() || x).slice(0, 24), () => {
     DB.lineComments.push({
       id: nid('LC'),
@@ -10317,9 +10190,12 @@ function jcSendLine(author, id) {
       blockId: id,
       w: DB.me,
       x,
-      ts: jcNow()
+      ts: jcNow(),
+      ...(refs.length ? {
+        refs
+      } : {})
     });
-    return ['留言掛在 ' + person(author) + ' 的這一行下方：' + esc(x.slice(0, 120))];
+    return ['留言掛在 ' + person(author) + ' 的這一行下方：' + esc((x || refs.map(f => objRefName(f.ty, f.rid)).join('、')).slice(0, 120))];
   });
   render();
 }
@@ -10332,8 +10208,14 @@ function jcDeleteLine(cid) {
 function jcLineHtml(author, b) {
   const k = jcLineKey(author, b.id),
     list = jcComments(author, b.id),
-    open = jcLineOpen === k;
+    open = jcLineOpen === k,
+    rk = jcRefKey(k);
   if (!list.length && !open) return '';
+  if (open) orBind(rk, {
+    get: () => jcDrafts.get(k) || '',
+    set: v => jcDrafts.set(k, v),
+    focus: () => root.querySelector('[data-jc-input="' + k + '"]')
+  });
   const pad = `margin-left:${Math.min(5, b.ind || 0) * 24 + 28}px`;
   return `<div class="jc-lcs" contenteditable="false" style="${pad}">${list.map(c => `
   <div class="jc-lc ${DB.people[c.w]?.cls || ''}">
@@ -10348,12 +10230,14 @@ function jcLineHtml(author, b) {
     jcDeleteLine(c.id);
   })}>刪除</button>` : ''}</span>
     </div>
-    <div class="jc-lc-text">${esc(c.x)}</div>
+    ${c.x ? `<div class="jc-lc-text">${esc(c.x)}</div>` : ''}${orChips(c.refs)}
    </div>
   </div>`).join('')}
-  ${open ? `<div class="jc-lc-in"><span class="av rq-av xs ${DB.people[DB.me]?.cls || ''}">${DB.people[DB.me]?.s || '我'}</span><input data-jc-input="${k}" aria-label="行內留言" placeholder="回覆對話串… (Enter 送出, Esc 取消)" value="${esc(jcDrafts.get(k) || '')}" ${bind("input", (event, element) => {
+  ${open ? `<div class="jc-lc-in"><span class="av rq-av xs ${DB.people[DB.me]?.cls || ''}">${DB.people[DB.me]?.s || '我'}</span><input data-jc-input="${k}" aria-label="行內留言" placeholder="回覆對話串…（打 @ 引用物件；Enter 送出, Esc 取消)" value="${esc(jcDrafts.get(k) || '')}" ${bind("input", (event, element) => {
     jcDrafts.set(k, element.value);
+    orInput(rk, element.value);
   })} ${bind("keydown", (event, element) => {
+    if (orKey(event, rk)) return;
     if (event.key === 'Enter' && !event.isComposing) {
       event.preventDefault();
       jcSendLine(author, b.id);
@@ -10362,13 +10246,13 @@ function jcLineHtml(author, b) {
       event.preventDefault();
       jcOpenLine(author, b.id);
     }
-  })}><button class="btn sm pri" ${bind("click", (event, element) => {
+  })}>${orButton(rk)}<button class="btn sm pri" ${bind("click", (event, element) => {
     event.stopPropagation();
     jcSendLine(author, b.id);
   })}>送出</button><button class="btn sm" ${bind("click", (event, element) => {
     event.stopPropagation();
     jcOpenLine(author, b.id);
-  })}>取消</button></div>` : list.length ? `<div class="jc-lc-reply-bar"><button class="jc-link" ${bind("click", (event, element) => {
+  })}>取消</button></div>${orTray(rk)}` : list.length ? `<div class="jc-lc-reply-bar"><button class="jc-link" ${bind("click", (event, element) => {
     event.stopPropagation();
     jcOpenLine(author, b.id);
   })}>${svg('message', 11)} 回覆此行對話串</button></div>` : ''}</div>`;
@@ -12453,11 +12337,15 @@ function ntTimeSafe(ms) {
 
 /* ---------- 討論與附件 ---------- */
 
+/** 議題討論的引用 key（obj-names.source.js 的共用引用輸入）。harness 單獨跑這支檔案時沒有那一支，退回空。 */
+const agRefKey = id => 'ag:' + id;
+const agHasRefs = typeof orRefsOf === 'function';
 function agSay(id) {
   const d = agFind(id);
   if (!d) return;
   const x = (agDrafts.get(id) || '').trim();
-  if (!x) return toast('先寫點什麼再送出');
+  const refs = agHasRefs ? orRefsOf(agRefKey(id)) : [];
+  if (!x && !refs.length) return toast('先寫點什麼再送出');
   const st = agState(d);
   // 同一個議題的輸入框會同時長在兩處：日誌卡片，和打開的議題頁。回焦點要回到使用者正在用的那一個。
   const inPage = agPageOpen(id);
@@ -12468,9 +12356,13 @@ function agSay(id) {
       w: DB.me,
       x,
       ts: nowts().slice(0, 5),
-      at: Date.now()
+      at: Date.now(),
+      ...(refs.length ? {
+        refs
+      } : {})
     });
     agDrafts.delete(id);
+    if (agHasRefs) orClear(agRefKey(id));
     d.updatedAt = Date.now();
     return [`討論累積 ${st.msgs.length} 則`];
   });
@@ -12538,22 +12430,33 @@ function agFilesHtml(d) {
 /** 討論串：卡片與議題頁共用同一段，只有容器 class 不同。 */
 function agThreadHtml(d, where) {
   const st = agState(d);
-  const msgs = st.msgs.length ? st.msgs.map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${esc(m.ts || '')}</span><div class="rq-msg-x">${esc(m.x)}</div></div></div>`).join('') : '<div class="rq-empty">還沒有討論</div>';
+  const msgs = st.msgs.length ? st.msgs.map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${esc(m.ts || '')}</span>${m.x ? `<div class="rq-msg-x">${esc(m.x)}</div>` : ''}${agHasRefs ? orChips(m.refs) : ''}</div></div>`).join('') : '<div class="rq-empty">還沒有討論</div>';
+  const key = agRefKey(d.id);
+  // 卡片與議題頁各有一個輸入框、共用同一份草稿與引用；焦點與重畫以使用者正在用的那一個為準。
+  if (agHasRefs && !st.doneAt) orBind(key, {
+    get: () => agDrafts.get(d.id) || '',
+    set: v => agDrafts.set(d.id, v),
+    focus: () => (agPageOpen(d.id) ? root.querySelector('#drBody [data-ag-input="' + d.id + '"]') : null) || root.querySelector('[data-ag-input="' + d.id + '"]')
+  });
   const box = st.doneAt ? '' : `<div class="rq-compose ag-compose">
-    <input data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…" value="${esc(agDrafts.get(d.id) || '')}" ${bind("input", (event, element) => {
+    <input data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…（打 @ 引用物件）" value="${esc(agDrafts.get(d.id) || '')}" ${bind("input", (event, element) => {
     agDrafts.set(d.id, element.value);
+    if (agHasRefs) orInput(key, element.value);
   })} ${bind("keydown", (event, element) => {
+    if (agHasRefs && orKey(event, key)) return;
     if (event.key === 'Enter' && !event.isComposing) {
       event.preventDefault();
       agSay(d.id);
     }
   })}>
+    ${agHasRefs ? orButton(key) : ''}
     <button class="btn sm" ${bind("click", (event, element) => {
     agAttach(d.id);
   })}>${svg('paperclip', 12)} 附檔</button>
     <button class="btn sm pri" ${bind("click", (event, element) => {
     agSay(d.id);
-  })}>${svg('send', 12)} 送出</button></div>`;
+  })}>${svg('send', 12)} 送出</button></div>
+    ${agHasRefs ? orTray(key) : ''}`;
   // contenteditable="false"：這一段在日誌卡片裡是長在 #doc 內的，不加的話輸入框的
   // Enter 會冒泡到 docKey()，被當成「在日誌裡換行」處理（同 rq-wrap 的作法）。
   return `<div class="ag-thread ${where}" contenteditable="false">
@@ -27475,6 +27378,218 @@ root.addEventListener('dblclick', e => {
   capture: true,
   signal: controller.signal
 });
+
+/* ---------- 四、共用的引用輸入（回覆、議題討論、行內留言） ----------
+ *
+ * 三個書寫面長得不一樣（請求回覆框、議題討論列、行內留言列），但「引用」這件事要一模一樣：
+ * 一顆「引用」按鈕、或打 @關鍵字 跳出選單，選到的物件以膠囊排在輸入框下方，送出時帶走。
+ * 所以狀態以 key 區分（'rq:REQ-1'、'ag:AGENDA-…'、'lc:yz:b12'），書寫面只負責三件事：
+ *   1. 畫的時候呼叫 orBind(key, cfg) 登記：怎麼讀寫草稿、輸入框在哪、選完要怎麼重畫；
+ *   2. 輸入框掛 orInput／orKey，旁邊放 orButton，底下放 orTray；
+ *   3. 送出時用 orRefsOf(key) 取引用，存進那則訊息的 refs，成功後 orClear(key)。
+ * 同一個 key 可能同時長在兩處（議題卡片＋議題頁），清單更新一律用 querySelectorAll。
+ */
+
+const orRefs = new Map(),
+  orPick = new Map(),
+  orCfg = new Map();
+const OR_AT = /(?:^|\s)[@＠]([^\s@＠]{0,20})$/;
+
+/* 選單與膠囊一律「就地換掉托盤那一塊」，從不重畫輸入框：
+ * 第一版開選單時整段重畫，打 @截圖 打得快的話，「截圖」兩個字會在輸入框被換掉的那一瞬間掉在地上，
+ * 選單就停在沒有關鍵字的清單。輸入框不動，焦點、游標、注音組字就都不會被打斷。 */
+
+/** cfg: { get():string, set(v), focus():Element|null } */
+function orBind(key, cfg) {
+  orCfg.set(key, cfg);
+}
+function orRefsOf(key) {
+  return (orRefs.get(key) || []).map(f => ({
+    ty: f.ty,
+    rid: f.rid
+  }));
+}
+function orClear(key) {
+  orRefs.delete(key);
+  orPick.delete(key);
+}
+function orInputEl(key) {
+  const c = orCfg.get(key);
+  return c && c.focus ? c.focus() : null;
+}
+function orFocus(key) {
+  const el = orInputEl(key);
+  if (!el) return;
+  el.focus();
+  if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length);
+}
+/** 同一個 key 可能有兩個托盤（議題卡＋議題頁），全部換掉。 */
+function orPaintTray(key) {
+  root.querySelectorAll('[data-or-tray="' + key + '"]').forEach(el => {
+    el.innerHTML = orTrayInner(key);
+  });
+}
+/** 托盤裡的搜尋框：找跟正在用的那個輸入框同一個書寫面的那一個。 */
+function orSearchEl(key) {
+  const all = [...root.querySelectorAll('[data-or-q="' + key + '"]')];
+  const input = orInputEl(key);
+  if (input) for (let n = input.parentElement; n; n = n.parentElement) {
+    const hit = all.find(q => n.contains(q));
+    if (hit) return hit;
+  }
+  return all[0] || null;
+}
+
+/** 輸入框的 oninput 呼叫（在書寫面存完草稿之後）。打到 @關鍵字 就開選單、邊打邊篩。 */
+function orInput(key, v) {
+  const m = String(v || '').match(OR_AT),
+    st = orPick.get(key);
+  if (m) {
+    orPick.set(key, {
+      q: m[1],
+      at: true
+    });
+    orPaintTray(key);
+  } else if (st && st.at) {
+    orPick.delete(key);
+    orPaintTray(key);
+  }
+}
+/** 輸入框的 onkeydown 先問這裡；回 true 表示選單吃掉了這個鍵，書寫面不要再處理（例如不要送出）。 */
+function orKey(e, key) {
+  if (e.isComposing) return false;
+  const st = orPick.get(key);
+  if (!st) return false;
+  if (e.key === 'Enter') {
+    const h = objRefHits(st.q)[0];
+    e.preventDefault();
+    e.stopPropagation();
+    if (h) orAdd(key, h.ty, h.rid);
+    return true;
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    orPick.delete(key);
+    orPaintTray(key);
+    return true;
+  }
+  return false;
+}
+function orToggle(key) {
+  if (orPick.has(key)) {
+    orPick.delete(key);
+    orPaintTray(key);
+    orFocus(key);
+    return;
+  }
+  orPick.set(key, {
+    q: '',
+    at: false
+  });
+  orPaintTray(key);
+  orSearchEl(key)?.focus();
+}
+function orSearch(key, v) {
+  orPick.set(key, {
+    q: v,
+    at: false
+  });
+  orPaintList(key);
+}
+function orSearchKey(e, key) {
+  e.stopPropagation();
+  if (e.isComposing) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const h = objRefHits((orPick.get(key) || {}).q)[0];
+    if (h) orAdd(key, h.ty, h.rid);
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    orToggle(key);
+  }
+}
+function orAdd(key, ty, rid) {
+  const list = orRefs.get(key) || [];
+  if (!list.some(f => f.ty === ty && f.rid === rid)) list.push({
+    ty,
+    rid
+  });
+  orRefs.set(key, list);
+  // 從 @ 進來的：打到一半的 @關鍵字 從文字裡拿掉，引用改由膠囊表達。輸入框本身也要跟著改值。
+  const st = orPick.get(key),
+    c = orCfg.get(key);
+  if (st && st.at && c) {
+    const t = String(c.get() || '').replace(OR_AT, '').trimEnd(),
+      next = t ? t + ' ' : '';
+    c.set(next);
+    const el = orInputEl(key);
+    if (el) el.value = next;
+  }
+  orPick.delete(key);
+  orPaintTray(key);
+  orFocus(key);
+}
+function orRemove(key, i) {
+  const list = orRefs.get(key) || [];
+  list.splice(i, 1);
+  orRefs.set(key, list);
+  orPaintTray(key);
+  orFocus(key);
+}
+function orButton(key) {
+  return `<button type="button" class="btn sm" title="引用截圖、聲音、影片、檔案、議題、任務…" ${bind("mousedown", (event, element) => {
+    event.preventDefault();
+  })} ${bind("click", (event, element) => {
+    event.stopPropagation();
+    orToggle(key);
+  })}>${svg('at', 12)} 引用</button>`;
+}
+function orList(key) {
+  const hits = objRefHits((orPick.get(key) || {}).q || '');
+  if (!hits.length) return '<div class="rq-empty">找不到符合的物件</div>';
+  return hits.map(h => `<button type="button" class="rq-refpick-it" ${bind("mousedown", (event, element) => {
+    event.preventDefault();
+  })} ${bind("click", (event, element) => {
+    event.stopPropagation();
+    orAdd(key, esc(h.ty), esc(h.rid));
+  })}>${svg(objRefIcon(h.ty, h.rid), 12)}<span class="k">${esc(objRefLabel(h.ty, h.rid))}</span><span class="n">${esc(objRefName(h.ty, h.rid))}</span><span class="d">${esc(h.ds || '')}</span></button>`).join('');
+}
+function orPaintList(key) {
+  const lists = root.querySelectorAll('[data-or-list="' + key + '"]');
+  if (!lists.length) return orPaintTray(key);
+  lists.forEach(el => {
+    el.innerHTML = orList(key);
+  });
+}
+function orTrayInner(key) {
+  const refs = orRefs.get(key) || [],
+    st = orPick.get(key);
+  const chips = refs.length ? `<div class="obj-refs draft">${refs.map((f, i) => `<span class="obj-ref-wrap">${objRefChip(f)}<button type="button" class="obj-ref-x" aria-label="移除引用" ${bind("mousedown", (event, element) => {
+    event.preventDefault();
+  })} ${bind("click", (event, element) => {
+    event.stopPropagation();
+    orRemove(key, i);
+  })}>${svg('x', 10)}</button></span>`).join('')}</div>` : '';
+  const panel = st ? `<div class="rq-refpick">
+    ${st.at ? '' : `<input data-or-q="${key}" aria-label="搜尋要引用的物件" placeholder="搜尋截圖、檔案、議題、任務…" value="${esc(st.q)}" ${bind("input", (event, element) => {
+    event.stopPropagation();
+    orSearch(key, element.value);
+  })} ${bind("keydown", (event, element) => {
+    orSearchKey(event, key);
+  })}>`}
+    <div class="rq-refpick-list" data-or-list="${key}">${orList(key)}</div></div>` : '';
+  return chips + panel;
+}
+/** 輸入框底下那一塊：已選的膠囊＋（開著時）選單。外層容器固定存在，之後只換裡面。 */
+function orTray(key) {
+  return `<div class="or-tray" data-or-tray="${key}" contenteditable="false">${orTrayInner(key)}</div>`;
+}
+/** 訊息裡的引用膠囊列。 */
+function orChips(refs) {
+  return refs && refs.length ? `<div class="obj-refs">${refs.map(objRefChip).join('')}</div>` : '';
+}
 paintUser();
 renderRail();
 render();

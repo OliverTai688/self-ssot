@@ -606,19 +606,25 @@ function ntTimeSafe(ms) { return typeof ntTime === 'function' ? ntTime(ms) : '';
 
 /* ---------- 討論與附件 ---------- */
 
+/** 議題討論的引用 key（obj-names.source.js 的共用引用輸入）。harness 單獨跑這支檔案時沒有那一支，退回空。 */
+const agRefKey = id => 'ag:' + id;
+const agHasRefs = typeof orRefsOf === 'function';
+
 function agSay(id) {
   const d = agFind(id);
   if (!d) return;
   const x = (agDrafts.get(id) || '').trim();
-  if (!x) return toast('先寫點什麼再送出');
+  const refs = agHasRefs ? orRefsOf(agRefKey(id)) : [];
+  if (!x && !refs.length) return toast('先寫點什麼再送出');
   const st = agState(d);
   // 同一個議題的輸入框會同時長在兩處：日誌卡片，和打開的議題頁。回焦點要回到使用者正在用的那一個。
   const inPage = agPageOpen(id);
   // commit() 自己會 render()，所以要在 commit 之前排好回焦點，否則這一次渲染會吃不到。
   if (!inPage) runtime._afterRender = () => root.querySelector('[data-ag-input="' + id + '"]')?.focus();
   commit('update', '議題物件', docObjectName(d), () => {
-    st.msgs.push({ w: DB.me, x, ts: nowts().slice(0, 5), at: Date.now() });
+    st.msgs.push({ w: DB.me, x, ts: nowts().slice(0, 5), at: Date.now(), ...(refs.length ? { refs } : {}) });
     agDrafts.delete(id);
+    if (agHasRefs) orClear(agRefKey(id));
     d.updatedAt = Date.now();
     return [`討論累積 ${st.msgs.length} 則`];
   });
@@ -687,12 +693,21 @@ function agFilesHtml(d) {
 function agThreadHtml(d, where) {
   const st = agState(d);
   const msgs = st.msgs.length
-    ? st.msgs.map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${esc(m.ts || '')}</span><div class="rq-msg-x">${esc(m.x)}</div></div></div>`).join('')
+    ? st.msgs.map(m => `<div class="rq-msg">${rqAv(m.w)}<div><b>${esc(person(m.w))}</b> <span class="rq-meta">${esc(m.ts || '')}</span>${m.x ? `<div class="rq-msg-x">${esc(m.x)}</div>` : ''}${agHasRefs ? orChips(m.refs) : ''}</div></div>`).join('')
     : '<div class="rq-empty">還沒有討論</div>';
+  const key = agRefKey(d.id);
+  // 卡片與議題頁各有一個輸入框、共用同一份草稿與引用；焦點與重畫以使用者正在用的那一個為準。
+  if (agHasRefs && !st.doneAt) orBind(key, {
+    get: () => agDrafts.get(d.id) || '',
+    set: v => agDrafts.set(d.id, v),
+    focus: () => (agPageOpen(d.id) ? root.querySelector('#drBody [data-ag-input="' + d.id + '"]') : null) || root.querySelector('[data-ag-input="' + d.id + '"]')
+  });
   const box = st.doneAt ? '' : `<div class="rq-compose ag-compose">
-    <input data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…" value="${esc(agDrafts.get(d.id) || '')}" oninput="agDrafts.set('${d.id}',this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();agSay('${d.id}')}">
+    <input data-ag-input="${d.id}" aria-label="討論：${esc(docObjectName(d))}" placeholder="寫下討論…（打 @ 引用物件）" value="${esc(agDrafts.get(d.id) || '')}" oninput="agDrafts.set('${d.id}',this.value);if(agHasRefs)orInput('${key}',this.value)" onkeydown="if(agHasRefs&&orKey(event,'${key}'))return;if(event.key==='Enter'&&!event.isComposing){event.preventDefault();agSay('${d.id}')}">
+    ${agHasRefs ? orButton(key) : ''}
     <button class="btn sm" onclick="agAttach('${d.id}')">${svg('paperclip', 12)} 附檔</button>
-    <button class="btn sm pri" onclick="agSay('${d.id}')">${svg('send', 12)} 送出</button></div>`;
+    <button class="btn sm pri" onclick="agSay('${d.id}')">${svg('send', 12)} 送出</button></div>
+    ${agHasRefs ? orTray(key) : ''}`;
   // contenteditable="false"：這一段在日誌卡片裡是長在 #doc 內的，不加的話輸入框的
   // Enter 會冒泡到 docKey()，被當成「在日誌裡換行」處理（同 rq-wrap 的作法）。
   return `<div class="ag-thread ${where}" contenteditable="false">

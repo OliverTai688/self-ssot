@@ -42,11 +42,11 @@ const stubs = {
   mentionHits: q => [{ ty: 'asset', rid: 'AST-0001', nm: 'x' }, { ty: 'person', rid: 'lily' }, { ty: 'doc_object', rid: 'AGENDA-JRNL-000001-20261015' }].filter(h => !q || h.rid.toLowerCase().includes(q.toLowerCase()) || h.ty === 'asset'),
   OP_LIVE: true, UPLOAD_ENDPOINT: '/api/company/operating/uploads',
   fetch: (url, opt) => { fetches.push({ url, opt }); return Promise.resolve({ ok: true, json: async () => ({}) }); },
-  root: { addEventListener: (t, fn) => { listeners[t] = fn; }, querySelector: () => null },
-  controller: { signal: {} }, doc: {}, shadow: {}
+  root: { addEventListener: (t, fn) => { listeners[t] = fn; }, querySelector: () => null, querySelectorAll: () => [] },
+  controller: { signal: {} }, doc: {}, shadow: { activeElement: null }, runtime: {}
 };
 const names = Object.keys(stubs);
-const api = new Function(...names, code + '\nreturn {objFind,objRefName,objRefLabel,objRefIcon,objRefOpen,objRefChip,objRefHits,objCanRename,objRenAttr,objRename};')(...names.map(n => stubs[n]));
+const api = new Function(...names, code + '\nreturn {objFind,objRefName,objRefLabel,objRefIcon,objRefOpen,objRefChip,objRefHits,objCanRename,objRenAttr,objRename,orBind,orRefsOf,orClear,orInput,orKey,orAdd,orRemove,orToggle,orTray,orChips,orButton};')(...names.map(n => stubs[n]));
 
 /* ---- 名稱查表 ---- */
 ok('N1 文件物件的名稱走 docObjectName（議題／任務的標籤跟著 meta）', api.objRefName('doc_object', 'AGENDA-JRNL-000001-20261015') === '議題：會計師提案');
@@ -96,10 +96,49 @@ ok('R6 沒權限的改名被擋下', (() => {
 ok('R7 引用膠囊顯示的是改名後的名稱（存的是 id，不是名字）', api.objRefChip({ ty: 'doc_object', rid: 'AGENDA-JRNL-000001-20261015' }).includes('會計師提案（定案）'));
 ok('R8 單擊延後／雙擊改名的監聽掛在捕獲階段', typeof listeners.click === 'function' && typeof listeners.dblclick === 'function');
 
+/* ---- 共用引用輸入（回覆／議題討論／行內留言） ---- */
+let draft = '';
+api.orBind('t:1', { get: () => draft, set: v => { draft = v; }, focus: () => null, repaint: () => {} });
+ok('C1 打 @關鍵字 開選單，Enter 選第一筆並把 @關鍵字 從文字拿掉', (() => {
+  draft = '參考 @截圖'; api.orInput('t:1', draft);
+  const tray = api.orTray('t:1');
+  let prevented = false;
+  const handled = api.orKey({ key: 'Enter', isComposing: false, preventDefault: () => { prevented = true; }, stopPropagation: () => {} }, 't:1');
+  const refs = api.orRefsOf('t:1');
+  return tray.includes('data-or-list="t:1"') && handled && prevented && refs.length === 1 && refs[0].ty === 'asset' && draft === '參考 ';
+})());
+ok('C2 選單沒開時 Enter 不攔（交給書寫面送出）', api.orKey({ key: 'Enter', isComposing: false, preventDefault() {}, stopPropagation() {} }, 't:1') === false);
+ok('C3 按鈕開選單、重複的物件不會加兩次、可移除', (() => {
+  api.orToggle('t:1'); api.orAdd('t:1', 'asset', 'AST-0001'); api.orAdd('t:1', 'doc_object', 'AGENDA-JRNL-000001-20261015');
+  const n = api.orRefsOf('t:1').length;
+  api.orRemove('t:1', 0);
+  return n === 2 && api.orRefsOf('t:1').length === 1 && api.orRefsOf('t:1')[0].ty === 'doc_object';
+})());
+ok('C4 膠囊列與送出後清空', (() => {
+  const tray = api.orTray('t:1');
+  api.orClear('t:1');
+  return tray.includes('obj-ref-x') && api.orRefsOf('t:1').length === 0 && api.orChips([]) === '' && api.orChips([{ ty: 'asset', rid: 'AST-0001' }]).includes('obj-ref');
+})());
+ok('C5 Esc 關選單、不清掉已選的引用', (() => {
+  api.orAdd('t:1', 'asset', 'AST-0001'); draft = 'x @會'; api.orInput('t:1', draft);
+  const handled = api.orKey({ key: 'Escape', isComposing: false, preventDefault() {}, stopPropagation() {} }, 't:1');
+  const closed = !api.orTray('t:1').includes('data-or-list');
+  const kept = api.orRefsOf('t:1').length === 1;
+  api.orClear('t:1'); return handled && closed && kept;
+})());
+ok('C6 組字中（注音）不攔按鍵', (() => { draft = '@a'; api.orInput('t:1', draft); const r = api.orKey({ key: 'Enter', isComposing: true }, 't:1') === false; api.orClear('t:1'); return r; })());
+
 /* ---- 接線 ---- */
 const rep = fs.readFileSync(path.join(V5, 'replies.source.js'), 'utf8');
-ok('W1 回覆送出時帶 refs，訊息畫出引用膠囊', rep.includes('...(refs.length?{refs}:{})') && rep.includes('m.refs.map(objRefChip)'));
-ok('W2 回覆框有「引用」按鈕與 @ 觸發', rep.includes("rqRefToggle('${r.id}')") && rep.includes('RQ_REF_AT'));
+ok('W1 回覆送出時帶 refs，訊息畫出引用膠囊', rep.includes('...(refs.length?{refs}:{})') && rep.includes('orChips(m.refs)'));
+ok('W2 回覆框走共用引用輸入（按鈕＋@）', rep.includes('orButton(key)') && rep.includes("orInput('${key}'") && rep.includes('orTray(key)'));
+const ag = fs.readFileSync(path.join(V5, 'agenda-object.source.js'), 'utf8');
+ok('W7 議題討論：送出帶 refs、訊息畫膠囊、輸入框有引用', ag.includes('...(refs.length ? { refs } : {})') && ag.includes('orChips(m.refs)') && ag.includes('orTray(key)'));
+const jcs = fs.readFileSync(path.join(V5, 'journal-cockpit.source.js'), 'utf8');
+ok('W8 行內留言：送出帶 refs、留言畫膠囊、輸入框有引用', jcs.includes('...(refs.length?{refs}:{})') && jcs.includes('orChips(c.refs)') && jcs.includes('orTray(rk)'));
+const cmdSvc = fs.readFileSync(path.join(ROOT, 'src/lib/services/operating-commands.service.ts'), 'utf8');
+const storeSvc = fs.readFileSync(path.join(ROOT, 'src/lib/services/operating-store.service.ts'), 'utf8');
+ok('W9 留言的 refs 存進 meta（清洗過、最多 20 筆）並讀回', cmdSvc.includes('refs: commentRefs(row.refs)') && cmdSvc.includes('out.length >= 20') && storeSvc.includes('refs: meta.refs'));
 const files = ['agenda-object.source.js', 'template-objects.source.js', 'asset-object.source.js', 'link-object.source.js', 'object-index.source.js'];
 ok('W3 議題卡、文件卡、檔案卡、連結卡、物件索引的名稱都帶雙擊屬性',
   files.every(f => fs.readFileSync(path.join(V5, f), 'utf8').includes('objRenAttr(')), files.filter(f => !fs.readFileSync(path.join(V5, f), 'utf8').includes('objRenAttr(')).join(','));

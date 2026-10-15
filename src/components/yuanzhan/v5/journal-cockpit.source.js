@@ -90,20 +90,23 @@ function jcKFmt(n){n=Math.abs(n);return !n?'—':n>=1000?(Math.round(n/100)/10).
 function jcLineKey(author,id){return author+':'+id}
 function jcComments(author,id){return DB.lineComments.filter(c=>c.author===author&&c.blockId===id&&c.day===S.jday)}
 function jcOpenLine(author,id){const k=jcLineKey(author,id);jcLineOpen=jcLineOpen===k?'':k;if(jcLineOpen)runtime._afterRender=()=>root.querySelector('[data-jc-input="'+k+'"]')?.focus();render()}
+/* 行內留言也能引用物件（obj-names.source.js 的共用引用輸入），key 是 'lc:'+作者:行。 */
+const jcRefKey=k=>'lc:'+k;
 function jcSendLine(author,id){
- const k=jcLineKey(author,id),x=(jcDrafts.get(k)||'').trim();if(!x)return toast('請先輸入留言');
+ const k=jcLineKey(author,id),x=(jcDrafts.get(k)||'').trim(),refs=orRefsOf(jcRefKey(k));if(!x&&!refs.length)return toast('請先輸入留言或引用一個物件');
  const allBlocks=jcDoc(author)?.blocks||(author===DB.me?jdoc()?.blocks:[]);
  // 那一行可能不在日誌的行裡，而是在嵌入的文件物件（Standup、任務…）的段落裡。只找日誌
  // 會找不到，命令紀錄上這筆留言的名稱就是空的，事後查不出是留在哪一行。
  const b=allBlocks?.find(b=>b.id===id)||rqFindDocLine({blockId:id})?.block;
- jcDrafts.delete(k);jcLineOpen='';
- commit('create','行內留言',((b?.text||'').trim()||x).slice(0,24),()=>{DB.lineComments.push({id:nid('LC'),author,day:S.jday,blockId:id,w:DB.me,x,ts:jcNow()});return['留言掛在 '+person(author)+' 的這一行下方：'+esc(x.slice(0,120))]});
+ jcDrafts.delete(k);jcLineOpen='';orClear(jcRefKey(k));
+ commit('create','行內留言',((b?.text||'').trim()||x).slice(0,24),()=>{DB.lineComments.push({id:nid('LC'),author,day:S.jday,blockId:id,w:DB.me,x,ts:jcNow(),...(refs.length?{refs}:{})});return['留言掛在 '+person(author)+' 的這一行下方：'+esc((x||refs.map(f=>objRefName(f.ty,f.rid)).join('、')).slice(0,120))]});
  render();
 }
 function jcDeleteLine(cid){const c=DB.lineComments.find(c=>c.id===cid);if(!c||c.w!==DB.me)return deny();DB.lineComments=DB.lineComments.filter(x=>x!==c);render()}
 function jcLineHtml(author,b){
- const k=jcLineKey(author,b.id),list=jcComments(author,b.id),open=jcLineOpen===k;
+ const k=jcLineKey(author,b.id),list=jcComments(author,b.id),open=jcLineOpen===k,rk=jcRefKey(k);
  if(!list.length&&!open)return '';
+ if(open)orBind(rk,{get:()=>jcDrafts.get(k)||'',set:v=>jcDrafts.set(k,v),focus:()=>root.querySelector('[data-jc-input="'+k+'"]')});
  const pad=`margin-left:${Math.min(5,b.ind||0)*24+28}px`;
  return `<div class="jc-lcs" contenteditable="false" style="${pad}">${list.map(c=>`
   <div class="jc-lc ${DB.people[c.w]?.cls||''}">
@@ -112,10 +115,10 @@ function jcLineHtml(author,b){
     <div class="jc-lc-top"><b class="jc-lc-author">${esc(person(c.w))}</b><span class="jc-lc-m">${c.ts}</span>
      <span class="jc-lc-actions"><button class="jc-link" onclick="event.stopPropagation();jcOpenLine('${author}','${b.id}')">回覆</button>${c.w===DB.me?`<button class="jc-link dgr" onclick="event.stopPropagation();jcDeleteLine('${c.id}')">刪除</button>`:''}</span>
     </div>
-    <div class="jc-lc-text">${esc(c.x)}</div>
+    ${c.x?`<div class="jc-lc-text">${esc(c.x)}</div>`:''}${orChips(c.refs)}
    </div>
   </div>`).join('')}
-  ${open?`<div class="jc-lc-in"><span class="av rq-av xs ${DB.people[DB.me]?.cls||''}">${DB.people[DB.me]?.s||'我'}</span><input data-jc-input="${k}" aria-label="行內留言" placeholder="回覆對話串… (Enter 送出, Esc 取消)" value="${esc(jcDrafts.get(k)||'')}" oninput="jcDrafts.set('${k}',this.value)" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();jcSendLine('${author}','${b.id}')}if(event.key==='Escape'){event.preventDefault();jcOpenLine('${author}','${b.id}')}"><button class="btn sm pri" onclick="event.stopPropagation();jcSendLine('${author}','${b.id}')">送出</button><button class="btn sm" onclick="event.stopPropagation();jcOpenLine('${author}','${b.id}')">取消</button></div>`:(list.length?`<div class="jc-lc-reply-bar"><button class="jc-link" onclick="event.stopPropagation();jcOpenLine('${author}','${b.id}')">${svg('message',11)} 回覆此行對話串</button></div>`:'')}</div>`;
+  ${open?`<div class="jc-lc-in"><span class="av rq-av xs ${DB.people[DB.me]?.cls||''}">${DB.people[DB.me]?.s||'我'}</span><input data-jc-input="${k}" aria-label="行內留言" placeholder="回覆對話串…（打 @ 引用物件；Enter 送出, Esc 取消)" value="${esc(jcDrafts.get(k)||'')}" oninput="jcDrafts.set('${k}',this.value);orInput('${rk}',this.value)" onkeydown="if(orKey(event,'${rk}'))return;if(event.key==='Enter'&&!event.isComposing){event.preventDefault();jcSendLine('${author}','${b.id}')}if(event.key==='Escape'){event.preventDefault();jcOpenLine('${author}','${b.id}')}">${orButton(rk)}<button class="btn sm pri" onclick="event.stopPropagation();jcSendLine('${author}','${b.id}')">送出</button><button class="btn sm" onclick="event.stopPropagation();jcOpenLine('${author}','${b.id}')">取消</button></div>${orTray(rk)}`:(list.length?`<div class="jc-lc-reply-bar"><button class="jc-link" onclick="event.stopPropagation();jcOpenLine('${author}','${b.id}')">${svg('message',11)} 回覆此行對話串</button></div>`:'')}</div>`;
 }
 const jcBaseEb=ebHtml;
 ebHtml=function(b){const html=jcBaseEb(b);return jcRendering&&TEXTY(b.t)?html+jcLineHtml(DB.me,b):html};

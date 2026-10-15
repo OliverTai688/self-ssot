@@ -223,3 +223,119 @@ root.addEventListener('dblclick', e => {
   clearTimeout(objRenTimer);
   objStartRename(hit.el, hit.ty, hit.rid);
 }, { capture: true, signal: controller.signal });
+
+/* ---------- 四、共用的引用輸入（回覆、議題討論、行內留言） ----------
+ *
+ * 三個書寫面長得不一樣（請求回覆框、議題討論列、行內留言列），但「引用」這件事要一模一樣：
+ * 一顆「引用」按鈕、或打 @關鍵字 跳出選單，選到的物件以膠囊排在輸入框下方，送出時帶走。
+ * 所以狀態以 key 區分（'rq:REQ-1'、'ag:AGENDA-…'、'lc:yz:b12'），書寫面只負責三件事：
+ *   1. 畫的時候呼叫 orBind(key, cfg) 登記：怎麼讀寫草稿、輸入框在哪、選完要怎麼重畫；
+ *   2. 輸入框掛 orInput／orKey，旁邊放 orButton，底下放 orTray；
+ *   3. 送出時用 orRefsOf(key) 取引用，存進那則訊息的 refs，成功後 orClear(key)。
+ * 同一個 key 可能同時長在兩處（議題卡片＋議題頁），清單更新一律用 querySelectorAll。
+ */
+
+const orRefs = new Map(), orPick = new Map(), orCfg = new Map();
+const OR_AT = /(?:^|\s)[@＠]([^\s@＠]{0,20})$/;
+
+/* 選單與膠囊一律「就地換掉托盤那一塊」，從不重畫輸入框：
+ * 第一版開選單時整段重畫，打 @截圖 打得快的話，「截圖」兩個字會在輸入框被換掉的那一瞬間掉在地上，
+ * 選單就停在沒有關鍵字的清單。輸入框不動，焦點、游標、注音組字就都不會被打斷。 */
+
+/** cfg: { get():string, set(v), focus():Element|null } */
+function orBind(key, cfg) { orCfg.set(key, cfg); }
+function orRefsOf(key) { return (orRefs.get(key) || []).map(f => ({ ty: f.ty, rid: f.rid })); }
+function orClear(key) { orRefs.delete(key); orPick.delete(key); }
+function orInputEl(key) { const c = orCfg.get(key); return c && c.focus ? c.focus() : null; }
+function orFocus(key) {
+  const el = orInputEl(key);
+  if (!el) return;
+  el.focus();
+  if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length);
+}
+/** 同一個 key 可能有兩個托盤（議題卡＋議題頁），全部換掉。 */
+function orPaintTray(key) {
+  root.querySelectorAll('[data-or-tray="' + key + '"]').forEach(el => { el.innerHTML = orTrayInner(key); });
+}
+/** 托盤裡的搜尋框：找跟正在用的那個輸入框同一個書寫面的那一個。 */
+function orSearchEl(key) {
+  const all = [...root.querySelectorAll('[data-or-q="' + key + '"]')];
+  const input = orInputEl(key);
+  if (input) for (let n = input.parentElement; n; n = n.parentElement) { const hit = all.find(q => n.contains(q)); if (hit) return hit; }
+  return all[0] || null;
+}
+
+/** 輸入框的 oninput 呼叫（在書寫面存完草稿之後）。打到 @關鍵字 就開選單、邊打邊篩。 */
+function orInput(key, v) {
+  const m = String(v || '').match(OR_AT), st = orPick.get(key);
+  if (m) { orPick.set(key, { q: m[1], at: true }); orPaintTray(key); }
+  else if (st && st.at) { orPick.delete(key); orPaintTray(key); }
+}
+/** 輸入框的 onkeydown 先問這裡；回 true 表示選單吃掉了這個鍵，書寫面不要再處理（例如不要送出）。 */
+function orKey(e, key) {
+  if (e.isComposing) return false;
+  const st = orPick.get(key);
+  if (!st) return false;
+  if (e.key === 'Enter') { const h = objRefHits(st.q)[0]; e.preventDefault(); e.stopPropagation(); if (h) orAdd(key, h.ty, h.rid); return true; }
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); orPick.delete(key); orPaintTray(key); return true; }
+  return false;
+}
+function orToggle(key) {
+  if (orPick.has(key)) { orPick.delete(key); orPaintTray(key); orFocus(key); return; }
+  orPick.set(key, { q: '', at: false });
+  orPaintTray(key);
+  orSearchEl(key)?.focus();
+}
+function orSearch(key, v) { orPick.set(key, { q: v, at: false }); orPaintList(key); }
+function orSearchKey(e, key) {
+  e.stopPropagation();
+  if (e.isComposing) return;
+  if (e.key === 'Enter') { e.preventDefault(); const h = objRefHits((orPick.get(key) || {}).q)[0]; if (h) orAdd(key, h.ty, h.rid); }
+  if (e.key === 'Escape') { e.preventDefault(); orToggle(key); }
+}
+function orAdd(key, ty, rid) {
+  const list = orRefs.get(key) || [];
+  if (!list.some(f => f.ty === ty && f.rid === rid)) list.push({ ty, rid });
+  orRefs.set(key, list);
+  // 從 @ 進來的：打到一半的 @關鍵字 從文字裡拿掉，引用改由膠囊表達。輸入框本身也要跟著改值。
+  const st = orPick.get(key), c = orCfg.get(key);
+  if (st && st.at && c) {
+    const t = String(c.get() || '').replace(OR_AT, '').trimEnd(), next = t ? t + ' ' : '';
+    c.set(next);
+    const el = orInputEl(key); if (el) el.value = next;
+  }
+  orPick.delete(key);
+  orPaintTray(key);
+  orFocus(key);
+}
+function orRemove(key, i) { const list = orRefs.get(key) || []; list.splice(i, 1); orRefs.set(key, list); orPaintTray(key); orFocus(key); }
+
+function orButton(key) {
+  return `<button type="button" class="btn sm" title="引用截圖、聲音、影片、檔案、議題、任務…" onmousedown="event.preventDefault()" onclick="event.stopPropagation();orToggle('${key}')">${svg('at', 12)} 引用</button>`;
+}
+function orList(key) {
+  const hits = objRefHits((orPick.get(key) || {}).q || '');
+  if (!hits.length) return '<div class="rq-empty">找不到符合的物件</div>';
+  return hits.map(h => `<button type="button" class="rq-refpick-it" onmousedown="event.preventDefault()" onclick="event.stopPropagation();orAdd('${key}','${esc(h.ty)}','${esc(h.rid)}')">${svg(objRefIcon(h.ty, h.rid), 12)}<span class="k">${esc(objRefLabel(h.ty, h.rid))}</span><span class="n">${esc(objRefName(h.ty, h.rid))}</span><span class="d">${esc(h.ds || '')}</span></button>`).join('');
+}
+function orPaintList(key) {
+  const lists = root.querySelectorAll('[data-or-list="' + key + '"]');
+  if (!lists.length) return orPaintTray(key);
+  lists.forEach(el => { el.innerHTML = orList(key); });
+}
+function orTrayInner(key) {
+  const refs = orRefs.get(key) || [], st = orPick.get(key);
+  const chips = refs.length ? `<div class="obj-refs draft">${refs.map((f, i) => `<span class="obj-ref-wrap">${objRefChip(f)}<button type="button" class="obj-ref-x" aria-label="移除引用" onmousedown="event.preventDefault()" onclick="event.stopPropagation();orRemove('${key}',${i})">${svg('x', 10)}</button></span>`).join('')}</div>` : '';
+  const panel = st ? `<div class="rq-refpick">
+    ${st.at ? '' : `<input data-or-q="${key}" aria-label="搜尋要引用的物件" placeholder="搜尋截圖、檔案、議題、任務…" value="${esc(st.q)}" oninput="event.stopPropagation();orSearch('${key}',this.value)" onkeydown="orSearchKey(event,'${key}')">`}
+    <div class="rq-refpick-list" data-or-list="${key}">${orList(key)}</div></div>` : '';
+  return chips + panel;
+}
+/** 輸入框底下那一塊：已選的膠囊＋（開著時）選單。外層容器固定存在，之後只換裡面。 */
+function orTray(key) {
+  return `<div class="or-tray" data-or-tray="${key}" contenteditable="false">${orTrayInner(key)}</div>`;
+}
+/** 訊息裡的引用膠囊列。 */
+function orChips(refs) {
+  return refs && refs.length ? `<div class="obj-refs">${refs.map(objRefChip).join('')}</div>` : '';
+}

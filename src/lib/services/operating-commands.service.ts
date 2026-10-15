@@ -1035,6 +1035,24 @@ const COMMENT_TARGET_TYPE: Record<string, string> = {
  * 三種留言共用一張表。作者同時記 Profile uuid 與席位字串：
  * uuid 用來做權限，席位字串是工作台顯示的那個名字，對不到人時它仍然在。
  */
+/**
+ * 留言裡引用的物件（截圖、檔案、議題…）。只收 {ty, rid} 兩個短字串、最多 20 筆 ——
+ * 名稱不存：引用的是物件本身，改名後由讀取端即時查回。
+ */
+const COMMENT_REF_TYPES = new Set(["doc_object", "asset", "link", "issue", "project", "txn", "decision", "event"])
+function commentRefs(value: unknown): { ty: string; rid: string }[] {
+  if (!Array.isArray(value)) return []
+  const out: { ty: string; rid: string }[] = []
+  for (const item of value) {
+    const ref = item as Record<string, unknown> | null
+    const ty = typeof ref?.ty === "string" ? ref.ty : ""
+    const rid = typeof ref?.rid === "string" ? ref.rid.slice(0, 120) : ""
+    if (COMMENT_REF_TYPES.has(ty) && rid) out.push({ ty, rid })
+    if (out.length >= 20) break
+  }
+  return out
+}
+
 async function applyComment(change: RowChange, ctx: ApplyContext): Promise<void> {
   const id = rowUuid(change.collection, change.id)
   const targetType = COMMENT_TARGET_TYPE[change.collection] ?? "object"
@@ -1061,7 +1079,13 @@ async function applyComment(change: RowChange, ctx: ApplyContext): Promise<void>
     // 行內留言的 author 是「那一行屬於誰的日誌」，不是留言的人（那是 w）。
     // 少存它，讀回來只剩 authorKey 可用，別人日誌上的留言就對不回那一行，重整即消失。
     meta: toJson(
-      { ts: row.ts ?? null, day: row.day ?? null, blockId: row.blockId ?? null, lineAuthor: str(row.author) ?? null },
+      {
+        ts: row.ts ?? null,
+        day: row.day ?? null,
+        blockId: row.blockId ?? null,
+        lineAuthor: str(row.author) ?? null,
+        ...(commentRefs(row.refs).length ? { refs: commentRefs(row.refs) } : {}),
+      },
       {},
     ),
     deletedAt: null,

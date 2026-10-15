@@ -311,6 +311,8 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       ts: meta.ts ?? "",
       day: meta.day ?? "",
       blockId: meta.blockId ?? "",
+      // 留言裡引用的物件（{ty, rid}）；寫入端已經清洗過，這裡只確認是陣列。
+      ...(Array.isArray(meta.refs) && meta.refs.length ? { refs: meta.refs } : {}),
     })
   }
 
