@@ -87,7 +87,7 @@ function opJournalDayHasContent(json) {
   try {
     const row = JSON.parse(json);
     return Array.isArray(row && row.blocks)
-      && row.blocks.some(b => b && (b.t === 'obj' || String(b.text || '').trim()));
+      && row.blocks.some(b => b && (b.t === 'obj' || String(b.text || '').trim() || (Array.isArray(b.refs) && b.refs.length)));
   } catch {
     return true;
   }

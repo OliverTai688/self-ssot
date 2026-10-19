@@ -100,6 +100,9 @@ export function patchSource(source) {
  const newTplBlock = "if(TPL[k]){\n    const docObj=createDocObject(k,S.jday||TODAY,TPL[k]);\n    b.text=keep; if(!keep.trim()){arr.splice(i,1)}\n    const at=keep.trim()?i+1:i;\n    const newBlock={id:newBid(),t:'obj',ind:b.ind,obj:{ty:'doc_object',rid:docObj.id}};\n    arr.splice(at,0,newBlock);\n    commit('create','日誌物件',TPL[k].h,()=>[`建立 <b>${TPL[k].h}</b> 獨立物件卡片`,'具備獨立空白畫布專注撰寫，日誌同步即時預覽','點選卡片右上 ↗ 可隨時進入畫布編輯']);\n    render();\n    openDrawer('doc_object',docObj.id);\n    return;\n  }";
  rep(oldTplBlock, newTplBlock);
 
+ // 反向連結也認日誌行上的引用膠囊（b.refs，見 obj-names.source.js）；上下文就是那一行自己的字。
+ rep("if(b.t==='obj'&&b.obj&&b.obj.ty===ty&&b.obj.rid===rid){\n        const arr=DB.journal[d].blocks;\n        let ctx='';", "if(b.t==='obj'&&b.obj&&b.obj.ty===ty&&b.obj.rid===rid||Array.isArray(b.refs)&&b.refs.some(r=>r&&r.ty===ty&&r.rid===rid)){\n        const arr=DB.journal[d].blocks;\n        let ctx=b.t!=='obj'&&(b.text||'').trim()?b.text:'';");
+ rep("for(let k=n-1;k>=0&&k>=n-3;k--) if(TEXTY","for(let k=n-1;!ctx&&k>=0&&k>=n-3;k--) if(TEXTY");
  rep("DB.events.forEach(e=>push('event',e.id,e.t,`${e.d} · ${e.layer}層`,'timeline'));\n  return out.slice(0,40);", "DB.events.forEach(e=>push('event',e.id,e.t,`${e.d} · ${e.layer}層`,'timeline'));\n  (DB.docObjects||[]).forEach(d=>push('doc_object',d.id,d.title||d.type,`${d.day} · ${person(d.author)}`,'journal'));\n  return out;");
 
  source=source.replace("g:'模板 · 展開成標題與縮排內文'","g:'物件模板 · 獨立物件與專屬畫布'");

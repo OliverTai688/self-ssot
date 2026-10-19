@@ -4693,10 +4693,10 @@ function backlinks(ty, rid) {
   const out = [];
   Object.keys(DB.journal).forEach(d => {
     DB.journal[d].blocks.forEach((b, n) => {
-      if (b.t === 'obj' && b.obj && b.obj.ty === ty && b.obj.rid === rid) {
+      if (b.t === 'obj' && b.obj && b.obj.ty === ty && b.obj.rid === rid || Array.isArray(b.refs) && b.refs.some(r => r && r.ty === ty && r.rid === rid)) {
         const arr = DB.journal[d].blocks;
-        let ctx = '';
-        for (let k = n - 1; k >= 0 && k >= n - 3; k--) if (TEXTY(arr[k].t) && arr[k].text.trim()) {
+        let ctx = b.t !== 'obj' && (b.text || '').trim() ? b.text : '';
+        for (let k = n - 1; !ctx && k >= 0 && k >= n - 3; k--) if (TEXTY(arr[k].t) && arr[k].text.trim()) {
           ctx = arr[k].text;
           break;
         }
@@ -10531,7 +10531,7 @@ function jcWrittenDays() {
     const book = journals.team[who] || {};
     for (const day of Object.keys(book)) {
       const blocks = book[day]?.blocks || [];
-      if (blocks.some(b => b.t === 'obj' || (b.text || '').trim())) s.add(day);
+      if (blocks.some(b => b.t === 'obj' || (b.text || '').trim() || b.refs && b.refs.length)) s.add(day);
     }
   }
   for (const r of DB.dayLogs) s.add(r.day);
@@ -14759,7 +14759,7 @@ function opJournalDayHasContent(json) {
   if (typeof json !== 'string') return false;
   try {
     const row = JSON.parse(json);
-    return Array.isArray(row && row.blocks) && row.blocks.some(b => b && (b.t === 'obj' || String(b.text || '').trim()));
+    return Array.isArray(row && row.blocks) && row.blocks.some(b => b && (b.t === 'obj' || String(b.text || '').trim() || Array.isArray(b.refs) && b.refs.length));
   } catch {
     return true;
   }
@@ -19261,12 +19261,12 @@ function jrShown() {
 
 /** 一則日誌有沒有實際內容。只有空白段落的那天不該佔一整塊版面。 */
 function jrHasBody(d) {
-  return !!d && (d.blocks || []).some(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim());
+  return !!d && (d.blocks || []).some(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim() || b.refs && b.refs.length);
 }
 /** 只有標題符號、沒有內容的那種（截圖裡那個只有 `#` 的 2026-09-25）。 */
 function jrIsHollow(d) {
   if (!d) return false;
-  const body = (d.blocks || []).filter(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim());
+  const body = (d.blocks || []).filter(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim() || b.refs && b.refs.length);
   return body.length > 0 && body.every(b => TEXTY(b.t) && /^#+$/.test((b.text || '').trim()));
 }
 
@@ -27227,14 +27227,18 @@ function objRefOpen(ty, rid) {
   objJump(ty, rid);
 }
 
-/** 引用膠囊：圖示＋型別＋名稱，點一下開物件、點兩下改名（有權限時）。 */
-function objRefChip(ref) {
+/**
+ * 引用膠囊：「引用」標記＋圖示＋型別＋名稱。點一下彈出來看（objPeek），點兩下改名（有權限時）。
+ * 虛線框與「引用」兩個字是刻意的：物件的家在別處，這裡只是再提一次 —— 一眼要分得出來。
+ * bid 有值表示膠囊掛在日誌的某一行上，彈出來的視窗才有「移除引用」。
+ */
+function objRefChip(ref, bid, i) {
   const gone = !objFind(ref.ty, ref.rid);
-  return `<button type="button" class="obj-ref ${gone ? 'gone' : ''}" title="${gone ? '物件已刪除' : '開啟'}"
+  return `<button type="button" class="obj-ref ${gone ? 'gone' : ''}" title="${gone ? '物件已刪除' : '引用 · 點一下查看'}"
     ${bind("click", (event, element) => {
     event.stopPropagation();
-    objRefOpen(esc(ref.ty), esc(ref.rid));
-  })}>${svg(objRefIcon(ref.ty, ref.rid), 11)}
+    objPeek(esc(ref.ty), esc(ref.rid), element, esc(bid || ''), Number(i) || 0);
+  })}><span class="obj-ref-cite">引用</span>${svg(objRefIcon(ref.ty, ref.rid), 11)}
     <span class="obj-ref-k">${esc(objRefLabel(ref.ty, ref.rid))}</span>
     <span class="obj-ref-n" ${objRenAttr(ref.ty, ref.rid)}>${esc(objRefName(ref.ty, ref.rid))}</span></button>`;
 }
@@ -27289,14 +27293,14 @@ mentionHits = function (q) {
 };
 
 /* # 召喚也要有「引用物件」：「引用專案」一直在 # 選單裡，物件卻只能靠 @，找不到入口。
- * 選了就把 #token 換成 @、接著開 @ 選單 —— 搜尋與嵌入走的是同一條路，不另做一個表單。 */
+ * 選了就把 #token 換成 @、接著開 @ 選單 —— 搜尋與引用走的是同一條路，不另做一個表單。 */
 (function () {
   const items = SUMMON[1].items,
     at = items.findIndex(it => it.k === 'project');
   items.splice(at < 0 ? items.length : at + 1, 0, {
     k: 'ref',
     nm: '引用物件',
-    ds: '議題、任務、檔案、連結、工作項目… 搜尋後嵌入這一行',
+    ds: '議題、任務、檔案、連結、工作項目… 這一行只放名稱，點了彈出來看',
     ic: 'at'
   });
 })();
@@ -27316,6 +27320,212 @@ applySummon = function (n) {
   const tx = root.querySelector(`.eb[data-id="${b.id}"] .eb-tx`);
   if (tx) checkTrigger(tx, bOf(b.id) || b);
 };
+
+/* ---------- 一之三、日誌的一行引用物件：放名稱，不搬卡片 ----------
+ *
+ * 原本 @ 選了物件，那一行整個變成物件卡片 —— 跟「在這裡建立」的物件長得一模一樣，
+ * 分不出哪張是在這裡誕生、哪張只是再提一次；物件索引的「出處」也會被引用搶走。
+ * 現在 @ 只在那一行掛一個引用膠囊（b.refs = [{ty, rid}]），文字照留：
+ *   「參考 [引用 · 圖片 · 組織圖.png] 這張」
+ * 點膠囊彈出一個小視窗看物件本身，要細看再從那裡開抽屜／獨立頁面。
+ * 存的是 {ty, rid}，名稱畫的時候才查，所以物件改名之後引用跟著變。
+ * 「誕生」仍然是物件卡片（# 召喚、上傳、貼網址），兩者在畫面上與資料上都分開。
+ */
+const LINE_REFS_MAX = 20;
+function lineRefs(b) {
+  return b && Array.isArray(b.refs) ? b.refs.filter(r => r && r.ty && r.rid) : [];
+}
+/** 日誌行與物件段落裡的行都找得到；別人的、不能寫的找不到 —— 同 stkLocate。 */
+function lineRefBlock(bid) {
+  const hit = typeof stkLocate === 'function' ? stkLocate(bid) : null;
+  return hit ? hit.b : null;
+}
+function lineRefsHtml(b, writable) {
+  return `<span class="eb-refs" contenteditable="false">${lineRefs(b).map((r, i) => `<span class="obj-ref-wrap">${objRefChip(r, b.id, i)}${writable ? `<button type="button" class="obj-ref-x" aria-label="移除引用" title="移除引用（物件本身不受影響）" ${bind("mousedown", (event, element) => {
+    event.preventDefault();
+  })} ${bind("click", (event, element) => {
+    event.stopPropagation();
+    lineRefRemove(esc(b.id), i);
+  })}>${svg('x', 10)}</button>` : ''}</span>`).join('')}</span>`;
+}
+/** 膠囊緊跟在那一行的文字後面（.eb-tx 之後、其他行尾標記之前）。 */
+function lineRefsInto(html, b, writable) {
+  if (!html || !b || !TEXTY(b.t) || !lineRefs(b).length) return html;
+  const at = html.indexOf('class="eb-tx');
+  const end = at < 0 ? -1 : html.indexOf('</div>', at);
+  if (end < 0) return html;
+  return html.slice(0, end + 6).replace('class="eb ', 'class="eb has-refs ') + lineRefsHtml(b, writable) + html.slice(end + 6);
+}
+/** 唯讀的行（對方欄、回顧）原本遇到空白行直接略過；只掛了引用的行要畫出來。 */
+function lineRefsOnly(b) {
+  return `<div class="eb ind${Math.min(5, b.ind || 0)} has-refs jc-ro" data-t="${b.t}"><div class="eb-tx"></div>${lineRefsHtml(b, false)}</div>`;
+}
+const lineRefBaseEb = ebHtml;
+ebHtml = function (b) {
+  return lineRefsInto(lineRefBaseEb(b), b, canWriteJournal());
+};
+if (typeof jcPeerBlock === 'function') {
+  const lineRefBasePeer = jcPeerBlock;
+  jcPeerBlock = function (author, b) {
+    const html = lineRefBasePeer(author, b);
+    if (!html && b && TEXTY(b.t) && lineRefs(b).length) return lineRefsOnly(b);
+    return lineRefsInto(html, b, false);
+  };
+}
+if (typeof jrBlockHtml === 'function') {
+  const lineRefBaseJr = jrBlockHtml;
+  jrBlockHtml = function (b) {
+    const html = lineRefBaseJr(b);
+    if (!html && b && TEXTY(b.t) && lineRefs(b).length) return lineRefsOnly(b);
+    return lineRefsInto(html, b, false);
+  };
+}
+
+/* @ 選單選了物件：拿掉 @token、在這一行掛引用。人（通知／請回覆）走 replies 那一層，不經過這裡。 */
+const lineRefBaseApply = applySummon;
+applySummon = function (n) {
+  const h = SM.hits[n];
+  if (SM.mode !== 'at' || !h || !h.mention || !h.ty || !h.rid || h.ty === 'person') return lineRefBaseApply(n);
+  if (!canWriteJournal()) return;
+  const b = bOf(SM.blockId);
+  if (!b || !TEXTY(b.t)) return closeSummon();
+  syncAll();
+  snap();
+  const start = SM.start,
+    len = 1 + SM.q.length,
+    ref = {
+      ty: h.ty,
+      rid: h.rid
+    },
+    name = objRefName(h.ty, h.rid);
+  closeSummon();
+  commit('update', '引用', name, () => {
+    b.text = b.text.slice(0, start) + b.text.slice(start + len);
+    b.refs = lineRefs(b).filter(r => !(r.ty === ref.ty && r.rid === ref.rid)).concat(ref).slice(-LINE_REFS_MAX);
+    return ['這一行引用了「' + esc(name) + '」（' + esc(objRefLabel(ref.ty, ref.rid)) + '）', '只放名稱，不另建資料；點名稱可以彈出來查看', '該物件的反向連結會出現這一天'];
+  });
+  // commit() 自己會重畫一次；游標要在最後這一次重畫之後才放回去，否則會落在被換掉的舊節點上。
+  focusB(b.id, start);
+  render();
+};
+function lineRefRemove(bid, i) {
+  if (!canWriteJournal()) return;
+  syncAll();
+  const b = lineRefBlock(bid),
+    refs = lineRefs(b),
+    r = refs[i];
+  if (!b || !r) return;
+  snap();
+  objPeekClose();
+  commit('update', '引用', objRefName(r.ty, r.rid), () => {
+    const rest = refs.filter((_, k) => k !== i);
+    if (rest.length) b.refs = rest;else delete b.refs;
+    return ['移除這一行對「' + esc(objRefName(r.ty, r.rid)) + '」的引用', '物件本身不受影響'];
+  });
+  render();
+}
+
+/* ---------- 一之四、點引用彈出來看 ----------
+ * 小視窗，不是抽屜：看一眼就回去寫。內容沿用物件自己的卡片（objHtml），所以狀態是即時的；
+ * 文件物件（議題／任務／Standup…）的卡片可以直接在裡面打字，彈出來的視窗不該能改，
+ * 所以改畫唯讀摘要，要寫就按「開啟」到獨立頁面。 */
+const OBJ_PEEK_TEXT = 220;
+function objPeekEl() {
+  let el = root.querySelector('#objPeek');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'objPeek';
+  el.className = 'obj-peek';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', '引用的物件');
+  const host = root.querySelector('#summon');
+  (host && host.parentNode ? host.parentNode : root).appendChild(el);
+  return el;
+}
+function objPeekSource(ty, rid, o) {
+  // 出處只認「誕生」的那一行（物件卡片）；引用膠囊不算出處，所以這裡看得到它真正的家。
+  const src = typeof oiSourceIndex === 'function' ? oiSourceIndex()[rid] : null;
+  if (src && src.day) return `<div class="obj-peek-src">${svg('journal', 11)} 出自 ${esc(src.day)}${src.who ? ' · ' + esc(person(src.who)) : ''} 的日誌</div>`;
+  if (o.day && o.author) return `<div class="obj-peek-src">${svg('journal', 11)} 建立於 ${esc(o.day)} · ${esc(person(o.author))}</div>`;
+  return '';
+}
+function objPeekDoc(d) {
+  const secs = (d.secs || []).map(sec => {
+    const text = (typeof ensureSecBlocks === 'function' ? ensureSecBlocks(sec) : sec.blocks || []).filter(x => TEXTY(x.t) && (x.text || '').trim()).map(x => x.text.trim()).join(' / ');
+    return text ? `<div class="obj-peek-sec"><b>${esc(sec.title || '')}</b><span>${esc(text.length > OBJ_PEEK_TEXT ? text.slice(0, OBJ_PEEK_TEXT) + '…' : text)}</span></div>` : '';
+  }).join('');
+  return secs || '<div class="obj-peek-empty">還沒有內容</div>';
+}
+function objPeekBody(ty, rid) {
+  const o = objFind(ty, rid);
+  if (!o) return '<div class="obj-peek-empty">這個物件已經不存在（被刪除了），引用只剩名稱。</div>';
+  if (ty === 'doc_object') return objPeekDoc(o);
+  return objHtml({
+    id: 'peek-' + rid,
+    t: 'obj',
+    ind: 0,
+    obj: {
+      ty,
+      rid
+    }
+  });
+}
+function objPeek(ty, rid, anchor, bid, i) {
+  const el = objPeekEl(),
+    o = objFind(ty, rid),
+    line = bid ? lineRefBlock(bid) : null;
+  const canUnref = !!line && canWriteJournal() && !!lineRefs(line)[i];
+  el.dataset.key = ty + '|' + rid;
+  el.innerHTML = `<div class="obj-peek-h"><span class="obj-peek-tag">${svg('at', 11)} 引用</span>${svg(objRefIcon(ty, rid), 12)}
+      <span class="obj-ref-k">${esc(objRefLabel(ty, rid))}</span><b class="obj-peek-n" ${objRenAttr(ty, rid)}>${esc(objRefName(ty, rid))}</b>
+      <button type="button" class="obj-peek-x" aria-label="關閉" ${bind("click", (event, element) => {
+    objPeekClose();
+  })}>${svg('x', 12)}</button></div>
+    ${o ? objPeekSource(ty, rid, o) : ''}
+    <div class="obj-peek-b">${objPeekBody(ty, rid)}</div>
+    <div class="obj-peek-f">${canUnref ? `<button type="button" class="btn sm" ${bind("click", (event, element) => {
+    lineRefRemove(esc(bid), Number(i) || 0);
+  })}>移除引用</button>` : ''}<span class="sp"></span>
+      ${o ? `<button type="button" class="btn sm pri" ${bind("click", (event, element) => {
+    objPeekClose();
+    objRefOpen(esc(ty), esc(rid));
+  })}>${svg('goto', 12)} 開啟</button>` : ''}</div>`;
+  el.classList.add('on');
+  const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : {
+    left: 16,
+    bottom: 80,
+    top: 80
+  };
+  const w = el.offsetWidth,
+    h = el.offsetHeight;
+  const below = r.bottom + 6 + h <= innerHeight - 8;
+  el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  el.style.top = Math.max(8, below ? r.bottom + 6 : r.top - 6 - h) + 'px';
+}
+function objPeekClose() {
+  const el = root.querySelector('#objPeek');
+  if (el) el.classList.remove('on');
+}
+/* 點到視窗外面、按 Esc、或從視窗裡的卡片跳去別處（開抽屜、換頁）就收起來。 */
+root.addEventListener('mousedown', e => {
+  const el = root.querySelector('#objPeek.on');
+  if (el && !e.composedPath().includes(el)) objPeekClose();
+}, {
+  capture: true,
+  signal: controller.signal
+});
+root.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && root.querySelector('#objPeek.on')) objPeekClose();
+}, {
+  capture: true,
+  signal: controller.signal
+});
+root.addEventListener('click', e => {
+  const el = root.querySelector('#objPeek.on');
+  if (el && e.composedPath().some(n => n && n.classList && n.classList.contains('eb-obj')) && e.composedPath().includes(el)) setTimeout(objPeekClose, 0);
+}, {
+  signal: controller.signal
+});
 
 /* ---------- 二、改名 ---------- */
 

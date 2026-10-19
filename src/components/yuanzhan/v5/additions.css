@@ -423,6 +423,39 @@ td.k .tc-v{white-space:normal}
   text-decoration:none!important;cursor:text;white-space:pre-wrap;user-select:text!important;-webkit-user-select:text!important}
 @media (max-width:640px){.rq-refpick-it .d{display:none}.obj-ref-n{max-width:180px}}
 
+/* ---- 引用（不是誕生）：虛線框＋「引用」兩字，跟物件卡片一眼分得開 ---- */
+.obj-ref{border-style:dashed}
+.obj-ref-cite{color:var(--pri,#6cb6ff);font-size:10.5px;font-weight:600;letter-spacing:.02em}
+/* 日誌的一行：膠囊緊跟在最後一個字後面；字太長就換到下一列 */
+.eb.has-refs{flex-wrap:wrap}
+.eb.has-refs .eb-tx{flex:0 1 auto;min-width:2ch}
+.eb.has-refs .eb-tx:empty::before{content:none}
+.eb-refs{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;padding-top:3px;min-width:0;user-select:none}
+.eb-refs .obj-ref-x{opacity:0;transition:opacity .12s}
+.eb-refs .obj-ref-wrap:hover .obj-ref-x,.eb-refs .obj-ref-x:focus-visible{opacity:1}
+@media (hover:none){.eb-refs .obj-ref-x{opacity:1}}
+
+/* ---- 點引用彈出來的小視窗 ---- */
+.obj-peek{position:fixed;z-index:67;width:min(380px,calc(100vw - 16px));max-height:min(70vh,520px);overflow:auto;display:none;
+  background:var(--surface);border:1px solid var(--border-2);border-radius:10px;box-shadow:var(--shadow);padding:10px 12px}
+.obj-peek.on{display:block}
+.obj-peek-h{display:flex;align-items:center;gap:6px;min-width:0;color:var(--text-2)}
+.obj-peek-tag{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;border:1px dashed var(--pri-br,var(--border-3));
+  color:var(--pri,#6cb6ff);font-size:10.5px;font-weight:600;flex:none}
+.obj-peek-n{color:var(--text);font-weight:600;font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.obj-peek-x{margin-left:auto;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;color:var(--text-3);flex:none}
+.obj-peek-x:hover{background:var(--surface-3);color:var(--text)}
+.obj-peek-src{margin-top:4px;display:flex;align-items:center;gap:5px;color:var(--text-3);font-size:11.5px}
+.obj-peek-b{margin-top:8px}
+.obj-peek-b .eb-obj{flex:none}
+.obj-peek-sec{display:flex;flex-direction:column;gap:1px;padding:5px 0;border-top:1px solid var(--border)}
+.obj-peek-sec:first-child{border-top:0;padding-top:0}
+.obj-peek-sec b{color:var(--text-2);font-size:11.5px;font-weight:600}
+.obj-peek-sec span{color:var(--text);font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.obj-peek-empty{color:var(--text-3);font-size:12.5px;padding:4px 0}
+.obj-peek-f{display:flex;align-items:center;gap:6px;margin-top:10px}
+.obj-peek-f .sp{flex:1}
+
 /* ---- 回覆／議題討論／行內留言：多行輸入框（Enter 送出、Shift+Enter 換行）---- */
 textarea.rq-ta{flex:1;min-width:160px;min-height:28px;max-height:160px;height:28px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-2);
   background:var(--surface);color:var(--text);font:inherit;font-size:12.5px;line-height:1.45;resize:none;overflow-y:auto;box-sizing:border-box}

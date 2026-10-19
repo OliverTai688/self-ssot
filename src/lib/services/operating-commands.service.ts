@@ -574,13 +574,13 @@ async function applyDecision(change: RowChange, ctx: ApplyContext): Promise<void
   await db.operatingDecision.upsert({ where: { id }, create: { id, ...data, workbenchRef: change.id }, update: { ...data, workbenchRef: change.id } })
 }
 
-/** 一天的日誌有沒有寫東西：有字的行，或嵌了物件。 */
+/** 一天的日誌有沒有寫東西：有字的行、嵌了物件，或掛了引用（b.refs）。 */
 function journalBlocksHaveContent(blocks: unknown): boolean {
   if (!Array.isArray(blocks)) return false
   return blocks.some((block) => {
     if (!block || typeof block !== "object") return false
     const b = block as Record<string, unknown>
-    return b.t === "obj" || (typeof b.text === "string" && b.text.trim().length > 0)
+    return b.t === "obj" || (typeof b.text === "string" && b.text.trim().length > 0) || (Array.isArray(b.refs) && b.refs.length > 0)
   })
 }
 

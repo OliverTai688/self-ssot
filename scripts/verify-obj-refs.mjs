@@ -49,13 +49,18 @@ const stubs = {
   bOf: id => blocks.find(b => b.id === id), focusB: (id, off) => log.push({ focus: id + '@' + off }),
   checkTrigger: (tx, b) => log.push({ trigger: b.text }),
   applySummon: n => log.push({ baseApply: n }),
+  ebHtml: b => `<div class="eb ind0" data-id="${b.id}" data-t="${b.t}"><span class="eb-h"></span>
+    <div class="eb-tx " data-id="${b.id}" contenteditable="true">${esc(b.text)}</div></div>`,
+  TEXTY: t => ['p', 'h1', 'h2', 'h3', 'bullet', 'todo', 'quote', 'code'].includes(t),
+  snap: () => {}, stkLocate: id => { const b = blocks.find(x => x.id === id); return b ? { b } : null; },
+  objHtml: b => '<div class="eb-obj">card ' + b.obj.rid + '</div>', person: w => w,
   OP_LIVE: true, UPLOAD_ENDPOINT: '/api/company/operating/uploads',
   fetch: (url, opt) => { fetches.push({ url, opt }); return Promise.resolve({ ok: true, json: async () => ({}) }); },
   root: { addEventListener: (t, fn) => { listeners[t] = fn; }, querySelector: sel => (sel.includes('data-id') ? { tx: 1 } : null), querySelectorAll: () => [] },
   controller: { signal: {} }, doc: {}, shadow: { activeElement: null }, runtime: {}
 };
 const names = Object.keys(stubs);
-const api = new Function(...names, code + '\nreturn {objFind,objRefName,objRefLabel,objRefIcon,objRefOpen,objRefChip,objRefHits,objCanRename,objRenAttr,objRename,orBind,orRefsOf,orClear,orInput,orKey,orAdd,orRemove,orToggle,orTray,orChips,orButton,mentionHits,applySummon,SUMMON};')(...names.map(n => stubs[n]));
+const api = new Function(...names, code + '\nreturn {objFind,objRefName,objRefLabel,objRefIcon,objRefOpen,objRefChip,objRefHits,objCanRename,objRenAttr,objRename,orBind,orRefsOf,orClear,orInput,orKey,orAdd,orRemove,orToggle,orTray,orChips,orButton,mentionHits,applySummon,SUMMON,ebHtml,lineRefs,lineRefRemove};')(...names.map(n => stubs[n]));
 
 /* ---- 名稱查表 ---- */
 ok('N1 文件物件的名稱走 docObjectName（議題／任務的標籤跟著 meta）', api.objRefName('doc_object', 'AGENDA-JRNL-000001-20261015') === '議題：會計師提案');
@@ -177,6 +182,28 @@ ok('J5 選「引用物件」：#token 換成 @、游標在 @ 後面、接著開 
 SM.hits = [{ k: 'standup' }]; SM.mode = 'hash';
 api.applySummon(0);
 ok('J6 其他 # 項目照舊交給原本的 applySummon', log.some(l => l.baseApply === 0));
+
+/* ---- 日誌一行的引用膠囊（不是物件卡片） ---- */
+blocks.push({ id: 'b2', t: 'p', text: '參考 @組織 這張' });
+const baseCalls = () => log.filter(l => 'baseApply' in l).length;
+let before = baseCalls();
+Object.assign(SM, { open: true, mode: 'at', q: '組織', start: 3, blockId: 'b2', hits: [{ mention: true, ty: 'asset', rid: 'AST-0001', nm: 'x' }] });
+api.applySummon(0);
+const b2 = blocks[1];
+ok('L1 @ 選了物件：拿掉 @token、那一行掛上引用，不變成物件卡片',
+  b2.text === '參考  這張' && b2.t === 'p' && !b2.obj && api.lineRefs(b2).length === 1 && b2.refs[0].rid === 'AST-0001' && baseCalls() === before, JSON.stringify(b2));
+b2.text = '參考 @組 這張'; Object.assign(SM, { open: true, mode: 'at', q: '組', start: 3, blockId: 'b2' });
+api.applySummon(0);
+ok('L2 同一個物件在同一行引用兩次只留一個', b2.refs.length === 1 && b2.text === '參考  這張');
+SM.hits = [{ mention: true, ty: 'person', rid: 'lily' }]; SM.mode = 'at'; before = baseCalls();
+api.applySummon(0);
+ok('L3 @ 選的是人：照舊交給原本那一層（通知／請回覆）', baseCalls() === before + 1);
+const lineHtml = api.ebHtml(b2);
+ok('L4 那一行畫成：文字＋引用膠囊（虛線、帶「引用」、可移除），膠囊緊跟在文字後面',
+  lineHtml.includes('class="eb has-refs ') && lineHtml.indexOf('obj-ref-cite') > lineHtml.indexOf('eb-tx') && lineHtml.includes('lineRefRemove(') && lineHtml.includes("objPeek('asset','AST-0001'"));
+ok('L5 沒有引用的行原樣不動', api.ebHtml(blocks[0]) === stubs.ebHtml(blocks[0]));
+api.lineRefRemove('b2', 0);
+ok('L6 移除引用：只拿掉膠囊，物件與文字都還在', !('refs' in b2) && b2.text === '參考  這張' && !!api.objFind('asset', 'AST-0001'));
 
 const pad = s => s + ' '.repeat(Math.max(0, 66 - [...s].reduce((a, c) => a + (c.charCodeAt(0) > 255 ? 2 : 1), 0)));
 let fail = 0;

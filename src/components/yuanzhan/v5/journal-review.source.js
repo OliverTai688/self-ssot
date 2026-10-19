@@ -35,12 +35,12 @@ function jrShown() { return jrWho === 'all' ? jrMembers() : jrMembers().filter(w
 
 /** 一則日誌有沒有實際內容。只有空白段落的那天不該佔一整塊版面。 */
 function jrHasBody(d) {
-  return !!d && (d.blocks || []).some(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim());
+  return !!d && (d.blocks || []).some(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim() || (b.refs && b.refs.length));
 }
 /** 只有標題符號、沒有內容的那種（截圖裡那個只有 `#` 的 2026-09-25）。 */
 function jrIsHollow(d) {
   if (!d) return false;
-  const body = (d.blocks || []).filter(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim());
+  const body = (d.blocks || []).filter(b => b.t === 'obj' || b.t === 'divider' || (b.text || '').trim() || (b.refs && b.refs.length));
   return body.length > 0 && body.every(b => TEXTY(b.t) && /^#+$/.test((b.text || '').trim()));
 }
 

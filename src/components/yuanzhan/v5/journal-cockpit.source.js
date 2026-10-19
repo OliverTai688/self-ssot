@@ -229,7 +229,7 @@ function jcWrittenDays(){
   const book=journals.team[who]||{};
   for(const day of Object.keys(book)){
    const blocks=book[day]?.blocks||[];
-   if(blocks.some(b=>b.t==='obj'||(b.text||'').trim()))s.add(day);
+   if(blocks.some(b=>b.t==='obj'||(b.text||'').trim()||(b.refs&&b.refs.length)))s.add(day);
   }
  }
  for(const r of DB.dayLogs)s.add(r.day);
