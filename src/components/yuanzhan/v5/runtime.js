@@ -3601,7 +3601,7 @@ function mentionHits(q) {
   DB.decisions.forEach(d => push('decision', d.id, d.t, `${d.id} · ${d.st}`, 'commit'));
   DB.events.forEach(e => push('event', e.id, e.t, `${e.d} · ${e.layer}層`, 'timeline'));
   (DB.docObjects || []).forEach(d => push('doc_object', d.id, d.title || d.type, `${d.day} · ${person(d.author)}`, 'journal'));
-  return out.slice(0, 40);
+  return out;
 }
 
 /* ---- 鍵盤 ---- */
@@ -20277,7 +20277,7 @@ mentionHits = function (q) {
       g: '檔案'
     });
   });
-  return out.slice(0, 40);
+  return out; // 總數與各類配額在 obj-names 的最外層統一收
 };
 
 /* 點卡片打開抽屜。 */
@@ -20805,7 +20805,7 @@ mentionHits = function (q) {
       g: '連結'
     });
   });
-  return out.slice(0, 40);
+  return out; // 總數與各類配額在 obj-names 的最外層統一收
 };
 const lkBaseObjJump = objJump;
 objJump = function (ty, rid) {
@@ -27243,6 +27243,79 @@ function objRefChip(ref) {
 function objRefHits(q) {
   return (typeof mentionHits === 'function' ? mentionHits(q || '') : []).filter(h => h && h.ty && h.rid && h.ty !== 'person').slice(0, 8);
 }
+
+/* ---------- 一之二、日誌正文的 @ 選單：物件不能被帳本擠掉 ----------
+ *
+ * mentionHits() 是好幾層疊起來的：原型先放工作項目、專案、交易、決策、事件，後面幾層再補
+ * 文件物件、檔案、連結。原本每一層都 slice(0, 40)，帳本一多，排在後面的物件在沒打字時
+ * 根本進不了選單 —— 看起來就像「只能引用專案，不能引用物件」。
+ * 所以裡面幾層不再截斷，改在這裡（最外層）統一收：日誌誕生的物件排前面、新的在上；
+ * 沒打字時每類只放幾筆，打了字每類放寬，總數仍是 40。
+ */
+const OBJ_MENTION_ORDER = ['doc_object', 'asset', 'link', 'project', 'issue', 'decision', 'txn', 'event'];
+const OBJ_MENTION_RECENT = {
+  doc_object: 1,
+  asset: 1,
+  link: 1
+};
+const OBJ_MENTION_MAX = 40;
+function objMentionAt(h) {
+  const o = objFind(h.ty, h.rid) || {};
+  return o.updatedAt || o.createdAt || Date.parse(o.day || '') || 0;
+}
+const objMentionBase = mentionHits;
+mentionHits = function (q) {
+  const groups = new Map();
+  objMentionBase(q).forEach(h => {
+    if (h.ty === 'doc_object') {
+      const o = objFind(h.ty, h.rid);
+      h.nm = objRefName(h.ty, h.rid);
+      h.ds = (o ? docObjectLabel(o, metaOf(o)) + ' · ' : '') + h.ds;
+      h.ic = objRefIcon(h.ty, h.rid);
+      h.g = '日誌物件';
+    }
+    if (!groups.has(h.ty)) groups.set(h.ty, []);
+    groups.get(h.ty).push(h);
+  });
+  const keys = [...OBJ_MENTION_ORDER.filter(k => groups.has(k)), ...[...groups.keys()].filter(k => !OBJ_MENTION_ORDER.includes(k))];
+  const per = q ? 12 : 5;
+  const out = [];
+  keys.forEach(k => {
+    const list = groups.get(k);
+    if (OBJ_MENTION_RECENT[k]) list.sort((a, b) => objMentionAt(b) - objMentionAt(a));
+    out.push(...list.slice(0, per));
+  });
+  return out.slice(0, OBJ_MENTION_MAX);
+};
+
+/* # 召喚也要有「引用物件」：「引用專案」一直在 # 選單裡，物件卻只能靠 @，找不到入口。
+ * 選了就把 #token 換成 @、接著開 @ 選單 —— 搜尋與嵌入走的是同一條路，不另做一個表單。 */
+(function () {
+  const items = SUMMON[1].items,
+    at = items.findIndex(it => it.k === 'project');
+  items.splice(at < 0 ? items.length : at + 1, 0, {
+    k: 'ref',
+    nm: '引用物件',
+    ds: '議題、任務、檔案、連結、工作項目… 搜尋後嵌入這一行',
+    ic: 'at'
+  });
+})();
+const objRefBaseApplySummon = applySummon;
+applySummon = function (n) {
+  const h = SM.hits[n];
+  if (SM.mode !== 'hash' || !h || h.mention || h.k !== 'ref') return objRefBaseApplySummon(n);
+  if (!canWriteJournal()) return;
+  const b = bOf(SM.blockId);
+  if (!b) return closeSummon();
+  syncAll();
+  const start = SM.start;
+  b.text = b.text.slice(0, start) + '@' + b.text.slice(start + 1 + SM.q.length);
+  closeSummon();
+  focusB(b.id, start + 1);
+  render();
+  const tx = root.querySelector(`.eb[data-id="${b.id}"] .eb-tx`);
+  if (tx) checkTrigger(tx, bOf(b.id) || b);
+};
 
 /* ---------- 二、改名 ---------- */
 

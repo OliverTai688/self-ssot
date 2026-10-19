@@ -667,7 +667,7 @@ mentionHits = function (q) {
       ic: astMeta(a.kind).ic, g: '檔案'
     });
   });
-  return out.slice(0, 40);
+  return out; // 總數與各類配額在 obj-names 的最外層統一收
 };
 
 /* 點卡片打開抽屜。 */

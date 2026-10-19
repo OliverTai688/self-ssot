@@ -330,7 +330,7 @@ mentionHits = function (q) {
     if (s && !(l.title + l.id + l.url).toLowerCase().includes(s)) return;
     out.push({ mention: true, ty: 'link', rid: l.id, k: l.id, nm: l.title, ds: lkShort(l.url, 44) + (l.day ? ' · ' + l.day : ''), ic: 'goto', g: '連結' });
   });
-  return out.slice(0, 40);
+  return out; // 總數與各類配額在 obj-names 的最外層統一收
 };
 
 const lkBaseObjJump = objJump;

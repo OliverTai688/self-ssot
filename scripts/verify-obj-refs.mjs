@@ -26,6 +26,8 @@ const DB = {
   issues: [{ id: 'ISS-1', t: 'develop interface' }], projects: [], txns: [], decisions: [], events: []
 };
 const log = [], toasts = [], denies = [], fetches = [], listeners = {};
+const flood = { on: false }, SM = { open: true, mode: 'hash', q: '', start: 0, blockId: 'b1', hits: [] };
+const blocks = [{ id: 'b1', t: 'p', text: '看這張 #引用' }];
 const stubs = {
   DB, S: { stack: [] }, esc,
   docObjectName: d => (d.titleAuto === false ? d.title : (d.type === 'agenda' ? '議題：會計師提案' : 'Standup：今天')),
@@ -39,14 +41,21 @@ const stubs = {
   render: () => {}, paintDrawer: () => {},
   commit: (op, ent, label, apply) => { const eff = apply(); log.push({ op, ent, label, eff }); },
   openDocPage: id => log.push({ open: id }), objJump: (ty, id) => log.push({ jump: ty + ':' + id }),
-  mentionHits: q => [{ ty: 'asset', rid: 'AST-0001', nm: 'x' }, { ty: 'person', rid: 'lily' }, { ty: 'doc_object', rid: 'AGENDA-JRNL-000001-20261015' }].filter(h => !q || h.rid.toLowerCase().includes(q.toLowerCase()) || h.ty === 'asset'),
+  // flood：模擬帳本很多的公司 —— 原型的工作項目排在最前面，物件排在最後。
+  mentionHits: q => [...(flood.on ? Array.from({ length: 60 }, (_, i) => ({ ty: 'issue', rid: 'ISS-' + i, nm: 'i' + i, g: '工作項目' })) : []),
+    { ty: 'asset', rid: 'AST-0001', nm: 'x' }, { ty: 'person', rid: 'lily' }, { ty: 'doc_object', rid: 'AGENDA-JRNL-000001-20261015', nm: '議題', ds: '10-15 · Lily' }].filter(h => !q || h.rid.toLowerCase().includes(q.toLowerCase()) || h.ty === 'asset'),
+  SUMMON: [{ g: '模板', items: [] }, { g: '物件', items: [{ k: 'issue' }, { k: 'project' }, { k: 'link' }] }],
+  SM, canWriteJournal: () => true, syncAll: () => {}, closeSummon: () => { SM.open = false; },
+  bOf: id => blocks.find(b => b.id === id), focusB: (id, off) => log.push({ focus: id + '@' + off }),
+  checkTrigger: (tx, b) => log.push({ trigger: b.text }),
+  applySummon: n => log.push({ baseApply: n }),
   OP_LIVE: true, UPLOAD_ENDPOINT: '/api/company/operating/uploads',
   fetch: (url, opt) => { fetches.push({ url, opt }); return Promise.resolve({ ok: true, json: async () => ({}) }); },
-  root: { addEventListener: (t, fn) => { listeners[t] = fn; }, querySelector: () => null, querySelectorAll: () => [] },
+  root: { addEventListener: (t, fn) => { listeners[t] = fn; }, querySelector: sel => (sel.includes('data-id') ? { tx: 1 } : null), querySelectorAll: () => [] },
   controller: { signal: {} }, doc: {}, shadow: { activeElement: null }, runtime: {}
 };
 const names = Object.keys(stubs);
-const api = new Function(...names, code + '\nreturn {objFind,objRefName,objRefLabel,objRefIcon,objRefOpen,objRefChip,objRefHits,objCanRename,objRenAttr,objRename,orBind,orRefsOf,orClear,orInput,orKey,orAdd,orRemove,orToggle,orTray,orChips,orButton};')(...names.map(n => stubs[n]));
+const api = new Function(...names, code + '\nreturn {objFind,objRefName,objRefLabel,objRefIcon,objRefOpen,objRefChip,objRefHits,objCanRename,objRenAttr,objRename,orBind,orRefsOf,orClear,orInput,orKey,orAdd,orRemove,orToggle,orTray,orChips,orButton,mentionHits,applySummon,SUMMON};')(...names.map(n => stubs[n]));
 
 /* ---- 名稱查表 ---- */
 ok('N1 文件物件的名稱走 docObjectName（議題／任務的標籤跟著 meta）', api.objRefName('doc_object', 'AGENDA-JRNL-000001-20261015') === '議題：會計師提案');
@@ -149,6 +158,25 @@ const gen = fs.readFileSync(path.join(ROOT, 'scripts/generate-yuanzhan-v5.mjs'),
 ok('W5 obj-names 進 EXTENSIONS', gen.includes("'obj-names'"));
 const jc = fs.readFileSync(path.join(V5, 'journal-cockpit.source.js'), 'utf8');
 ok('W6 駕駛艙「今天誕生的物件」認得檔案與連結（不再顯示已刪除）', jc.includes("o.ty==='asset'||o.ty==='link'"));
+
+/* ---- 日誌正文的 @ 選單與 # 引用物件 ---- */
+flood.on = true;
+const floodHits = api.mentionHits('');
+ok('J1 帳本再多，沒打字時物件仍排在最前面（不被工作項目擠掉）',
+  floodHits[0].ty === 'doc_object' && floodHits[1].ty === 'asset' && floodHits.filter(h => h.ty === 'issue').length === 5, floodHits.map(h => h.ty).join(','));
+ok('J2 文件物件在選單裡用真正的名稱與型別，群組不是 undefined',
+  floodHits[0].nm === api.objRefName('doc_object', 'AGENDA-JRNL-000001-20261015') && floodHits[0].g === '日誌物件' && floodHits[0].ds.startsWith('議題 · '), JSON.stringify(floodHits[0]));
+ok('J3 打了字每類放寬、總數仍不超過 40', api.mentionHits('iss').filter(h => h.ty === 'issue').length === 12 && api.mentionHits('iss').length <= 40);
+flood.on = false;
+const objItems = api.SUMMON[1].items.map(it => it.k);
+ok('J4 # 選單有「引用物件」，緊接在「引用專案」後面', objItems.indexOf('ref') === objItems.indexOf('project') + 1, objItems.join(','));
+SM.hits = [{ k: 'ref', nm: '引用物件' }]; SM.q = '引用'; SM.start = 4; SM.open = true; SM.mode = 'hash';
+api.applySummon(0);
+ok('J5 選「引用物件」：#token 換成 @、游標在 @ 後面、接著開 @ 選單',
+  blocks[0].text === '看這張 @' && log.some(l => l.focus === 'b1@5') && log.some(l => l.trigger === '看這張 @') && !SM.open, blocks[0].text);
+SM.hits = [{ k: 'standup' }]; SM.mode = 'hash';
+api.applySummon(0);
+ok('J6 其他 # 項目照舊交給原本的 applySummon', log.some(l => l.baseApply === 0));
 
 const pad = s => s + ' '.repeat(Math.max(0, 66 - [...s].reduce((a, c) => a + (c.charCodeAt(0) > 255 ? 2 : 1), 0)));
 let fail = 0;

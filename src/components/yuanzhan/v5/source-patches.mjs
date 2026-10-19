@@ -100,7 +100,7 @@ export function patchSource(source) {
  const newTplBlock = "if(TPL[k]){\n    const docObj=createDocObject(k,S.jday||TODAY,TPL[k]);\n    b.text=keep; if(!keep.trim()){arr.splice(i,1)}\n    const at=keep.trim()?i+1:i;\n    const newBlock={id:newBid(),t:'obj',ind:b.ind,obj:{ty:'doc_object',rid:docObj.id}};\n    arr.splice(at,0,newBlock);\n    commit('create','日誌物件',TPL[k].h,()=>[`建立 <b>${TPL[k].h}</b> 獨立物件卡片`,'具備獨立空白畫布專注撰寫，日誌同步即時預覽','點選卡片右上 ↗ 可隨時進入畫布編輯']);\n    render();\n    openDrawer('doc_object',docObj.id);\n    return;\n  }";
  rep(oldTplBlock, newTplBlock);
 
- rep("DB.events.forEach(e=>push('event',e.id,e.t,`${e.d} · ${e.layer}層`,'timeline'));\n  return out.slice(0,40);", "DB.events.forEach(e=>push('event',e.id,e.t,`${e.d} · ${e.layer}層`,'timeline'));\n  (DB.docObjects||[]).forEach(d=>push('doc_object',d.id,d.title||d.type,`${d.day} · ${person(d.author)}`,'journal'));\n  return out.slice(0,40);");
+ rep("DB.events.forEach(e=>push('event',e.id,e.t,`${e.d} · ${e.layer}層`,'timeline'));\n  return out.slice(0,40);", "DB.events.forEach(e=>push('event',e.id,e.t,`${e.d} · ${e.layer}層`,'timeline'));\n  (DB.docObjects||[]).forEach(d=>push('doc_object',d.id,d.title||d.type,`${d.day} · ${person(d.author)}`,'journal'));\n  return out;");
 
  source=source.replace("g:'模板 · 展開成標題與縮排內文'","g:'物件模板 · 獨立物件與專屬畫布'");
  source=source.replaceAll("ds:'Yesterday / Today / Blocker / Need Decision'","ds:'獨立畫布專注撰寫 · 日誌同步預覽'");
