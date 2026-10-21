@@ -264,6 +264,9 @@ function rqUndoReply(id){
  const last=r.replies[r.replies.length-1];
  commit('update','撤回回覆',rqText(r),()=>{
   r.replies.pop();
+  // 記下撤回的是哪一則（誰＠哪一刻）。伺服器把雙方送來的回覆合併（見 operating-request-merge），
+  // 只有帶著這個標記，它才分得出「撤回」與「另一個分頁拿著舊副本、還沒看到這則」。
+  r.withdrawn=[...(r.withdrawn||[]),String(last.w)+'@'+String(last.at)];
   // 還有自己更早的回覆就維持「已回覆」，只拿掉最後這一則；一則都不剩才回到待回覆、重新計時。
   if(!r.replies.some(m=>m.w===r.to))r.firstReplyAt=null;
   return[r.firstReplyAt?'撤回最後一則回覆':'撤回回覆，回到「待我回覆」','寫到一半的字放回回覆框'];
@@ -582,15 +585,20 @@ VIEWS.journal=function(tab){
 const rqBaseCmdk=buildCmdk;
 buildCmdk=()=>{const items=rqBaseCmdk();if(space!=='team')return items;return [...items,{g:'訊號',t:'回覆追蹤',s:'逾期、待我回覆、等對方回覆',h:'逾期、待我回覆、等對方回覆',ic:'goto',run:()=>nav('signal',0)},{g:'訊號',t:'我收工了',s:'收工檢查',h:'收工檢查',ic:'goto',run:rqOpenClose}]};
 
-/* ---- ① 提醒節奏：16h 提醒回覆方；逾期後每 4h 提醒雙方。每分鐘重新判定。 ---- */
+/* ---- ① 提醒節奏：16h 提醒回覆方；逾期後每 4h 提醒雙方。每分鐘重新判定。 ----
+   「這一頁提醒過了沒」是這個瀏覽器自己的事，記在 rqPingLog，不寫進請求那一列。
+   以前記在 r.pinged：請求滿 24 小時那一刻（就是「隔天」），放了一整晚的背景分頁會改到
+   這一列 → render() → 自動保存把整列舊副本送出去，對方前一晚的回覆就被蓋掉、又變回逾期。
+   伺服器上舊的 pinged 仍讀進來當起點（複製一份，不改原列），重新整理才不會把提醒再跳一次。 */
+const rqPingLog=new Map();
 function rqPing(){
  const now=Date.now();
  for(const r of DB.requests){
   if(!rqPending(r)||!rqInvolves(r))continue;
-  const h=rqAge(r,now);r.pinged??={};
-  if(h>=WARN_HOURS&&h<REPLY_HOURS&&r.to===DB.me&&!r.pinged.warn){r.pinged.warn=true;toast(`${svg('clock',12)} 還有 ${rqLeft(r)} 要回覆 ${esc(person(r.from))}：${esc(rqText(r))}`)}
+  const h=rqAge(r,now);let pinged=rqPingLog.get(r.id);if(!pinged){pinged={...(r.pinged||{})};rqPingLog.set(r.id,pinged)}
+  if(h>=WARN_HOURS&&h<REPLY_HOURS&&r.to===DB.me&&!pinged.warn){pinged.warn=true;toast(`${svg('clock',12)} 還有 ${rqLeft(r)} 要回覆 ${esc(person(r.from))}：${esc(rqText(r))}`)}
   if(h>=REPLY_HOURS){const slot=Math.floor((h-REPLY_HOURS)/REPING_HOURS),key='late:'+DB.me;
-   if(r.pinged[key]!==slot){r.pinged[key]=slot;toast(r.to===DB.me?`${svg('warn',12)} 已逾期 ${rqOver(r)}：${esc(person(r.from))} 問「${esc(rqText(r))}」`:`${svg('warn',12)} ${esc(person(r.to))} 已逾期 ${rqOver(r)} 沒回：${esc(rqText(r))}`)}}
+   if(pinged[key]!==slot){pinged[key]=slot;toast(r.to===DB.me?`${svg('warn',12)} 已逾期 ${rqOver(r)}：${esc(person(r.from))} 問「${esc(rqText(r))}」`:`${svg('warn',12)} ${esc(person(r.to))} 已逾期 ${rqOver(r)} 沒回：${esc(rqText(r))}`)}}
  }
 }
 function rqSignature(){return DB.me+'|'+DB.requests.map(r=>r.id+':'+rqState(r)+':'+Math.floor(rqAge(r))).join('|')}

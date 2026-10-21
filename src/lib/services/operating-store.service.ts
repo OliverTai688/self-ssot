@@ -631,6 +631,8 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
         ...(payload.choice == null ? {} : { choice: payload.choice }),
         ...(payload.deferReason == null ? {} : { deferReason: payload.deferReason }),
         ...(payload.deferredAt == null ? {} : { deferredAt: payload.deferredAt }),
+        // 撤回過哪幾則回覆：前端下一次整列寫回時要帶著，伺服器的合併才不會把它們當成「舊副本漏掉的」。
+        ...(Array.isArray(payload.withdrawn) && payload.withdrawn.length ? { withdrawn: payload.withdrawn } : {}),
       }
     }),
 

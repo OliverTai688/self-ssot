@@ -9,6 +9,7 @@ import { db } from "@/lib/db"
 import type { AuthenticatedUser } from "@/lib/services/auth.service"
 import { DEFAULT_ORG_KEY } from "@/lib/services/operating-settings.service"
 import { removeSpine, syncMilestone, syncOccasion, syncSession } from "@/lib/services/operating-spine.service"
+import { mergeRequestPayload } from "@/lib/services/operating-request-merge"
 import {
   HIGH_RISK_COLLECTIONS,
   MAX_COMMAND_DETAIL,
@@ -1104,36 +1105,48 @@ async function applyRequest(change: RowChange, ctx: ApplyContext): Promise<void>
 
   const row = (change.after ?? {}) as Record<string, unknown>
   const sentAt = Number(row.sentAt)
+  const fromKey = str(row.from)
+  const toKey = str(row.to)
+
+  // 合併而不是覆蓋（規則見 operating-request-merge.ts）。這一列雙方都會整列寫回來，
+  // 拿著舊副本的那一頁一寫，對方已經存進來的回覆就不見，隔天又變成逾期 —— 2026-10-21 回報。
+  // options／replies／nudges 形狀仍在演進，整包放 payload 比拆表安全；
+  // seenAt／firstReplyAt／resolvedAt 一起存：少了它們，重新整理之後每一筆請求都會
+  // 看起來像沒人讀過、沒人回過；kind:'notice' 的通知匣未讀數也是靠 seenAt 算的。
+  const existing = await db.operatingRequest.findFirst({
+    where: { id, workspaceId: ctx.workspaceId },
+    select: { payload: true, fromKey: true, toKey: true },
+  })
+  const payload = mergeRequestPayload(
+    existing?.payload as Record<string, unknown> | null | undefined,
+    {
+      options: row.options,
+      replies: row.replies,
+      nudges: row.nudges,
+      pinged: row.pinged,
+      via: row.via,
+      seenAt: row.seenAt,
+      firstReplyAt: row.firstReplyAt,
+      resolvedAt: row.resolvedAt,
+      choice: row.choice,
+      deferReason: row.deferReason,
+      deferredAt: row.deferredAt,
+      withdrawn: row.withdrawn,
+    },
+    { from: existing?.fromKey ?? fromKey, to: existing?.toKey ?? toKey },
+  )
+
   const data = {
     workspaceId: ctx.workspaceId,
     workbenchRef: change.id,
-    fromKey: str(row.from),
-    toKey: str(row.to),
+    fromKey,
+    toKey,
     onDate: toDateOnly(row.day),
     blockId: str(row.blockId),
     text: str(row.text) ?? "",
     kind: str(row.kind) ?? "ask",
     sentAt: Number.isFinite(sentAt) && sentAt > 0 ? new Date(sentAt) : null,
-    // options／replies／nudges／pinged 形狀仍在演進，整包存比拆表安全。
-    // seenAt／firstReplyAt／resolvedAt 一起存：少了它們，重新整理之後每一筆請求都會
-    // 看起來像沒人讀過、沒人回過，24 小時的紅色提醒會重新開始跑；kind:'notice' 的
-    // 通知匣未讀數也是靠 seenAt 算的。
-    payload: toJson(
-      {
-        options: row.options ?? [],
-        replies: row.replies ?? [],
-        nudges: row.nudges ?? [],
-        pinged: row.pinged ?? {},
-        via: row.via ?? null,
-        seenAt: row.seenAt ?? null,
-        firstReplyAt: row.firstReplyAt ?? null,
-        resolvedAt: row.resolvedAt ?? null,
-        choice: row.choice ?? null,
-        deferReason: row.deferReason ?? null,
-        deferredAt: row.deferredAt ?? null,
-      },
-      {},
-    ),
+    payload: toJson(payload, {}),
   }
 
   await db.operatingRequest.upsert({ where: { id }, create: { id, ...data }, update: data })
