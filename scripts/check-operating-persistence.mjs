@@ -91,6 +91,9 @@ function instantiate({ serverVersion, versionGetOk = [] }) {
     esc: (v) => String(v),
     person: (v) => String(v),
     S: { stack: [] },
+    // 合併前先把還沒排進佇列的打字收進來（opCapture），合併後重畫時保留焦點。
+    saveJournalDraft: () => {},
+    shadow: { activeElement: null },
   }
 
   const body = `${fragment}

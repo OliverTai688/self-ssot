@@ -10639,8 +10639,21 @@ docInput = function (e) {
   jcBaseInput(e);
   if (space !== 'team' || COMPOSING) return;
   (DB.journalEdits[DB.me] ??= {})[S.jday] = Date.now();
-  // 打字中不能 render()（游標會被重建掉），所以直接排一次保存，讓「開始一天」存得下去。
-  if (jcStart()) opTouch();
+  // 打字中不能 render()（游標會被重建掉），所以直接排保存。每一次輸入都要排，不是只有
+  // 「開始一天」那一下：先前只有當天第一個字會排，之後打的字只留在記憶體裡，要等下一次
+  // 剛好有東西 render() 才會被存；這段空窗裡一旦併回伺服器現況，字就被整列換掉。
+  jcStart();
+  opTouch();
+};
+/* 中文輸入法：組字中的 input 事件被略過，確定的字是在 compositionend 才寫回 model，
+   所以保存也要在這裡排，否則只用注音／拼音打字的人永遠排不到自動保存。 */
+const jcBaseComposeEnd = docComposeEnd;
+docComposeEnd = function (e) {
+  jcBaseComposeEnd(e);
+  if (space !== 'team') return;
+  (DB.journalEdits[DB.me] ??= {})[S.jday] = Date.now();
+  jcStart();
+  opTouch();
 };
 const jcBaseCommit = commit;
 const JC_SHARED_LOG = {
@@ -14725,9 +14738,15 @@ let OP_TOUCH_TIMER = null;
  * 實際上只是本地還不知道版本號。opFlush() 因此先等這個 promise。
  */
 let OP_READY = null;
-/** 這一輪撞版本後已經重試過幾次；重試一次就夠，再撞才是真的有人同時在寫。 */
+/** 連續撞版本幾次了。成功送出一次才歸零；用來決定下一次重試要等多久。 */
 let OP_CONFLICT_RETRY = 0;
 let OP_RESYNC_PENDING = false;
+/** 正在把伺服器現況併回來（取 store 是一次較慢的請求，這段時間內可能還有送出與打字）。 */
+let OP_MERGING = false;
+/** 合併的 store 請求還在路上時，送出成功的那些列。store 的快照比它們舊，不能拿來蓋掉它們。 */
+let OP_SENT_DURING_MERGE = null;
+/** 正在用輸入法組字時跳過的那次重畫；組字結束、停下來之後再補。 */
+let OP_RENDER_DEFERRED = false;
 
 /**
  * 比對用的那一本日誌，永遠是登入者自己在圓展空間的那一本。
@@ -14839,7 +14858,88 @@ function opTouch() {
       return;
     }
     opEnqueue('update', '日誌', '自動保存', OP_BASELINE);
+    if (OP_RENDER_DEFERRED && !opComposing()) {
+      OP_RENDER_DEFERRED = false;
+      opRenderKeepingFocus();
+    }
   }, 1500);
+}
+function opComposing() {
+  return typeof COMPOSING !== 'undefined' && !!COMPOSING;
+}
+
+/**
+ * 把「已經在畫面上、但還沒排進佇列」的編輯收進佇列（不送出）。
+ *
+ * 日誌打字只改記憶體裡的那一列，要等 1.5 秒的自動保存才會比對、排進佇列。合併伺服器
+ * 現況時只保留「佇列裡有的列」—— 這段空窗裡打的字不在佇列裡，於是被伺服器那一份
+ * 整列換掉，接著基準線又被設成換掉之後的樣子，那些字就再也比不出來、永遠不會被保存。
+ * 畫面重畫後字直接消失；沒重畫的話，字還在畫面上卻沒有存，重新整理才發現不見。
+ * 合併之前先收一次，這些列就算進「未送出、以本地為準」。
+ */
+function opCapture() {
+  if (!OP_LIVE || !OP_BASELINE) return;
+  if (OP_TOUCH_TIMER) {
+    clearTimeout(OP_TOUCH_TIMER);
+    OP_TOUCH_TIMER = null;
+  }
+  try {
+    // 組字中不從 DOM 抄回：那時畫面上的是還沒確定的注音／拼音。
+    if (!opComposing() && typeof syncAll === 'function') syncAll();
+    saveJournalDraft();
+  } catch (err) {
+    console.warn('[operating] capture before merge failed', err);
+  }
+  opEnqueue('update', '日誌', '自動保存', OP_BASELINE, undefined, {
+    flush: false
+  });
+}
+
+/**
+ * 合併之後要重畫，但重畫會重建書寫區與回覆框 —— 打到一半的游標會被丟掉。
+ * 先記下焦點在哪一格、游標在哪，畫完放回去。組字中不重畫（會打斷輸入法），留給停下來之後。
+ */
+function opFocusMemo() {
+  const a = shadow.activeElement;
+  if (!a || !(a.isContentEditable || /^(INPUT|TEXTAREA)$/.test(a.tagName))) return null;
+  const q = v => typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(v) : v;
+  let sel = '';
+  if (a.classList && a.classList.contains('eb-tx') && a.dataset && a.dataset.id) sel = '.eb-tx[data-id="' + q(a.dataset.id) + '"]';else if (a.id) sel = '#' + q(a.id);else {
+    const attr = Array.from(a.attributes || []).find(x => /^data-[a-z-]*input$/.test(x.name));
+    if (attr) sel = a.tagName.toLowerCase() + '[' + attr.name + '="' + q(attr.value) + '"]';
+  }
+  if (!sel) return null;
+  const inDrawer = !!a.closest('#drBody');
+  if (a.isContentEditable) return {
+    sel,
+    inDrawer,
+    caret: typeof caretOff === 'function' ? caretOff(a) : null
+  };
+  return {
+    sel,
+    inDrawer,
+    start: a.selectionStart,
+    end: a.selectionEnd
+  };
+}
+function opFocusRestore(memo) {
+  if (!memo) return;
+  const all = Array.from(root.querySelectorAll(memo.sel));
+  const el = all.find(x => !!x.closest('#drBody') === memo.inDrawer) || all[0];
+  if (!el || el === shadow.activeElement) return;
+  try {
+    if (memo.caret != null && typeof setCaret === 'function') setCaret(el, memo.caret);else {
+      el.focus();
+      if (memo.start != null && el.setSelectionRange) el.setSelectionRange(memo.start, memo.end);
+    }
+  } catch {
+    /* 游標放不回去不影響資料 */
+  }
+}
+function opRenderKeepingFocus() {
+  const memo = opFocusMemo();
+  render();
+  opFocusRestore(memo);
 }
 function opRef() {
   return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -14849,8 +14949,9 @@ function opRef() {
  * apply() 之後呼叫。沒開 database 就什麼都不做 —— prototype 模式一個網路請求都不發，
  * 那是 ARC-042 §10 的一條驗收。
  */
-function opEnqueue(op, ent, label, before, detail) {
+function opEnqueue(op, ent, label, before, detail, options) {
   if (!OP_LIVE || !before) return;
+  const flush = !(options && options.flush === false);
 
   // 比對的起點是滾動基準線，不是 commit() 傳進來的那份「之前」。
   //
@@ -14906,7 +15007,7 @@ function opEnqueue(op, ent, label, before, detail) {
   OP_QUEUE.push(command);
   // 已經排進佇列的內容就是新的基準線，否則下一次比對會把同樣的變更再送一次。
   OP_BASELINE = opSnap();
-  opFlush();
+  if (flush) opFlush();
 }
 
 /**
@@ -14943,22 +15044,23 @@ async function opFlush() {
       })
     });
     if (res.status === 409) {
-      const payload = await res.json().catch(() => ({}));
-      OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
+      await res.json().catch(() => ({}));
       // 佇列刻意不清空：裡面是還沒被接受的編輯，丟掉等於替使用者放棄他剛打的字。
       //
-      // 版本不合不等於有人在改同一批紀錄：本地的版本號也可能只是落後（啟動時那次
-      // GET 失敗、或這一頁重掛過）。所以先把伺服器現況併回來 —— 佇列裡的列保留
-      // 本地版本 —— 再用修正後的版本重送一次。只有第二次還撞才是真的並發寫入，
-      // 那時才值得停下來問人；先前這裡一撞就停，等於把一筆編輯永久卡在佇列裡，
-      // 而畫面只叫人重新整理（重整就是丟掉它）。
-      if (OP_CONFLICT_RETRY < 1) {
-        OP_CONFLICT_RETRY += 1;
-        OP_RESYNC_PENDING = true;
-        opSetStatus('sending', '版本落後，正在重新對齊');
-        return;
-      }
-      opSetStatus('conflict', '另一個裝置先改了同一批紀錄。這裡有 ' + OP_QUEUE.length + ' 筆尚未保存，請重新整理後重做');
+      // 409 只代表「整個公司的版本號」前進了 —— 版本號是全公司共用一個，對方每一次
+      // 日誌自動保存都會讓它前進，跟有沒有人在改同一列無關。所以每一次都是：併回
+      // 伺服器現況（佇列裡的列保留本地版本），再用合併後的版本重送。
+      //
+      // 先前這裡重試一次就停在「有衝突，請重新整理」，而且重試次數成功前不歸零：
+      // 兩人同時在寫的早上，之後每一筆都直接卡住，佇列裡的回覆與日誌只能靠重整
+      // 「解開」—— 重整就是把它們丟掉。
+      //
+      // 409 帶回來的版本號也不能直接採用：那等於宣稱這一頁已經有那一版的資料，
+      // 之後的輪詢比對版本相同、就再也不會把對方那段時間寫的東西併進來。
+      // 版本號只跟著合併一起前進。
+      OP_CONFLICT_RETRY += 1;
+      OP_RESYNC_PENDING = true;
+      opSetStatus('sending', OP_CONFLICT_RETRY > 2 ? '對方正在同時寫入，' + OP_QUEUE.length + ' 筆稍後自動重送' : '版本落後，正在重新對齊');
       return;
     }
     if (!res.ok) {
@@ -14970,6 +15072,11 @@ async function opFlush() {
     OP_VERSION = payload.version;
     OP_QUEUE = OP_QUEUE.slice(batch.length);
     OP_CONFLICT_RETRY = 0;
+    if (OP_SENT_DURING_MERGE) {
+      for (const command of batch) {
+        for (const change of command.changes) OP_SENT_DURING_MERGE.add(change.collection + '\u0000' + change.id);
+      }
+    }
     if (payload.rejected && payload.rejected.length) {
       const first = payload.rejected[0];
       opSetStatus('error', first.message || '部分變更未被接受');
@@ -14985,13 +15092,16 @@ async function opFlush() {
     if (OP_RESYNC_PENDING) {
       OP_RESYNC_PENDING = false;
       // 合併會動到 DB 與基準線，所以要等這一輪的 OP_SENDING 放掉之後才跑。
-      opResyncAndFlush();
+      // 第一次立刻重來；之後逐步拉長（最多 15 秒），對方停筆的空檔就送得進去。
+      const wait = OP_CONFLICT_RETRY <= 1 ? 0 : Math.min(15000, 500 * 2 ** (OP_CONFLICT_RETRY - 2));
+      if (wait) setTimeout(opResyncAndFlush, wait);else opResyncAndFlush();
     } else if (OP_QUEUE.length && OP_STATUS !== 'conflict' && OP_STATUS !== 'error') opFlush();
   }
 }
 
 /** 撞到版本衝突之後的復原：併回伺服器現況，再用修正後的版本重送佇列。 */
 async function opResyncAndFlush() {
+  if (controller.signal && controller.signal.aborted) return;
   await opMergeRemote({
     quiet: true
   });
@@ -15079,11 +15189,24 @@ function opPendingKeys() {
  * 最無法接受的一種資料遺失，因為他明明看著畫面上有。所以：佇列裡有的那幾列
  * 保留本地版本，其餘採用伺服器版本。粒度是列，不是集合，也不是整個 store。
  */
-async function opMergeRemote(options) {
+let OP_MERGE_PROMISE = null;
+
+/** 同一時間只跑一次合併；輪詢、回到分頁、撞版本可能同時想要合併。 */
+function opMergeRemote(options) {
+  if (OP_MERGE_PROMISE) return OP_MERGE_PROMISE;
+  OP_MERGING = true;
+  OP_SENT_DURING_MERGE = new Set();
+  OP_MERGE_PROMISE = opMergeRemoteOnce(options).finally(() => {
+    OP_MERGING = false;
+    OP_SENT_DURING_MERGE = null;
+    OP_MERGE_PROMISE = null;
+  });
+  return OP_MERGE_PROMISE;
+}
+async function opMergeRemoteOnce(options) {
   // 重送前的那次合併不畫狀態：這一刻「有未送出的列」是正常的中間狀態，
   // 畫成衝突會讓使用者看到一個下一秒就會消失的警告。
   const quiet = !!(options && options.quiet);
-  const pending = opPendingKeys();
   let payload;
   try {
     const res = await fetch('/api/company/operating/store');
@@ -15093,6 +15216,16 @@ async function opMergeRemote(options) {
     return;
   }
   if (!payload || !payload.store) return;
+  if (controller.signal && controller.signal.aborted) return;
+
+  // 「哪些列以本地為準」要在 store 回來之後才算，不是發出請求之前：
+  // store 是一次較慢的請求，這段時間裡使用者可能又打了字、送出了回覆。先前在請求之前
+  // 就算好，路上送出的回覆會被這份較舊的快照整列換掉 —— 伺服器其實有存，畫面上卻
+  // 消失，要重新整理才回來；路上打的字則是真的不見。
+  opCapture();
+  const pending = opPendingKeys();
+  const sentMeanwhile = OP_SENT_DURING_MERGE ? new Set(OP_SENT_DURING_MERGE) : new Set();
+  for (const key of sentMeanwhile) pending.add(key);
   let merged = 0;
   let kept = 0;
   for (const [collection, incoming] of Object.entries(payload.store)) {
@@ -15150,13 +15283,28 @@ async function opMergeRemote(options) {
       opWrite(collection, next);
     }
   }
-  OP_VERSION = typeof payload.version === 'number' ? payload.version : OP_VERSION;
+
+  // 路上有送出成功的話，本地版本號已經比這份快照新；不能倒退，否則下一次送出必撞 409。
+  if (typeof payload.version === 'number') OP_VERSION = Math.max(OP_VERSION, payload.version);
   // 剛換進來的列是伺服器的原樣，沒有衍生欄位；先補齊再當基準線（見 opSettle）。
   opSettle();
   OP_BASELINE = opSnap();
-  render();
-  if (quiet) return;
-  if (kept) opSetStatus('conflict', '已取得其他裝置的更新；你有 ' + kept + ' 筆尚未保存的編輯被保留');else opSetStatus(OP_QUEUE.length ? 'sending' : 'idle', merged ? '已同步其他裝置的更新' : '');
+  if (opComposing()) OP_RENDER_DEFERRED = true;else opRenderKeepingFocus();
+
+  // 路上送出的那幾列保留了本地版本；伺服器那一頭是合併後的（例如對方同時的回覆），
+  // 快照裡沒有。再取一次，讓對方那一份也進來。
+  if (sentMeanwhile.size && !(options && options.followUp)) {
+    setTimeout(() => opMergeRemote({
+      quiet: true,
+      followUp: true
+    }), 0);
+  }
+
+  // 保留下來的列只是還沒送出的編輯（包括 opCapture 剛收進來的打字），接著就送；
+  // 不是衝突，不必叫人重新整理。安靜的合併也要送 —— 否則收進佇列的字停在那裡，
+  // 而輪詢看到佇列非空就一直跳過，等於又卡住。
+  if (!quiet) opSetStatus(OP_QUEUE.length ? 'sending' : 'idle', merged ? '已同步其他裝置的更新' : '');
+  if (OP_QUEUE.length) opFlush();
 }
 
 // 先取一次伺服器版本，否則第一次送出就會撞 409（本地從 0 起算，伺服器不一定）。
@@ -15166,6 +15314,12 @@ if (OP_LIVE) {
   OP_BASELINE = opSnapshot();
   doc.addEventListener('visibilitychange', () => {
     if (doc.visibilityState === 'visible') opCheckRemoteVersion();
+    // 切到別的 App／分頁時立刻存，不等 1.5 秒：手機上切走之後頁面可能被凍結，
+    // 等到回來時那段打字還沒排進佇列。
+    else if (OP_BASELINE) {
+      opCapture();
+      opFlush();
+    }
   }, {
     signal: controller.signal
   });

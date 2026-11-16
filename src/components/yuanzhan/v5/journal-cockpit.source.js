@@ -271,8 +271,19 @@ docInput=function(e){
  jcBaseInput(e);
  if(space!=='team'||COMPOSING)return;
  (DB.journalEdits[DB.me]??={})[S.jday]=Date.now();
- // 打字中不能 render()（游標會被重建掉），所以直接排一次保存，讓「開始一天」存得下去。
- if(jcStart())opTouch();
+ // 打字中不能 render()（游標會被重建掉），所以直接排保存。每一次輸入都要排，不是只有
+ // 「開始一天」那一下：先前只有當天第一個字會排，之後打的字只留在記憶體裡，要等下一次
+ // 剛好有東西 render() 才會被存；這段空窗裡一旦併回伺服器現況，字就被整列換掉。
+ jcStart();opTouch();
+};
+/* 中文輸入法：組字中的 input 事件被略過，確定的字是在 compositionend 才寫回 model，
+   所以保存也要在這裡排，否則只用注音／拼音打字的人永遠排不到自動保存。 */
+const jcBaseComposeEnd=docComposeEnd;
+docComposeEnd=function(e){
+ jcBaseComposeEnd(e);
+ if(space!=='team')return;
+ (DB.journalEdits[DB.me]??={})[S.jday]=Date.now();
+ jcStart();opTouch();
 };
 const jcBaseCommit=commit;
 const JC_SHARED_LOG={'請求':'發出請求','決策卡':'發出決策卡','今日議題':'標記今日議題','請求回覆':'回覆請求','決策回覆':'做出決定','請求結案':'結案請求','行內留言':'留言','日誌留言':'留言'};
