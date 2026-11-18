@@ -60,4 +60,4 @@ Owner 指定的下一段。更真的事：使用者可以把截圖、報價單�
 
 ## Final Status
 
-`JAI-S2` DONE（分支 `claude/journal-ai`，未合併、未部署、無 migration）。下一步：Owner 決定合併部署；`JAI-S3`（選取多行問 AI、存成日誌區塊、compaction、用量頁、30 天清除）。
+`JAI-S2` DONE，2026-11-18 推上正式站（`aa07882fd8`，部署成功、無 migration、未登入 401）。下一步：Owner 設定 `ANTHROPIC_API_KEY` 後以真模型驗收；`JAI-S3`（選取多行問 AI、存成日誌區塊、compaction、用量頁、30 天清除）。

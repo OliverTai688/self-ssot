@@ -13,7 +13,8 @@
 - 上限：每則 5 個檔案、圖片 5MB、PDF 20MB、一個對話送出的檔案總量 24MB（超過的換成說明）。
 - 「存進文件庫」：選團隊會先把檔案改成團隊可見（只有上傳者能改，`shareAssetToTeam`），再在文件庫建一筆指向同一份檔案的紀錄（走一般的 commit）；選私人只建紀錄。不搬 bytes、參考碼不變。
 - Verification：`pnpm ops:journal-ai:check` **40/40**（新增 docx／xlsx／pptx 抽取、壞檔、zip bomb、截斷、read_file、釘選檔案、原生頁碼引用）；`verify-asset-pipeline` 42/42、`verify-asset-object` 73/73、`verify-object-index` 19/19、`verify-obj-refs` 44/44；`tsc` 0、eslint 0、generate PASS（774）、`pnpm build` PASS。拋棄式 DB＋真的 R2（localhost:3000，只寫入拋棄式 workspace 的前綴，測完刪除 4 個物件、剩 0）：四種檔案經畫面上傳、3000px PNG 自動縮成 JPEG、伺服器讀回並抽出中文、DB 內 0 筆 base64；存進團隊文件庫後檔案變團隊可見、文件庫紀錄落地；換回測試：別的席位讀不到私人附件、讀得到已分享的、超過預算被擋、兩次換出結果相同。
-- **待 Owner**：合併與部署（本段無 migration）；真模型回答與頁碼引用待 `ANTHROPIC_API_KEY`。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md)
+- 2026-11-18 Owner 指示合併，推上正式站 `aa07882fd8`，部署成功；正式庫 schema up to date（本段無 migration）；未登入打 AI 路由與上傳路由（含 PATCH 分享）皆 401。
+- **待 Owner**：真模型回答與頁碼引用待 `ANTHROPIC_API_KEY`。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md)
 
 ## 2026-11-16
 
