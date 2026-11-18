@@ -87,6 +87,8 @@ type RunParams = {
   signal: AbortSignal
   shouldStop: () => Promise<boolean>
   onEvent: (event: RunEvent) => void
+  /** 長對話（上一輪輸入超過門檻）才開伺服器端 compaction；短對話不送這個 beta，少一個會壞的地方 */
+  compact?: boolean
   /** 送出前把訊息裡的檔案記號換成真的檔案區塊（attachments.ts）。存起來的仍是記號。 */
   hydrate: (messages: MessageParam[]) => Promise<MessageParam[]>
   /** 每跑完一次工具就呼叫一次，讓呼叫端把進度寫回資料庫（斷線、切到背景分頁都不遺失） */
@@ -133,8 +135,12 @@ async function runAnthropic(p: RunParams): Promise<RunResult> {
         // 自動快取最後一個可快取的區塊：同一對話的下一輪，整段歷史都從快取讀
         cache_control: { type: "ephemeral" },
         // 拒答時由伺服器依類別改用其他模型（skill 預設開啟）
-        betas: ["server-side-fallback-2026-07-01"],
+        betas: p.compact ? ["server-side-fallback-2026-07-01", "compact-2026-01-12"] : ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
+        // 長對話：較早的內容由 API 摘要掉；回傳的 compaction 區塊與其他區塊一起原樣存回（content 整包保存）
+        ...(p.compact
+          ? { context_management: { edits: [{ type: "compact_20260112" as const, instructions: "摘要時保留每一個 cite（⟦line:…⟧、⟦asset:…⟧ 等）與它對應的事實，之後的回答仍要引用得到。" }] } }
+          : {}),
       },
       { signal: p.signal },
     )

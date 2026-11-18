@@ -2,6 +2,20 @@
 
 ## 2026-11-18
 
+### JAI-S3 — 日誌 AI：從日誌與物件問 AI、答案存進日誌、用量與稽核、compaction、30 天清除（UI-088 · RES-037 §15）
+
+- **從日誌問**：選取兩行以上，選取下方浮出「問 AI」（包住 `msPaint`，不改 block-select）；`pointerdown` 觸發，因為 block-select 在 `mousedown` 就清掉選取。帶進新對話的是日誌行釘選（`ty: line`，伺服器只從 viewer 語料解析、格式不對丟棄）與行上的物件。
+- **從物件問**：`objPeek` 彈窗多一顆「問 AI」，日誌、回覆、議題、物件索引的引用膠囊都走這個彈窗。
+- **存進今天的日誌**：開頭一行「AI 回答：「問題」」，每段一行引言；物件引用變成行上的引用膠囊，日誌行引用變成「（11/10 日誌）」。走一般自動保存。
+- **用量**：`GET /api/company/operating/ai/usage`；清單底部顯示本月全公司用量／上限與自己的用量，負責人另看各席位（只有金額與次數）。
+- **稽核**：每則回答一列 `operating_command_logs`（實體「日誌 AI」），只記送出日誌行數、物件數、檔案數、字數、花費、模型；不記問題與答案（D3）。
+- **Compaction**：上一輪輸入超過 12 萬 token 才帶 `compact-2026-01-12`，指示保留 cite。
+- **30 天清除**：Vercel Cron 每天 19:00 UTC 打 `/api/cron/journal-ai-purge`，沒有 `CRON_SECRET` 回 503、錯的回 401；`pnpm ops:ai:purge` 預設 dry run。
+- 只帶物件、沒打字按 Enter 也會送出（預設問題）。
+- Verification：`pnpm ops:journal-ai:check` **43/43**；`tsc` 0、eslint 0、generate PASS（778）、`pnpm build` PASS（兩條新路由）。拋棄式 DB：cron 無授權／錯授權 401、正確授權刪掉 31 天前的 1 個對話（訊息一起刪、剩 5 天前的）；日誌行釘選解析成功、格式錯的被丟；稽核列只有數量與花費；用量回傳正確。瀏覽器：選取兩行浮出「問 AI」並以真實點擊開新對話帶入兩行；送出後泡泡顯示行膠囊；「存進今天的日誌」寫進 11/18、閃一下、重新整理仍在、物件引用成為行上膠囊；物件彈窗「問 AI」帶入 PDF；只帶物件按 Enter 送出預設問題。
+- **待 Owner**：合併部署；Vercel 設 `CRON_SECRET`；`ANTHROPIC_API_KEY`（compaction 與真模型仍未實測）。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md)
+
+
 ### JAI-S2 — 日誌 AI：附上檔案、讀日誌裡的檔案、PDF 引用帶頁碼、存進文件庫（UI-088 · RES-037 §14）
 
 - 輸入框可以附圖片、PDF、Word、Excel、PowerPoint、文字檔：迴紋針、貼上、拖進對話區。走既有上傳路由（`origin = ai`、`space = personal`，參考碼 `AST-AI-…`），檔案因此有自己的家，能被 `@`、能被引用。

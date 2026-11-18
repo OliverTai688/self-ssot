@@ -140,6 +140,13 @@ const vp = verifyCitations('第二期驗收後付款' + marks, citeLabels(rf.ref
 ok('N2 讀過的檔案的頁碼引用被承認並帶頁碼', vp.citations[0]?.kind === 'object' && (vp.citations[0] as { page?: number }).page === 2)
 ok('N3 沒讀過的檔案的引用仍被移除', vp.dropped.includes('asset:AST-AI-000001-20261118'))
 
+
+/* ---------- JAI-S3：日誌行釘選 ---------- */
+const lp = resolvePins(corpus, [{ ty: 'line', rid: '2026-10-20:yz:b3' }, { ty: 'line', rid: '2026-10-21:lily:nope' }, { ty: 'decision', rid: 'DEC-31' }])
+ok('L1 釘選的日誌行帶 cite 與文字，找不到的行略過', lp.refs[0]?.cite === 'line:2026-10-20:yz:b3' && lp.text.includes('驗收後 30 天') && !lp.text.includes('nope'))
+ok('L2 釘選的行進允許引用集合', verifyCitations('⟦line:2026-10-20:yz:b3⟧', citeLabels(lp.refs)).citations.length === 1)
+ok('L3 行與物件可以一起釘選', lp.refs.some((r) => r.cite === 'decision:DEC-31'))
+
 const failed = results.filter((r) => r[0] === 'FAIL')
 for (const [s, n, e] of results) console.log(`${s}  ${n}${e ? '  → ' + e : ''}`)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)

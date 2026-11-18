@@ -252,7 +252,17 @@ export function resolvePins(
   const parts: string[] = []
   const refs: SentRef[] = []
   const files: AssetRefBlock[] = []
-  for (const pin of pins.slice(0, 10)) {
+  for (const pin of pins.slice(0, 30)) {
+    // 日誌行（從日誌選取多行「問 AI」帶進來的）：rid = <day>:<author>:<blockId>
+    if (pin.ty === "line") {
+      const l = corpus.lines.find((x) => `${x.day}:${x.author}:${x.blockId}` === pin.rid)
+      if (!l) continue
+      const cite = lineCite(l)
+      const body = json({ cite, day: l.day, author: l.author, line: l.line, text: l.text, refs: l.refs.map((r) => `${r.ty}:${r.rid}`) })
+      parts.push(body)
+      refs.push({ cite, label: lineLabel(l.day, l.line), chars: l.text.length })
+      continue
+    }
     const cite = `${pin.ty}:${pin.rid}`
     const o = getObject(corpus, cite)
     if (!o) continue

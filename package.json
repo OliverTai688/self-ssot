@@ -169,6 +169,7 @@
     "ops:stickers:check": "tsx scripts/check-journal-stickers.mts",
     "ops:agenda-page:check": "tsx scripts/check-agenda-page.mts",
     "ops:engines:verify": "node scripts/verify-journal-engines.mjs",
+    "ops:ai:purge": "NODE_OPTIONS='--conditions react-server' tsx scripts/purge-journal-ai.ts",
     "ops:journal-ai:check": "tsx scripts/check-journal-ai.mts",
     "ops:signal:check": "tsx scripts/check-signal-inbox.mts && tsx scripts/check-conversation-signals.mts && node scripts/verify-conversation-deid.mjs",
     "ops:line:check": "tsx scripts/check-line-contract.mts",

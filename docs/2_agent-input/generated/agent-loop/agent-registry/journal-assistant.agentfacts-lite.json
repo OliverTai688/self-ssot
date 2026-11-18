@@ -8,7 +8,7 @@
     "agent_name": "urn:agent:personal-os:JournalAssistant",
     "label": "JournalAssistant",
     "description": "Answers a seat's questions about the company journal, objects and files, using read-only search tools scoped to what that seat can already see. Every factual sentence carries a server-verified citation.",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "provider": {
       "name": "Anthropic (Claude API)",
       "url": "https://platform.claude.com",
@@ -26,7 +26,9 @@
         "GET|POST /api/company/operating/ai/sessions",
         "PATCH|DELETE /api/company/operating/ai/sessions/[id]",
         "GET|POST(SSE) /api/company/operating/ai/sessions/[id]/messages",
-        "POST /api/company/operating/ai/sessions/[id]/stop"
+        "POST /api/company/operating/ai/sessions/[id]/stop",
+        "GET /api/company/operating/ai/usage",
+        "GET /api/cron/journal-ai-purge (CRON_SECRET)"
       ],
       "external": []
     },
@@ -93,21 +95,24 @@
         "reading another seat's conversations"
       ],
       "attestations": [
-        "scripts/check-journal-ai.mts (40/40)",
+        "scripts/check-journal-ai.mts (43/43)",
         "disposable-DB cross-seat proof 2026-11-16",
-        "disposable-DB + R2 attachment proof 2026-11-18"
+        "disposable-DB + R2 attachment proof 2026-11-18",
+        "disposable-DB purge/audit/usage proof 2026-11-18"
       ]
     },
     "observability": {
       "evidenceReports": [
         "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md",
-        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md"
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md",
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md"
       ],
       "lastVerification": "2026-11-18",
       "telemetryClaims": [
         "per-message sentRefs (what was sent to the model)",
         "per-message usage and cost estimate",
-        "monthly cap JOURNAL_AI_MONTHLY_CAP_USD"
+        "monthly cap JOURNAL_AI_MONTHLY_CAP_USD",
+        "per-answer audit row in operating_command_logs (counts and cost only, no content)"
       ]
     },
     "registry": {

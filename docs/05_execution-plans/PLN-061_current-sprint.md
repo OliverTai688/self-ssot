@@ -1,5 +1,11 @@
 # Current Sprint
 
+## Owner-directed 日誌 AI 助理 S3 — 2026-11-18
+
+`JAI-S3` 完成於分支 `claude/journal-ai`（未合併、未部署、無 migration）：日誌選取多行浮出「問 AI」、物件彈窗「問 AI」、答案「存進今天的日誌」、本月用量顯示、每則回答一列稽核（只記數量與花費）、長對話 compaction、30 天清除（Vercel Cron＋`CRON_SECRET`）。
+
+待 Owner：合併與部署；在 Vercel 設定 `CRON_SECRET`（沒設定時清除路由一律拒絕，不會刪任何東西）；`ANTHROPIC_API_KEY`。
+
 ## Owner-directed 日誌 AI 助理 S2 — 2026-11-18
 
 `JAI-S2` 完成，2026-11-18 推上正式站（`aa07882fd8`，無 migration）：對話裡可以附圖片、PDF、Word、Excel、PowerPoint、文字檔（迴紋針、貼上、拖入）；新工具 `read_file` 讀日誌裡既有的檔案；PDF 引用帶頁碼；附件可「存進文件庫」（團隊或私人）。資料庫只存檔案記號，送出前才從 R2 讀回並重新檢查權限。

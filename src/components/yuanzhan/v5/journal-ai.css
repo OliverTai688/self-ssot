@@ -114,3 +114,20 @@
 .ja-save svg{width:11px;height:11px;vertical-align:-1px}
 .ja-save-q{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;color:var(--text-2,#99a2af)}
 .ja-main{position:relative}
+
+/* 從日誌選取「問 AI」、本月用量（JAI-S3） */
+.ja-selask{position:fixed;z-index:40;display:none;align-items:center;gap:5px;padding:4px 10px;border:1px solid var(--pri-br,#2d5a7d);border-radius:999px;background:var(--pri-bg,#11212e);color:var(--pri,#6cb6ff);font:inherit;font-size:12px;cursor:pointer;box-shadow:var(--shadow,0 8px 24px #0006)}
+.ja-selask.on{display:inline-flex}
+.ja-selask:hover{background:var(--surface-3,#1c2127)}
+.ja-selask svg{width:12px;height:12px}
+.ja-file-line span{max-width:22em}
+.ja-usage{margin-top:auto;padding:8px 4px 0;border-top:1px solid var(--border,#232931);font-size:11.5px;color:var(--text-3,#626b77)}
+.ja-usage:empty{display:none}
+.ja-usage-h{display:flex;justify-content:space-between;gap:6px}
+.ja-usage-h b{font-weight:500;color:var(--text-2,#99a2af)}
+.ja-usage-bar{height:4px;margin:5px 0;border-radius:2px;background:var(--surface-3,#1c2127);overflow:hidden}
+.ja-usage-bar i{display:block;height:100%;background:var(--pri,#6cb6ff)}
+.ja-usage.hot .ja-usage-bar i{background:var(--warn,#e3a33b)}
+.ja-usage.hot .ja-usage-h b{color:var(--warn,#e3a33b)}
+.ja-usage-s{line-height:1.6}
+.ja-usage + .ja-arch{margin-top:6px}

@@ -2479,3 +2479,18 @@ Verification:
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md`
 
+## 日誌 AI：從日誌與物件問、存成日誌、用量、稽核、清除（UI-088 · JAI-S3，2026-11-18）
+
+機檢：`pnpm ops:journal-ai:check`。依據 `RES-037` §15。
+
+- [x] 日誌選取兩行以上會浮出「問 AI」；按下開新對話，選到的行帶進去，送出後答案可以引用那幾行。
+- [x] 物件彈窗有「問 AI」，帶著那個物件開新對話。
+- [x] 答案可以「存進今天的日誌」；物件引用變成行上的引用膠囊；重新整理後仍在。
+- [x] 對話清單看得到本月用量與上限；負責人看得到各席位的金額與次數。
+- [x] 每一則回答在稽核軌跡留一列，只有數量與花費，沒有問題與答案。
+- [x] 刪除超過 30 天的對話會被清除；沒有設定密鑰時清除路由拒絕任何請求。
+- [ ] Vercel 設定 `CRON_SECRET` 後，隔天在 Vercel Cron 紀錄看到一次 200。
+- [ ] 以真模型跑一段超過 12 萬 token 的長對話，compaction 之後答案仍引用得到前面讀過的資料。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md`
+

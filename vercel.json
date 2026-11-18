@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
-  "buildCommand": "pnpm prisma generate && pnpm prisma migrate deploy && pnpm build"
+  "buildCommand": "pnpm prisma generate && pnpm prisma migrate deploy && pnpm build",
+  "crons": [
+    {
+      "path": "/api/cron/journal-ai-purge",
+      "schedule": "0 19 * * *"
+    }
+  ]
 }

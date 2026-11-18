@@ -16,7 +16,12 @@ const JA = {
   sessions: null, loading: false, err: '', active: null, msgs: Object.create(null), loadingMsgs: '',
   draft: '', live: null, q: '', showArchived: false, renaming: '', drawer: false, sheet: false, poll: 0,
   /** 輸入框上的附件：{ k, name, status: uploading|ready|failed, refCode, assetId, err } */
-  files: [], saving: ''
+  files: [], saving: '',
+  /** 從日誌選取帶進來、還沒送出的行：{ day, author, bid, text } */
+  lines: [],
+  /** 剛從日誌「問 AI」進來：開新對話，不要自動打開清單裡第一個 */
+  fresh: false,
+  usage: null
 };
 
 const jaWb = WB.find(x => x.id === 'journal');
@@ -36,7 +41,8 @@ async function jaLoadSessions() {
   JA.loading = true; JA.err = '';
   try {
     JA.sessions = (await jaFetch(JA_API)).sessions || [];
-    if (!JA.active) { const first = JA.sessions.find(s => !s.archived); if (first) jaOpen(first.id, true); }
+    jaLoadUsage();
+    if (!JA.active && !JA.fresh) { const first = JA.sessions.find(s => !s.archived); if (first) jaOpen(first.id, true); }
   } catch (e) { JA.err = e.message; JA.sessions = JA.sessions || []; }
   JA.loading = false;
   if (jaOnPage()) render();
@@ -77,6 +83,7 @@ async function jaNew() {
   } catch (e) { toast(esc(e.message)); }
 }
 function jaOpen(id, quiet) {
+  JA.fresh = false;
   JA.active = id; JA.drawer = false; JA.renaming = '';
   if (!JA.msgs[id]) jaLoadMsgs(id);
   if (!quiet) { jaFocusSoon(); render(); }
@@ -127,15 +134,19 @@ async function jaSend(text) {
   if (JA.live) return toast('上一則還在回答中');
   if (JA.files.some(f => f.status === 'uploading')) return toast('檔案還在上傳，傳完再送出');
   const files = JA.files.filter(f => f.status === 'ready');
+  const lines = JA.lines.slice();
   if (!q && files.length) q = '請看附件。';
+  if (!q && lines.length) q = '這幾行在說什麼？有沒有該追的事？';
+  if (!q && orRefsOf(JA_KEY).length) q = '這是什麼？重點是什麼？';
   if (!q) return;
   if (!JA.active) {
     try { const { session } = await jaFetch(JA_API, { method: 'POST' }); jaPatchSession(session); JA.active = session.id; JA.msgs[session.id] = []; }
     catch (e) { return toast(esc(e.message)); }
   }
   const id = JA.active, refs = orRefsOf(JA_KEY);
-  const pins = [...files.map(f => ({ ty: 'asset', rid: f.refCode })), ...refs.filter(r => !files.some(f => r.ty === 'asset' && r.rid === f.refCode))];
-  JA.draft = ''; orClear(JA_KEY); JA.files = [];
+  const pins = [...lines.map(l => ({ ty: 'line', rid: l.day + ':' + l.author + ':' + l.bid })),
+    ...files.map(f => ({ ty: 'asset', rid: f.refCode })), ...refs.filter(r => !files.some(f => r.ty === 'asset' && r.rid === f.refCode))];
+  JA.draft = ''; orClear(JA_KEY); JA.files = []; JA.lines = []; JA.fresh = false;
   JA.live = { sessionId: id, assistantId: '', text: '', steps: [], user: { role: 'user', text: q, pins, citations: [], steps: [], sentRefs: [], status: 'done' } };
   jaFocusSoon(); render(); jaScrollEnd();
 
@@ -143,12 +154,12 @@ async function jaSend(text) {
   try {
     res = await fetch(JA_API + '/' + encodeURIComponent(id) + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: q, pins }) });
   } catch {
-    JA.live = null; JA.draft = q; JA.files = files; render();
+    JA.live = null; JA.draft = q; JA.files = files; JA.lines = lines; render();
     return toast('連不上伺服器，問題已放回輸入框');
   }
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({}));
-    JA.live = null; JA.draft = q; JA.files = files; render();
+    JA.live = null; JA.draft = q; JA.files = files; JA.lines = lines; render();
     return toast(esc(data.error || '送不出去，問題已放回輸入框'));
   }
   try { await jaReadStream(res.body, id); }
@@ -194,6 +205,7 @@ function jaOnEvent(id, event, data) {
   else if (event === 'done') {
     (JA.msgs[id] || (JA.msgs[id] = [])).push(data.message);
     live.done = true;
+    jaLoadUsage();
     const s = jaSession(id); if (s) s.lastMessageAt = new Date().toISOString();
   }
 }
@@ -302,12 +314,12 @@ function jaSteps(steps, open) {
 const JA_STATUS = { stopped: '已停止', error: '沒有完成', refused: '這一題模型沒有回答', streaming: '還在回答中…', stopping: '停止中…' };
 function jaMsgHtml(m, i) {
   if (m.role === 'user') {
-    return `<div class="ja-msg ja-u"><div class="ja-bubble">${esc(m.text).replace(/\n/g, '<br>')}${m.pins && m.pins.length ? orChips(m.pins) : ''}${jaSaveRow(m.pins)}</div></div>`;
+    return `<div class="ja-msg ja-u"><div class="ja-bubble">${esc(m.text).replace(/\n/g, '<br>')}${jaPinChips(m.pins)}${jaSaveRow(m.pins)}</div></div>`;
   }
   const busy = m.status === 'streaming' || m.status === 'stopping';
   const st = m.status !== 'done' ? `<div class="ja-st ${m.status === 'error' || m.status === 'refused' ? 'bad' : ''}">${svg(busy ? 'clock' : 'warn', 12)} ${esc(JA_STATUS[m.status] || m.status)}${m.error ? '：' + esc(m.error) : ''}</div>` : '';
   return `<div class="ja-msg ja-a">${jaSteps(m.steps)}${m.text ? `<div class="ja-ans">${jaAnswerHtml(m)}</div>` : ''}${st}
-    ${m.text && !busy ? `<div class="ja-acts">${m.mock ? '<span class="chip c-w">示範模式</span>' : ''}<button class="btn sm" onclick="jaCopy(${i})">${svg('copy', 12)} 複製</button></div>` : ''}</div>`;
+    ${m.text && !busy ? `<div class="ja-acts">${m.mock ? '<span class="chip c-w">示範模式</span>' : ''}<button class="btn sm" onclick="jaCopy(${i})">${svg('copy', 12)} 複製</button><button class="btn sm" onclick="jaToJournal(${i})">${svg('journal', 12)} 存進今天的日誌</button></div>` : ''}</div>`;
 }
 function jaLiveInner(live) {
   const pending = live.text ? jaFormat(live.text, () => '<span class="ja-pend">引用</span>') : '';
@@ -376,7 +388,7 @@ function jaSources(msgs) {
   };
   const sec = (t, n, body) => `<div class="ja-src-sec"><div class="ja-g">${t}<span>${n}</span></div>${body}</div>`;
   const wan = chars >= 10000 ? (chars / 10000).toFixed(1) + ' 萬字' : chars + ' 字';
-  return (pins.length ? sec('釘選的物件', pins.length, orChips(pins)) : '')
+  return (pins.length ? sec('釘選的物件與日誌行', pins.length, jaPinChips(pins)) : '')
     + sec('本次讀過的日誌', lines.length, lines.slice(0, 40).map(row).join('') || '<div class="ja-empty-l">還沒有</div>')
     + sec('本次讀過的物件', objs.length, objs.slice(0, 40).map(row).join('') || '<div class="ja-empty-l">還沒有</div>')
     + `<div class="ja-sent">${svg('lock', 11)} 這個對話送出了 ${reads.length} 項資料、約 ${wan}。只有你看得到這個對話；薪資與銀行對帳不會送出。</div>`;
@@ -410,6 +422,7 @@ function jaView() {
       <button class="btn pri ja-new" onclick="jaNew()">${svg('plus', 12)} 新對話</button>
       <input class="ja-find" aria-label="搜尋對話" placeholder="搜尋對話" value="${esc(JA.q)}" oninput="jaSetQ(this.value)">
       <div id="jaSessions" class="ja-sessions">${jaSessionGroups()}</div>
+      ${jaUsageHtml()}
       <button class="sg-link ja-arch" onclick="jaToggleArchived()">${JA.showArchived ? '回到對話' : '封存的對話'}</button>
       ${JA.err ? `<div class="sg-warn">${svg('warn', 12)} ${esc(JA.err)}</div>` : ''}
     </aside>
@@ -521,7 +534,7 @@ function jaDropFile(k) {
   jaPaintFiles();
 }
 function jaFilesInner() {
-  return JA.files.map(f => `<span class="ja-file ${f.status}" title="${esc(f.err || f.name)}">${svg(f.status === 'failed' ? 'warn' : f.status === 'uploading' ? 'clock' : 'paperclip', 11)}<span>${esc(f.name)}</span>${f.status === 'uploading' ? '<i>上傳中</i>' : f.status === 'failed' ? '<i>' + esc(f.err) + '</i>' : ''}<button type="button" aria-label="移除 ${esc(f.name)}" onclick="jaDropFile('${f.k}')">${svg('x', 10)}</button></span>`).join('');
+  return JA.lines.map((l, i) => `<span class="ja-file ready ja-file-line" title="${esc(l.text)}">${svg('journal', 11)}<span>${esc(jaDayLabel(l.day))}：${esc(l.text)}</span><button type="button" aria-label="移除這一行" onclick="jaDropLine(${i})">${svg('x', 10)}</button></span>`).join('') + JA.files.map(f => `<span class="ja-file ${f.status}" title="${esc(f.err || f.name)}">${svg(f.status === 'failed' ? 'warn' : f.status === 'uploading' ? 'clock' : 'paperclip', 11)}<span>${esc(f.name)}</span>${f.status === 'uploading' ? '<i>上傳中</i>' : f.status === 'failed' ? '<i>' + esc(f.err) + '</i>' : ''}<button type="button" aria-label="移除 ${esc(f.name)}" onclick="jaDropFile('${f.k}')">${svg('x', 10)}</button></span>`).join('');
 }
 function jaPaintFiles() { const el = root.querySelector('#jaFiles'); if (el) el.innerHTML = jaFilesInner(); }
 
@@ -558,6 +571,158 @@ async function jaSaveLib(rid, space) {
       return [space === 'team' ? '已存進團隊文件庫' : '已存成私人文件'];
     });
   } catch (e) { toast(esc(e.message)); render(); }
+}
+
+/* ---------- 從日誌與物件「問 AI」（JAI-S3）---------- */
+
+function jaDayLabel(day) { return Number(String(day).slice(5, 7)) + '/' + String(day).slice(8, 10); }
+function jaDropLine(i) { JA.lines.splice(i, 1); jaPaintFiles(); }
+
+/** 釘選的日誌行：rid = <day>:<author>:<blockId>。文字從畫面上的日誌找（自己的日誌才找得到）。 */
+function jaLinePin(p) {
+  const parts = String(p.rid).split(':');
+  return { day: parts[0], author: parts[1], bid: parts.slice(2).join(':') };
+}
+function jaLineText(l) {
+  const book = l.author === DB.me ? DB.journal[l.day] : null;
+  const b = book && (book.blocks || []).find(x => x.id === l.bid);
+  return b ? String(b.text || '').slice(0, 24) : '';
+}
+function jaPinChips(pins) {
+  const lines = (pins || []).filter(p => p.ty === 'line'), objs = (pins || []).filter(p => p.ty !== 'line');
+  const chips = lines.map(p => {
+    const l = jaLinePin(p), t = jaLineText(l);
+    return `<button type="button" class="ja-cite" title="回到那一行" onclick="jaJumpLine('${esc(l.day)}','${esc(l.author)}','${esc(l.bid)}')">${svg('journal', 11)}<span>${esc(jaDayLabel(l.day))} 日誌</span>${t ? `<span class="ja-cite-l">${esc(t)}</span>` : ''}</button>`;
+  }).join('');
+  return (chips ? `<div class="obj-refs">${chips}</div>` : '') + (objs.length ? orChips(objs) : '');
+}
+
+/** 帶著一些行或物件開一個新對話。 */
+function jaAsk(lines, objs) {
+  if (!OP_LIVE) return toast('預覽模式不能問 AI');
+  saveJournalDraft();
+  JA.active = null; JA.fresh = true; JA.draft = ''; JA.files = []; JA.lines = (lines || []).slice(0, 20); JA.drawer = false;
+  orClear(JA_KEY);
+  if (objs && objs.length) orRefs.set(JA_KEY, objs.slice(0, 10).map(o => ({ ty: o.ty, rid: o.rid })));
+  JA_SEL.ids = [];
+  jaPaintSelAsk();
+  S.wb = 'journal'; S.tab = JA_TAB;
+  jaFocusSoon(); render();
+}
+function jaAskObj(ty, rid) { objPeekClose(); jaAsk([], [{ ty, rid }]); }
+
+/* 日誌選取多行時浮出「問 AI」。選取本身由 block-select 管，這裡只在它重畫高亮時跟著畫一顆按鈕。
+   按鈕用 pointerdown 觸發：block-select 在 mousedown 就會清掉選取，等到 click 時已經什麼都沒有了。 */
+const JA_SEL = { ids: [], lines: [], objs: [] };
+function jaSelEl() {
+  let el = root.querySelector('#jaSelAsk');
+  if (el) return el;
+  el = document.createElement('button');
+  el.id = 'jaSelAsk'; el.type = 'button'; el.className = 'ja-selask';
+  el.innerHTML = svg('message', 12) + ' 問 AI';
+  const host = root.querySelector('#summon');
+  (host && host.parentNode ? host.parentNode : root).appendChild(el);
+  return el;
+}
+function jaSelCollect() {
+  const arr = (typeof msBlocks === 'function' ? msBlocks(MSEL.ref) : null) || [];
+  const want = new Set(MSEL.ids), lines = [], objs = [];
+  for (const b of arr) {
+    if (!want.has(b.id)) continue;
+    if (b.t === 'obj' && b.obj && b.obj.rid) objs.push({ ty: b.obj.ty || 'doc_object', rid: b.obj.rid });
+    else if (TEXTY(b.t) && String(b.text || '').trim()) lines.push({ day: S.jday, author: DB.me, bid: b.id, text: String(b.text).trim().slice(0, 60) });
+    (Array.isArray(b.refs) ? b.refs : []).forEach(r => { if (r && r.ty && r.rid) objs.push({ ty: r.ty, rid: r.rid }); });
+  }
+  return { lines, objs };
+}
+function jaPaintSelAsk() {
+  const el = root.querySelector('#jaSelAsk');
+  const on = OP_LIVE && S.wb === 'journal' && S.tab === 0 && MSEL.ids.length > 1 && MSEL.ref && MSEL.ref.k === 'doc';
+  if (!on) { if (el) el.classList.remove('on'); JA_SEL.ids = []; return; }
+  const picked = jaSelCollect();
+  if (!picked.lines.length && !picked.objs.length) { if (el) el.classList.remove('on'); return; }
+  JA_SEL.ids = MSEL.ids.slice(); JA_SEL.lines = picked.lines; JA_SEL.objs = picked.objs;
+  const btn = jaSelEl(), last = [...root.querySelectorAll('#doc .eb.msel')].pop();
+  if (!last) { btn.classList.remove('on'); return; }
+  const r = last.getBoundingClientRect();
+  btn.classList.add('on');
+  btn.style.top = Math.min(innerHeight - 44, r.bottom + 6) + 'px';
+  btn.style.left = Math.max(8, Math.min(innerWidth - btn.offsetWidth - 8, r.left)) + 'px';
+}
+const jaBaseMsPaint = msPaint;
+msPaint = function () { jaBaseMsPaint(); jaPaintSelAsk(); };
+root.addEventListener('pointerdown', e => {
+  const btn = e.target.closest && e.target.closest('#jaSelAsk');
+  if (!btn || !JA_SEL.ids.length) return;
+  e.preventDefault(); e.stopPropagation();
+  jaAsk(JA_SEL.lines, JA_SEL.objs);
+}, { capture: true, signal: controller.signal });
+root.addEventListener('scroll', () => { if (JA_SEL.ids.length) jaPaintSelAsk(); }, { capture: true, passive: true, signal: controller.signal });
+
+/* 物件彈窗多一顆「問 AI」 */
+const jaBaseObjPeek = objPeek;
+objPeek = function (ty, rid, anchor, bid, i) {
+  jaBaseObjPeek(ty, rid, anchor, bid, i);
+  const f = root.querySelector('#objPeek .obj-peek-f');
+  if (f && OP_LIVE && objFind(ty, rid)) f.insertAdjacentHTML('afterbegin', `<button type="button" class="btn sm" onclick="jaAskObj('${esc(ty)}','${esc(rid)}')">${svg('message', 12)} 問 AI</button>`);
+};
+
+/* ---------- 存進今天的日誌（人按的寫入）---------- */
+
+/** 答案存成今天日誌的幾行：開頭一行標明是 AI 回答，接著每段一行引言；物件引用掛成那一行的引用膠囊。 */
+function jaToJournal(i) {
+  const list = JA.msgs[JA.active] || [], m = list[i];
+  if (!m || !m.text) return;
+  const prev = list.slice(0, i).reverse().find(x => x.role === 'user');
+  const byCite = jaCiteMap(m);
+  saveJournalDraft();
+  S.wb = 'journal'; S.tab = 0; S.jday = TODAY;
+  if (!canWriteJournal()) { render(); return toast('現在看的不是你的日誌，切回自己的日誌再存'); }
+  const arr = currentJournal().blocks;
+  const head = { id: newBid(), t: 'p', ind: 0, text: 'AI 回答' + (prev ? '：「' + String(prev.text).replace(/\s+/g, ' ').slice(0, 40) + '」' : '') };
+  const body = String(m.text).split('\n').map(x => x.trim()).filter(Boolean).slice(0, 30).map(line => {
+    const refs = [];
+    const text = line.replace(/^(?:[-*•]|\d+[.、])\s+/, '').replace(/^#{1,4}\s+/, '').replace(/\*\*/g, '')
+      .replace(/⟦([^⟦⟧\n]{1,200})⟧/g, (_a, c) => {
+        const ct = byCite[c];
+        if (!ct) return '';
+        if (ct.kind === 'object') { if (!refs.some(r => r.ty === ct.ty && r.rid === ct.rid)) refs.push({ ty: ct.ty, rid: ct.rid }); return ''; }
+        return '（' + jaDayLabel(ct.day) + ' 日誌）';
+      }).replace(/\s+/g, ' ').trim();
+    return Object.assign({ id: newBid(), t: 'quote', ind: 0, text }, refs.length ? { refs } : {});
+  }).filter(b => b.text || b.refs);
+  const last = arr[arr.length - 1];
+  if (last && TEXTY(last.t) && !String(last.text || '').trim() && !(last.refs && last.refs.length)) arr.pop();
+  arr.push(head, ...body, { id: newBid(), t: 'p', ind: 0, text: '' });
+  saveJournalDraft();
+  runtime._afterRender = () => {
+    const el = root.querySelector('.eb[data-id="' + head.id + '"]');
+    if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    el.classList.add('rq-flash');
+    setTimeout(() => el.classList.remove('rq-flash'), 2900);
+  };
+  render();
+  toast('已存進今天的日誌');
+}
+
+/* ---------- 本月用量 ---------- */
+
+async function jaLoadUsage() {
+  try { JA.usage = await jaFetch(JA_API.replace(/\/sessions$/, '/usage')); } catch { return; }
+  const el = root.querySelector('#jaUsage');
+  if (el) el.outerHTML = jaUsageHtml();
+}
+function jaUsageHtml() {
+  const u = JA.usage;
+  if (!u) return '<div class="ja-usage" id="jaUsage"></div>';
+  const pct = u.capUsd ? Math.min(100, Math.round(u.spentUsd / u.capUsd * 100)) : 0;
+  const seats = Array.isArray(u.bySeat) && u.bySeat.length > 1
+    ? `<div class="ja-usage-s">${u.bySeat.map(x => `${esc(person(x.seat) || x.seat)} US$${x.usd.toFixed(2)}`).join(' · ')}</div>` : '';
+  return `<div class="ja-usage ${pct >= 90 ? 'hot' : ''}" id="jaUsage" title="本月全公司日誌 AI 用量；到上限後要等下個月才能再問">
+    <div class="ja-usage-h"><span>本月用量</span><b>US$${u.spentUsd.toFixed(2)} / ${u.capUsd}</b></div>
+    <div class="ja-usage-bar"><i style="width:${pct}%"></i></div>
+    <div class="ja-usage-s">你用了 US$${u.mineUsd.toFixed(2)}（${u.mineAnswers} 則）</div>${seats}</div>`;
 }
 
 const jaBaseJournalView = VIEWS.journal;
