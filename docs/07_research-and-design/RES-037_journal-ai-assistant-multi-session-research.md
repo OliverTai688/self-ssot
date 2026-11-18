@@ -3,7 +3,7 @@
 - 日期：2026-11-05
 - 觸發：Owner：「公司日誌要有一個 AI 模組，像 Claude 一樣可以建立多個對話、上傳圖片與文字互動，然後可以問日誌裡任何物件、檔案、文字。」
 - 畫面：`UI-088` 圓展營運工作台 · 日誌，新增第四個分頁「AI」（同一個畫面，不另立 UI ID，比照 `LINK-001` 與物件索引的處理）
-- 狀態：**Owner 已採納（2026-11-16，§9 六題全部照建議）**。`JAI-S1` 已實作，見 §13。正式環境還沒有 `ANTHROPIC_API_KEY`，在那之前日誌 AI 以示範模式運作（真的查、但不呼叫模型）
+- 狀態：**Owner 已採納（2026-11-16，§9 六題全部照建議）**。`JAI-S1` 已實作並於 2026-11-18 推上正式站（`b46c9ca390`），見 §13。正式環境還沒有 `ANTHROPIC_API_KEY`，在那之前日誌 AI 以示範模式運作（真的查、但不呼叫模型）
 - 前置：[`RES-018`](RES-018_dual-naming-model-human-display-name-and-iso9001-style-ai-reference-code-research.md)（參考碼不變）、[`RES-036`](RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md) §6.4（「人主動發起才送 AI」）、[`ARC-028`](../02_architecture-and-rules/ARC-028_nanda-agent-protocol-alignment.md)（AgentFacts-lite）、`AGENTS.md` §11（AI 對高風險模組只能提案）
 
 ---

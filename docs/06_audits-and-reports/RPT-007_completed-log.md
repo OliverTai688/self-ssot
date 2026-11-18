@@ -4,7 +4,7 @@
 
 ### JAI-S1 — 日誌 AI：多對話、以你的權限查日誌、可點的引用（UI-088 · RES-037）
 
-- Owner 照建議回覆 `RES-037` 六題（D1 Claude、D2 薪資銀行不送、D3 對話只有自己看、D4 附件不存供應商、D5 Opus 5.5 medium 月上限 US$150、D6 軟刪除）並指示開始 S1。在獨立 worktree／分支 `claude/journal-ai` 做，**未合併、未部署**。
+- Owner 照建議回覆 `RES-037` 六題（D1 Claude、D2 薪資銀行不送、D3 對話只有自己看、D4 附件不存供應商、D5 Opus 5.5 medium 月上限 US$150、D6 軟刪除）並指示開始 S1。在獨立 worktree／分支 `claude/journal-ai` 做；2026-11-18 Owner 指示合併，推上正式站 `b46c9ca390`，部署成功、`prisma migrate status` up to date、未登入打新路由回 401。
 - 新表 `operating_ai_sessions`、`operating_ai_messages`（migration `20261116090000_journal_ai_sessions`，純新增、無回填）。訊息 `content` 原樣存 API content blocks，歷史只追加（preserved thinking）；另存 `text`、`citations`、`sentRefs`、`steps`、`usage`。
 - 語料由 `loadOperatingStore(workspaceId, viewerProfileId)` 取物件（與畫面同一份可見性），日誌另查（store 的 `journalPeer` 以日期為鍵、多位同事同天會互蓋）。payroll、bank、報帳、收件匣不載入。
 - 五個只讀工具（strict schema、執行前再以 zod 驗）、引用 `⟦cite⟧` 由伺服器對照「這個對話讀過的」集合驗證，對不上的換成 `⟦?⟧`。不開 web search／fetch／code execution。
@@ -12,7 +12,7 @@
 - 沒有 `ANTHROPIC_API_KEY` 時為示範模式：真的跑工具、權限與引用驗證，答案由工具結果組成。
 - 畫面：日誌第四分頁「問 AI」三欄（對話清單／對話／這個對話看過的資料）。物件引用沿用名稱膠囊與 `objPeek`，日誌行引用跳回那一行並閃一下；`@` 釘選沿用 `or*` 引用輸入；串流只更新正在長的那一則，不重畫整頁。手機：清單抽屜、資料底部 sheet。
 - Verification：`pnpm ops:journal-ai:check` **25/25**；`tsc` 0 errors；eslint 新增檔 0；generate PASS（765 handler templates）；`pnpm build` PASS；拋棄式 Postgres 套全部 migration、新表無 drift；兩個席位交叉驗證（別人的私人日誌與私人檔案查不到、直接釘選別人的私人檔也不進 prompt、別人的對話讀寫改刪停全部 404）；忙碌 409、停止、逾時解鎖、月上限 429、空問題 400；瀏覽器 1440／375 實測送出、串流、引用膠囊、跳回原行、`@` 釘選。
-- **待 Owner**：合併與部署；正式環境設定 `ANTHROPIC_API_KEY`（之後才是真的模型回答，尚未以真模型驗過）。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md)
+- **待 Owner**：正式環境設定 `ANTHROPIC_API_KEY`（之後才是真的模型回答，尚未以真模型驗過）。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md)
 
 ## 2026-09-28
 

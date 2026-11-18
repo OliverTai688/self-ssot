@@ -2,9 +2,9 @@
 
 ## Owner-directed 日誌 AI 助理 S1 — 2026-11-16
 
-Owner 照建議回覆 `RES-037` 六題並指示開始 `JAI-S1`。S1 已在分支 `claude/journal-ai` 完成（未合併、未部署）：日誌第四分頁「問 AI」、多對話、SSE 串流、五個只讀工具、`@` 釘選、伺服器端引用驗證、月上限、示範模式。拋棄式本機 DB 上兩個席位交叉驗證權限通過。
+Owner 照建議回覆 `RES-037` 六題並指示開始 `JAI-S1`。S1 已完成，2026-11-18 推上正式站（`b46c9ca390`，migration `20261116090000_journal_ai_sessions` 已套用）：日誌第四分頁「問 AI」、多對話、SSE 串流、五個只讀工具、`@` 釘選、伺服器端引用驗證、月上限、示範模式。拋棄式本機 DB 上兩個席位交叉驗證權限通過。
 
-待 Owner：合併與部署（會套用 migration `20261116090000_journal_ai_sessions`）；在正式環境設定 `ANTHROPIC_API_KEY` 後，示範模式自動改為真的呼叫 Claude。下一段 `JAI-S2`（聊天上傳與 `read_file`）。
+待 Owner：在正式環境（Vercel）設定 `ANTHROPIC_API_KEY` 後，示範模式自動改為真的呼叫 Claude。下一段 `JAI-S2`（聊天上傳與 `read_file`）。
 
 ## Owner-directed 議題頁討論送不出去、手機貼上再按 Enter 那一行不見 — 2026-10-12
 

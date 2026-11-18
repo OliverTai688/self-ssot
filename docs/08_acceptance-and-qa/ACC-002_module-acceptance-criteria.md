@@ -2452,6 +2452,7 @@ Verification:
 - [x] 每月用量到上限就不能再問，畫面說明原因。
 - [x] 沒有模型金鑰的環境以示範模式運作，畫面標示。
 - [x] 手機：清單與資料面板收合，輸入框不放大頁面。
+- [x] 推上正式站（Owner 2026-11-18 指示，`b46c9ca390`）；正式庫套用 migration（`prisma migrate status`：up to date）；未登入打 `/api/company/operating/ai/sessions` 回 401。
 - [ ] 正式環境設定 `ANTHROPIC_API_KEY` 後，以真的模型問三題：答案有引用、引用點得回去、右欄與實際讀過的一致。
 - [ ] Owner 在 iPhone Safari 上看到答案逐字出現（不是一次整段跳出）。
 
