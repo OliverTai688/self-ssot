@@ -2960,3 +2960,71 @@ model ProjectChatAttachment {
   @@index([assetId], map: "project_chat_attachments_asset_idx")
   @@map("project_chat_attachments")
 }
+
+// ─── 日誌 AI（RES-037 · JAI-S1）────────────────────────────────────────────
+
+/// 一個 AI 對話。只有建立者讀得到（RES-037 D3）：不看 workspace 內其他人、也不看負責人席位。
+/// 刪除是軟刪除，30 天後由清理排程真的刪掉（D6，JAI-S3）。
+model OperatingAiSession {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String    @map("workspace_id") @db.Uuid
+  /// Profile.id，不設外鍵（與日誌同一個慣例：停用成員時保留歷史）
+  ownerId       String    @map("owner_id") @db.Uuid
+  /// 席位字串（yz / lily）
+  ownerKey      String    @map("owner_key")
+  title         String    @default("新對話")
+  /// 由第一則訊息自動命名；使用者改過就停
+  titleAuto     Boolean   @default(true) @map("title_auto")
+  pinnedAt      DateTime? @map("pinned_at")
+  archivedAt    DateTime? @map("archived_at")
+  /// 建立當下的模型。換預設模型不影響舊對話（thinking 區塊綁模型，換模型會讓舊推理失效）
+  model         String
+  lastMessageAt DateTime? @map("last_message_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  messages OperatingAiMessage[]
+
+  @@index([workspaceId, ownerId, lastMessageAt], map: "operating_ai_sessions_owner_idx")
+  @@map("operating_ai_sessions")
+}
+
+/// 一則訊息。
+///
+/// `content` 原樣存 API 的 content blocks（含 thinking、tool_use、tool_result、fallback）。
+/// 新模型的 preserved thinking 要求歷史只能追加、不能改寫或刪減，所以這裡不存「整理過的版本」；
+/// 畫面要的文字由 mapper 從 content 取出。
+/// 一則 assistant 訊息＝一整輪工具迴圈：中間的 tool_result 也收在同一列的 content 裡
+/// （role 交錯由 mapper 在送出前展開），這樣「一問一答」在資料表上就是兩列。
+model OperatingAiMessage {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId  String   @map("session_id") @db.Uuid
+  session    OperatingAiSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  seq        Int
+  /// user | assistant
+  role       String
+  /// user：[{ type:'text' }…]；assistant：[{ role, content }]（一輪裡依序的 API 訊息）
+  content    Json
+  /// 使用者釘選的物件：[{ ty, rid }]
+  pins       Json     @default("[]")
+  /// 驗證過的引用：[{ kind:'object'|'line', ty?, rid?, day?, author?, blockId?, label }]
+  citations  Json     @default("[]")
+  /// 這一則送到模型的資料：[{ kind, ref, chars }] —— 右欄「送出了什麼」與稽核的來源
+  sentRefs   Json     @default("[]") @map("sent_refs")
+  /// 畫面要顯示的答案（引用標記已驗證、未驗證的已移除）。content 是給模型的，這個是給人看的
+  text       String   @default("")
+  /// 步驟列：[{ tool, label, hits }]
+  steps      Json     @default("[]")
+  /// streaming | done | stopped | error | refused
+  status     String   @default("done")
+  /// { input, output, cacheRead, cacheWrite, costMicroUsd, model, mock }
+  usage      Json     @default("{}")
+  error      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([sessionId, seq], map: "operating_ai_messages_seq_key")
+  @@index([createdAt], map: "operating_ai_messages_created_idx")
+  @@map("operating_ai_messages")
+}

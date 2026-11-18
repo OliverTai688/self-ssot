@@ -792,3 +792,16 @@ Owner 2026-10-12 回覆六題：只用 LINE、授權導入（關閉 RES-033 OD-H
 
 研究與邊界：[RES-036](../07_research-and-design/RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md)、[AUT-010](../02_architecture-and-rules/AUT-010_line-webhook-identity-group-and-conversation-analysis-boundary.md)。[證據報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261012-signal-line-two-tier-research.md)
 
+## JAI — 日誌 AI 助理（RES-037，2026-11-05）
+
+Owner 2026-11-05 要求：日誌要有像 Claude 一樣的 AI —— 多個對話、上傳圖片文字、問日誌裡任何物件／檔案／文字。畫面屬 `UI-088` 日誌第四分頁「AI」（同一畫面，未新增 UI ID）。設計見 RES-037；**D1～D6 回覆前不建 schema、不接供應商、不送資料出去**。
+
+| ID | 任務 | 模組 | 負責 | 狀態 | 優先 | 風險 | 前置 | 可能動到的檔案 | 驗收 | 驗證 | 備註 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| JAI-S0 | Owner 回覆 RES-037 §9 六題（供應商、可送出的資料、對話可見性、附件傳送方式、模型與月上限、保留期限）；D1 選定後於正式環境設定金鑰 | 授權／營運設定 | Owner | IN_PROGRESS（六題 2026-11-16 照建議回覆；正式環境 `ANTHROPIC_API_KEY` 待 Owner） | P0 | HIGH | RES-037 | — | 六題有書面回覆；金鑰只在伺服器環境 | Owner 回覆 | 只有 Owner 能做 |
+| JAI-S1 | `OperatingAiSession`／`OperatingAiMessage` schema＋migration；對話 CRUD；SSE 串流；五個只讀工具（日誌搜尋／整天、物件搜尋／單一物件、今日脈絡）；`@` 釘選；引用驗證；無金鑰 mock 模式；日誌「AI」分頁三欄介面 | 圓展營運工作台／日誌 | Claude | DONE（2026-11-16，分支 `claude/journal-ai`，未合併；待 Owner 驗收） | P1 | HIGH | JAI-S0 | `prisma/schema.prisma`、`src/lib/services/operating-ai*.ts`（新）、`src/app/api/company/operating/ai/**`（新）、`journal-ai.source.js`／`.css`（新）、`scripts/generate-yuanzhan-v5.mjs`、`package.json`（`@anthropic-ai/sdk`） | 可開多個對話並改名／釘選／封存；答案引用都可點回原行／物件；A 的私人日誌 B 問不到；斷線後回到分頁看得到完整答案；工具全部只讀 | `tsc`；`db:validate`／`db:generate`；拋棄式 DB mock 模式全流程；權限測試；`pnpm build`；Playwright 1440／375＋WebKit | 不開 web 工具；`externalRegisterable: false`；AgentFacts-lite manifest 一併加入 |
+| JAI-S2 | 聊天上傳（圖片、PDF、文字、docx／xlsx 抽文字）走 `OperatingAsset`（`origin=ai`、`space=personal`）；`read_file` 工具；PDF 原生 citations；「存進文件庫」 | 圓展營運工作台／日誌 | Claude | TODO | P1 | MEDIUM | JAI-S1 | `operating-assets.service.ts`、`uploads/route.ts`、`journal-ai.source.js` | 丟圖或檔案後可問；PDF 引用到頁；私人檔案不外流 | 上傳→問→引用；權限測試；WebKit 貼圖 | D4 決定是否用 Files API |
+| JAI-S3 | 日誌選取多行／物件「問 AI」入口；「存成日誌區塊」；compaction；用量與月上限；Admin 稽核列 | 圓展營運工作台／日誌＋Admin | Claude | TODO | P2 | MEDIUM | JAI-S2 | `block-select.source.js`、`obj-names.source.js`、`object-index.source.js`、設定頁 | 一鍵開問；存回的區塊帶引用；達上限只能讀舊對話 | Playwright；上限狀態測試 | 存回是人按的寫入 |
+| JAI-S4 | 衍生搜尋表＋`pg_trgm`；分享對話給公司；（選）提案型工具，人確認才寫 | 圓展營運工作台／日誌 | Claude | TODO | P3 | HIGH | JAI-S3 | `operating-search*.ts`（新）、migration | 資料量大仍快；提案未確認不寫入 | 對帳腳本；寫入測試 | 提案工具需另行核准 |
+
+研究與設計：[RES-037](../07_research-and-design/RES-037_journal-ai-assistant-multi-session-research.md)。S1 證據：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md`

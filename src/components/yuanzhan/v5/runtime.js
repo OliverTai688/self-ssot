@@ -28100,6 +28100,716 @@ function orTray(key) {
 function orChips(refs) {
   return refs && refs.length ? `<div class="obj-refs">${refs.map(objRefChip).join('')}</div>` : '';
 }
+
+/* ==================================================================
+   日誌 · 問 AI（RES-037 · JAI-S1）
+
+   三欄：左邊對話清單，中間對話，右邊「這個對話看過的資料」。
+
+   - 對話、訊息、答案都在伺服器（/api/company/operating/ai）。這裡只有畫面狀態：
+     草稿、正在串流的那一則、清單的篩選。不進 DB 快照，不會被自動保存比對。
+   - 答案裡的 ⟦cite⟧ 由伺服器驗證過才出現在最終訊息裡；串流中的標記還沒驗證，先畫成灰色佔位。
+   - 物件引用沿用日誌的名稱膠囊（objRefChip → objPeek）；日誌行引用跳回那一天、那一行。
+   - 回答在伺服器上跑完並存檔，畫面斷線或切到背景都不影響；回來時最後一則若還在跑就輪詢到結束。
+   ================================================================== */
+
+const JA_API = '/api/company/operating/ai/sessions';
+const JA_KEY = 'ja';
+const JA = {
+  sessions: null,
+  loading: false,
+  err: '',
+  active: null,
+  msgs: Object.create(null),
+  loadingMsgs: '',
+  draft: '',
+  live: null,
+  q: '',
+  showArchived: false,
+  renaming: '',
+  drawer: false,
+  sheet: false,
+  poll: 0
+};
+const jaWb = WB.find(x => x.id === 'journal');
+if (jaWb && !jaWb.tabs.includes('問 AI')) jaWb.tabs.push('問 AI');
+const JA_TAB = jaWb ? jaWb.tabs.indexOf('問 AI') : 3;
+
+/* ---------- 伺服器 ---------- */
+
+async function jaFetch(url, opts) {
+  const res = await fetch(url, Object.assign({
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }, opts || {}));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '處理失敗，請再試一次。');
+  return data;
+}
+async function jaLoadSessions() {
+  if (JA.loading || !OP_LIVE) return;
+  JA.loading = true;
+  JA.err = '';
+  try {
+    JA.sessions = (await jaFetch(JA_API)).sessions || [];
+    if (!JA.active) {
+      const first = JA.sessions.find(s => !s.archived);
+      if (first) jaOpen(first.id, true);
+    }
+  } catch (e) {
+    JA.err = e.message;
+    JA.sessions = JA.sessions || [];
+  }
+  JA.loading = false;
+  if (jaOnPage()) render();
+}
+async function jaLoadMsgs(id) {
+  JA.loadingMsgs = id;
+  try {
+    const data = await jaFetch(JA_API + '/' + encodeURIComponent(id) + '/messages');
+    JA.msgs[id] = data.messages || [];
+    jaPatchSession(data.session);
+    const last = JA.msgs[id][JA.msgs[id].length - 1];
+    if (last && (last.status === 'streaming' || last.status === 'stopping') && !(JA.live && JA.live.sessionId === id)) jaPollSoon(id);
+  } catch (e) {
+    toast(esc(e.message));
+  }
+  if (JA.loadingMsgs === id) JA.loadingMsgs = '';
+  if (jaOnPage()) render();
+}
+function jaPatchSession(s) {
+  if (!s || !JA.sessions) return;
+  const i = JA.sessions.findIndex(x => x.id === s.id);
+  if (i >= 0) JA.sessions[i] = s;else JA.sessions.unshift(s);
+}
+/** 回答還在伺服器上跑（例如剛從背景分頁回來）：每 2 秒讀一次，直到它結束。 */
+function jaPollSoon(id) {
+  clearTimeout(JA.poll);
+  JA.poll = setTimeout(() => {
+    if (JA.active === id && jaOnPage()) jaLoadMsgs(id);
+  }, 2000);
+}
+function jaOnPage() {
+  return S.wb === 'journal' && S.tab === JA_TAB;
+}
+
+/* ---------- 對話清單 ---------- */
+
+async function jaNew() {
+  if (JA.live) return toast('上一則還在回答中');
+  try {
+    const {
+      session
+    } = await jaFetch(JA_API, {
+      method: 'POST'
+    });
+    jaPatchSession(session);
+    JA.active = session.id;
+    JA.msgs[session.id] = [];
+    JA.drawer = false;
+    jaFocusSoon();
+    render();
+  } catch (e) {
+    toast(esc(e.message));
+  }
+}
+function jaOpen(id, quiet) {
+  JA.active = id;
+  JA.drawer = false;
+  JA.renaming = '';
+  if (!JA.msgs[id]) jaLoadMsgs(id);
+  if (!quiet) {
+    jaFocusSoon();
+    render();
+  }
+}
+async function jaPatch(id, patch) {
+  try {
+    jaPatchSession((await jaFetch(JA_API + '/' + encodeURIComponent(id), {
+      method: 'PATCH',
+      body: JSON.stringify(patch)
+    })).session);
+  } catch (e) {
+    toast(esc(e.message));
+  }
+  render();
+}
+function jaTogglePin(id) {
+  const s = jaSession(id);
+  if (s) jaPatch(id, {
+    pinned: !s.pinned
+  });
+}
+function jaToggleArchive(id) {
+  const s = jaSession(id);
+  if (s) jaPatch(id, {
+    archived: !s.archived
+  });
+}
+function jaStartRename(id) {
+  JA.renaming = id;
+  render();
+  runtime._afterRender = () => {
+    const el = root.querySelector('#jaRename');
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  };
+}
+function jaRenameKey(e, id) {
+  e.stopPropagation();
+  if (e.isComposing) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    jaRenameDone(id, e.target.value);
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    JA.renaming = '';
+    render();
+  }
+}
+function jaRenameDone(id, value) {
+  if (JA.renaming !== id) return;
+  JA.renaming = '';
+  const t = String(value || '').trim();
+  if (t && t !== (jaSession(id) || {}).title) jaPatch(id, {
+    title: t
+  });else render();
+}
+async function jaDelete(id) {
+  if (!confirm('刪除這個對話？刪除後清單裡看不到，30 天後永久刪除。')) return;
+  try {
+    await jaFetch(JA_API + '/' + encodeURIComponent(id), {
+      method: 'DELETE'
+    });
+    JA.sessions = (JA.sessions || []).filter(s => s.id !== id);
+    delete JA.msgs[id];
+    if (JA.active === id) JA.active = null;
+  } catch (e) {
+    toast(esc(e.message));
+  }
+  render();
+}
+function jaToggleArchived() {
+  JA.showArchived = !JA.showArchived;
+  render();
+}
+function jaToggleDrawer() {
+  JA.drawer = !JA.drawer;
+  JA.sheet = false;
+  render();
+}
+function jaToggleSheet(on) {
+  JA.sheet = typeof on === 'boolean' ? on : !JA.sheet;
+  JA.drawer = false;
+  render();
+}
+function jaSession(id) {
+  return (JA.sessions || []).find(s => s.id === id) || null;
+}
+function jaSetQ(v) {
+  JA.q = v;
+  jaPaintList();
+}
+function jaPaintList() {
+  const el = root.querySelector('#jaSessions');
+  if (el) el.innerHTML = jaSessionGroups();
+}
+
+/* ---------- 送出與串流 ---------- */
+
+function jaFocusSoon() {
+  runtime._afterRender = () => {
+    const el = root.querySelector('#jaInput');
+    if (el) {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  };
+}
+async function jaSend(text) {
+  const q = String(text == null ? JA.draft : text).trim();
+  if (!q) return;
+  if (JA.live) return toast('上一則還在回答中');
+  if (!JA.active) {
+    try {
+      const {
+        session
+      } = await jaFetch(JA_API, {
+        method: 'POST'
+      });
+      jaPatchSession(session);
+      JA.active = session.id;
+      JA.msgs[session.id] = [];
+    } catch (e) {
+      return toast(esc(e.message));
+    }
+  }
+  const id = JA.active,
+    pins = orRefsOf(JA_KEY);
+  JA.draft = '';
+  orClear(JA_KEY);
+  JA.live = {
+    sessionId: id,
+    assistantId: '',
+    text: '',
+    steps: [],
+    user: {
+      role: 'user',
+      text: q,
+      pins,
+      citations: [],
+      steps: [],
+      sentRefs: [],
+      status: 'done'
+    }
+  };
+  jaFocusSoon();
+  render();
+  jaScrollEnd();
+  let res;
+  try {
+    res = await fetch(JA_API + '/' + encodeURIComponent(id) + '/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        text: q,
+        pins
+      })
+    });
+  } catch {
+    JA.live = null;
+    JA.draft = q;
+    render();
+    return toast('連不上伺服器，問題已放回輸入框');
+  }
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({}));
+    JA.live = null;
+    JA.draft = q;
+    render();
+    return toast(esc(data.error || '送不出去，問題已放回輸入框'));
+  }
+  try {
+    await jaReadStream(res.body, id);
+  } catch {/* 串流中斷：伺服器仍在跑，改用輪詢接回來 */}
+  const live = JA.live;
+  JA.live = null;
+  if (live && !live.done) jaLoadMsgs(id);else render();
+  jaScrollEnd();
+}
+async function jaReadStream(body, id) {
+  const reader = body.getReader(),
+    dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const {
+      value,
+      done
+    } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {
+      stream: true
+    });
+    let cut;
+    while ((cut = buf.indexOf('\n\n')) >= 0) {
+      const raw = buf.slice(0, cut);
+      buf = buf.slice(cut + 2);
+      let event = 'message',
+        data = '';
+      for (const line of raw.split('\n')) {
+        if (line.startsWith('event: ')) event = line.slice(7);else if (line.startsWith('data: ')) data += line.slice(6);
+      }
+      if (data) jaOnEvent(id, event, JSON.parse(data));
+    }
+  }
+}
+function jaOnEvent(id, event, data) {
+  const live = JA.live;
+  if (!live || live.sessionId !== id) return;
+  if (event === 'meta') {
+    live.assistantId = data.assistantId;
+    const list = JA.msgs[id] || (JA.msgs[id] = []);
+    list.push(data.user);
+    live.user = null;
+    const s = jaSession(id);
+    if (s && s.titleAuto && list.length === 1) {
+      s.title = jaAutoTitle(data.user.text);
+      jaPaintList();
+    }
+  } else if (event === 'delta') {
+    live.text += data.text;
+    jaPaintLive();
+  } else if (event === 'reset') {
+    live.text = '';
+    jaPaintLive();
+  } else if (event === 'step') {
+    live.steps.push(data);
+    jaPaintLive();
+  } else if (event === 'done') {
+    (JA.msgs[id] || (JA.msgs[id] = [])).push(data.message);
+    live.done = true;
+    const s = jaSession(id);
+    if (s) s.lastMessageAt = new Date().toISOString();
+  }
+}
+function jaAutoTitle(t) {
+  const f = String(t || '').replace(/\s+/g, ' ').trim();
+  return f.length > 24 ? f.slice(0, 24) + '…' : f || '新對話';
+}
+
+/** 串流中只換掉正在長的那一則，不重畫整頁：重畫會打斷輸入框的焦點與注音組字。 */
+function jaPaintLive() {
+  const el = root.querySelector('#jaLive');
+  if (!el || !JA.live) return;
+  const atEnd = jaNearEnd();
+  el.innerHTML = jaLiveInner(JA.live);
+  if (atEnd) jaScrollEnd();
+}
+function jaNearEnd() {
+  const t = root.querySelector('#jaThread');
+  return !t || t.scrollHeight - t.scrollTop - t.clientHeight < 80;
+}
+function jaScrollEnd() {
+  requestAnimationFrame(() => {
+    const t = root.querySelector('#jaThread');
+    if (t) t.scrollTop = t.scrollHeight;
+  });
+}
+async function jaStop() {
+  if (!JA.active) return;
+  try {
+    await jaFetch(JA_API + '/' + encodeURIComponent(JA.active) + '/stop', {
+      method: 'POST'
+    });
+    toast('已停止');
+  } catch (e) {
+    toast(esc(e.message));
+  }
+}
+function jaInputKey(e) {
+  if (orKey(e, JA_KEY)) return;
+  if (e.key !== 'Enter') return;
+  e.stopPropagation();
+  // Shift+Enter 換行；注音／拼音選字中的 Enter 不是送出
+  if (!e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    jaSend();
+  }
+}
+function jaInput(el) {
+  JA.draft = el.value;
+  orInput(JA_KEY, el.value);
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+}
+
+/* ---------- 跳回來源 ---------- */
+
+function jaJumpLine(day, author, bid) {
+  saveJournalDraft();
+  S.wb = 'journal';
+  S.tab = 0;
+  S.jday = day;
+  if (author !== DB.me) toast(esc(person(author) || author) + ' 的日誌在右欄');
+  runtime._afterRender = () => {
+    const el = root.querySelector('.eb[data-id="' + bid + '"]');
+    if (!el) return;
+    el.scrollIntoView({
+      block: 'center'
+    });
+    el.classList.add('rq-flash');
+    setTimeout(() => el.classList.remove('rq-flash'), 2900);
+  };
+  render();
+}
+function jaOpenCite(kind, a, b, c) {
+  if (kind === 'line') return jaJumpLine(a, b, c);
+  objRefOpen(a, b);
+}
+function jaCopy(i) {
+  const m = (JA.msgs[JA.active] || [])[i];
+  if (!m) return;
+  const plain = jaPlain(m);
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(plain).then(() => toast('已複製'), () => toast('複製失敗'));
+}
+/** 複製用的純文字：引用換成名稱。 */
+function jaPlain(m) {
+  const byCite = jaCiteMap(m);
+  return String(m.text || '').replace(/⟦([^⟦⟧\n]{1,200})⟧/g, (_a, c) => byCite[c] ? '［' + byCite[c].label + '］' : '');
+}
+
+/* ---------- 渲染：答案 ---------- */
+
+function jaCiteMap(m) {
+  const out = Object.create(null);
+  (m.citations || []).forEach(c => {
+    out[c.cite] = c;
+  });
+  return out;
+}
+function jaLineLabel(c) {
+  const d = String(c.day || '');
+  return Number(d.slice(5, 7)) + '/' + d.slice(8, 10) + ' 日誌';
+}
+function jaCiteChip(c) {
+  if (c.kind === 'object') return objRefChip({
+    ty: c.ty,
+    rid: c.rid
+  });
+  return `<button type="button" class="ja-cite" title="${esc(c.label || '')} · 點一下回到那一行" ${bind("click", (event, element) => {
+    jaJumpLine(esc(c.day), esc(c.author), esc(c.blockId));
+  })}>${svg('journal', 11)}<span>${esc(jaLineLabel(c))}</span><span class="ja-cite-l">${esc(String(c.label || '').replace(/^.*·\s*/, ''))}</span></button>`;
+}
+/** 輕量格式：段落、清單、粗體。先跳脫再加標記，答案裡的任何字都不會變成 HTML。 */
+function jaFormat(text, citeHtml) {
+  const lines = String(text || '').split('\n');
+  let html = '',
+    inList = false;
+  const inline = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/⟦([^⟦⟧\n]{1,200})⟧/g, (_a, c) => citeHtml(c.replace(/&amp;/g, '&')));
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const li = line.match(/^\s*(?:[-*•]|\d+[.、])\s+(.*)$/);
+    if (li) {
+      if (!inList) {
+        html += '<ul>';
+        inList = true;
+      }
+      html += '<li>' + inline(li[1]) + '</li>';
+      continue;
+    }
+    if (inList) {
+      html += '</ul>';
+      inList = false;
+    }
+    if (!line.trim()) continue;
+    const h = line.match(/^#{1,4}\s+(.*)$/);
+    html += h ? '<p class="ja-h">' + inline(h[1]) + '</p>' : '<p>' + inline(line) + '</p>';
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+function jaAnswerHtml(m) {
+  const byCite = jaCiteMap(m);
+  return jaFormat(m.text, c => c === '?' ? '<span class="ja-unv" title="這個引用對不上任何讀過的資料，已移除">?</span>' : byCite[c] ? jaCiteChip(byCite[c]) : '');
+}
+function jaSteps(steps, open) {
+  if (!steps || !steps.length) return '';
+  return `<details class="ja-steps" ${open ? 'open' : ''}><summary>${svg('search', 11)} ${steps.map(s => esc(s.label) + (s.hits ? ' · ' + s.hits + ' 筆' : '')).slice(0, 3).join('　')}${steps.length > 3 ? '　…共 ' + steps.length + ' 步' : ''}</summary>
+    <ol>${steps.map(s => `<li>${esc(s.label)}<span class="sg-meta">${s.hits ? s.hits + ' 筆' : '沒有結果'}</span></li>`).join('')}</ol></details>`;
+}
+const JA_STATUS = {
+  stopped: '已停止',
+  error: '沒有完成',
+  refused: '這一題模型沒有回答',
+  streaming: '還在回答中…',
+  stopping: '停止中…'
+};
+function jaMsgHtml(m, i) {
+  if (m.role === 'user') {
+    return `<div class="ja-msg ja-u"><div class="ja-bubble">${esc(m.text).replace(/\n/g, '<br>')}${m.pins && m.pins.length ? orChips(m.pins) : ''}</div></div>`;
+  }
+  const busy = m.status === 'streaming' || m.status === 'stopping';
+  const st = m.status !== 'done' ? `<div class="ja-st ${m.status === 'error' || m.status === 'refused' ? 'bad' : ''}">${svg(busy ? 'clock' : 'warn', 12)} ${esc(JA_STATUS[m.status] || m.status)}${m.error ? '：' + esc(m.error) : ''}</div>` : '';
+  return `<div class="ja-msg ja-a">${jaSteps(m.steps)}${m.text ? `<div class="ja-ans">${jaAnswerHtml(m)}</div>` : ''}${st}
+    ${m.text && !busy ? `<div class="ja-acts">${m.mock ? '<span class="chip c-w">示範模式</span>' : ''}<button class="btn sm" ${bind("click", (event, element) => {
+    jaCopy(i);
+  })}>${svg('copy', 12)} 複製</button></div>` : ''}</div>`;
+}
+function jaLiveInner(live) {
+  const pending = live.text ? jaFormat(live.text, () => '<span class="ja-pend">引用</span>') : '';
+  return `${jaSteps(live.steps, true)}${pending ? `<div class="ja-ans">${pending}</div>` : `<div class="ja-think"><i></i><i></i><i></i> ${live.steps.length ? '整理答案中' : '查日誌中'}</div>`}`;
+}
+
+/* ---------- 渲染：三欄 ---------- */
+
+function jaGroupOf(s) {
+  if (s.pinned) return 0;
+  const t = Date.parse(s.lastMessageAt || s.createdAt) || 0,
+    now = Date.now();
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+  if (t >= startToday.getTime()) return 1;
+  if (now - t < 7 * 86400000) return 2;
+  return 3;
+}
+function jaSessionGroups() {
+  const q = JA.q.trim().toLowerCase();
+  const list = (JA.sessions || []).filter(s => (JA.showArchived ? s.archived : !s.archived) && (!q || s.title.toLowerCase().includes(q)));
+  if (!list.length) return `<div class="ja-empty-l">${JA.sessions === null ? '讀取中…' : q ? '沒有符合的對話' : JA.showArchived ? '沒有封存的對話' : '還沒有對話'}</div>`;
+  const names = ['釘選', '今天', '這週', '更早'];
+  const groups = [[], [], [], []];
+  list.forEach(s => groups[JA.showArchived ? 3 : jaGroupOf(s)].push(s));
+  return groups.map((g, gi) => g.length ? `<div class="ja-g">${JA.showArchived ? '封存' : names[gi]}</div>` + g.map(jaSessionRow).join('') : '').join('');
+}
+function jaSessionRow(s) {
+  const on = s.id === JA.active;
+  if (JA.renaming === s.id) {
+    return `<div class="ja-s on"><input id="jaRename" class="ja-rn" value="${esc(s.title)}" aria-label="對話名稱" ${bind("keydown", (event, element) => {
+      jaRenameKey(event, s.id);
+    })} ${bind("blur", (event, element) => {
+      jaRenameDone(s.id, element.value);
+    })}></div>`;
+  }
+  return `<div class="ja-s ${on ? 'on' : ''}">
+    <button class="ja-s-t" ${bind("click", (event, element) => {
+    jaOpen(s.id);
+  })} ${bind("dblclick", (event, element) => {
+    jaStartRename(s.id);
+  })} title="${esc(s.title)}">${s.pinned ? svg('star', 11) : ''}<span>${esc(s.title)}</span></button>
+    <span class="ja-s-a">
+      <button aria-label="改名" title="改名" ${bind("click", (event, element) => {
+    jaStartRename(s.id);
+  })}>${svg('pen', 11)}</button>
+      <button aria-label="${s.pinned ? '取消釘選' : '釘選'}" title="${s.pinned ? '取消釘選' : '釘選'}" ${bind("click", (event, element) => {
+    jaTogglePin(s.id);
+  })}>${svg('star', 11)}</button>
+      <button aria-label="${s.archived ? '取消封存' : '封存'}" title="${s.archived ? '取消封存' : '封存'}" ${bind("click", (event, element) => {
+    jaToggleArchive(s.id);
+  })}>${svg(s.archived ? 'undo' : 'inbox', 11)}</button>
+      <button aria-label="刪除" title="刪除" ${bind("click", (event, element) => {
+    jaDelete(s.id);
+  })}>${svg('trash', 11)}</button>
+    </span></div>`;
+}
+
+/** 起手問題：從現有的資料挑，不寫死。 */
+function jaStarters() {
+  const out = [];
+  const docs = (DB.docObjects || []).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  if (docs[0]) out.push('「' + docObjectName(docs[0]) + '」的重點是什麼？');
+  out.push('這一週我在日誌裡做了哪些事？');
+  if ((DB.docObjects || []).some(d => d.type === 'agenda')) out.push('還沒結案的議題有哪些？');
+  const asset = (DB.assets || [])[0];
+  if (asset) out.push('「' + (asset.name || asset.id) + '」是在哪一天、為了什麼上傳的？');
+  return out.slice(0, 3);
+}
+function jaSources(msgs) {
+  const pins = [],
+    reads = [],
+    seen = new Set();
+  let chars = 0;
+  msgs.forEach(m => {
+    (m.pins || []).forEach(p => {
+      const k = p.ty + ':' + p.rid;
+      if (!seen.has('p' + k)) {
+        seen.add('p' + k);
+        pins.push(p);
+      }
+    });
+    (m.sentRefs || []).forEach(r => {
+      chars += r.chars || 0;
+      if (!seen.has(r.cite)) {
+        seen.add(r.cite);
+        reads.push(r);
+      }
+    });
+  });
+  const lines = reads.filter(r => r.cite.startsWith('line:')),
+    objs = reads.filter(r => !r.cite.startsWith('line:'));
+  const row = r => {
+    const m = r.cite.match(/^line:(\d{4}-\d{2}-\d{2}):([^:]+):(.+)$/);
+    if (m) return `<button class="ja-src-r" ${bind("click", (event, element) => {
+      jaJumpLine(esc(m[1]), esc(m[2]), esc(m[3]));
+    })}>${svg('journal', 11)}<span>${esc(r.label)}</span></button>`;
+    const i = r.cite.indexOf(':');
+    return `<button class="ja-src-r" ${bind("click", (event, element) => {
+      objRefOpen(esc(r.cite.slice(0, i)), esc(r.cite.slice(i + 1)));
+    })}>${svg(objRefIcon(r.cite.slice(0, i), r.cite.slice(i + 1)), 11)}<span>${esc(r.label)}</span></button>`;
+  };
+  const sec = (t, n, body) => `<div class="ja-src-sec"><div class="ja-g">${t}<span>${n}</span></div>${body}</div>`;
+  const wan = chars >= 10000 ? (chars / 10000).toFixed(1) + ' 萬字' : chars + ' 字';
+  return (pins.length ? sec('釘選的物件', pins.length, orChips(pins)) : '') + sec('本次讀過的日誌', lines.length, lines.slice(0, 40).map(row).join('') || '<div class="ja-empty-l">還沒有</div>') + sec('本次讀過的物件', objs.length, objs.slice(0, 40).map(row).join('') || '<div class="ja-empty-l">還沒有</div>') + `<div class="ja-sent">${svg('lock', 11)} 這個對話送出了 ${reads.length} 項資料、約 ${wan}。只有你看得到這個對話；薪資與銀行對帳不會送出。</div>`;
+}
+function jaComposer() {
+  orBind(JA_KEY, {
+    get: () => JA.draft,
+    set: v => {
+      JA.draft = v;
+    },
+    focus: () => root.querySelector('#jaInput')
+  });
+  const busy = !!JA.live;
+  return `<div class="ja-comp">
+    <textarea id="jaInput" rows="1" aria-label="問日誌裡的任何事" placeholder="問日誌裡的任何事… @ 可以釘選物件" title="Enter 送出 · Shift+Enter 換行 · @ 釘選物件" ${bind("input", (event, element) => {
+    jaInput(element);
+  })} ${bind("keydown", (event, element) => {
+    jaInputKey(event);
+  })}>${esc(JA.draft)}</textarea>
+    <div class="ja-comp-b">${orButton(JA_KEY)}<span class="sp"></span>
+      ${busy ? `<button class="btn sm" ${bind("click", (event, element) => {
+    jaStop();
+  })}>${svg('x', 12)} 停止</button>` : `<button class="btn sm pri" ${bind("click", (event, element) => {
+    jaSend();
+  })}>${svg('send', 12)} 送出</button>`}</div>
+    ${orTray(JA_KEY)}</div>`;
+}
+function jaView() {
+  if (!OP_LIVE) {
+    return panel('問 AI', '', `<div class="note">${svg('lock', 12)} 這個環境是預覽模式，資料只在這個瀏覽器裡，日誌 AI 查不到。到正式資料的環境才能使用。</div>`);
+  }
+  if (JA.sessions === null) jaLoadSessions();
+  const s = jaSession(JA.active),
+    msgs = JA.active && JA.msgs[JA.active] || [];
+  const live = JA.live && JA.live.sessionId === JA.active ? JA.live : null;
+  const empty = !msgs.length && !live;
+  const thread = JA.sessions === null ? '<div class="ja-empty-l">讀取中…</div>' : empty ? `<div class="ja-start"><div class="ja-start-h">${svg('message', 18)} 問日誌裡的任何事</div>
+        <div class="ja-start-q">${jaStarters().map(q => `<button class="ja-q" data-q="${esc(q)}" ${bind("click", (event, element) => {
+    jaSend(element.dataset.q);
+  })}>${esc(q)}</button>`).join('')}</div></div>` : msgs.map(jaMsgHtml).join('') + (live ? `${live.user ? jaMsgHtml(live.user, -1) : ''}<div class="ja-msg ja-a" id="jaLive">${jaLiveInner(live)}</div>` : '');
+  return `<div class="ja ${JA.drawer ? 'drawer' : ''} ${JA.sheet ? 'sheet' : ''}">
+    <aside class="ja-list" aria-label="對話清單">
+      <button class="btn pri ja-new" ${bind("click", (event, element) => {
+    jaNew();
+  })}>${svg('plus', 12)} 新對話</button>
+      <input class="ja-find" aria-label="搜尋對話" placeholder="搜尋對話" value="${esc(JA.q)}" ${bind("input", (event, element) => {
+    jaSetQ(element.value);
+  })}>
+      <div id="jaSessions" class="ja-sessions">${jaSessionGroups()}</div>
+      <button class="sg-link ja-arch" ${bind("click", (event, element) => {
+    jaToggleArchived();
+  })}>${JA.showArchived ? '回到對話' : '封存的對話'}</button>
+      ${JA.err ? `<div class="sg-warn">${svg('warn', 12)} ${esc(JA.err)}</div>` : ''}
+    </aside>
+    <section class="ja-main">
+      <div class="ja-head">
+        <button class="btn sm ja-mob" aria-label="對話清單" ${bind("click", (event, element) => {
+    jaToggleDrawer();
+  })}>${svg('list', 12)}</button>
+        <b title="${esc(s ? s.title : '新對話')}">${esc(s ? s.title : '新對話')}</b><span class="sp"></span>
+        <button class="btn sm ja-mob" ${bind("click", (event, element) => {
+    jaToggleSheet();
+  })}>${svg('layers', 12)} 看過的資料</button>
+      </div>
+      <div class="ja-thread" id="jaThread">${JA.loadingMsgs === JA.active && !msgs.length ? '<div class="ja-empty-l">讀取中…</div>' : thread}</div>
+      ${jaComposer()}
+    </section>
+    <aside class="ja-side" aria-label="這個對話看過的資料">
+      <div class="ja-side-h"><b>這個對話看過的資料</b><button class="btn sm ja-mob" aria-label="關閉" ${bind("click", (event, element) => {
+    jaToggleSheet(false);
+  })}>${svg('x', 12)}</button></div>
+      ${jaSources(msgs)}
+    </aside></div>`;
+}
+const jaBaseJournalView = VIEWS.journal;
+VIEWS.journal = function (tab) {
+  if (tab !== JA_TAB) return jaBaseJournalView(tab);
+  return jaView();
+};
+
+/* 從背景分頁回來：還在跑的那一則改用輪詢接回來。 */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !jaOnPage() || !JA.active || JA.live) return;
+  const last = (JA.msgs[JA.active] || []).slice(-1)[0];
+  if (last && (last.status === 'streaming' || last.status === 'stopping')) jaLoadMsgs(JA.active);
+}, {
+  signal: controller.signal
+});
 paintUser();
 renderRail();
 render();
