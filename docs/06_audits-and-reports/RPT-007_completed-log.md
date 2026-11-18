@@ -1,5 +1,20 @@
 # Completed Log
 
+## 2026-11-18
+
+### JAI-S2 — 日誌 AI：附上檔案、讀日誌裡的檔案、PDF 引用帶頁碼、存進文件庫（UI-088 · RES-037 §14）
+
+- 輸入框可以附圖片、PDF、Word、Excel、PowerPoint、文字檔：迴紋針、貼上、拖進對話區。走既有上傳路由（`origin = ai`、`space = personal`，參考碼 `AST-AI-…`），檔案因此有自己的家，能被 `@`、能被引用。
+- 圖片在瀏覽器先縮到長邊 2000px，HEIC 等模型讀不了的格式轉成 JPEG（伺服器沒有影像函式庫）。
+- 資料庫只存 `{type:'asset_ref', ref}` 記號；每次送出前才從 R2 讀回換成 image／document 區塊，並重新查權限 —— 檔案改成私人或刪掉之後，舊對話不再送出它。同一段歷史每次換出來一字不差（快取與 preserved thinking 不受影響）。
+- docx／xlsx／pptx 用不加套件的 zip 讀取器抽文字（只讀需要的 entry、解壓上限防 zip bomb），抽一次就快取在 `extractedText`。
+- 新工具 `read_file`（純函式，只回記號）：問「這張截圖裡寫什麼」不必重新上傳。`@` 釘選檔案也直接附上內容。
+- 所有 document 開原生 citations；title 帶參考碼，回答裡的 `page_location` 轉成 `⟦asset:<ref>#p<頁>⟧`，伺服器同樣驗證，畫面在膠囊旁標「p.N」。
+- 上限：每則 5 個檔案、圖片 5MB、PDF 20MB、一個對話送出的檔案總量 24MB（超過的換成說明）。
+- 「存進文件庫」：選團隊會先把檔案改成團隊可見（只有上傳者能改，`shareAssetToTeam`），再在文件庫建一筆指向同一份檔案的紀錄（走一般的 commit）；選私人只建紀錄。不搬 bytes、參考碼不變。
+- Verification：`pnpm ops:journal-ai:check` **40/40**（新增 docx／xlsx／pptx 抽取、壞檔、zip bomb、截斷、read_file、釘選檔案、原生頁碼引用）；`verify-asset-pipeline` 42/42、`verify-asset-object` 73/73、`verify-object-index` 19/19、`verify-obj-refs` 44/44；`tsc` 0、eslint 0、generate PASS（774）、`pnpm build` PASS。拋棄式 DB＋真的 R2（localhost:3000，只寫入拋棄式 workspace 的前綴，測完刪除 4 個物件、剩 0）：四種檔案經畫面上傳、3000px PNG 自動縮成 JPEG、伺服器讀回並抽出中文、DB 內 0 筆 base64；存進團隊文件庫後檔案變團隊可見、文件庫紀錄落地；換回測試：別的席位讀不到私人附件、讀得到已分享的、超過預算被擋、兩次換出結果相同。
+- **待 Owner**：合併與部署（本段無 migration）；真模型回答與頁碼引用待 `ANTHROPIC_API_KEY`。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md)
+
 ## 2026-11-16
 
 ### JAI-S1 — 日誌 AI：多對話、以你的權限查日誌、可點的引用（UI-088 · RES-037）

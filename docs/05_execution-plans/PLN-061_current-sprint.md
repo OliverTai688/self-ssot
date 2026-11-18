@@ -1,5 +1,11 @@
 # Current Sprint
 
+## Owner-directed 日誌 AI 助理 S2 — 2026-11-18
+
+`JAI-S2` 完成於分支 `claude/journal-ai`（未合併、未部署）：對話裡可以附圖片、PDF、Word、Excel、PowerPoint、文字檔（迴紋針、貼上、拖入）；新工具 `read_file` 讀日誌裡既有的檔案；PDF 引用帶頁碼；附件可「存進文件庫」（團隊或私人）。資料庫只存檔案記號，送出前才從 R2 讀回並重新檢查權限。
+
+待 Owner：合併與部署（無 migration）。真模型的回答與頁碼引用仍待 `ANTHROPIC_API_KEY`。下一段 `JAI-S3`。
+
 ## Owner-directed 日誌 AI 助理 S1 — 2026-11-16
 
 Owner 照建議回覆 `RES-037` 六題並指示開始 `JAI-S1`。S1 已完成，2026-11-18 推上正式站（`b46c9ca390`，migration `20261116090000_journal_ai_sessions` 已套用）：日誌第四分頁「問 AI」、多對話、SSE 串流、五個只讀工具、`@` 釘選、伺服器端引用驗證、月上限、示範模式。拋棄式本機 DB 上兩個席位交叉驗證權限通過。

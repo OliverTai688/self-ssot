@@ -2460,3 +2460,21 @@ Verification:
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md`
 
+## 日誌 AI：附件、讀檔、頁碼引用、存進文件庫（UI-088 · JAI-S2，2026-11-18）
+
+機檢：`pnpm ops:journal-ai:check`。依據 `RES-037` §14。
+
+- [x] 輸入框可以用迴紋針、貼上、拖入附上圖片、PDF、Word、Excel、PowerPoint、文字檔；一則最多 5 個；上傳中不能送出；失敗的說得出原因。
+- [x] 大圖與 HEIC 在瀏覽器轉成模型讀得了的 JPEG。
+- [x] 伺服器讀得出 PDF、圖片，抽得出 Word／Excel／PowerPoint／文字檔的內容（含中文）。
+- [x] 資料庫不存檔案內容；送出前每次重新檢查權限，別人的私人檔讀不到，被收回的檔案不再送出。
+- [x] 已在日誌裡的檔案可以用 `read_file` 讀；`@` 釘選檔案會附上內容。
+- [x] 一個對話送出的檔案總量有上限，超過的說明原因。
+- [x] 自己上傳的附件可以存進團隊文件庫或私人文件；團隊的會讓同事下載得到。
+- [ ] 設定 `ANTHROPIC_API_KEY` 後以真模型問一份 PDF：答案帶「p.N」頁碼，點了打開那份檔案。
+- [ ] Owner 在 iPhone 上用相簿選一張照片（HEIC）問 AI，答案讀得到照片內容。
+
+未涵蓋：影音內容、Files API、把抽出的文字放進物件索引搜尋（`JAI-S3` 之後）。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md`
+

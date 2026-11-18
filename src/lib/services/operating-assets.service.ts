@@ -252,6 +252,21 @@ export async function renameAsset(params: {
   return { ok: true as const, asset: updated }
 }
 
+/**
+ * 私人檔改成團隊可見（日誌 AI 附件「存進文件庫 · 團隊」）。
+ * 只有上傳者本人能做：把別人的私人檔公開，等於替對方決定誰看得到。負責人席位也不例外。
+ * 只能往團隊改、不能改回私人 —— 已經被同事看過、引用過的檔案，收回只會讓那些引用變成空白。
+ */
+export async function shareAssetToTeam(params: { workspaceId: string; assetId: string; authorKey: string }) {
+  const asset = await db.operatingAsset.findFirst({
+    where: { id: params.assetId, workspaceId: params.workspaceId, deletedAt: null, status: "ready" },
+  })
+  if (!asset) throw new AssetNotFoundError()
+  if (asset.authorKey !== params.authorKey) throw new AssetForbiddenError()
+  if (asset.space === "team") return asset
+  return db.operatingAsset.update({ where: { id: asset.id }, data: { space: "team" } })
+}
+
 export async function failAsset(params: { workspaceId: string; assetId: string }) {
   await db.operatingAsset.updateMany({
     where: { id: params.assetId, workspaceId: params.workspaceId, status: "uploading" },

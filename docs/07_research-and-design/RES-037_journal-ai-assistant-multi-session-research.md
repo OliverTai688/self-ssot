@@ -3,7 +3,7 @@
 - 日期：2026-11-05
 - 觸發：Owner：「公司日誌要有一個 AI 模組，像 Claude 一樣可以建立多個對話、上傳圖片與文字互動，然後可以問日誌裡任何物件、檔案、文字。」
 - 畫面：`UI-088` 圓展營運工作台 · 日誌，新增第四個分頁「AI」（同一個畫面，不另立 UI ID，比照 `LINK-001` 與物件索引的處理）
-- 狀態：**Owner 已採納（2026-11-16，§9 六題全部照建議）**。`JAI-S1` 已實作並於 2026-11-18 推上正式站（`b46c9ca390`），見 §13。正式環境還沒有 `ANTHROPIC_API_KEY`，在那之前日誌 AI 以示範模式運作（真的查、但不呼叫模型）
+- 狀態：**Owner 已採納（2026-11-16，§9 六題全部照建議）**。`JAI-S1` 已實作並於 2026-11-18 推上正式站（`b46c9ca390`），見 §13；`JAI-S2` 已實作（附件、`read_file`、頁碼引用、存進文件庫），見 §14。正式環境還沒有 `ANTHROPIC_API_KEY`，在那之前日誌 AI 以示範模式運作（真的查、但不呼叫模型）
 - 前置：[`RES-018`](RES-018_dual-naming-model-human-display-name-and-iso9001-style-ai-reference-code-research.md)（參考碼不變）、[`RES-036`](RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md) §6.4（「人主動發起才送 AI」）、[`ARC-028`](../02_architecture-and-rules/ARC-028_nanda-agent-protocol-alignment.md)（AgentFacts-lite）、`AGENTS.md` §11（AI 對高風險模組只能提案）
 
 ---
@@ -355,3 +355,21 @@ Owner 回覆「Use them, start S1」：D1–D6 全部照 §9 的建議。
 
 證據：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md`
 
+
+---
+
+## 14. JAI-S2 的做法（2026-11-18，Owner 指示開始）
+
+| 項目 | 決定 | 為什麼 |
+|---|---|---|
+| 上傳 | 輸入框的迴紋針、貼上圖片、拖進對話區。走既有 `/api/company/operating/uploads`，`origin = ai`、`space = personal` | 檔案立刻有參考碼、能被 `@`、能在答案裡被引用；權限沿用 `canSeatReadAsset` |
+| 圖片 | 瀏覽器先縮到長邊 2000px，HEIC 等模型讀不了的格式一律轉成 JPEG | 伺服器沒有影像函式庫；模型單張上限 5MB、只吃 png／jpeg／webp／gif |
+| 送給模型的形式 | 圖片 → image 區塊；PDF → document 區塊（開 citations）；txt／md／csv／json → 純文字 document；docx／xlsx／pptx → 伺服器抽文字後當純文字 document | 全部 document 都開 citations（API 規定全開或全關） |
+| 存在資料庫裡的形式 | 只存 `{type:'asset_ref', ref}` 記號；每次送出前才從 R2 讀回、換成真的區塊（D4：不存供應商） | 不把 base64 塞進資料庫；同一份檔案每次換出來的位元組一樣，快取與 preserved thinking 不受影響 |
+| 換回時再檢查權限 | 每次都重新查 `operating_assets` 與 `canSeatReadAsset`；讀不到就換成一句「已不存在或沒有權限」 | 檔案改成私人或被刪除之後，舊對話不能再把它送出去 |
+| 已在日誌裡的檔案 | 新工具 `read_file(cite)`；`@` 釘選檔案也直接附上內容 | 問「這張截圖裡寫什麼」不必先下載再上傳 |
+| 原生引用 | 文件的 title 帶參考碼；回答裡 API 的 `page_location`／`char_location` 轉成 `⟦asset:<ref>#p<頁>⟧`，伺服器一樣驗證 | 「p.2」是模型真的引用的那一頁 |
+| 上限 | 每則最多 5 個檔案；圖片 5MB、PDF 20MB；一個對話送出的檔案總量 24MB，超過的換成說明文字；抽出的文字最多 20 萬字 | API 單次請求 32MB；每一輪都會把整段歷史連同附件再送一次 |
+| 存進文件庫 | 自己上傳的附件旁有「存進文件庫」：選團隊或私人。團隊會把那個檔案改成團隊可見（只有上傳者能改），兩者都在文件庫建一筆指向同一份檔案的紀錄 | 不搬 bytes、不重新上傳；參考碼不變，舊引用仍然有效 |
+
+不做（留給 S3 以後）：影音內容、Files API、PDF 以外的頁碼、把抽出的文字寫進物件索引搜尋（S2 只在讀檔時抽，並快取在 `extractedText`）。

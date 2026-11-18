@@ -20,7 +20,7 @@ export const ASSET_KINDS = ['image', 'pdf', 'doc', 'sheet', 'slide', 'audio', 'v
 
 export type AssetKind = (typeof ASSET_KINDS)[number]
 
-export type AssetOrigin = 'journal' | 'library' | 'cashflow'
+export type AssetOrigin = 'journal' | 'library' | 'cashflow' | 'ai'
 
 export type AssetStatus = 'uploading' | 'ready' | 'failed'
 
@@ -232,9 +232,10 @@ const ORIGIN_TOKENS: Record<AssetOrigin, string> = {
   journal: 'JRNL',
   library: 'LIB',
   cashflow: 'CASH',
+  ai: 'AI',
 }
 
-export const ASSET_REF_CODE_PATTERN = /^AST-(JRNL|LIB|CASH)-\d{6}-\d{8}$/
+export const ASSET_REF_CODE_PATTERN = /^AST-(JRNL|LIB|CASH|AI)-\d{6}-\d{8}$/
 
 /**
  * `AST-JRNL-000124-20260928` —— RES-018 的四段格式。

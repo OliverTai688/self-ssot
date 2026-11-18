@@ -7,7 +7,9 @@
  * 權限另由拋棄式 DB 的路由實測驗（evidence report）。
  */
 import { lineCite, queryTerms, searchJournal, searchObjects, type JournalCorpus } from '../src/lib/ai/journal-ai/corpus'
-import { UNVERIFIED_MARK, verifyCitations } from '../src/lib/ai/journal-ai/citations'
+import { nativeCiteMarkers, UNVERIFIED_MARK, verifyCitations } from '../src/lib/ai/journal-ai/citations'
+import { extractOfficeText, MAX_TEXT } from '../src/lib/ai/journal-ai/office-text'
+import { deflateRawSync } from 'node:zlib'
 import { citeLabels, JOURNAL_AI_TOOLS, resolvePins, runTool, TOOL_NAMES } from '../src/lib/ai/journal-ai/tools'
 
 const results: [string, string, string][] = []
@@ -73,6 +75,70 @@ ok('C3 引用不重複、依出現順序', v.citations.map((c) => c.cite).join()
 ok('C4 行引用拆得出日期、作者、行 id', v.citations[0].kind === 'line' && v.citations[0].kind === 'line' && (v.citations[0] as { blockId: string }).blockId === 'b1')
 ok('C5 cite 格式與 lineCite 一致', lineCite(corpus.lines[0]) === 'line:2026-10-20:yz:b1')
 ok('C6 自己組的 cite（格式對但沒讀過）不承認', verifyCitations('⟦line:2026-10-21:lily:c9⟧ ⟦issue:ISS-12⟧', allowed).citations.length === 0)
+
+
+/* ---------- JAI-S2：檔案 ---------- */
+
+/** 最小的 zip 寫入器（測試用）：每個 entry 都用 deflate。 */
+function zip(files: Record<string, string>): Buffer {
+  const locals: Buffer[] = [], centrals: Buffer[] = []
+  let offset = 0
+  for (const [name, text] of Object.entries(files)) {
+    const data = Buffer.from(text, 'utf8'), comp = deflateRawSync(data), n = Buffer.from(name)
+    const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(8, 8); lh.writeUInt32LE(comp.length, 18); lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(n.length, 26)
+    const ch = Buffer.alloc(46); ch.writeUInt32LE(0x02014b50, 0); ch.writeUInt16LE(8, 10); ch.writeUInt32LE(comp.length, 20); ch.writeUInt32LE(data.length, 24); ch.writeUInt16LE(n.length, 28); ch.writeUInt32LE(offset, 42)
+    locals.push(lh, n, comp); centrals.push(ch, n)
+    offset += 30 + n.length + comp.length
+  }
+  const cd = Buffer.concat(centrals), end = Buffer.alloc(22)
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(Object.keys(files).length, 8); end.writeUInt16LE(Object.keys(files).length, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(offset, 16)
+  return Buffer.concat([...locals, cd, end])
+}
+
+const docx = zip({ 'word/document.xml': '<w:document><w:body><w:p><w:r><w:t>報價分兩期</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">第二期 </w:t></w:r><w:r><w:t>驗收後 30 天 &amp; 開發票</w:t></w:r></w:p></w:body></w:document>' })
+const dt = extractOfficeText(docx, 'docx')
+ok('F1 docx 依段落換行、合併同段的字', dt === '報價分兩期\n第二期 驗收後 30 天 & 開發票', JSON.stringify(dt))
+const xlsx = zip({
+  'xl/workbook.xml': '<workbook><sheets><sheet name="報價" sheetId="1"/></sheets></workbook>',
+  'xl/sharedStrings.xml': '<sst><si><t>項目</t></si><si><t>金額</t></si><si><r><t>設計</t></r><r><t>費</t></r></si></sst>',
+  'xl/worksheets/sheet1.xml': '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row><row r="2"><c r="A2" t="s"><v>2</v></c><c r="C2"><v>120000</v></c></row></sheetData></worksheet>',
+})
+const xt = extractOfficeText(xlsx, 'xlsx')
+ok('F2 xlsx 有工作表名稱、共用字串、欄位對齊（空欄留空）', xt === '## 工作表：報價\n項目\t金額\n設計費\t\t120000', JSON.stringify(xt))
+const pptx = zip({ 'ppt/slides/slide2.xml': '<p:sld><a:p><a:r><a:t>第二張</a:t></a:r></a:p></p:sld>', 'ppt/slides/slide1.xml': '<p:sld><a:p><a:r><a:t>封面</a:t></a:r></a:p></p:sld>', 'ppt/slides/slide10.xml': '<p:sld><a:p><a:r><a:t>第十張</a:t></a:r></a:p></p:sld>' })
+const pt = extractOfficeText(pptx, 'pptx')
+ok('F3 pptx 依投影片編號排序（10 在 2 後面）', pt.indexOf('封面') < pt.indexOf('第二張') && pt.indexOf('第二張') < pt.indexOf('第十張'), pt)
+let threw = ''
+try { extractOfficeText(Buffer.from('not a zip at all'), 'docx') } catch (e) { threw = (e as Error).message }
+ok('F4 壞掉的檔案丟出說得出原因的錯', threw.includes('zip'), threw)
+const bomb = zip({ 'word/document.xml': '<w:p><w:t>' + 'a'.repeat(9 * 1024 * 1024) + '</w:t></w:p>' })
+threw = ''
+try { extractOfficeText(bomb, 'docx') } catch (e) { threw = (e as Error).message }
+ok('F5 解壓後超過上限的 entry 不讀（zip bomb）', threw.includes('太大'), threw)
+const long = zip({ 'word/document.xml': '<w:p><w:t>' + '字'.repeat(MAX_TEXT + 50) + '</w:t></w:p>' })
+ok('F6 抽出的文字超過上限就截斷並註明', extractOfficeText(long, 'docx').endsWith('以下省略）'))
+
+/* read_file 與釘選檔案 */
+const rf = runTool(corpus, 'read_file', { cite: 'asset:AST-JRNL-000124-20261021' })
+ok('R1 read_file 回檔案記號、不帶 bytes', !rf.isError && rf.blocks?.[0]?.type === 'asset_ref' && rf.blocks[0].ref === 'AST-JRNL-000124-20261021' && !rf.content.includes('base64'))
+ok('R2 read_file 讀到的檔案進 sentRefs（可被引用）', rf.refs[0]?.cite === 'asset:AST-JRNL-000124-20261021')
+ok('R3 read_file 讀不到別人的／不存在的檔案', runTool(corpus, 'read_file', { cite: 'asset:AST-JRNL-999999-20261021' }).isError)
+ok('R4 read_file 不接受非檔案的 cite', runTool(corpus, 'read_file', { cite: 'decision:DEC-31' }).isError)
+const pinsF = resolvePins(corpus, [{ ty: 'asset', rid: 'AST-JRNL-000124-20261021' }, { ty: 'decision', rid: 'DEC-31' }])
+ok('R5 釘選檔案會附上內容記號，釘選決策不會', pinsF.files.length === 1 && pinsF.files[0].ref === 'AST-JRNL-000124-20261021')
+ok('R6 工具清單多了 read_file 且一樣是 strict', JOURNAL_AI_TOOLS.some((t) => t.name === 'read_file' && t.strict))
+
+/* 原生 citations → 頁碼引用 */
+const marks = nativeCiteMarkers([
+  { type: 'page_location', document_title: '報價單.pdf（asset:AST-JRNL-000124-20261021）', start_page_number: 2, end_page_number: 3 },
+  { type: 'page_location', document_title: '報價單.pdf（asset:AST-JRNL-000124-20261021）', start_page_number: 2, end_page_number: 2 },
+  { type: 'char_location', document_title: '合約.docx（asset:AST-AI-000001-20261118）', start_char_index: 0, end_char_index: 9 },
+  { type: 'page_location', document_title: '沒有參考碼的文件', start_page_number: 1 },
+])
+ok('N1 頁碼引用轉成 ⟦asset:#p⟧、同頁不重複、文字檔沒有頁碼、認不出的略過', marks === '⟦asset:AST-JRNL-000124-20261021#p2⟧⟦asset:AST-AI-000001-20261118⟧', marks)
+const vp = verifyCitations('第二期驗收後付款' + marks, citeLabels(rf.refs))
+ok('N2 讀過的檔案的頁碼引用被承認並帶頁碼', vp.citations[0]?.kind === 'object' && (vp.citations[0] as { page?: number }).page === 2)
+ok('N3 沒讀過的檔案的引用仍被移除', vp.dropped.includes('asset:AST-AI-000001-20261118'))
 
 const failed = results.filter((r) => r[0] === 'FAIL')
 for (const [s, n, e] of results) console.log(`${s}  ${n}${e ? '  → ' + e : ''}`)

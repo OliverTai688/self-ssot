@@ -657,6 +657,7 @@ export async function loadOperatingStore(workspaceId: string, viewerProfileId: s
       mime: row.mimeType ?? "",
       status: row.status,
       space: row.space,
+      origin: row.origin,
       author: row.authorKey ?? "",
       day: iso(row.bornDay),
       bornAt: row.bornAt ? row.bornAt.getTime() : row.createdAt.getTime(),

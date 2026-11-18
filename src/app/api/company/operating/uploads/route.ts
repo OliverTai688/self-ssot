@@ -11,6 +11,7 @@ import {
   failAsset,
   finalizeAsset,
   renameAsset,
+  shareAssetToTeam,
   reopenAssetUpload,
   resolveDownloadGrant,
 } from "@/lib/services/operating-assets.service"
@@ -30,7 +31,7 @@ export const runtime = "nodejs"
 
 const noStoreHeaders = { "Cache-Control": "private, no-store, max-age=0" }
 
-const ORIGINS: AssetOrigin[] = ["journal", "library", "cashflow"]
+const ORIGINS: AssetOrigin[] = ["journal", "library", "cashflow", "ai"]
 
 function errorResponse(status: number, code: string, error: string) {
   return NextResponse.json({ error, code }, { status, headers: noStoreHeaders })
@@ -208,6 +209,12 @@ export async function PATCH(request: NextRequest) {
         { assetId: renamed.asset.id, name: renamed.asset.displayName },
         { headers: noStoreHeaders }
       )
+    }
+
+    // 存進團隊文件庫（日誌 AI 的附件，RES-037 §14）：私人檔改成團隊可見。只有上傳者能改。
+    if (body?.space === "team") {
+      const shared = await shareAssetToTeam({ workspaceId: actor.workspaceId, assetId, authorKey: actor.authorKey })
+      return NextResponse.json({ assetId: shared.id, space: shared.space }, { headers: noStoreHeaders })
     }
 
     // 使用者取消或前端自己就知道傳壞了：直接標 failed，不必浪費一次 HeadObject。

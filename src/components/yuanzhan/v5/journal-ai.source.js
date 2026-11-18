@@ -14,7 +14,9 @@ const JA_API = '/api/company/operating/ai/sessions';
 const JA_KEY = 'ja';
 const JA = {
   sessions: null, loading: false, err: '', active: null, msgs: Object.create(null), loadingMsgs: '',
-  draft: '', live: null, q: '', showArchived: false, renaming: '', drawer: false, sheet: false, poll: 0
+  draft: '', live: null, q: '', showArchived: false, renaming: '', drawer: false, sheet: false, poll: 0,
+  /** 輸入框上的附件：{ k, name, status: uploading|ready|failed, refCode, assetId, err } */
+  files: [], saving: ''
 };
 
 const jaWb = WB.find(x => x.id === 'journal');
@@ -121,15 +123,19 @@ function jaPaintList() { const el = root.querySelector('#jaSessions'); if (el) e
 function jaFocusSoon() { runtime._afterRender = () => { const el = root.querySelector('#jaInput'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }; }
 
 async function jaSend(text) {
-  const q = String(text == null ? JA.draft : text).trim();
-  if (!q) return;
+  let q = String(text == null ? JA.draft : text).trim();
   if (JA.live) return toast('上一則還在回答中');
+  if (JA.files.some(f => f.status === 'uploading')) return toast('檔案還在上傳，傳完再送出');
+  const files = JA.files.filter(f => f.status === 'ready');
+  if (!q && files.length) q = '請看附件。';
+  if (!q) return;
   if (!JA.active) {
     try { const { session } = await jaFetch(JA_API, { method: 'POST' }); jaPatchSession(session); JA.active = session.id; JA.msgs[session.id] = []; }
     catch (e) { return toast(esc(e.message)); }
   }
-  const id = JA.active, pins = orRefsOf(JA_KEY);
-  JA.draft = ''; orClear(JA_KEY);
+  const id = JA.active, refs = orRefsOf(JA_KEY);
+  const pins = [...files.map(f => ({ ty: 'asset', rid: f.refCode })), ...refs.filter(r => !files.some(f => r.ty === 'asset' && r.rid === f.refCode))];
+  JA.draft = ''; orClear(JA_KEY); JA.files = [];
   JA.live = { sessionId: id, assistantId: '', text: '', steps: [], user: { role: 'user', text: q, pins, citations: [], steps: [], sentRefs: [], status: 'done' } };
   jaFocusSoon(); render(); jaScrollEnd();
 
@@ -137,12 +143,12 @@ async function jaSend(text) {
   try {
     res = await fetch(JA_API + '/' + encodeURIComponent(id) + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: q, pins }) });
   } catch {
-    JA.live = null; JA.draft = q; render();
+    JA.live = null; JA.draft = q; JA.files = files; render();
     return toast('連不上伺服器，問題已放回輸入框');
   }
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({}));
-    JA.live = null; JA.draft = q; render();
+    JA.live = null; JA.draft = q; JA.files = files; render();
     return toast(esc(data.error || '送不出去，問題已放回輸入框'));
   }
   try { await jaReadStream(res.body, id); }
@@ -264,7 +270,7 @@ function jaLineLabel(c) {
   return Number(d.slice(5, 7)) + '/' + d.slice(8, 10) + ' 日誌';
 }
 function jaCiteChip(c) {
-  if (c.kind === 'object') return objRefChip({ ty: c.ty, rid: c.rid });
+  if (c.kind === 'object') return objRefChip({ ty: c.ty, rid: c.rid }) + (c.page ? `<span class="ja-page" title="模型引用的是第 ${c.page} 頁">p.${c.page}</span>` : '');
   return `<button type="button" class="ja-cite" title="${esc(c.label || '')} · 點一下回到那一行" onclick="jaJumpLine('${esc(c.day)}','${esc(c.author)}','${esc(c.blockId)}')">${svg('journal', 11)}<span>${esc(jaLineLabel(c))}</span><span class="ja-cite-l">${esc(String(c.label || '').replace(/^.*·\s*/, ''))}</span></button>`;
 }
 /** 輕量格式：段落、清單、粗體。先跳脫再加標記，答案裡的任何字都不會變成 HTML。 */
@@ -296,7 +302,7 @@ function jaSteps(steps, open) {
 const JA_STATUS = { stopped: '已停止', error: '沒有完成', refused: '這一題模型沒有回答', streaming: '還在回答中…', stopping: '停止中…' };
 function jaMsgHtml(m, i) {
   if (m.role === 'user') {
-    return `<div class="ja-msg ja-u"><div class="ja-bubble">${esc(m.text).replace(/\n/g, '<br>')}${m.pins && m.pins.length ? orChips(m.pins) : ''}</div></div>`;
+    return `<div class="ja-msg ja-u"><div class="ja-bubble">${esc(m.text).replace(/\n/g, '<br>')}${m.pins && m.pins.length ? orChips(m.pins) : ''}${jaSaveRow(m.pins)}</div></div>`;
   }
   const busy = m.status === 'streaming' || m.status === 'stopping';
   const st = m.status !== 'done' ? `<div class="ja-st ${m.status === 'error' || m.status === 'refused' ? 'bad' : ''}">${svg(busy ? 'clock' : 'warn', 12)} ${esc(JA_STATUS[m.status] || m.status)}${m.error ? '：' + esc(m.error) : ''}</div>` : '';
@@ -380,8 +386,9 @@ function jaComposer() {
   orBind(JA_KEY, { get: () => JA.draft, set: v => { JA.draft = v; }, focus: () => root.querySelector('#jaInput') });
   const busy = !!JA.live;
   return `<div class="ja-comp">
-    <textarea id="jaInput" rows="1" aria-label="問日誌裡的任何事" placeholder="問日誌裡的任何事… @ 可以釘選物件" title="Enter 送出 · Shift+Enter 換行 · @ 釘選物件" oninput="jaInput(this)" onkeydown="jaInputKey(event)">${esc(JA.draft)}</textarea>
-    <div class="ja-comp-b">${orButton(JA_KEY)}<span class="sp"></span>
+    <textarea id="jaInput" rows="1" aria-label="問日誌裡的任何事" placeholder="問日誌裡的任何事… @ 可以釘選物件" title="Enter 送出 · Shift+Enter 換行 · @ 釘選物件" oninput="jaInput(this)" onkeydown="jaInputKey(event)" onpaste="jaPaste(event)">${esc(JA.draft)}</textarea>
+    <div class="ja-files" id="jaFiles">${jaFilesInner()}</div>
+    <div class="ja-comp-b">${orButton(JA_KEY)}<label class="btn sm" title="附上圖片、PDF、Word、Excel、PowerPoint 或文字檔（也可以直接貼上或拖進來）">${svg('paperclip', 12)} 檔案<input type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.csv,.json,.docx,.xlsx,.pptx" onchange="jaPick(this)"></label><span class="sp"></span>
       ${busy ? `<button class="btn sm" onclick="jaStop()">${svg('x', 12)} 停止</button>` : `<button class="btn sm pri" onclick="jaSend()">${svg('send', 12)} 送出</button>`}</div>
     ${orTray(JA_KEY)}</div>`;
 }
@@ -406,7 +413,7 @@ function jaView() {
       <button class="sg-link ja-arch" onclick="jaToggleArchived()">${JA.showArchived ? '回到對話' : '封存的對話'}</button>
       ${JA.err ? `<div class="sg-warn">${svg('warn', 12)} ${esc(JA.err)}</div>` : ''}
     </aside>
-    <section class="ja-main">
+    <section class="ja-main" ondragover="jaDragOver(event)" ondrop="jaDrop(event)">
       <div class="ja-head">
         <button class="btn sm ja-mob" aria-label="對話清單" onclick="jaToggleDrawer()">${svg('list', 12)}</button>
         <b title="${esc(s ? s.title : '新對話')}">${esc(s ? s.title : '新對話')}</b><span class="sp"></span>
@@ -419,6 +426,138 @@ function jaView() {
       <div class="ja-side-h"><b>這個對話看過的資料</b><button class="btn sm ja-mob" aria-label="關閉" onclick="jaToggleSheet(false)">${svg('x', 12)}</button></div>
       ${jaSources(msgs)}
     </aside></div>`;
+}
+
+/* ---------- 附件：上傳（RES-037 §14）---------- */
+
+const JA_MAX_FILES = 5;
+const JA_IMAGE_EDGE = 2000;
+const JA_MODEL_IMAGE = /^image\/(png|jpeg|webp|gif)$/;
+const JA_LIMIT = { image: 5 * 1024 * 1024, pdf: 20 * 1024 * 1024 };
+
+/**
+ * 圖片先在瀏覽器縮：長邊超過 2000px、超過 3.5MB、或不是模型讀得了的格式（HEIC…）就重畫成 JPEG。
+ * 伺服器沒有影像函式庫；而且原圖送出去只是多花 token，模型本來就會把它縮小。
+ */
+async function jaPrepImage(file) {
+  if (!/^image\//.test(file.type) && !/\.heic$/i.test(file.name)) return file;
+  if (file.type === 'image/gif') return file;
+  let bmp;
+  try { bmp = await createImageBitmap(file); } catch { return file; }
+  const long = Math.max(bmp.width, bmp.height);
+  if (JA_MODEL_IMAGE.test(file.type) && long <= JA_IMAGE_EDGE && file.size <= 3.5 * 1024 * 1024) { bmp.close && bmp.close(); return file; }
+  const k = Math.min(1, JA_IMAGE_EDGE / long);
+  const canvas = doc.createElement('canvas');
+  canvas.width = Math.round(bmp.width * k); canvas.height = Math.round(bmp.height * k);
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close && bmp.close();
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.86));
+  if (!blob) return file;
+  return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+}
+
+function jaPick(input) { const list = [...(input.files || [])]; input.value = ''; jaAddFiles(list); }
+function jaPaste(e) {
+  const list = [...((e.clipboardData && e.clipboardData.files) || [])];
+  if (!list.length) return;
+  e.preventDefault();
+  jaAddFiles(list.map((f, i) => f.name && f.name !== 'image.png' ? f : new File([f], '截圖 ' + nowts().slice(5, 16).replace(':', '') + (i ? '-' + i : '') + '.png', { type: f.type })));
+}
+function jaDragOver(e) { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); }
+function jaDrop(e) {
+  const list = [...((e.dataTransfer && e.dataTransfer.files) || [])];
+  if (!list.length) return;
+  e.preventDefault(); e.stopPropagation();
+  jaAddFiles(list);
+}
+
+function jaAddFiles(list) {
+  if (!OP_LIVE) return toast('預覽模式不能上傳檔案');
+  for (const raw of list) {
+    if (JA.files.length >= JA_MAX_FILES) { toast('一則最多附 ' + JA_MAX_FILES + ' 個檔案'); break; }
+    jaUpload(raw);
+  }
+}
+
+async function jaUpload(raw) {
+  const item = { k: nid('JF'), name: raw.name, status: 'uploading', refCode: '', assetId: '', err: '' };
+  JA.files.push(item); jaPaintFiles();
+  try {
+    const file = await jaPrepImage(raw);
+    item.name = file.name;
+    const verdict = astClassify({ name: file.name, bytes: file.size, mimeType: file.type });
+    if (!verdict.ok) throw new Error(verdict.error);
+    if (verdict.kind === 'audio' || verdict.kind === 'video') throw new Error('影音檔 AI 還讀不了');
+    const cap = JA_LIMIT[verdict.kind];
+    if (cap && file.size > cap) throw new Error((verdict.kind === 'pdf' ? 'PDF 超過 20MB' : '圖片超過 5MB') + '，請拆小再傳');
+    const signed = await presignUpload(file, { origin: 'ai', space: 'personal', bornDay: TODAY });
+    item.assetId = signed.assetId; item.refCode = signed.refCode;
+    try {
+      const typed = signed.contentType && signed.contentType !== file.type ? new File([file], file.name, { type: signed.contentType }) : file;
+      await putToR2(signed.uploadUrl, typed);
+      await finalizeUpload(signed.assetId);
+    } catch (e) {
+      await finalizeUpload(signed.assetId, 'failed').catch(() => {});
+      throw e;
+    }
+    // 讓膠囊、@ 選單、物件彈窗都認得這個檔案（與日誌上傳同一個形狀）
+    DB.assets.push({
+      id: signed.refCode, assetId: signed.assetId, name: file.name, kind: signed.kind || verdict.kind, bytes: file.size,
+      mime: signed.contentType || file.type || '', objectKey: signed.objectKey, status: 'ready', space: 'personal', origin: 'ai',
+      author: DB.me, day: TODAY, bornAt: Date.now(), text: ''
+    });
+    item.status = 'ready';
+    // 傳到一半被移除：這份檔案不要了，標成失敗讓孤兒清理收走
+    if (!JA.files.includes(item)) await finalizeUpload(signed.assetId, 'failed').catch(() => {});
+  } catch (e) {
+    item.status = 'failed'; item.err = e.message || '上傳失敗';
+  }
+  jaPaintFiles();
+}
+function jaDropFile(k) {
+  const f = JA.files.find(x => x.k === k);
+  if (f && f.status === 'uploading' && f.assetId) finalizeUpload(f.assetId, 'failed').catch(() => {});
+  JA.files = JA.files.filter(x => x.k !== k);
+  jaPaintFiles();
+}
+function jaFilesInner() {
+  return JA.files.map(f => `<span class="ja-file ${f.status}" title="${esc(f.err || f.name)}">${svg(f.status === 'failed' ? 'warn' : f.status === 'uploading' ? 'clock' : 'paperclip', 11)}<span>${esc(f.name)}</span>${f.status === 'uploading' ? '<i>上傳中</i>' : f.status === 'failed' ? '<i>' + esc(f.err) + '</i>' : ''}<button type="button" aria-label="移除 ${esc(f.name)}" onclick="jaDropFile('${f.k}')">${svg('x', 10)}</button></span>`).join('');
+}
+function jaPaintFiles() { const el = root.querySelector('#jaFiles'); if (el) el.innerHTML = jaFilesInner(); }
+
+/* ---------- 存進文件庫 ---------- */
+
+/** 這份檔案是不是已經有一筆文件庫紀錄指著它。 */
+function jaInLibrary(rid) { return (DB.files || []).some(f => (f.versions || []).some(v => v.refCode === rid)); }
+function jaSavable(rid) {
+  const a = (DB.assets || []).find(x => x.id === rid);
+  return !!a && a.origin === 'ai' && a.author === DB.me && a.status === 'ready' && !jaInLibrary(rid);
+}
+function jaSaveRow(pins) {
+  const list = (pins || []).filter(p => p.ty === 'asset' && jaSavable(p.rid));
+  if (!list.length) return '';
+  return `<div class="ja-save">${list.map(p => JA.saving === p.rid
+    ? `<span class="ja-save-q">「${esc(objRefName('asset', p.rid))}」存到：<button class="btn sm" onclick="jaSaveLib('${esc(p.rid)}','team')">團隊文件庫</button><button class="btn sm" onclick="jaSaveLib('${esc(p.rid)}','personal')">私人文件</button><button class="sg-link" onclick="jaSaveAsk('')">取消</button></span>`
+    : `<button class="sg-link" onclick="jaSaveAsk('${esc(p.rid)}')">${svg('download', 11)} 「${esc(objRefName('asset', p.rid))}」存進文件庫</button>`).join('')}</div>`;
+}
+function jaSaveAsk(rid) { JA.saving = rid; render(); }
+async function jaSaveLib(rid, space) {
+  const a = (DB.assets || []).find(x => x.id === rid);
+  if (!a) return;
+  JA.saving = '';
+  try {
+    // 團隊：先把檔案本身改成團隊可見，否則同事在文件庫看得到紀錄、卻下載不了
+    if (space === 'team') {
+      const res = await fetch('/api/company/operating/uploads', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assetId: a.assetId, space: 'team' }) });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))).error) || '改成團隊可見失敗');
+      a.space = 'team';
+    }
+    commit('create', '文件', a.name, () => {
+      DB.files.push({ id: nid('FILE'), name: a.name, category: 'material', tags: '', space, author: DB.me,
+        versions: [{ id: nid('FV'), name: a.name, type: a.mime || '', text: '', data: '', objectKey: a.objectKey, assetId: a.assetId, refCode: a.id, bytes: a.bytes || 0, at: nowts() }] });
+      return [space === 'team' ? '已存進團隊文件庫' : '已存成私人文件'];
+    });
+  } catch (e) { toast(esc(e.message)); render(); }
 }
 
 const jaBaseJournalView = VIEWS.journal;

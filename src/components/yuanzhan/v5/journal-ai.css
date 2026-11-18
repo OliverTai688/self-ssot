@@ -95,3 +95,22 @@
   .ja-comp textarea{font-size:16px}
   .ja.sheet .ja-side{left:0;right:0;top:auto;width:auto;max-height:70%;border-left:0;border-top:1px solid var(--border,#232931);border-radius:12px 12px 0 0}
 }
+
+/* 附件（JAI-S2） */
+.ja-files{display:flex;flex-wrap:wrap;gap:6px}
+.ja-files:empty{display:none}
+.ja-files:not(:empty){margin-bottom:6px}
+.ja-file{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:3px 4px 3px 8px;border:1px solid var(--border-2,#333b45);border-radius:8px;background:var(--surface-3,#1c2127);font-size:12px;color:var(--text-2,#99a2af);min-width:0}
+.ja-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:16em}
+.ja-file i{font-style:normal;font-size:11px;color:var(--text-3,#626b77)}
+.ja-file.failed{border-color:var(--warn,#e3a33b);color:var(--warn,#e3a33b)}
+.ja-file.failed i{color:var(--warn,#e3a33b);white-space:normal}
+.ja-file svg{width:11px;height:11px;flex:none}
+.ja-file button{display:grid;place-items:center;width:18px;height:18px;border:0;border-radius:4px;background:none;color:inherit;cursor:pointer}
+.ja-file button:hover{background:var(--hover-overlay,#ffffff0d)}
+.ja-page{display:inline-block;margin:0 2px 0 -1px;padding:0 5px;border-radius:999px;background:var(--surface-3,#1c2127);font-size:11px;color:var(--text-2,#99a2af);vertical-align:baseline}
+.ja-save{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:6px;font-size:12px}
+.ja-save .sg-link{font-size:12px}
+.ja-save svg{width:11px;height:11px;vertical-align:-1px}
+.ja-save-q{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;color:var(--text-2,#99a2af)}
+.ja-main{position:relative}

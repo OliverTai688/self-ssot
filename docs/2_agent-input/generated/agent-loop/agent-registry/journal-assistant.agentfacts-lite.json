@@ -1,15 +1,21 @@
 {
   "schema": "personal-os.agentfacts-lite",
   "version": "0.1.0",
-  "generatedAt": "2026-11-16",
+  "generatedAt": "2026-11-18",
   "note": "Runtime agent. Kept out of internal-agent-manifests.agentfacts-lite.json on purpose: that registry (and scripts/check-agent-registry.mjs) only admits governance-only ARC-020 agents.",
   "manifest": {
     "id": "personal-os:journal-assistant",
     "agent_name": "urn:agent:personal-os:JournalAssistant",
     "label": "JournalAssistant",
     "description": "Answers a seat's questions about the company journal, objects and files, using read-only search tools scoped to what that seat can already see. Every factual sentence carries a server-verified citation.",
-    "version": "0.1.0",
-    "provider": { "name": "Anthropic (Claude API)", "url": "https://platform.claude.com", "model": "claude-opus-5-5", "effort": "medium", "fallbacks": "default" },
+    "version": "0.2.0",
+    "provider": {
+      "name": "Anthropic (Claude API)",
+      "url": "https://platform.claude.com",
+      "model": "claude-opus-5-5",
+      "effort": "medium",
+      "fallbacks": "default"
+    },
     "lifecycle": {
       "status": "prototype",
       "ownerModule": "company/operating · journal",
@@ -24,38 +30,85 @@
       ],
       "external": []
     },
-    "protocols": ["internal"],
+    "protocols": [
+      "internal"
+    ],
     "capabilities": [
       {
         "id": "journal-question-answering",
         "description": "Search and read journal lines, journal-born objects and files visible to the asking seat; answer with verified citations.",
         "riskLevel": "MEDIUM",
         "requiresHumanApproval": false,
-        "allowedTargetModules": ["journal (read)", "objects (read)", "files metadata/extracted text (read)"]
+        "allowedTargetModules": [
+          "journal (read)",
+          "objects (read)",
+          "files: images, PDF, office and text content (read, re-authorized on every send)"
+        ]
       }
     ],
     "skills": [
-      { "id": "search_journal", "source": "src/lib/ai/journal-ai/tools.ts" },
-      { "id": "read_journal_day", "source": "src/lib/ai/journal-ai/tools.ts" },
-      { "id": "search_objects", "source": "src/lib/ai/journal-ai/tools.ts" },
-      { "id": "get_object", "source": "src/lib/ai/journal-ai/tools.ts" },
-      { "id": "list_activity", "source": "src/lib/ai/journal-ai/tools.ts" }
+      {
+        "id": "search_journal",
+        "source": "src/lib/ai/journal-ai/tools.ts"
+      },
+      {
+        "id": "read_journal_day",
+        "source": "src/lib/ai/journal-ai/tools.ts"
+      },
+      {
+        "id": "search_objects",
+        "source": "src/lib/ai/journal-ai/tools.ts"
+      },
+      {
+        "id": "get_object",
+        "source": "src/lib/ai/journal-ai/tools.ts"
+      },
+      {
+        "id": "list_activity",
+        "source": "src/lib/ai/journal-ai/tools.ts"
+      },
+      {
+        "id": "read_file",
+        "source": "src/lib/ai/journal-ai/tools.ts"
+      }
     ],
     "auth": {
-      "methods": ["requireUser()", "Yuanzhan seat", "session owner (workspaceId + ownerId)"],
-      "requiredScopes": ["operating seat"]
+      "methods": [
+        "requireUser()",
+        "Yuanzhan seat",
+        "session owner (workspaceId + ownerId)"
+      ],
+      "requiredScopes": [
+        "operating seat"
+      ]
     },
     "trust": {
       "approvalLevel": "READ_ONLY",
       "dataVisibilityLevel": "viewer-scoped: loadOperatingStore(workspaceId, viewerProfileId) + journal company-or-own; payroll, bank, reimbursements and intake excluded",
       "boundaryPolicy": "docs/07_research-and-design/RES-037_journal-ai-assistant-multi-session-research.md#7-風險與邊界",
-      "blockedActions": ["any write", "web search / web fetch / code execution", "reading another seat's private journal or files", "reading another seat's conversations"],
-      "attestations": ["scripts/check-journal-ai.mts (25/25)", "disposable-DB cross-seat proof 2026-11-16"]
+      "blockedActions": [
+        "any write",
+        "web search / web fetch / code execution",
+        "reading another seat's private journal or files",
+        "reading another seat's conversations"
+      ],
+      "attestations": [
+        "scripts/check-journal-ai.mts (40/40)",
+        "disposable-DB cross-seat proof 2026-11-16",
+        "disposable-DB + R2 attachment proof 2026-11-18"
+      ]
     },
     "observability": {
-      "evidenceReports": ["docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md"],
-      "lastVerification": "2026-11-16",
-      "telemetryClaims": ["per-message sentRefs (what was sent to the model)", "per-message usage and cost estimate", "monthly cap JOURNAL_AI_MONTHLY_CAP_USD"]
+      "evidenceReports": [
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md",
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md"
+      ],
+      "lastVerification": "2026-11-18",
+      "telemetryClaims": [
+        "per-message sentRefs (what was sent to the model)",
+        "per-message usage and cost estimate",
+        "monthly cap JOURNAL_AI_MONTHLY_CAP_USD"
+      ]
     },
     "registry": {
       "internalDiscoverable": true,

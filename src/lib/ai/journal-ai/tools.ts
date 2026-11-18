@@ -24,7 +24,12 @@ import {
 
 export type SentRef = { cite: string; label: string; chars: number }
 export type ToolStep = { tool: string; label: string; hits: number }
-export type ToolOutcome = { content: string; isError: boolean; refs: SentRef[]; step: ToolStep }
+/** 檔案記號：資料庫裡只存這個，送出前才由 attachments.ts 換成真的檔案區塊。 */
+export type AssetRefBlock = { type: "asset_ref"; ref: string; title: string }
+export type ToolOutcome = { content: string; isError: boolean; refs: SentRef[]; step: ToolStep; blocks?: AssetRefBlock[] }
+
+/** 送得出內容的檔案種類（影音不讀）。 */
+const READABLE_FILE = /\.(png|jpe?g|webp|gif|heic|pdf|txt|md|csv|json|docx|xlsx|pptx)$/i
 
 const DAY = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const NULLABLE_DAY = DAY.nullable()
@@ -35,6 +40,7 @@ const INPUTS = {
   search_objects: z.object({ query: z.string().min(1).max(200), types: z.array(z.enum(OBJECT_TYPES)).nullable() }).strict(),
   get_object: z.object({ cite: z.string().min(3).max(200) }).strict(),
   list_activity: z.object({ from: DAY, to: DAY }).strict(),
+  read_file: z.object({ cite: z.string().min(7).max(200) }).strict(),
 }
 export type ToolName = keyof typeof INPUTS
 export const TOOL_NAMES = Object.keys(INPUTS) as ToolName[]
@@ -124,6 +130,19 @@ export const JOURNAL_AI_TOOLS = [
       properties: { from: { type: "string", description: "YYYY-MM-DD" }, to: { type: "string", description: "YYYY-MM-DD" } },
     },
   },
+  {
+    name: "read_file",
+    description:
+      "讀一個檔案的內容（圖片、PDF、Word、Excel、PowerPoint、文字檔）。cite 是 search_objects 或日誌行回傳的檔案 cite，例如 asset:AST-JRNL-000124-20260928。問題跟檔案內容有關時才讀；檔案很大，不要為了確認名稱而讀。",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["cite"],
+      properties: { cite: { type: "string", description: "檔案的 cite，asset: 開頭" } },
+    },
+  },
 ] as const
 
 function json(value: unknown): string {
@@ -199,6 +218,19 @@ export function runTool(corpus: JournalCorpus, name: string, rawInput: unknown):
       for (const m of o.mentionedIn) refs.push({ cite: m.cite, label: lineLabel(m.day, m.line), chars: m.text.length })
       return { content, isError: false, refs, step: { tool: name, label: `讀物件「${o.name}」`, hits: 1 } }
     }
+    case "read_file": {
+      const input = parsed.data as z.infer<typeof INPUTS.read_file>
+      const o = input.cite.startsWith("asset:") ? corpus.objects.find((x) => `${x.ty}:${x.rid}` === input.cite) : null
+      if (!o) return error(name, `找不到這個檔案（或你沒有權限）：${input.cite}`)
+      if (!READABLE_FILE.test(o.name)) return error(name, `「${o.name}」這種檔案還讀不了內容。`)
+      return {
+        content: json({ cite: input.cite, name: o.name, note: "檔案內容附在這則結果裡。引用時用這個 cite。" }),
+        isError: false,
+        refs: [{ cite: input.cite, label: `檔案 · ${o.name}`, chars: 0 }],
+        step: { tool: name, label: `讀檔案「${o.name}」`, hits: 1 },
+        blocks: [{ type: "asset_ref", ref: o.rid, title: o.name }],
+      }
+    }
     case "list_activity": {
       const input = parsed.data as z.infer<typeof INPUTS.list_activity>
       const out = listActivity(corpus, input)
@@ -213,9 +245,13 @@ export function runTool(corpus: JournalCorpus, name: string, rawInput: unknown):
 }
 
 /** 使用者釘選的物件與行，事先解析成一段文字放進那一則訊息（不等模型去搜）。 */
-export function resolvePins(corpus: JournalCorpus, pins: Array<{ ty: string; rid: string }>): { text: string; refs: SentRef[] } {
+export function resolvePins(
+  corpus: JournalCorpus,
+  pins: Array<{ ty: string; rid: string }>,
+): { text: string; refs: SentRef[]; files: AssetRefBlock[] } {
   const parts: string[] = []
   const refs: SentRef[] = []
+  const files: AssetRefBlock[] = []
   for (const pin of pins.slice(0, 10)) {
     const cite = `${pin.ty}:${pin.rid}`
     const o = getObject(corpus, cite)
@@ -223,9 +259,11 @@ export function resolvePins(corpus: JournalCorpus, pins: Array<{ ty: string; rid
     const body = json(o)
     parts.push(body)
     refs.push({ cite, label: objectLabel(corpus, cite), chars: body.length })
+    // 釘選的是檔案：連同內容一起附上（最多 5 份），不必等模型再呼叫 read_file
+    if (pin.ty === "asset" && READABLE_FILE.test(o.name) && files.length < 5) files.push({ type: "asset_ref", ref: pin.rid, title: o.name })
     for (const m of o.mentionedIn) refs.push({ cite: m.cite, label: lineLabel(m.day, m.line), chars: m.text.length })
   }
-  return { text: parts.join("\n"), refs }
+  return { text: parts.join("\n"), refs, files }
 }
 
 /** 給 citations.ts 的允許集合用：從 sentRefs 取 cite → 顯示名稱。 */

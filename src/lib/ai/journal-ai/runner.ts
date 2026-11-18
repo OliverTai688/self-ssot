@@ -2,6 +2,7 @@ import "server-only"
 
 import Anthropic from "@anthropic-ai/sdk"
 
+import { nativeCiteMarkers } from "./citations"
 import { queryTerms, type JournalCorpus } from "./corpus"
 import { JOURNAL_AI_TOOLS, runTool, type SentRef, type ToolStep } from "./tools"
 
@@ -86,6 +87,8 @@ type RunParams = {
   signal: AbortSignal
   shouldStop: () => Promise<boolean>
   onEvent: (event: RunEvent) => void
+  /** 送出前把訊息裡的檔案記號換成真的檔案區塊（attachments.ts）。存起來的仍是記號。 */
+  hydrate: (messages: MessageParam[]) => Promise<MessageParam[]>
   /** 每跑完一次工具就呼叫一次，讓呼叫端把進度寫回資料庫（斷線、切到背景分頁都不遺失） */
   onCheckpoint?: (snapshot: { turn: MessageParam[]; steps: ToolStep[]; sentRefs: SentRef[] }) => Promise<void>
 }
@@ -95,10 +98,11 @@ export async function runJournalAiTurn(params: RunParams & { provider?: Provider
   return provider === "mock" ? runMock(params) : runAnthropic(params)
 }
 
+/** 文字區塊依序接起來；帶原生 citations 的區塊後面接上對應的引用記號（檔案頁碼）。 */
 function textOf(content: ContentBlock[]): string {
   return content
     .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")
-    .map((b) => b.text)
+    .map((b) => b.text + nativeCiteMarkers((b as { citations?: unknown }).citations))
     .join("")
 }
 
@@ -124,7 +128,7 @@ async function runAnthropic(p: RunParams): Promise<RunResult> {
         max_tokens: 16000,
         system: [{ type: "text", text: JOURNAL_AI_SYSTEM }],
         tools: JOURNAL_AI_TOOLS as unknown as Anthropic.Beta.Messages.BetaToolUnion[],
-        messages: [...p.history, p.user, ...turn],
+        messages: await p.hydrate([...p.history, p.user, ...turn]),
         output_config: { effort: "medium" },
         // 自動快取最後一個可快取的區塊：同一對話的下一輪，整段歷史都從快取讀
         cache_control: { type: "ephemeral" },
@@ -181,7 +185,11 @@ async function runAnthropic(p: RunParams): Promise<RunResult> {
       steps.push(outcome.step)
       sentRefs.push(...outcome.refs)
       p.onEvent({ type: "step", step: outcome.step })
-      return { type: "tool_result", tool_use_id: use.id, content: outcome.content, ...(outcome.isError ? { is_error: true } : {}) }
+      // 檔案以記號放在結果裡，送出前由 hydrate 換成真的內容；資料庫只存記號
+      const content = outcome.blocks?.length
+        ? ([{ type: "text", text: outcome.content }, ...outcome.blocks] as unknown as ToolResult["content"])
+        : outcome.content
+      return { type: "tool_result", tool_use_id: use.id, content, ...(outcome.isError ? { is_error: true } : {}) }
     })
     // 一次回傳全部結果、放在同一則訊息裡（分開送會讓模型不再平行呼叫工具）
     turn.push({ role: "user", content: results })
@@ -239,6 +247,22 @@ async function runMock(p: RunParams): Promise<RunResult> {
     parts.push("相關的物件：")
     for (const o of objs.slice(0, 5)) parts.push(`- ${o.type}「${o.name}」⟦${o.cite}⟧`)
   }
+  // 附件：真的換一次（讀 R2、抽文字、檢查權限），把讀到什麼列出來 —— 示範模式也驗得到檔案這條路
+  const hydrated = await p.hydrate([p.user])
+  const blocks = Array.isArray(hydrated[0]?.content) ? (hydrated[0].content as unknown as Array<Record<string, unknown>>) : []
+  const files: string[] = []
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i]
+    const head = typeof b.text === "string" && b.text.startsWith("附件 ") ? b.text : ""
+    if (!head) continue
+    const next = blocks[i + 1] ?? {}
+    const source = (next.source ?? {}) as Record<string, unknown>
+    if (next.type === "image") files.push(`- ${head}：已讀取圖片（${Math.round(String(source.data ?? "").length * 0.75 / 1024)} KB）`)
+    else if (next.type === "document" && source.type === "base64") files.push(`- ${head}：已讀取 PDF（${Math.round(String(source.data ?? "").length * 0.75 / 1024)} KB）`)
+    else if (next.type === "document") files.push(`- ${head}：已抽出 ${String(source.data ?? "").length} 字，開頭是「${String(source.data ?? "").slice(0, 40).replace(/\s+/g, " ")}」`)
+    else files.push(`- ${head}`)
+  }
+  if (files.length) parts.push("附件：", ...files)
   const text = parts.join("\n")
   for (const chunk of text.match(/[\s\S]{1,40}/g) ?? []) {
     if (p.signal.aborted) break
