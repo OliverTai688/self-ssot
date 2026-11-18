@@ -13,7 +13,8 @@
 - **30 天清除**：Vercel Cron 每天 19:00 UTC 打 `/api/cron/journal-ai-purge`，沒有 `CRON_SECRET` 回 503、錯的回 401；`pnpm ops:ai:purge` 預設 dry run。
 - 只帶物件、沒打字按 Enter 也會送出（預設問題）。
 - Verification：`pnpm ops:journal-ai:check` **43/43**；`tsc` 0、eslint 0、generate PASS（778）、`pnpm build` PASS（兩條新路由）。拋棄式 DB：cron 無授權／錯授權 401、正確授權刪掉 31 天前的 1 個對話（訊息一起刪、剩 5 天前的）；日誌行釘選解析成功、格式錯的被丟；稽核列只有數量與花費；用量回傳正確。瀏覽器：選取兩行浮出「問 AI」並以真實點擊開新對話帶入兩行；送出後泡泡顯示行膠囊；「存進今天的日誌」寫進 11/18、閃一下、重新整理仍在、物件引用成為行上膠囊；物件彈窗「問 AI」帶入 PDF；只帶物件按 Enter 送出預設問題。
-- **待 Owner**：合併部署；Vercel 設 `CRON_SECRET`；`ANTHROPIC_API_KEY`（compaction 與真模型仍未實測）。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md)
+- 2026-11-18 Owner 指示合併，推上正式站 `23f1945cee`，部署成功、schema up to date；未登入打 AI 路由與用量 401；清除路由回 503 `not_configured`（`CRON_SECRET` 尚未設定，fail-closed 如設計）。
+- **待 Owner**：Vercel 設 `CRON_SECRET`；`ANTHROPIC_API_KEY`（compaction 與真模型仍未實測）。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md)
 
 
 ### JAI-S2 — 日誌 AI：附上檔案、讀日誌裡的檔案、PDF 引用帶頁碼、存進文件庫（UI-088 · RES-037 §14）

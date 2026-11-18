@@ -56,4 +56,4 @@
 
 ## Final Status
 
-`JAI-S3` DONE（分支 `claude/journal-ai`，未合併、未部署、無 migration）。下一步：Owner 決定合併部署、設定 `CRON_SECRET` 與 `ANTHROPIC_API_KEY`；`JAI-S4`（搜尋衍生表、分享對話、提案型工具）待 Owner 決定是否需要。
+`JAI-S3` DONE，2026-11-18 推上正式站（`23f1945cee`，部署成功、無 migration；AI 路由與用量未登入 401；清除路由回 503 `not_configured`）。下一步：Owner 設定 `CRON_SECRET` 與 `ANTHROPIC_API_KEY`；`JAI-S4`（搜尋衍生表、分享對話、提案型工具）待 Owner 決定是否需要。

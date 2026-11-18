@@ -2,9 +2,9 @@
 
 ## Owner-directed 日誌 AI 助理 S3 — 2026-11-18
 
-`JAI-S3` 完成於分支 `claude/journal-ai`（未合併、未部署、無 migration）：日誌選取多行浮出「問 AI」、物件彈窗「問 AI」、答案「存進今天的日誌」、本月用量顯示、每則回答一列稽核（只記數量與花費）、長對話 compaction、30 天清除（Vercel Cron＋`CRON_SECRET`）。
+`JAI-S3` 完成，2026-11-18 推上正式站（`23f1945cee`，無 migration）：日誌選取多行浮出「問 AI」、物件彈窗「問 AI」、答案「存進今天的日誌」、本月用量顯示、每則回答一列稽核（只記數量與花費）、長對話 compaction、30 天清除（Vercel Cron＋`CRON_SECRET`）。
 
-待 Owner：合併與部署；在 Vercel 設定 `CRON_SECRET`（沒設定時清除路由一律拒絕，不會刪任何東西）；`ANTHROPIC_API_KEY`。
+待 Owner：在 Vercel 設定 `CRON_SECRET`（正式站目前回 503 not_configured）（沒設定時清除路由一律拒絕，不會刪任何東西）；`ANTHROPIC_API_KEY`。
 
 ## Owner-directed 日誌 AI 助理 S2 — 2026-11-18
 
