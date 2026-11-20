@@ -10,7 +10,8 @@
 - **提案**：新工具 `propose_item`（議題／任務、標題、內容、負責人、到期、依據），工具不寫入；答案下出現可編輯的待確認卡，「建立」走 `agCreate` 在按的人今天的日誌誕生一張議題／任務卡，結果（物件 id、誰按的）記回答案；「不要」記為略過。
 - Migration `20261120090000_ai_team_share_proposals`：`operating_ai_sessions.agent／shared_at／shared_by_id`、`operating_ai_messages.author_id／author_key／proposals`，純新增。
 - Verification：`pnpm ops:journal-ai:check` **48/48**；`verify-asset-object` 73/73、`verify-object-index` 19/19、`verify-obj-refs` 44/44、`verify-agenda-object` 126/126；`tsc` 0、eslint 0、generate PASS（785）、`pnpm build` PASS；拋棄式 DB 套全部 migration。API：未開放助理被擋；提案回 pending 草稿；分享預覽列出私人日誌行、未確認拒絕、確認後成立並留稽核；共享後同一題查不到私人行。Lily：看得到共享對話、讀得到、接著問成功且只引用公司資料、她的私人行未進對話；改名／刪除／取消分享／預覽皆 404。兩個席位的模型歷史各自正確（自己原樣、對方文字）。瀏覽器：左側 AI 模組、兩個分頁、建立任務（負責人改 Lily、到期 11/25）誕生在今天日誌並記回 accepted、Lily 端看到共享群組與提問者標示。修正 AI 團隊表格文字溢出。
-- **待 Owner**：合併部署（套用 migration）；`ANTHROPIC_API_KEY`、`CRON_SECRET`。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md)
+- **部署**：已部署（2026-11-20，`76ad8f9f3e`；Vercel Production success；正式 DB migration `20261120090000_ai_team_share_proposals` 已套用，`migrate status` up to date；未登入探測 sessions／share／proposals／usage 401、cron 503）。
+- **待 Owner**：`ANTHROPIC_API_KEY`、`CRON_SECRET`。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md)
 
 
 ## 2026-11-18

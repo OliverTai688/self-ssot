@@ -4,9 +4,9 @@
 
 Owner 指示開始 `JAI-S4`，並要 AI 成為左側的模組、之後形成公司的 AI team（金流、專案）。Owner 回覆四題：分享後同事可接著問、提案限議題與任務、搜尋加速表延後、日誌「問 AI」分頁拿掉。設計 `RES-038`。
 
-完成於分支 `claude/journal-ai`（未合併、未部署）：左側「AI」模組（對話／AI 團隊）、共享對話、AI 草擬議題與任務由人建立。含 migration `20261120090000_ai_team_share_proposals`（純新增欄位）。
+完成並已部署（2026-11-20，`76ad8f9f3e`；Vercel Production success；正式 DB migration `20261120090000_ai_team_share_proposals` 已套用，`migrate status` up to date；未登入探測 sessions／share／proposals／usage 401、cron 503）：左側「AI」模組（對話／AI 團隊）、共享對話、AI 草擬議題與任務由人建立。含 migration `20261120090000_ai_team_share_proposals`（純新增欄位）。
 
-待 Owner：合併部署（會套用 migration）；`ANTHROPIC_API_KEY`、`CRON_SECRET`。
+待 Owner：`ANTHROPIC_API_KEY`、`CRON_SECRET`。
 
 ## Owner-directed 日誌 AI 助理 S3 — 2026-11-18
 

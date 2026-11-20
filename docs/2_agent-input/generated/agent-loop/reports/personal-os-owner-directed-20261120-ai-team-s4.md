@@ -13,7 +13,7 @@
 - Owner 四題（AskUserQuestion）：分享後同事可接著問；提案＝議題與任務；搜尋加速表延後；拿掉日誌分頁。
 - 新增：`RES-038`、migration `20261120090000_ai_team_share_proposals`、share／proposals 兩條路由。
 - 修改：schema、`operating-ai.service.ts`（可見性、分享、每人歷史、提案、助理）、`corpus.ts`／`corpus-loader.ts`（席位、company-only）、`tools.ts`（`propose_item`）、`runner.ts`（提案、系統提示）、sessions 路由（`agent`）、`journal-ai.source.js`／`.css`、生成物、檢查腳本、文件。
-- 未合併、未部署。
+- 已部署（2026-11-20，`76ad8f9f3e`；Vercel Production success；正式 DB migration `20261120090000_ai_team_share_proposals` 已套用，`migrate status` up to date；未登入探測 sessions／share／proposals／usage 401、cron 503）。
 
 ## Strategic Review
 
@@ -58,4 +58,4 @@
 
 ## Final Status
 
-`JAI-S4` DONE（分支 `claude/journal-ai`，未合併、未部署）。下一步：Owner 決定合併部署；之後的金流助理需先決定可讀帳本（RES-038 §7）。
+`JAI-S4` DONE，已部署（2026-11-20，`76ad8f9f3e`；Vercel Production success；正式 DB migration `20261120090000_ai_team_share_proposals` 已套用，`migrate status` up to date；未登入探測 sessions／share／proposals／usage 401、cron 503）。下一步：Owner 設定 `ANTHROPIC_API_KEY` 以真模型驗收提案；之後的金流助理需先決定可讀帳本（RES-038 §7）。
