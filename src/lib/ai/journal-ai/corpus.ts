@@ -40,6 +40,8 @@ export type ActivityEvent = { day: string; at: string; who: string; text: string
 
 export type JournalCorpus = {
   viewer: string
+  /** 公司的席位代號（yz、lily…）：提案的負責人只能是其中之一 */
+  seats: string[]
   lines: JournalLine[]
   /** day → 那一天的日誌標題（沒取標題的不在這裡） */
   dayTitles: Record<string, string>

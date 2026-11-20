@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
 
 import { createSession, listSessions } from "@/lib/services/operating-ai.service"
 import { aiHandleError, aiNoStore, isAiResponse, resolveAiActor } from "@/lib/services/operating-ai-route"
@@ -17,12 +17,14 @@ export async function GET() {
   }
 }
 
-/** 開一個新對話。標題等第一則訊息送出時自動取。 */
-export async function POST() {
+/** 開一個新對話（{ agent }：AI 團隊裡的哪一位，預設日誌助理）。標題等第一則訊息送出時自動取。 */
+export async function POST(request: NextRequest) {
   try {
     const actor = await resolveAiActor()
     if (isAiResponse(actor)) return actor
-    return NextResponse.json({ session: await createSession(actor) }, { status: 201, headers: aiNoStore })
+    const body = (await request.json().catch(() => null)) as { agent?: unknown } | null
+    const agent = typeof body?.agent === "string" ? body.agent : "journal"
+    return NextResponse.json({ session: await createSession(actor, agent) }, { status: 201, headers: aiNoStore })
   } catch (error) {
     return aiHandleError("POST sessions", error)
   }

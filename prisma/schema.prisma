@@ -2979,6 +2979,11 @@ model OperatingAiSession {
   archivedAt    DateTime? @map("archived_at")
   /// 建立當下的模型。換預設模型不影響舊對話（thinking 區塊綁模型，換模型會讓舊推理失效）
   model         String
+  /// 這個對話屬於 AI 團隊裡的哪一個助理（RES-038）：journal（日誌）；之後 cashflow、project
+  agent         String    @default("journal")
+  /// 分享給公司的時刻。null＝只有建立者看得到（RES-037 D3）；有值＝同事可讀、可接著問（RES-038 S4-1）
+  sharedAt      DateTime? @map("shared_at")
+  sharedById    String?   @map("shared_by_id") @db.Uuid
   lastMessageAt DateTime? @map("last_message_at")
   deletedAt     DateTime? @map("deleted_at")
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -2987,6 +2992,7 @@ model OperatingAiSession {
   messages OperatingAiMessage[]
 
   @@index([workspaceId, ownerId, lastMessageAt], map: "operating_ai_sessions_owner_idx")
+  @@index([workspaceId, sharedAt], map: "operating_ai_sessions_shared_idx")
   @@map("operating_ai_sessions")
 }
 
@@ -3004,6 +3010,9 @@ model OperatingAiMessage {
   seq        Int
   /// user | assistant
   role       String
+  /// 這一輪是誰問的（共享對話會有不同的人）。舊列為空＝對話建立者
+  authorId   String?  @map("author_id") @db.Uuid
+  authorKey  String?  @map("author_key")
   /// user：[{ type:'text' }…]；assistant：[{ role, content }]（一輪裡依序的 API 訊息）
   content    Json
   /// 使用者釘選的物件：[{ ty, rid }]
@@ -3016,6 +3025,8 @@ model OperatingAiMessage {
   text       String   @default("")
   /// 步驟列：[{ tool, label, hits }]
   steps      Json     @default("[]")
+  /// 這一則答案提出的草稿（RES-038 §5）：[{ id, kind, title, detail, owner, due, sources, status, rid, by, at }]
+  proposals  Json     @default("[]")
   /// streaming | done | stopped | error | refused
   status     String   @default("done")
   /// { input, output, cacheRead, cacheWrite, costMicroUsd, model, mock }

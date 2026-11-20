@@ -16,7 +16,7 @@ const JA = {
   sessions: null, loading: false, err: '', active: null, msgs: Object.create(null), loadingMsgs: '',
   draft: '', live: null, q: '', showArchived: false, renaming: '', drawer: false, sheet: false, poll: 0,
   /** 輸入框上的附件：{ k, name, status: uploading|ready|failed, refCode, assetId, err } */
-  files: [], saving: '',
+  files: [], saving: '', share: null,
   /** 從日誌選取帶進來、還沒送出的行：{ day, author, bid, text } */
   lines: [],
   /** 剛從日誌「問 AI」進來：開新對話，不要自動打開清單裡第一個 */
@@ -24,9 +24,13 @@ const JA = {
   usage: null
 };
 
-const jaWb = WB.find(x => x.id === 'journal');
-if (jaWb && !jaWb.tabs.includes('問 AI')) jaWb.tabs.push('問 AI');
-const JA_TAB = jaWb ? jaWb.tabs.indexOf('問 AI') : 3;
+/* AI 團隊是左側自己的模組（RES-038）：分頁「對話」與「AI 團隊」。放在訊號之後。 */
+I.bot ??= '<path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>';
+if (!WB.some(w => w.id === 'ai')) {
+  const at = WB.findIndex(w => w.id === 'signal');
+  WB.splice(at >= 0 ? at + 1 : WB.length, 0, { id: 'ai', nm: 'AI', ic: 'bot', scn: '問公司的 AI 團隊', rule: '', tabs: ['對話', 'AI 團隊'] });
+}
+const JA_TAB = 0;
 
 /* ---------- 伺服器 ---------- */
 
@@ -69,14 +73,14 @@ function jaPollSoon(id) {
   clearTimeout(JA.poll);
   JA.poll = setTimeout(() => { if (JA.active === id && jaOnPage()) jaLoadMsgs(id); }, 2000);
 }
-function jaOnPage() { return S.wb === 'journal' && S.tab === JA_TAB; }
+function jaOnPage() { return S.wb === 'ai' && S.tab === JA_TAB; }
 
 /* ---------- 對話清單 ---------- */
 
-async function jaNew() {
+async function jaNew(agent) {
   if (JA.live) return toast('上一則還在回答中');
   try {
-    const { session } = await jaFetch(JA_API, { method: 'POST' });
+    const { session } = await jaFetch(JA_API, { method: 'POST', body: JSON.stringify({ agent: agent || 'journal' }) });
     jaPatchSession(session);
     JA.active = session.id; JA.msgs[session.id] = []; JA.drawer = false;
     jaFocusSoon(); render();
@@ -282,6 +286,7 @@ function jaLineLabel(c) {
   return Number(d.slice(5, 7)) + '/' + d.slice(8, 10) + ' 日誌';
 }
 function jaCiteChip(c) {
+  if (c.kind === 'object' && !objFind(c.ty, c.rid)) return `<span class="ja-noacc" title="${esc(c.label || '')}">${svg('lock', 10)} 無法存取</span>`;
   if (c.kind === 'object') return objRefChip({ ty: c.ty, rid: c.rid }) + (c.page ? `<span class="ja-page" title="模型引用的是第 ${c.page} 頁">p.${c.page}</span>` : '');
   return `<button type="button" class="ja-cite" title="${esc(c.label || '')} · 點一下回到那一行" onclick="jaJumpLine('${esc(c.day)}','${esc(c.author)}','${esc(c.blockId)}')">${svg('journal', 11)}<span>${esc(jaLineLabel(c))}</span><span class="ja-cite-l">${esc(String(c.label || '').replace(/^.*·\s*/, ''))}</span></button>`;
 }
@@ -314,11 +319,12 @@ function jaSteps(steps, open) {
 const JA_STATUS = { stopped: '已停止', error: '沒有完成', refused: '這一題模型沒有回答', streaming: '還在回答中…', stopping: '停止中…' };
 function jaMsgHtml(m, i) {
   if (m.role === 'user') {
-    return `<div class="ja-msg ja-u"><div class="ja-bubble">${esc(m.text).replace(/\n/g, '<br>')}${jaPinChips(m.pins)}${jaSaveRow(m.pins)}</div></div>`;
+    const who = m.authorKey && m.authorKey !== DB.me ? `<div class="ja-who">${esc(person(m.authorKey) || m.authorKey)}</div>` : '';
+    return `<div class="ja-msg ja-u">${who}<div class="ja-bubble">${esc(m.text).replace(/\n/g, '<br>')}${jaPinChips(m.pins)}${jaSaveRow(m.pins)}</div></div>`;
   }
   const busy = m.status === 'streaming' || m.status === 'stopping';
   const st = m.status !== 'done' ? `<div class="ja-st ${m.status === 'error' || m.status === 'refused' ? 'bad' : ''}">${svg(busy ? 'clock' : 'warn', 12)} ${esc(JA_STATUS[m.status] || m.status)}${m.error ? '：' + esc(m.error) : ''}</div>` : '';
-  return `<div class="ja-msg ja-a">${jaSteps(m.steps)}${m.text ? `<div class="ja-ans">${jaAnswerHtml(m)}</div>` : ''}${st}
+  return `<div class="ja-msg ja-a">${jaSteps(m.steps)}${m.text ? `<div class="ja-ans">${jaAnswerHtml(m)}</div>` : ''}${jaProposals(m, i)}${st}
     ${m.text && !busy ? `<div class="ja-acts">${m.mock ? '<span class="chip c-w">示範模式</span>' : ''}<button class="btn sm" onclick="jaCopy(${i})">${svg('copy', 12)} 複製</button><button class="btn sm" onclick="jaToJournal(${i})">${svg('journal', 12)} 存進今天的日誌</button></div>` : ''}</div>`;
 }
 function jaLiveInner(live) {
@@ -338,12 +344,12 @@ function jaGroupOf(s) {
 }
 function jaSessionGroups() {
   const q = JA.q.trim().toLowerCase();
-  const list = (JA.sessions || []).filter(s => (JA.showArchived ? s.archived : !s.archived) && (!q || s.title.toLowerCase().includes(q)));
+  const list = (JA.sessions || []).filter(s => (!s.isOwner ? !JA.showArchived : JA.showArchived ? s.archived : !s.archived) && (!q || s.title.toLowerCase().includes(q)));
   if (!list.length) return `<div class="ja-empty-l">${JA.sessions === null ? '讀取中…' : q ? '沒有符合的對話' : JA.showArchived ? '沒有封存的對話' : '還沒有對話'}</div>`;
-  const names = ['釘選', '今天', '這週', '更早'];
-  const groups = [[], [], [], []];
-  list.forEach(s => groups[JA.showArchived ? 3 : jaGroupOf(s)].push(s));
-  return groups.map((g, gi) => g.length ? `<div class="ja-g">${JA.showArchived ? '封存' : names[gi]}</div>` + g.map(jaSessionRow).join('') : '').join('');
+  const names = ['釘選', '今天', '這週', '更早', '同事分享的'];
+  const groups = [[], [], [], [], []];
+  list.forEach(s => groups[!s.isOwner ? 4 : JA.showArchived ? 3 : jaGroupOf(s)].push(s));
+  return groups.map((g, gi) => g.length ? `<div class="ja-g">${JA.showArchived && gi < 4 ? '封存' : names[gi]}</div>` + g.map(jaSessionRow).join('') : '').join('');
 }
 function jaSessionRow(s) {
   const on = s.id === JA.active;
@@ -351,13 +357,13 @@ function jaSessionRow(s) {
     return `<div class="ja-s on"><input id="jaRename" class="ja-rn" value="${esc(s.title)}" aria-label="對話名稱" onkeydown="jaRenameKey(event,'${s.id}')" onblur="jaRenameDone('${s.id}',this.value)"></div>`;
   }
   return `<div class="ja-s ${on ? 'on' : ''}">
-    <button class="ja-s-t" onclick="jaOpen('${s.id}')" ondblclick="jaStartRename('${s.id}')" title="${esc(s.title)}">${s.pinned ? svg('star', 11) : ''}<span>${esc(s.title)}</span></button>
-    <span class="ja-s-a">
+    <button class="ja-s-t" onclick="jaOpen('${s.id}')" ${s.isOwner ? `ondblclick="jaStartRename('${s.id}')"` : ''} title="${esc(s.title)}">${s.pinned ? svg('star', 11) : ''}${s.shared ? svg('layers', 11) : ''}<span>${esc(s.title)}</span>${s.isOwner ? '' : `<i class="ja-s-by">${esc(person(s.ownerKey) || s.ownerKey)}</i>`}</button>
+    ${s.isOwner ? `<span class="ja-s-a">
       <button aria-label="改名" title="改名" onclick="jaStartRename('${s.id}')">${svg('pen', 11)}</button>
       <button aria-label="${s.pinned ? '取消釘選' : '釘選'}" title="${s.pinned ? '取消釘選' : '釘選'}" onclick="jaTogglePin('${s.id}')">${svg('star', 11)}</button>
       <button aria-label="${s.archived ? '取消封存' : '封存'}" title="${s.archived ? '取消封存' : '封存'}" onclick="jaToggleArchive('${s.id}')">${svg(s.archived ? 'undo' : 'inbox', 11)}</button>
       <button aria-label="刪除" title="刪除" onclick="jaDelete('${s.id}')">${svg('trash', 11)}</button>
-    </span></div>`;
+    </span>` : ''}</div>`;
 }
 
 /** 起手問題：從現有的資料挑，不寫死。 */
@@ -391,7 +397,7 @@ function jaSources(msgs) {
   return (pins.length ? sec('釘選的物件與日誌行', pins.length, jaPinChips(pins)) : '')
     + sec('本次讀過的日誌', lines.length, lines.slice(0, 40).map(row).join('') || '<div class="ja-empty-l">還沒有</div>')
     + sec('本次讀過的物件', objs.length, objs.slice(0, 40).map(row).join('') || '<div class="ja-empty-l">還沒有</div>')
-    + `<div class="ja-sent">${svg('lock', 11)} 這個對話送出了 ${reads.length} 項資料、約 ${wan}。只有你看得到這個對話；薪資與銀行對帳不會送出。</div>`;
+    + `<div class="ja-sent">${svg('lock', 11)} 這個對話送出了 ${reads.length} 項資料、約 ${wan}。${jaShared() ? '這是共享對話：公司成員都看得到，新的提問只用公司看得到的資料。' : '只有你看得到這個對話。'}薪資與銀行對帳不會送出。</div>`;
 }
 
 function jaComposer() {
@@ -429,9 +435,13 @@ function jaView() {
     <section class="ja-main" ondragover="jaDragOver(event)" ondrop="jaDrop(event)">
       <div class="ja-head">
         <button class="btn sm ja-mob" aria-label="對話清單" onclick="jaToggleDrawer()">${svg('list', 12)}</button>
-        <b title="${esc(s ? s.title : '新對話')}">${esc(s ? s.title : '新對話')}</b><span class="sp"></span>
+        <span class="ja-agent">${svg('bot', 12)} 日誌助理</span>
+        <b title="${esc(s ? s.title : '新對話')}">${esc(s ? s.title : '新對話')}</b>
+        ${s && s.shared ? `<span class="chip c-i">共享${s.isOwner ? '' : ' · ' + esc(person(s.ownerKey) || s.ownerKey) + ' 建立'}</span>` : ''}<span class="sp"></span>
+        ${s && s.isOwner && (JA.msgs[s.id] || []).length ? `<button class="btn sm" onclick="jaShareOpen()">${svg('layers', 12)} ${s.shared ? '共享中' : '分享'}</button>` : ''}
         <button class="btn sm ja-mob" onclick="jaToggleSheet()">${svg('layers', 12)} 看過的資料</button>
       </div>
+      ${jaSharePanel(s)}
       <div class="ja-thread" id="jaThread">${JA.loadingMsgs === JA.active && !msgs.length ? '<div class="ja-empty-l">讀取中…</div>' : thread}</div>
       ${jaComposer()}
     </section>
@@ -503,7 +513,8 @@ async function jaUpload(raw) {
     if (verdict.kind === 'audio' || verdict.kind === 'video') throw new Error('影音檔 AI 還讀不了');
     const cap = JA_LIMIT[verdict.kind];
     if (cap && file.size > cap) throw new Error((verdict.kind === 'pdf' ? 'PDF 超過 20MB' : '圖片超過 5MB') + '，請拆小再傳');
-    const signed = await presignUpload(file, { origin: 'ai', space: 'personal', bornDay: TODAY });
+    const space = jaShared() ? 'team' : 'personal';
+    const signed = await presignUpload(file, { origin: 'ai', space, bornDay: TODAY });
     item.assetId = signed.assetId; item.refCode = signed.refCode;
     try {
       const typed = signed.contentType && signed.contentType !== file.type ? new File([file], file.name, { type: signed.contentType }) : file;
@@ -516,7 +527,7 @@ async function jaUpload(raw) {
     // 讓膠囊、@ 選單、物件彈窗都認得這個檔案（與日誌上傳同一個形狀）
     DB.assets.push({
       id: signed.refCode, assetId: signed.assetId, name: file.name, kind: signed.kind || verdict.kind, bytes: file.size,
-      mime: signed.contentType || file.type || '', objectKey: signed.objectKey, status: 'ready', space: 'personal', origin: 'ai',
+      mime: signed.contentType || file.type || '', objectKey: signed.objectKey, status: 'ready', space, origin: 'ai',
       author: DB.me, day: TODAY, bornAt: Date.now(), text: ''
     });
     item.status = 'ready';
@@ -573,6 +584,135 @@ async function jaSaveLib(rid, space) {
   } catch (e) { toast(esc(e.message)); render(); }
 }
 
+/* ---------- 共享對話（RES-038 §4）---------- */
+
+function jaShared() { const s = jaSession(JA.active); return !!(s && s.shared); }
+
+async function jaShareOpen() {
+  const s = jaSession(JA.active);
+  if (!s || !s.isOwner) return;
+  JA.share = { sid: s.id, loading: true, items: [], err: '' };
+  render();
+  try {
+    const data = await jaFetch(JA_API + '/' + encodeURIComponent(s.id) + '/share');
+    JA.share = { sid: s.id, loading: false, items: data.privateItems || [], err: '' };
+  } catch (e) { JA.share = { sid: s.id, loading: false, items: [], err: e.message }; }
+  render();
+}
+function jaShareClose() { JA.share = null; render(); }
+async function jaShareSet(on) {
+  const s = jaSession(JA.active);
+  if (!s) return;
+  try {
+    const { session } = await jaFetch(JA_API + '/' + encodeURIComponent(s.id) + '/share', { method: 'POST', body: JSON.stringify({ shared: on, confirm: true }) });
+    jaPatchSession(session);
+    JA.share = null;
+    toast(on ? '已分享給公司：同事可以讀，也可以接著問' : '已取消分享');
+  } catch (e) { toast(esc(e.message)); }
+  render();
+}
+function jaSharePanel(s) {
+  const sh = JA.share;
+  if (!s || !sh || sh.sid !== s.id) return '';
+  if (sh.loading) return '<div class="ja-share"><div class="ja-empty-l">檢查這個對話用過的資料…</div></div>';
+  if (s.shared) {
+    return `<div class="ja-share"><b>這個對話已分享給公司</b><div class="sg-meta">同事可以讀、可以接著問。取消分享後他們就看不到了。</div>
+      <div class="ja-share-a"><button class="btn sm" onclick="jaShareClose()">關閉</button><button class="btn sm" onclick="jaShareSet(false)">取消分享</button></div></div>`;
+  }
+  const list = sh.items.length
+    ? `<div class="sg-meta">這些是同事原本看不到的資料。它們的內容可能已經出現在答案裡，分享後同事會看到：</div><ul class="ja-share-l">${sh.items.slice(0, 30).map(x => `<li>${svg('lock', 10)} ${esc(x.label)}</li>`).join('')}</ul>`
+    : '<div class="sg-meta">這個對話沒有用到你的私人資料。</div>';
+  return `<div class="ja-share"><b>分享給公司</b>${sh.err ? `<div class="sg-warn">${esc(sh.err)}</div>` : list}
+    <div class="sg-meta">分享後同事可以讀、可以接著問；之後的新提問只用公司看得到的資料。</div>
+    <div class="ja-share-a"><button class="btn sm" onclick="jaShareClose()">取消</button><button class="btn sm pri" onclick="jaShareSet(true)">${sh.items.length ? '我確認，分享' : '分享'}</button></div></div>`;
+}
+
+/* ---------- 提案（RES-038 §5）：AI 草擬，人改完按「建立」---------- */
+
+function jaProposals(m, i) {
+  const list = m.proposals || [];
+  if (!list.length) return '';
+  const seats = Object.keys(DB.people || {});
+  return list.map(p => {
+    const what = p.kind === 'task' ? '任務' : '議題';
+    if (p.status === 'accepted') {
+      return `<div class="ja-prop done">${svg('check', 12)} 已建立${what}${p.rid && objFind('doc_object', p.rid) ? objRefChip({ ty: 'doc_object', rid: p.rid }) : '「' + esc(p.title) + '」'}${p.by && p.by !== DB.me ? `<span class="sg-meta">（${esc(person(p.by) || p.by)}）</span>` : ''}</div>`;
+    }
+    if (p.status === 'dismissed') return `<div class="ja-prop done">${svg('x', 12)} 略過了${what}「${esc(p.title)}」</div>`;
+    const k = m.id + '|' + p.id;
+    return `<div class="ja-prop" data-prop="${esc(k)}">
+      <div class="ja-prop-h"><span class="chip ${p.kind === 'task' ? 'c-o' : 'c-i'}">待確認 · ${what}</span><span class="sg-meta">AI 草擬的，還沒有建立</span></div>
+      <input class="ja-prop-t" data-f="title" aria-label="標題" value="${esc(p.title)}">
+      <div class="ja-prop-r">
+        ${p.kind === 'task' ? `<label>負責<select data-f="owner">${seats.map(x => `<option value="${esc(x)}" ${x === (p.owner || DB.me) ? 'selected' : ''}>${esc(person(x) || x)}</option>`).join('')}</select></label>` : ''}
+        <label>到期<input type="date" data-f="due" value="${esc(p.due || '')}"></label>
+      </div>
+      <textarea data-f="detail" rows="2" aria-label="內容" placeholder="補充內容（選填）">${esc(p.detail || '')}</textarea>
+      <div class="ja-prop-a"><button class="btn sm" onclick="jaPropSettle(${i},'${esc(p.id)}',false)">不要</button><button class="btn sm pri" onclick="jaPropSettle(${i},'${esc(p.id)}',true)">${svg('check', 12)} 建立${what}</button></div>
+    </div>`;
+  }).join('');
+}
+
+async function jaPropRecord(sid, mid, pid, status, rid) {
+  const data = await jaFetch(JA_API + '/' + encodeURIComponent(sid) + '/proposals', { method: 'POST', body: JSON.stringify({ messageId: mid, proposalId: pid, status, ...(rid ? { rid } : {}) }) });
+  const list = JA.msgs[sid] || [], at = list.findIndex(x => x.id === mid);
+  if (at >= 0) list[at] = data.message;
+}
+
+/**
+ * 建立：走既有的議題／任務流程（agCreate），在按的人今天的日誌誕生一張卡 —— 與手動 `!任務` 建出來的一樣。
+ * 先記下結果再跳到日誌；記錄失敗不擋建立（物件已經在日誌裡了），只提示。
+ */
+async function jaPropSettle(i, pid, accept) {
+  const sid = JA.active, m = (JA.msgs[sid] || [])[i];
+  const p = m && (m.proposals || []).find(x => x.id === pid);
+  if (!p || p.status !== 'pending') return;
+  if (!accept) {
+    try { await jaPropRecord(sid, m.id, pid, 'dismissed'); } catch (e) { toast(esc(e.message)); }
+    return render();
+  }
+  const card = root.querySelector('[data-prop="' + m.id + '|' + pid + '"]');
+  const val = f => { const el = card && card.querySelector('[data-f="' + f + '"]'); return el ? String(el.value || '').trim() : ''; };
+  const title = val('title') || p.title, detail = val('detail'), due = val('due'), owner = p.kind === 'task' ? (val('owner') || DB.me) : '';
+  if (!title) return toast('先寫標題');
+  saveJournalDraft();
+  S.wb = 'journal'; S.tab = 0; S.jday = TODAY;
+  if (!canWriteJournal()) { render(); return toast('現在看的不是你的日誌，切回自己的日誌再建立'); }
+  const arr = currentJournal().blocks;
+  const last = arr[arr.length - 1];
+  if (last && TEXTY(last.t) && !String(last.text || '').trim() && !(last.refs && last.refs.length)) arr.pop();
+  const head = { id: newBid(), t: 'p', ind: 0, text: title };
+  arr.push(head);
+  detail.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20).forEach(line => arr.push({ id: newBid(), t: 'p', ind: 1, text: line }));
+  const d = agCreate(head, p.kind === 'task' ? { owner, ...(due ? { due } : {}) } : (due ? { due } : {}));
+  if (!d) return render();
+  try { await jaPropRecord(sid, m.id, pid, 'accepted', d.id); }
+  catch (e) { toast('已建立，但沒有記回對話：' + esc(e.message)); }
+}
+
+/* ---------- AI 團隊分頁 ---------- */
+
+const JA_TEAM = [
+  { id: 'journal', nm: '日誌助理', reads: '日誌、日誌誕生的物件（議題、任務、會議紀錄…）、專案、決策、交易、檔案與連結', does: '回答與引用、讀檔案、草擬議題與任務', live: true },
+  { id: 'cashflow', nm: '金流助理', reads: '帳本、合約與期款、現金推演', does: '對帳與異常提醒、預算比對', live: false },
+  { id: 'project', nm: '專案助理', reads: '專案、階段與里程碑、工作、專案檔案', does: '進度整理、風險與延誤、草擬工作', live: false }
+];
+function jaTeamView() {
+  if (OP_LIVE && !JA.usage) jaLoadUsage();
+  const mode = JA.usage && JA.usage.provider === 'anthropic' ? '運作中' : '示範模式';
+  const count = (JA.sessions || []).filter(s => s.agent === 'journal' || !s.agent).length;
+  const rows = JA_TEAM.map(a => `<tr>
+      <td><b>${svg('bot', 12)} ${esc(a.nm)}</b></td>
+      <td>${a.live ? `<span class="chip ${mode === '運作中' ? 'c-o' : 'c-w'}">${mode}</span>` : '<span class="chip c-n">規劃中</span>'}</td>
+      <td class="ja-team-t">${esc(a.reads)}</td>
+      <td class="ja-team-t">${esc(a.does)}</td>
+      <td>${a.live ? `${count} 個對話` : '—'}</td>
+      <td>${a.live ? `<button class="btn sm pri" onclick="jaNewWith('${a.id}')">${svg('plus', 12)} 新對話</button>` : ''}</td></tr>`).join('');
+  return panel('AI 團隊', '每位助理只讀得到你看得到的資料，只能提案、不能自己寫入', `<div class="sg-scroll"><table class="tbl ja-team"><thead><tr><th>助理</th><th>狀態</th><th>讀得到</th><th>會做的事</th><th>對話</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`, '', true)
+    + (JA.usage ? panel('本月用量', JA.usage.month, jaUsageHtml()) : '');
+}
+function jaNewWith(agent) { nav('ai', JA_TAB); jaNew(agent); }
+
 /* ---------- 從日誌與物件「問 AI」（JAI-S3）---------- */
 
 function jaDayLabel(day) { return Number(String(day).slice(5, 7)) + '/' + String(day).slice(8, 10); }
@@ -594,7 +734,8 @@ function jaPinChips(pins) {
     const l = jaLinePin(p), t = jaLineText(l);
     return `<button type="button" class="ja-cite" title="回到那一行" onclick="jaJumpLine('${esc(l.day)}','${esc(l.author)}','${esc(l.bid)}')">${svg('journal', 11)}<span>${esc(jaDayLabel(l.day))} 日誌</span>${t ? `<span class="ja-cite-l">${esc(t)}</span>` : ''}</button>`;
   }).join('');
-  return (chips ? `<div class="obj-refs">${chips}</div>` : '') + (objs.length ? orChips(objs) : '');
+  const objChips = objs.map(o => objFind(o.ty, o.rid) ? objRefChip(o) : `<span class="ja-noacc">${svg('lock', 10)} 無法存取</span>`).join('');
+  return (chips || objChips ? `<div class="obj-refs">${chips}${objChips}</div>` : '');
 }
 
 /** 帶著一些行或物件開一個新對話。 */
@@ -606,8 +747,8 @@ function jaAsk(lines, objs) {
   if (objs && objs.length) orRefs.set(JA_KEY, objs.slice(0, 10).map(o => ({ ty: o.ty, rid: o.rid })));
   JA_SEL.ids = [];
   jaPaintSelAsk();
-  S.wb = 'journal'; S.tab = JA_TAB;
-  jaFocusSoon(); render();
+  jaFocusSoon();
+  nav('ai', JA_TAB);
 }
 function jaAskObj(ty, rid) { objPeekClose(); jaAsk([], [{ ty, rid }]); }
 
@@ -725,11 +866,7 @@ function jaUsageHtml() {
     <div class="ja-usage-s">你用了 US$${u.mineUsd.toFixed(2)}（${u.mineAnswers} 則）</div>${seats}</div>`;
 }
 
-const jaBaseJournalView = VIEWS.journal;
-VIEWS.journal = function (tab) {
-  if (tab !== JA_TAB) return jaBaseJournalView(tab);
-  return jaView();
-};
+VIEWS.ai = tab => (tab === 1 ? jaTeamView() : jaView());
 
 /* 從背景分頁回來：還在跑的那一則改用輪詢接回來。 */
 document.addEventListener('visibilitychange', () => {

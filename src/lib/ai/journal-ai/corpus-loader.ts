@@ -53,13 +53,22 @@ function docObjectText(d: Row): string {
 
 const DOC_SUBTYPE_LABEL: Record<string, string> = { agenda: "議題", meeting: "會議紀錄", interview: "訪談稿", standup: "Standup", review: "回顧" }
 
-export async function loadJournalCorpus(params: { workspaceId: string; viewerProfileId: string; viewerKey: string }): Promise<JournalCorpus> {
-  const { workspaceId, viewerProfileId, viewerKey } = params
+/**
+ * companyOnly：共享對話（RES-038 §4）。只用公司看得到的資料 —— 不含任何人的私人日誌、私人檔案、私人連結，
+ * 連提問者自己的也不含，否則他的私人資料會出現在大家都看得到的答案裡。
+ */
+export async function loadJournalCorpus(params: {
+  workspaceId: string
+  viewerProfileId: string
+  viewerKey: string
+  companyOnly?: boolean
+}): Promise<JournalCorpus> {
+  const { workspaceId, viewerProfileId, viewerKey, companyOnly } = params
   const seats = getYuanzhanSeats()
   const [store, journalRows, profiles] = await Promise.all([
     loadOperatingStore(workspaceId, viewerProfileId),
     db.operatingJournalEntry.findMany({
-      where: { workspaceId, OR: [{ visibility: "company" }, { authorId: viewerProfileId }] },
+      where: companyOnly ? { workspaceId, visibility: "company" } : { workspaceId, OR: [{ visibility: "company" }, { authorId: viewerProfileId }] },
       orderBy: { onDate: "asc" },
     }),
     db.profile.findMany({ where: { email: { in: seats.map((s) => s.email) } }, select: { id: true, email: true } }),
@@ -107,10 +116,10 @@ export async function loadJournalCorpus(params: { workspaceId: string; viewerPro
   for (const x of list(store, "projects")) add("project", str(x.id), str(x.t), "", flattenObject(x))
   for (const x of list(store, "decisions")) add("decision", str(x.id), str(x.t), str(x.d), flattenObject(x))
   for (const x of list(store, "txns")) add("txn", str(x.id), str(x.t), str(x.d), flattenObject(x))
-  for (const x of list(store, "assets")) add("asset", str(x.id), str(x.name), str(x.day), [str(x.name), `kind: ${str(x.kind)}`, str(x.text)].filter(Boolean).join("\n"))
-  for (const x of list(store, "links")) add("link", str(x.id), str(x.title), str(x.day), [str(x.title), str(x.url), str(x.note)].filter(Boolean).join("\n"))
+  for (const x of list(store, "assets")) if (!companyOnly || str(x.space) === "team") add("asset", str(x.id), str(x.name), str(x.day), [str(x.name), `kind: ${str(x.kind)}`, str(x.text)].filter(Boolean).join("\n"))
+  for (const x of list(store, "links")) if (!companyOnly || str(x.space) === "team") add("link", str(x.id), str(x.title), str(x.day), [str(x.title), str(x.url), str(x.note)].filter(Boolean).join("\n"))
 
   const activity: ActivityEvent[] = list(store, "dayLogs").map((e) => ({ day: str(e.day), at: str(e.t), who: str(e.w), text: str(e.text) }))
 
-  return { viewer: viewerKey, lines, dayTitles, objects, activity }
+  return { viewer: viewerKey, seats: seats.map((s) => s.actor), lines, dayTitles, objects, activity }
 }

@@ -1,5 +1,18 @@
 # Completed Log
 
+## 2026-11-20
+
+### JAI-S4 — AI 團隊模組：左側獨立模組、共享對話、AI 草擬議題與任務（UI-088 · RES-038）
+
+- Owner：「AI 是左邊的其中一個模組……之後還有金流、專案，會形成公司的 AI team」，並回覆四題（分享後可接著問、提案限議題與任務、搜尋加速表延後、拿掉日誌分頁）。
+- **左側「AI」模組**（訊號之後）：分頁「對話」（原三欄）與「AI 團隊」（日誌助理運作中／示範模式，金流、專案助理規劃中；讀得到什麼、會做什麼、對話數、本月用量）。日誌的「問 AI」分頁移除；日誌選取與物件彈窗的「問 AI」改跳到模組。對話記錄它屬於哪個助理（`agent`），沒開放的助理建不了對話。
+- **共享對話**：建立者分享前看到「同事原本看不到的資料」清單（自己的私人日誌行、私人檔案、私人連結），確認才分享；稽核留一列（有私人資料時風險標 medium）。同事可讀、可接著問、可停止；改名、釘選、封存、刪除、分享只有建立者。**共享後的新提問只用公司看得到的資料**（任何人的私人資料都不進），共享對話裡的附件為團隊可見。每個人送給模型的歷史：自己問的原樣、別人問的只有問題與答案文字（引用換成名稱）；允許引用的集合只算自己讀過的。
+- **提案**：新工具 `propose_item`（議題／任務、標題、內容、負責人、到期、依據），工具不寫入；答案下出現可編輯的待確認卡，「建立」走 `agCreate` 在按的人今天的日誌誕生一張議題／任務卡，結果（物件 id、誰按的）記回答案；「不要」記為略過。
+- Migration `20261120090000_ai_team_share_proposals`：`operating_ai_sessions.agent／shared_at／shared_by_id`、`operating_ai_messages.author_id／author_key／proposals`，純新增。
+- Verification：`pnpm ops:journal-ai:check` **48/48**；`verify-asset-object` 73/73、`verify-object-index` 19/19、`verify-obj-refs` 44/44、`verify-agenda-object` 126/126；`tsc` 0、eslint 0、generate PASS（785）、`pnpm build` PASS；拋棄式 DB 套全部 migration。API：未開放助理被擋；提案回 pending 草稿；分享預覽列出私人日誌行、未確認拒絕、確認後成立並留稽核；共享後同一題查不到私人行。Lily：看得到共享對話、讀得到、接著問成功且只引用公司資料、她的私人行未進對話；改名／刪除／取消分享／預覽皆 404。兩個席位的模型歷史各自正確（自己原樣、對方文字）。瀏覽器：左側 AI 模組、兩個分頁、建立任務（負責人改 Lily、到期 11/25）誕生在今天日誌並記回 accepted、Lily 端看到共享群組與提問者標示。修正 AI 團隊表格文字溢出。
+- **待 Owner**：合併部署（套用 migration）；`ANTHROPIC_API_KEY`、`CRON_SECRET`。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md)
+
+
 ## 2026-11-18
 
 ### JAI-S3 — 日誌 AI：從日誌與物件問 AI、答案存進日誌、用量與稽核、compaction、30 天清除（UI-088 · RES-037 §15）

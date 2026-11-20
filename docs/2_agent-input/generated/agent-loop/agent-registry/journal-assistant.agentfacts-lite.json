@@ -8,7 +8,7 @@
     "agent_name": "urn:agent:personal-os:JournalAssistant",
     "label": "JournalAssistant",
     "description": "Answers a seat's questions about the company journal, objects and files, using read-only search tools scoped to what that seat can already see. Every factual sentence carries a server-verified citation.",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "provider": {
       "name": "Anthropic (Claude API)",
       "url": "https://platform.claude.com",
@@ -19,7 +19,8 @@
     "lifecycle": {
       "status": "prototype",
       "ownerModule": "company/operating · journal",
-      "sourceOfTruth": "docs/07_research-and-design/RES-037_journal-ai-assistant-multi-session-research.md"
+      "sourceOfTruth": "docs/07_research-and-design/RES-038_ai-team-module-sharing-and-proposals.md",
+      "team": "Yuanzhan AI team (journal live; cashflow, project planned)"
     },
     "endpoints": {
       "internal": [
@@ -28,7 +29,9 @@
         "GET|POST(SSE) /api/company/operating/ai/sessions/[id]/messages",
         "POST /api/company/operating/ai/sessions/[id]/stop",
         "GET /api/company/operating/ai/usage",
-        "GET /api/cron/journal-ai-purge (CRON_SECRET)"
+        "GET /api/cron/journal-ai-purge (CRON_SECRET)",
+        "GET|POST /api/company/operating/ai/sessions/[id]/share",
+        "POST /api/company/operating/ai/sessions/[id]/proposals"
       ],
       "external": []
     },
@@ -45,6 +48,15 @@
           "journal (read)",
           "objects (read)",
           "files: images, PDF, office and text content (read, re-authorized on every send)"
+        ]
+      },
+      {
+        "id": "draft-agenda-or-task",
+        "description": "Draft an agenda item or task; a person edits and confirms before it is created in their journal.",
+        "riskLevel": "LOW",
+        "requiresHumanApproval": true,
+        "allowedTargetModules": [
+          "journal agenda/task objects (via human confirmation)"
         ]
       }
     ],
@@ -72,13 +84,17 @@
       {
         "id": "read_file",
         "source": "src/lib/ai/journal-ai/tools.ts"
+      },
+      {
+        "id": "propose_item",
+        "source": "src/lib/ai/journal-ai/tools.ts"
       }
     ],
     "auth": {
       "methods": [
         "requireUser()",
         "Yuanzhan seat",
-        "session owner (workspaceId + ownerId)"
+        "session owner, or any seat when the owner has shared it"
       ],
       "requiredScopes": [
         "operating seat"
@@ -86,7 +102,7 @@
     },
     "trust": {
       "approvalLevel": "READ_ONLY",
-      "dataVisibilityLevel": "viewer-scoped: loadOperatingStore(workspaceId, viewerProfileId) + journal company-or-own; payroll, bank, reimbursements and intake excluded",
+      "dataVisibilityLevel": "viewer-scoped: loadOperatingStore(workspaceId, viewerProfileId) + journal company-or-own; payroll, bank, reimbursements and intake excluded; shared conversations use company-visible data only",
       "boundaryPolicy": "docs/07_research-and-design/RES-037_journal-ai-assistant-multi-session-research.md#7-風險與邊界",
       "blockedActions": [
         "any write",
@@ -98,16 +114,18 @@
         "scripts/check-journal-ai.mts (43/43)",
         "disposable-DB cross-seat proof 2026-11-16",
         "disposable-DB + R2 attachment proof 2026-11-18",
-        "disposable-DB purge/audit/usage proof 2026-11-18"
+        "disposable-DB purge/audit/usage proof 2026-11-18",
+        "disposable-DB two-seat sharing/proposal proof 2026-11-20"
       ]
     },
     "observability": {
       "evidenceReports": [
         "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md",
         "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md",
-        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md"
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md",
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md"
       ],
-      "lastVerification": "2026-11-18",
+      "lastVerification": "2026-11-20",
       "telemetryClaims": [
         "per-message sentRefs (what was sent to the model)",
         "per-message usage and cost estimate",

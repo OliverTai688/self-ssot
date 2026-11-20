@@ -8,15 +8,18 @@ import { db } from "@/lib/db"
 import { verifyCitations, type Citation } from "@/lib/ai/journal-ai/citations"
 import { hydrateMessages, newHydrateContext } from "@/lib/ai/journal-ai/attachments"
 import { loadJournalCorpus } from "@/lib/ai/journal-ai/corpus-loader"
-import { journalAiModel, runJournalAiTurn, type MessageParam, type RunEvent } from "@/lib/ai/journal-ai/runner"
+import { journalAiModel, journalAiProvider, runJournalAiTurn, type MessageParam, type RunEvent } from "@/lib/ai/journal-ai/runner"
 import { citeLabels, resolvePins, type SentRef, type ToolStep } from "@/lib/ai/journal-ai/tools"
 
 /**
- * 日誌 AI 的對話（RES-037 · JAI-S1）。
+ * AI 團隊的對話（RES-037 · RES-038）。
  *
- * 權限只有一條：對話屬於建立它的人（D3）。workspace 內的其他人、包括負責人席位，都讀不到別人的對話 ——
- * 對話裡會出現提問者自己的私人日誌與私人檔案，給別人看等於繞過那些資料的可見性。
- * 所以每個入口都用 (sessionId, workspaceId, ownerId) 三個條件一起查，查不到一律當作不存在。
+ * 權限：
+ *   - 沒分享的對話只屬於建立者（D3）：每個入口都用 (sessionId, workspaceId, ownerId) 一起查，查不到一律當作不存在。
+ *   - 分享後（RES-038 S4-1）同事可以讀、可以接著問；改名、釘選、封存、刪除、分享／取消分享仍只有建立者能做。
+ *   - 共享對話裡的新提問只用「公司看得到的資料」（不含任何人的私人日誌、私人檔案、私人連結），
+ *     否則同事接著問時，他的私人資料會出現在大家都看得到的答案裡。
+ *   - 每個人送給模型的歷史：自己問的那幾輪原樣、別人問的那幾輪只有問題與答案的文字（見 historyFor）。
  */
 
 export type AiActor = { profileId: string; seatKey: string; workspaceId: string }
@@ -33,6 +36,24 @@ export type AiSessionView = {
   archived: boolean
   lastMessageAt: string | null
   createdAt: string
+  agent: string
+  ownerKey: string
+  isOwner: boolean
+  shared: boolean
+}
+
+export type AiProposal = {
+  id: string
+  kind: "agenda" | "task"
+  title: string
+  detail: string
+  owner: string
+  due: string
+  sources: string[]
+  status: "pending" | "accepted" | "dismissed"
+  rid?: string
+  by?: string
+  at?: string
 }
 
 export type AiMessageView = {
@@ -48,6 +69,9 @@ export type AiMessageView = {
   error: string | null
   createdAt: string
   mock: boolean
+  /** 誰問的（共享對話會有不同的人）；舊列為 null＝建立者 */
+  authorKey: string | null
+  proposals: AiProposal[]
 }
 
 type SessionRow = Awaited<ReturnType<typeof db.operatingAiSession.findFirst>> & {}
@@ -55,8 +79,12 @@ type MessageRow = Awaited<ReturnType<typeof db.operatingAiMessage.findFirst>> & 
 
 const asArray = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : [])
 
-export function toSessionView(row: SessionRow): AiSessionView {
+export function toSessionView(row: SessionRow, actor: AiActor): AiSessionView {
   return {
+    agent: row.agent,
+    ownerKey: row.ownerKey,
+    isOwner: row.ownerId === actor.profileId,
+    shared: !!row.sharedAt,
     id: row.id,
     title: row.title,
     titleAuto: row.titleAuto,
@@ -82,9 +110,26 @@ export function toMessageView(row: MessageRow): AiMessageView {
     error: row.error,
     createdAt: row.createdAt.toISOString(),
     mock: usage.mock === true,
+    authorKey: row.authorKey ?? null,
+    proposals: asArray(row.proposals),
   }
 }
 
+/** 讀得到、問得了：自己的，或已分享的。 */
+async function visibleSession(actor: AiActor, sessionId: string): Promise<SessionRow> {
+  const row = await db.operatingAiSession.findFirst({
+    where: {
+      id: sessionId,
+      workspaceId: actor.workspaceId,
+      deletedAt: null,
+      OR: [{ ownerId: actor.profileId }, { sharedAt: { not: null } }],
+    },
+  })
+  if (!row) throw new AiNotFoundError("找不到這個對話。")
+  return row
+}
+
+/** 只有建立者能做的事（改名、釘選、封存、刪除、分享）。 */
 async function ownedSession(actor: AiActor, sessionId: string): Promise<SessionRow> {
   const row = await db.operatingAiSession.findFirst({
     where: { id: sessionId, workspaceId: actor.workspaceId, ownerId: actor.profileId, deletedAt: null },
@@ -97,18 +142,26 @@ async function ownedSession(actor: AiActor, sessionId: string): Promise<SessionR
 
 export async function listSessions(actor: AiActor): Promise<AiSessionView[]> {
   const rows = await db.operatingAiSession.findMany({
-    where: { workspaceId: actor.workspaceId, ownerId: actor.profileId, deletedAt: null },
+    where: {
+      workspaceId: actor.workspaceId,
+      deletedAt: null,
+      OR: [{ ownerId: actor.profileId }, { sharedAt: { not: null } }],
+    },
     orderBy: [{ lastMessageAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     take: 300,
   })
-  return rows.map(toSessionView)
+  return rows.map((row) => toSessionView(row, actor))
 }
 
-export async function createSession(actor: AiActor): Promise<AiSessionView> {
+/** AI 團隊裡現在能用的助理。金流、專案助理規劃中（RES-038 §3）。 */
+export const AI_AGENTS_LIVE = new Set(["journal"])
+
+export async function createSession(actor: AiActor, agent = "journal"): Promise<AiSessionView> {
+  if (!AI_AGENTS_LIVE.has(agent)) throw new AiStateError("這位助理還沒開放。")
   const row = await db.operatingAiSession.create({
-    data: { workspaceId: actor.workspaceId, ownerId: actor.profileId, ownerKey: actor.seatKey, model: journalAiModel() },
+    data: { workspaceId: actor.workspaceId, ownerId: actor.profileId, ownerKey: actor.seatKey, model: journalAiModel(), agent },
   })
-  return toSessionView(row)
+  return toSessionView(row, actor)
 }
 
 export async function updateSession(
@@ -128,7 +181,7 @@ export async function updateSession(
   if (typeof patch.pinned === "boolean") data.pinnedAt = patch.pinned ? new Date() : null
   if (typeof patch.archived === "boolean") data.archivedAt = patch.archived ? new Date() : null
   const row = await db.operatingAiSession.update({ where: { id: sessionId }, data })
-  return toSessionView(row)
+  return toSessionView(row, actor)
 }
 
 /** 軟刪除（D6）：30 天後由清理排程真的刪掉。 */
@@ -138,9 +191,9 @@ export async function deleteSession(actor: AiActor, sessionId: string): Promise<
 }
 
 export async function listMessages(actor: AiActor, sessionId: string): Promise<{ session: AiSessionView; messages: AiMessageView[] }> {
-  const session = await ownedSession(actor, sessionId)
+  const session = await visibleSession(actor, sessionId)
   const rows = await db.operatingAiMessage.findMany({ where: { sessionId }, orderBy: { seq: "asc" } })
-  return { session: toSessionView(session), messages: rows.map(toMessageView) }
+  return { session: toSessionView(session, actor), messages: rows.map(toMessageView) }
 }
 
 /* ---------- 每月上限（D5） ---------- */
@@ -179,6 +232,8 @@ export async function usageSummary(actor: AiActor, now = new Date()) {
   const mine = bySeat[actor.seatKey] ?? { micro: 0, answers: 0 }
   return {
     month: since.toISOString().slice(0, 7),
+    // 畫面的「運作中／示範模式」：伺服器有沒有模型金鑰（不回傳金鑰本身）
+    provider: journalAiProvider(),
     capUsd: usd(monthlyCapMicroUsd()),
     spentUsd: usd(total),
     mineUsd: usd(mine.micro),
@@ -263,7 +318,7 @@ export function sanitizeTurnInput(raw: unknown): TurnInput | null {
  * 同一個對話同時只能有一則在跑：佔位列存在且還在 streaming 就拒絕。
  */
 export async function prepareTurn(actor: AiActor, sessionId: string, input: TurnInput): Promise<PreparedTurn> {
-  const session = await ownedSession(actor, sessionId)
+  const session = await visibleSession(actor, sessionId)
   const busy = await db.operatingAiMessage.findFirst({ where: { sessionId, status: { in: ["streaming", "stopping"] } }, select: { id: true, updatedAt: true } })
   // 超過 10 分鐘還在 streaming 的，是伺服器在中途被停掉留下的；當作已中斷，不再擋新的提問
   if (busy && Date.now() - busy.updatedAt.getTime() < 10 * 60 * 1000) throw new AiStateError("上一則還在回答中。")
@@ -278,9 +333,17 @@ export async function prepareTurn(actor: AiActor, sessionId: string, input: Turn
   const now = new Date()
   const [user, assistant] = await db.$transaction([
     db.operatingAiMessage.create({
-      data: { sessionId, seq, role: "user", content: [] as Prisma.InputJsonValue, text: input.text, pins: input.pins as Prisma.InputJsonValue },
+      data: {
+        sessionId, seq, role: "user", content: [] as Prisma.InputJsonValue, text: input.text, pins: input.pins as Prisma.InputJsonValue,
+        authorId: actor.profileId, authorKey: actor.seatKey,
+      },
     }),
-    db.operatingAiMessage.create({ data: { sessionId, seq: seq + 1, role: "assistant", content: [] as Prisma.InputJsonValue, status: "streaming" } }),
+    db.operatingAiMessage.create({
+      data: {
+        sessionId, seq: seq + 1, role: "assistant", content: [] as Prisma.InputJsonValue, status: "streaming",
+        authorId: actor.profileId, authorKey: actor.seatKey,
+      },
+    }),
     db.operatingAiSession.update({
       where: { id: sessionId },
       data: {
@@ -309,15 +372,38 @@ function needsCompaction(rows: MessageRow[]): boolean {
   return (Number(u.input) || 0) + (Number(u.cacheRead) || 0) + (Number(u.cacheWrite) || 0) > COMPACT_AFTER_TOKENS
 }
 
-/** 歷史：每則使用者訊息的 content、每則 assistant 的整輪 API 訊息，依序攤平。 */
-function historyFrom(rows: MessageRow[]): MessageParam[] {
+/** 這一列是不是這個人問的。舊列沒有 authorKey＝建立者。 */
+function isOwnRow(row: MessageRow, actor: AiActor, session: SessionRow): boolean {
+  return row.authorKey ? row.authorKey === actor.seatKey : session.ownerId === actor.profileId
+}
+
+/** 答案文字裡的引用記號換成名稱：別人讀過的東西，這個人的模型不能引用。 */
+function citesToNames(text: string, citations: unknown): string {
+  const byCite = new Map(asArray<{ cite: string; label: string }>(citations).map((c) => [c.cite, c.label]))
+  return text.replace(/⟦([^⟦⟧\n]{1,200})⟧/g, (_a, c: string) => (byCite.has(c) ? `［${byCite.get(c)}］` : ""))
+}
+
+/**
+ * 送給模型的歷史（每個人看到的不一樣，但對自己永遠只追加）：
+ *   - 自己問的那幾輪：使用者訊息的 content、assistant 的整輪 API 訊息，原樣；
+ *   - 別人問的那幾輪：只有問題與最終答案的文字。原樣歷史裡有對方的 thinking（綁在對方的對話上）
+ *     與對方讀過、這個人未必看得到的工具結果與檔案。
+ */
+export function historyFor(rows: MessageRow[], actor: AiActor, session: SessionRow): MessageParam[] {
   const out: MessageParam[] = []
   for (const row of rows) {
+    const own = isOwnRow(row, actor, session)
     if (row.role === "user") {
-      const content = asArray<unknown>(row.content)
-      if (content.length) out.push({ role: "user", content } as unknown as MessageParam)
-    } else {
+      if (own) {
+        const content = asArray<unknown>(row.content)
+        if (content.length) out.push({ role: "user", content } as unknown as MessageParam)
+      } else if (row.text) {
+        out.push({ role: "user", content: [{ type: "text", text: `（${row.authorKey ?? session.ownerKey} 問）${row.text}` }] })
+      }
+    } else if (own) {
       out.push(...asArray<MessageParam>(row.content))
+    } else if (row.text) {
+      out.push({ role: "assistant", content: [{ type: "text", text: citesToNames(row.text, row.citations) }] })
     }
   }
   return out
@@ -339,7 +425,7 @@ export async function executeTurn(
   try {
     const [rows, corpus] = await Promise.all([
       db.operatingAiMessage.findMany({ where: { sessionId: session.id, seq: { lt: prepared.user.seq } }, orderBy: { seq: "asc" } }),
-      loadJournalCorpus({ workspaceId: actor.workspaceId, viewerProfileId: actor.profileId, viewerKey: actor.seatKey }),
+      loadJournalCorpus({ workspaceId: actor.workspaceId, viewerProfileId: actor.profileId, viewerKey: actor.seatKey, companyOnly: !!session.sharedAt }),
     ])
     const pinned = resolvePins(corpus, input.pins)
     const hydrateCtx = newHydrateContext(actor.workspaceId, [actor.seatKey])
@@ -356,7 +442,7 @@ export async function executeTurn(
 
     const result = await runJournalAiTurn({
       corpus,
-      history: historyFrom(rows),
+      history: historyFor(rows, actor, session),
       user: { role: "user", content: userContent } as unknown as MessageParam,
       model: session.model,
       compact: needsCompaction(rows),
@@ -375,8 +461,8 @@ export async function executeTurn(
       },
     })
 
-    // 允許引用的集合：這一輪工具回傳的、這一則釘選的、以及這個對話之前任何一輪讀過的
-    const earlier = rows.flatMap((r) => asArray<SentRef>(r.sentRefs))
+    // 允許引用的集合：這一輪工具回傳的、這一則釘選的、以及這個人自己先前幾輪讀過的（別人讀過的不算）
+    const earlier = rows.filter((r) => isOwnRow(r, actor, session)).flatMap((r) => asArray<SentRef>(r.sentRefs))
     const allowed = citeLabels([...result.sentRefs, ...pinned.refs, ...earlier])
     const verified = verifyCitations(result.text, allowed)
     if (verified.dropped.length) console.warn("[journal-ai] dropped unverified citations", verified.dropped.length)
@@ -390,6 +476,7 @@ export async function executeTurn(
         steps: result.steps as Prisma.InputJsonValue,
         sentRefs: result.sentRefs as Prisma.InputJsonValue,
         usage: result.usage as Prisma.InputJsonValue,
+        proposals: result.proposals as unknown as Prisma.InputJsonValue,
         status: result.status,
         error: result.error ?? null,
       },
@@ -415,9 +502,134 @@ export async function executeTurn(
  * 迴圈在下一次呼叫模型前會讀到。
  */
 export async function stopTurn(actor: AiActor, sessionId: string): Promise<void> {
-  await ownedSession(actor, sessionId)
+  await visibleSession(actor, sessionId)
   const row = await db.operatingAiMessage.findFirst({ where: { sessionId, status: "streaming" }, select: { id: true } })
   if (!row) return
   await db.operatingAiMessage.update({ where: { id: row.id }, data: { status: "stopping" } })
   running.get(row.id)?.abort()
+}
+
+/* ---------- 分享（RES-038 §4）---------- */
+
+export type SharePrivateItem = { cite: string; label: string }
+
+/**
+ * 分享前要給建立者看的清單：這個對話用過、同事原本看不到的資料。
+ * 判斷依據與畫面上的可見性一致：私人日誌（visibility=private）、私人檔案與私人連結（space=personal）。
+ */
+export async function sharePreview(actor: AiActor, sessionId: string): Promise<{ shared: boolean; privateItems: SharePrivateItem[] }> {
+  const session = await ownedSession(actor, sessionId)
+  const rows = await db.operatingAiMessage.findMany({ where: { sessionId }, select: { sentRefs: true, pins: true } })
+  const refs = new Map<string, string>()
+  for (const r of rows) {
+    for (const x of asArray<SentRef>(r.sentRefs)) if (!refs.has(x.cite)) refs.set(x.cite, x.label)
+    for (const p of asArray<{ ty: string; rid: string }>(r.pins)) {
+      const cite = p.ty === "line" ? `line:${p.rid}` : `${p.ty}:${p.rid}`
+      if (!refs.has(cite)) refs.set(cite, cite)
+    }
+  }
+  const lineDays = new Set<string>()
+  const assetRefs: string[] = []
+  const linkRefs: string[] = []
+  for (const cite of refs.keys()) {
+    const line = cite.match(/^line:(\d{4}-\d{2}-\d{2}):([^:]+):/)
+    if (line && line[2] === session.ownerKey) lineDays.add(line[1])
+    const asset = cite.match(/^asset:([^#]+)/)
+    if (asset) assetRefs.push(asset[1])
+    const link = cite.match(/^link:(.+)$/)
+    if (link) linkRefs.push(link[1])
+  }
+  const [privateDays, personalAssets, links] = await Promise.all([
+    lineDays.size
+      ? db.operatingJournalEntry.findMany({
+          where: { workspaceId: actor.workspaceId, authorId: session.ownerId, visibility: "private", onDate: { in: [...lineDays].map((d) => new Date(d)) } },
+          select: { onDate: true },
+        })
+      : Promise.resolve([]),
+    assetRefs.length
+      ? db.operatingAsset.findMany({ where: { workspaceId: actor.workspaceId, refCode: { in: assetRefs }, space: "personal" }, select: { refCode: true } })
+      : Promise.resolve([]),
+    linkRefs.length
+      ? db.operatingDocObject.findMany({ where: { workspaceId: actor.workspaceId, workbenchRef: { in: linkRefs } }, select: { workbenchRef: true, payload: true } })
+      : Promise.resolve([]),
+  ])
+  const days = new Set(privateDays.map((d) => d.onDate.toISOString().slice(0, 10)))
+  const assets = new Set(personalAssets.map((a) => a.refCode))
+  const personalLinks = new Set(links.filter((l) => (l.payload as { space?: string } | null)?.space === "personal").map((l) => l.workbenchRef))
+  const privateItems: SharePrivateItem[] = []
+  for (const [cite, label] of refs) {
+    const line = cite.match(/^line:(\d{4}-\d{2}-\d{2}):([^:]+):/)
+    const isPrivate =
+      (line && line[2] === session.ownerKey && days.has(line[1])) ||
+      assets.has(cite.match(/^asset:([^#]+)/)?.[1] ?? "") ||
+      personalLinks.has(cite.match(/^link:(.+)$/)?.[1] ?? "")
+    if (isPrivate) privateItems.push({ cite, label })
+  }
+  return { shared: !!session.sharedAt, privateItems }
+}
+
+async function writeShareAudit(actor: AiActor, sessionId: string, shared: boolean, privateCount: number) {
+  await db.operatingCommandLog.create({
+    data: {
+      workspaceId: actor.workspaceId,
+      clientRefHash: createHash("sha256").update(randomUUID()).digest("hex"),
+      actorProfileId: actor.profileId,
+      actorKey: actor.seatKey,
+      op: "update",
+      entity: "AI 對話",
+      label: "對話 " + sessionId.slice(0, 8),
+      detail: shared ? `分享給公司（建立者確認過 ${privateCount} 項私人資料）` : "取消分享",
+      collections: ["aiSessions"],
+      changeCount: 1,
+      riskLevel: shared && privateCount ? "medium" : "low",
+    },
+  })
+}
+
+/** 分享或取消分享。分享時要帶 confirm（建立者看過私人資料清單）。 */
+export async function setShared(actor: AiActor, sessionId: string, shared: boolean, confirm: boolean): Promise<AiSessionView> {
+  await ownedSession(actor, sessionId)
+  let privateCount = 0
+  if (shared) {
+    const preview = await sharePreview(actor, sessionId)
+    privateCount = preview.privateItems.length
+    if (privateCount && !confirm) throw new AiStateError("這個對話用過你的私人資料，請先確認再分享。")
+  }
+  const row = await db.operatingAiSession.update({
+    where: { id: sessionId },
+    data: shared ? { sharedAt: new Date(), sharedById: actor.profileId } : { sharedAt: null, sharedById: null },
+  })
+  await writeShareAudit(actor, sessionId, shared, privateCount).catch((error) => console.error("[journal-ai] share audit failed", error))
+  return toSessionView(row, actor)
+}
+
+/* ---------- 提案（RES-038 §5）---------- */
+
+/**
+ * 記下一個提案的結果。真正的建立在畫面上走既有的議題／任務流程（人按的寫入）；
+ * 這裡只把「建立了哪一個物件、誰按的」或「略過」寫回那一則答案。只能從 pending 改一次。
+ */
+export async function settleProposal(
+  actor: AiActor,
+  sessionId: string,
+  messageId: string,
+  proposalId: string,
+  outcome: { status: "accepted" | "dismissed"; rid?: string },
+): Promise<AiMessageView> {
+  await visibleSession(actor, sessionId)
+  const row = await db.operatingAiMessage.findFirst({ where: { id: messageId, sessionId, role: "assistant" } })
+  if (!row) throw new AiNotFoundError("找不到這一則回答。")
+  const list = asArray<AiProposal>(row.proposals)
+  const p = list.find((x) => x.id === proposalId)
+  if (!p) throw new AiNotFoundError("找不到這個提案。")
+  if (p.status !== "pending") throw new AiStateError("這個提案已經處理過了。")
+  if (outcome.status === "accepted" && !(outcome.rid && /^[A-Za-z0-9_-]{1,80}$/.test(outcome.rid))) {
+    throw new AiStateError("缺少建立出的物件。")
+  }
+  p.status = outcome.status
+  if (outcome.rid) p.rid = outcome.rid
+  p.by = actor.seatKey
+  p.at = new Date().toISOString()
+  const updated = await db.operatingAiMessage.update({ where: { id: row.id }, data: { proposals: list as unknown as Prisma.InputJsonValue } })
+  return toMessageView(updated)
 }

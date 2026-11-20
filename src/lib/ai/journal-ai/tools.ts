@@ -26,7 +26,18 @@ export type SentRef = { cite: string; label: string; chars: number }
 export type ToolStep = { tool: string; label: string; hits: number }
 /** 檔案記號：資料庫裡只存這個，送出前才由 attachments.ts 換成真的檔案區塊。 */
 export type AssetRefBlock = { type: "asset_ref"; ref: string; title: string }
-export type ToolOutcome = { content: string; isError: boolean; refs: SentRef[]; step: ToolStep; blocks?: AssetRefBlock[] }
+/** AI 草擬、等人確認的議題或任務（RES-038 §5）。工具本身不寫任何東西。 */
+export type ProposalDraft = {
+  id: string
+  kind: "agenda" | "task"
+  title: string
+  detail: string
+  owner: string
+  due: string
+  sources: string[]
+  status: "pending"
+}
+export type ToolOutcome = { content: string; isError: boolean; refs: SentRef[]; step: ToolStep; blocks?: AssetRefBlock[]; proposal?: ProposalDraft }
 
 /** 送得出內容的檔案種類（影音不讀）。 */
 const READABLE_FILE = /\.(png|jpe?g|webp|gif|heic|pdf|txt|md|csv|json|docx|xlsx|pptx)$/i
@@ -41,6 +52,16 @@ const INPUTS = {
   get_object: z.object({ cite: z.string().min(3).max(200) }).strict(),
   list_activity: z.object({ from: DAY, to: DAY }).strict(),
   read_file: z.object({ cite: z.string().min(7).max(200) }).strict(),
+  propose_item: z
+    .object({
+      kind: z.enum(["agenda", "task"]),
+      title: z.string().min(1).max(120),
+      detail: z.string().max(2000).nullable(),
+      owner: z.string().max(40).nullable(),
+      due: NULLABLE_DAY,
+      sources: z.array(z.string().max(200)).max(10),
+    })
+    .strict(),
 }
 export type ToolName = keyof typeof INPUTS
 export const TOOL_NAMES = Object.keys(INPUTS) as ToolName[]
@@ -143,6 +164,26 @@ export const JOURNAL_AI_TOOLS = [
       properties: { cite: { type: "string", description: "檔案的 cite，asset: 開頭" } },
     },
   },
+  {
+    name: "propose_item",
+    description:
+      "草擬一個議題（agenda：要討論、要決定的事）或任務（task：有人要做、通常有到期日）。不會真的建立：草稿會放在你的回答下方，使用者改完按「建立」才生效。只在使用者要你建立、記下、追蹤某件事時使用。",
+    strict: true,
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "title", "detail", "owner", "due", "sources"],
+      properties: {
+        kind: { type: "string", enum: ["agenda", "task"] },
+        title: { type: "string", description: "一句話的標題" },
+        detail: nullableString("補充內容，沒有則 null"),
+        owner: nullableString("任務的負責人（席位代號，例如 yz）；議題或不確定時 null"),
+        due: nullableString("到期日 YYYY-MM-DD，沒有則 null"),
+        sources: { type: "array", items: { type: "string" }, description: "依據的 cite（讀過的日誌行或物件），可為空陣列" },
+      },
+    },
+  },
 ] as const
 
 function json(value: unknown): string {
@@ -229,6 +270,28 @@ export function runTool(corpus: JournalCorpus, name: string, rawInput: unknown):
         refs: [{ cite: input.cite, label: `檔案 · ${o.name}`, chars: 0 }],
         step: { tool: name, label: `讀檔案「${o.name}」`, hits: 1 },
         blocks: [{ type: "asset_ref", ref: o.rid, title: o.name }],
+      }
+    }
+    case "propose_item": {
+      const input = parsed.data as z.infer<typeof INPUTS.propose_item>
+      const owner = input.owner && corpus.seats.includes(input.owner) ? input.owner : input.kind === "task" ? corpus.viewer : ""
+      const proposal: ProposalDraft = {
+        id: "prop_" + Math.random().toString(36).slice(2, 10),
+        kind: input.kind,
+        title: input.title.trim(),
+        detail: (input.detail ?? "").trim(),
+        owner,
+        due: input.due ?? "",
+        sources: input.sources.filter((c) => /^[a-z_]+:/.test(c)).slice(0, 10),
+        status: "pending",
+      }
+      const what = input.kind === "task" ? "任務" : "議題"
+      return {
+        content: json({ ok: true, id: proposal.id, note: `已草擬${what}，放在回答下方等使用者確認；還沒有建立。回答時告訴使用者可以修改後按「建立」。` }),
+        isError: false,
+        refs: [],
+        step: { tool: name, label: `草擬${what}「${proposal.title}」`, hits: 1 },
+        proposal,
       }
     }
     case "list_activity": {

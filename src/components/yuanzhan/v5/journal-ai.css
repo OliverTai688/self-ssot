@@ -131,3 +131,31 @@
 .ja-usage.hot .ja-usage-h b{color:var(--warn,#e3a33b)}
 .ja-usage-s{line-height:1.6}
 .ja-usage + .ja-arch{margin-top:6px}
+
+/* AI 團隊模組：助理、共享、提案（JAI-S4） */
+.ja-agent{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:999px;background:var(--surface-3,#1c2127);font-size:11.5px;color:var(--text-2,#99a2af);white-space:nowrap}
+.ja-agent svg{width:12px;height:12px}
+.ja-s-by{flex:none;margin-left:auto;font-style:normal;font-size:11px;color:var(--text-3,#626b77)}
+.ja-s-t svg + svg{color:var(--text-3,#626b77)}
+.ja-who{text-align:right;font-size:11px;color:var(--text-3,#626b77);margin-bottom:3px}
+.ja-u{flex-direction:column;align-items:flex-end}
+.ja-noacc{display:inline-flex;align-items:center;gap:3px;margin:0 2px;padding:0 7px;border:1px dashed var(--border-2,#333b45);border-radius:999px;font-size:11px;line-height:20px;color:var(--text-3,#626b77);vertical-align:baseline}
+.ja-noacc svg{width:10px;height:10px}
+.ja-share{margin:10px 16px 0;padding:10px 12px;border:1px solid var(--border-2,#333b45);border-radius:10px;background:var(--surface-2,#161a1f);display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text,#e9ecf1)}
+.ja-share-l{margin:0;padding-left:4px;list-style:none;max-height:160px;overflow:auto;font-size:12px;color:var(--text-2,#99a2af)}
+.ja-share-l li{padding:2px 0}
+.ja-share-l svg{width:10px;height:10px;vertical-align:-1px}
+.ja-share-a{display:flex;justify-content:flex-end;gap:6px}
+.ja-prop{margin-top:10px;padding:10px 12px;border:1px dashed var(--border-3,#465060);border-radius:10px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.ja-prop.done{flex-direction:row;align-items:center;gap:6px;border-style:solid;border-color:var(--border,#232931);font-size:12.5px;color:var(--text-2,#99a2af)}
+.ja-prop.done svg{width:12px;height:12px}
+.ja-prop-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ja-prop-t{width:100%;min-width:0;font-size:13.5px}
+.ja-prop-r{display:flex;gap:10px;flex-wrap:wrap}
+.ja-prop-r label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3,#626b77)}
+.ja-prop textarea{width:100%;min-width:0;resize:vertical;font:inherit;font-size:13px}
+.ja-prop-a{display:flex;justify-content:flex-end;gap:6px}
+.ja-team td{vertical-align:top}
+.ja-team b{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.ja-team b svg{width:12px;height:12px}
+.ja-team-t{white-space:normal!important;min-width:180px;max-width:320px;color:var(--text-2,#99a2af);font-size:12.5px;line-height:1.6}

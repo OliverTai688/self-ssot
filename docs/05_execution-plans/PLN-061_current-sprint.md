@@ -1,5 +1,13 @@
 # Current Sprint
 
+## Owner-directed AI 團隊模組（JAI-S4）— 2026-11-20
+
+Owner 指示開始 `JAI-S4`，並要 AI 成為左側的模組、之後形成公司的 AI team（金流、專案）。Owner 回覆四題：分享後同事可接著問、提案限議題與任務、搜尋加速表延後、日誌「問 AI」分頁拿掉。設計 `RES-038`。
+
+完成於分支 `claude/journal-ai`（未合併、未部署）：左側「AI」模組（對話／AI 團隊）、共享對話、AI 草擬議題與任務由人建立。含 migration `20261120090000_ai_team_share_proposals`（純新增欄位）。
+
+待 Owner：合併部署（會套用 migration）；`ANTHROPIC_API_KEY`、`CRON_SECRET`。
+
 ## Owner-directed 日誌 AI 助理 S3 — 2026-11-18
 
 `JAI-S3` 完成，2026-11-18 推上正式站（`23f1945cee`，無 migration）：日誌選取多行浮出「問 AI」、物件彈窗「問 AI」、答案「存進今天的日誌」、本月用量顯示、每則回答一列稽核（只記數量與花費）、長對話 compaction、30 天清除（Vercel Cron＋`CRON_SECRET`）。

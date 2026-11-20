@@ -2495,3 +2495,18 @@ Verification:
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md`
 
+## AI 團隊模組、共享對話、提案（UI-088 · JAI-S4，2026-11-20）
+
+機檢：`pnpm ops:journal-ai:check`。依據 `RES-038`。
+
+- [x] 左側有「AI」模組，分頁「對話」與「AI 團隊」；日誌不再有「問 AI」分頁，日誌選取與物件彈窗的「問 AI」會跳到 AI 模組。
+- [x] AI 團隊列出日誌助理（運作中或示範模式）與規劃中的金流、專案助理；規劃中的不能開對話。
+- [x] 分享前列出同事原本看不到的資料，確認後才分享；稽核留一列。
+- [x] 同事看得到共享對話、可以接著問；改名、刪除、分享只有建立者能做。
+- [x] 共享對話裡的新提問不使用任何人的私人資料。
+- [x] 每個人送給模型的歷史只有自己問的那幾輪是原樣，別人問的只有文字。
+- [x] AI 可以草擬議題與任務；人改完按「建立」才在今天的日誌誕生；結果記回對話。
+- [ ] 設定 `ANTHROPIC_API_KEY` 後，以真模型請它「幫我開一個任務給 Lily，週五前寄報價」，草稿欄位正確。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md`
+

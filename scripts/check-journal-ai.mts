@@ -17,6 +17,7 @@ const ok = (name: string, cond: boolean, extra?: string) => results.push([cond ?
 
 const corpus: JournalCorpus = {
   viewer: 'yz',
+  seats: ['yz', 'lily'],
   lines: [
     { day: '2026-10-20', author: 'yz', blockId: 'b1', line: 1, text: '跟柏翰開會，報價改成兩期付款', refs: [] },
     { day: '2026-10-20', author: 'yz', blockId: 'b3', line: 3, text: '第二期在驗收後 30 天', refs: [{ ty: 'decision', rid: 'DEC-31' }] },
@@ -146,6 +147,17 @@ const lp = resolvePins(corpus, [{ ty: 'line', rid: '2026-10-20:yz:b3' }, { ty: '
 ok('L1 釘選的日誌行帶 cite 與文字，找不到的行略過', lp.refs[0]?.cite === 'line:2026-10-20:yz:b3' && lp.text.includes('驗收後 30 天') && !lp.text.includes('nope'))
 ok('L2 釘選的行進允許引用集合', verifyCitations('⟦line:2026-10-20:yz:b3⟧', citeLabels(lp.refs)).citations.length === 1)
 ok('L3 行與物件可以一起釘選', lp.refs.some((r) => r.cite === 'decision:DEC-31'))
+
+
+/* ---------- JAI-S4：提案 ---------- */
+const pr = runTool(corpus, 'propose_item', { kind: 'task', title: '寄出修正後報價', detail: '依 10/20 決議分兩期', owner: 'lily', due: '2026-11-25', sources: ['decision:DEC-31', 'not a cite'] })
+ok('P1 提案回傳草稿、不寫任何東西、狀態 pending', !pr.isError && pr.proposal?.status === 'pending' && pr.proposal.owner === 'lily' && pr.proposal.due === '2026-11-25')
+ok('P2 提案的依據只留 cite 格式', JSON.stringify(pr.proposal?.sources) === JSON.stringify(['decision:DEC-31']))
+const pr2 = runTool(corpus, 'propose_item', { kind: 'task', title: 'x', detail: null, owner: 'stranger', due: null, sources: [] })
+ok('P3 不認得的負責人換成提問者自己', pr2.proposal?.owner === 'yz')
+const pr3 = runTool(corpus, 'propose_item', { kind: 'agenda', title: '討論', detail: null, owner: null, due: null, sources: [] })
+ok('P4 議題沒有負責人', pr3.proposal?.kind === 'agenda' && pr3.proposal.owner === '')
+ok('P5 日期格式不對被擋', runTool(corpus, 'propose_item', { kind: 'task', title: 'x', detail: null, owner: null, due: '11/25', sources: [] }).isError)
 
 const failed = results.filter((r) => r[0] === 'FAIL')
 for (const [s, n, e] of results) console.log(`${s}  ${n}${e ? '  → ' + e : ''}`)

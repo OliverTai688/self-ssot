@@ -273,6 +273,7 @@
 | [RES-035](../07_research-and-design/RES-035_single-project-paths-status-and-crud-research.md) | 單一專案路徑的截圖分析、每條路徑三版提案與決策、狀態管理規則（看得到就改得到、往回走要寫理由、理由存成主頻道系統訊息）、範本初始化、任務負責人落地的 migration 與驗收條件 |
 | [RES-036](../07_research-and-design/RES-036_signal-inbox-line-binding-and-two-tier-signal-research.md) | 訊號工作台的 LINE 整合：管道決策、成員與群組綁定、一專案多群、確定訊號與潛在訊號、對話分析工作區（去識別化＋人工確認）。邊界見 [AUT-010](../02_architecture-and-rules/AUT-010_line-webhook-identity-group-and-conversation-analysis-boundary.md) |
 | [RES-037](../07_research-and-design/RES-037_journal-ai-assistant-multi-session-research.md) | 日誌 AI 設計：多對話、上傳圖文、以 viewer 權限搜尋日誌／物件／檔案的只讀工具、引用驗證、資料出境與成本、Owner 六題決策、JAI-S1～S4 分段 |
+| [RES-038](../07_research-and-design/RES-038_ai-team-module-sharing-and-proposals.md) | AI 團隊模組：AI 移到左側自己的模組（對話／AI 團隊兩個分頁）、助理清單（日誌運作中，金流、專案規劃中）、共享對話與每人各自的模型歷史、AI 草擬議題與任務由人確認建立；Owner 2026-11-20 四題決定 |
 
 ## 08 Acceptance And QA
 
