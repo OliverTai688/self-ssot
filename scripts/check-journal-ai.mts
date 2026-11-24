@@ -11,6 +11,9 @@ import { nativeCiteMarkers, UNVERIFIED_MARK, verifyCitations } from '../src/lib/
 import { extractOfficeText, MAX_TEXT } from '../src/lib/ai/journal-ai/office-text'
 import { deflateRawSync } from 'node:zlib'
 import { citeLabels, JOURNAL_AI_TOOLS, resolvePins, runTool, TOOL_NAMES } from '../src/lib/ai/journal-ai/tools'
+import { fromOpenAIOutput, hasCompaction, toAnthropicMessages, toOpenAIInput, toOpenAITools, type StoredMessage } from '../src/lib/ai/journal-ai/convert'
+import { availableModels, costMicroUsd, defaultModelFor, providerOfModel, resolveRunProvider } from '../src/lib/ai/journal-ai/models'
+import { toResponseInputItem } from 'openai/lib/responses/ResponseInputItems'
 
 const results: [string, string, string][] = []
 const ok = (name: string, cond: boolean, extra?: string) => results.push([cond ? 'PASS' : 'FAIL', name, cond ? '' : extra ?? ''])
@@ -158,6 +161,69 @@ ok('P3 不認得的負責人換成提問者自己', pr2.proposal?.owner === 'yz'
 const pr3 = runTool(corpus, 'propose_item', { kind: 'agenda', title: '討論', detail: null, owner: null, due: null, sources: [] })
 ok('P4 議題沒有負責人', pr3.proposal?.kind === 'agenda' && pr3.proposal.owner === '')
 ok('P5 日期格式不對被擋', runTool(corpus, 'propose_item', { kind: 'task', title: 'x', detail: null, owner: null, due: '11/25', sources: [] }).isError)
+
+/* ---------- RES-039：Claude／OpenAI 切換 ---------- */
+ok('M1 一家都沒接上 → 示範模式', resolveRunProvider('gpt-6.2-sol', []) === 'mock' && resolveRunProvider('claude-opus-5-5', ['openai'], true) === 'mock')
+ok('M2 模型決定供應者；那一家沒接上回 null（不偷偷換家）', resolveRunProvider('gpt-6.2-sol', ['openai']) === 'openai' && resolveRunProvider('claude-opus-5-5', ['anthropic', 'openai']) === 'anthropic' && resolveRunProvider('claude-opus-5-5', ['openai']) === null)
+ok('M3 預設模型：只有 OpenAI → gpt-6.2-sol；兩家 → Claude；指定的那家接上才用指定的',
+  defaultModelFor(['openai']) === 'gpt-6.2-sol' && defaultModelFor(['anthropic', 'openai']) === 'claude-opus-5-5' && defaultModelFor(['openai'], 'gpt-6.2-astra') === 'gpt-6.2-astra' && defaultModelFor(['openai'], 'claude-sonnet-5-5') === 'gpt-6.2-sol')
+ok('M4 選單只列接上的那一家', availableModels(['openai']).every((m) => m.provider === 'openai') && availableModels(['openai']).length === 2 && availableModels([]).length === 0)
+ok('M5 名單外的模型依名稱猜供應者、以最貴的估價', providerOfModel('gpt-7-x') === 'openai' && providerOfModel('claude-x') === 'anthropic' && costMicroUsd('gpt-7-x', { input: 1_000_000, output: 0, cacheRead: 0, cacheWrite: 0 }) === 8_000_000)
+ok('M6 OpenAI 計價：Sol 輸入 $2、輸出 $10、快取讀 $0.10', costMicroUsd('gpt-6.2-sol', { input: 1000, output: 1000, cacheRead: 1000, cacheWrite: 0 }) === 12_100)
+
+const oaTools = toOpenAITools(JOURNAL_AI_TOOLS as never)
+ok('M7 工具轉成 strict function tool，schema 原樣', oaTools.length === JOURNAL_AI_TOOLS.length && oaTools.every((t) => t.type === 'function' && t.strict === true && (t.parameters as { additionalProperties?: boolean }).additionalProperties === false))
+
+// 一段 Claude 跑過的歷史：thinking、tool_use、帶圖片與 PDF 的 tool_result、文字文件
+const claudeHistory: StoredMessage[] = [
+  { role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } }, { type: 'text', text: '這張圖在說什麼' }] },
+  { role: 'assistant', content: [{ type: 'thinking', thinking: '…', signature: 'sig' }, { type: 'text', text: '我查一下' }, { type: 'tool_use', id: 'toolu_01', name: 'read_file', input: { cite: 'asset:AST-1' } }] },
+  { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_01', content: [{ type: 'text', text: '附件 ⟦asset:AST-1⟧' }, { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBE' }, title: '報價單.pdf（asset:AST-1）', citations: { enabled: true } }] }] },
+  { role: 'assistant', content: [{ type: 'text', text: '第二期在驗收後', citations: [{ type: 'page_location', document_title: '報價單.pdf（asset:AST-1）', start_page_number: 2 }] }] },
+  { role: 'user', content: [{ type: 'document', source: { type: 'text', media_type: 'text/plain', data: '會議紀錄全文' }, title: '紀錄.docx（asset:AST-2）' }, { type: 'text', text: '摘要這份' }] },
+]
+const oa = toOpenAIInput('SYS', claudeHistory)
+const kinds = oa.map((x) => (x.type as string) ?? `msg:${x.role}`)
+ok('M8 Claude 歷史 → OpenAI：開發者訊息在最前、thinking 不送、順序保留',
+  JSON.stringify(kinds) === JSON.stringify(['msg:developer', 'msg:user', 'msg:assistant', 'function_call', 'function_call_output', 'msg:assistant', 'msg:user']), JSON.stringify(kinds))
+const fc = oa.find((x) => x.type === 'function_call')!
+const fco = oa.find((x) => x.type === 'function_call_output')!
+ok('M9 tool_use → function_call（同一個 id、參數 JSON 字串）；tool_result → function_call_output（PDF 變 input_file）',
+  fc.call_id === 'toolu_01' && fc.arguments === '{"cite":"asset:AST-1"}' && fco.call_id === 'toolu_01' && Array.isArray(fco.output)
+    && (fco.output as Array<Record<string, unknown>>).some((p) => p.type === 'input_file' && String(p.file_data).startsWith('data:application/pdf;base64,') && p.filename === '報價單.pdf'))
+const u0 = oa[1].content as Array<Record<string, unknown>>
+ok('M10 圖片 → input_image（data URL）；文字文件 → input_text 帶標題', u0[0].type === 'input_image' && u0[0].image_url === 'data:image/png;base64,AAAA'
+  && JSON.stringify(oa[6].content).includes('紀錄.docx（asset:AST-2）') && JSON.stringify(oa[6].content).includes('會議紀錄全文'))
+ok('M11 Claude 的檔案頁碼引用轉成記號留在文字裡', oa[5].content === '第二期在驗收後⟦asset:AST-1#p2⟧')
+
+// OpenAI 回一次：推理（加密）＋文字＋工具呼叫
+const oaOut = [
+  { type: 'reasoning', id: 'rs_1', summary: [], encrypted_content: 'ENC' },
+  { type: 'message', id: 'msg_1', role: 'assistant', status: 'completed', phase: 'commentary', content: [{ type: 'output_text', text: '我先找', annotations: [] }] },
+  { type: 'function_call', id: 'fc_1', call_id: 'call_abc', name: 'search_journal', arguments: '{"query":"報價","from":null,"to":null,"author":null}', status: 'completed' },
+  { type: 'function_call', id: 'fc_2', call_id: 'call_bad', name: 'get_object', arguments: '{"cite":', status: 'completed' },
+]
+const parsed = fromOpenAIOutput(oaOut)
+ok('M12 OpenAI 輸出 → 存法：推理原樣、文字與工具呼叫帶原始項目、壞掉的參數標出來',
+  parsed.text === '我先找' && parsed.calls.length === 2 && parsed.calls[1].badJson && !parsed.calls[0].badJson
+    && (parsed.message.content as Array<Record<string, unknown>>)[0].type === 'openai_item')
+const mixed: StoredMessage[] = [...claudeHistory, parsed.message, { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'call_abc', content: '{"lines":[]}' }, { type: 'tool_result', tool_use_id: 'call_bad', content: '參數不是合法的 JSON', is_error: true }] }]
+const back = toOpenAIInput('SYS', mixed, (item) => toResponseInputItem(item as never) as never)
+const tail = back.slice(-6).map((x) => (x.type as string) ?? `msg:${x.role}`)
+ok('M13 送回 OpenAI：推理、訊息、function_call 原樣重送（經 SDK 正規化），結果緊接在後',
+  JSON.stringify(tail) === JSON.stringify(['reasoning', 'message', 'function_call', 'function_call', 'function_call_output', 'function_call_output'])
+    && back.some((x) => x.type === 'reasoning' && x.encrypted_content === 'ENC'), JSON.stringify(tail))
+ok('M14 錯誤的工具結果標上（錯誤）', back.some((x) => x.type === 'function_call_output' && x.call_id === 'call_bad' && String(x.output).startsWith('（錯誤）')))
+const toClaude = toAnthropicMessages(mixed)
+const cJson = JSON.stringify(toClaude)
+ok('M15 換回 Claude：OpenAI 推理與原始項目拿掉，tool_use 用 OpenAI 的 id 照樣配對', !cJson.includes('openai_item') && !cJson.includes('_oa') && !cJson.includes('ENC')
+  && cJson.includes('"id":"call_abc"') && cJson.includes('"tool_use_id":"call_abc"'))
+const onlyReasoning = fromOpenAIOutput([{ type: 'reasoning', id: 'rs_2', summary: [], encrypted_content: 'E2' }, { type: 'message', id: 'm2', role: 'assistant', content: [{ type: 'output_text', text: '', annotations: [] }] }]).message
+ok('M16 只有推理、文字是空的那一則：Claude 那邊整則略過（不送空 text）', toAnthropicMessages([onlyReasoning]).length === 0)
+ok('M17 拒答被認出來', fromOpenAIOutput([{ type: 'message', id: 'm3', role: 'assistant', content: [{ type: 'refusal', refusal: 'no' }] }]).refused)
+const compacted: StoredMessage[] = [claudeHistory[0], { role: 'assistant', content: [{ type: 'compaction', content: '先前討論了報價分期', encrypted_content: null }, { type: 'text', text: '好' }] }, { role: 'user', content: '繼續' }]
+const oc = toOpenAIInput('SYS', compacted)
+ok('M18 Claude 壓縮過的對話 → OpenAI 只送摘要之後的部分＋摘要文字', hasCompaction(compacted) && !JSON.stringify(oc).includes('input_image') && JSON.stringify(oc).includes('先前討論了報價分期') && oc[oc.length - 1].content === '繼續')
 
 const failed = results.filter((r) => r[0] === 'FAIL')
 for (const [s, n, e] of results) console.log(`${s}  ${n}${e ? '  → ' + e : ''}`)

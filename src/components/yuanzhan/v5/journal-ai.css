@@ -159,3 +159,11 @@
 .ja-team b{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .ja-team b svg{width:12px;height:12px}
 .ja-team-t{white-space:normal!important;min-width:180px;max-width:320px;color:var(--text-2,#99a2af);font-size:12.5px;line-height:1.6}
+
+/* 模型選單（RES-039）：放在輸入框下方那一列，跟 @、檔案同一排 */
+.ja-model{height:24px;max-width:220px;padding:0 18px 0 8px;border:1px solid var(--border, #d9dde3);border-radius:6px;background-color:var(--surface, #fff);color:var(--text, #1f2430);font-size:12px;background-position:calc(100% - 9px) 10px,calc(100% - 5px) 10px}
+.ja-model:disabled{opacity:.6;cursor:default}
+.ja-model-x{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2, #626b77);white-space:nowrap}
+.ja-by{font-size:11px;color:var(--text-3, #8a929c);margin-right:2px;white-space:nowrap}
+@media (max-width:640px){.ja-model{max-width:132px}}
+

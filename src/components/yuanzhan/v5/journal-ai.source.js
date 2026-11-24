@@ -21,7 +21,9 @@ const JA = {
   lines: [],
   /** 剛從日誌「問 AI」進來：開新對話，不要自動打開清單裡第一個 */
   fresh: false,
-  usage: null
+  usage: null,
+  /** 還沒建立的新對話要用哪個模型（RES-039）；null＝伺服器的預設 */
+  pickModel: null
 };
 
 /* AI 團隊是左側自己的模組（RES-038）：分頁「對話」與「AI 團隊」。放在訊號之後。 */
@@ -80,7 +82,7 @@ function jaOnPage() { return S.wb === 'ai' && S.tab === JA_TAB; }
 async function jaNew(agent) {
   if (JA.live) return toast('上一則還在回答中');
   try {
-    const { session } = await jaFetch(JA_API, { method: 'POST', body: JSON.stringify({ agent: agent || 'journal' }) });
+    const { session } = await jaFetch(JA_API, { method: 'POST', body: JSON.stringify({ agent: agent || 'journal', model: JA.pickModel || undefined }) });
     jaPatchSession(session);
     JA.active = session.id; JA.msgs[session.id] = []; JA.drawer = false;
     jaFocusSoon(); render();
@@ -144,7 +146,7 @@ async function jaSend(text) {
   if (!q && orRefsOf(JA_KEY).length) q = '這是什麼？重點是什麼？';
   if (!q) return;
   if (!JA.active) {
-    try { const { session } = await jaFetch(JA_API, { method: 'POST' }); jaPatchSession(session); JA.active = session.id; JA.msgs[session.id] = []; }
+    try { const { session } = await jaFetch(JA_API, { method: 'POST', body: JSON.stringify({ model: JA.pickModel || undefined }) }); jaPatchSession(session); JA.active = session.id; JA.msgs[session.id] = []; }
     catch (e) { return toast(esc(e.message)); }
   }
   const id = JA.active, refs = orRefsOf(JA_KEY);
@@ -325,7 +327,7 @@ function jaMsgHtml(m, i) {
   const busy = m.status === 'streaming' || m.status === 'stopping';
   const st = m.status !== 'done' ? `<div class="ja-st ${m.status === 'error' || m.status === 'refused' ? 'bad' : ''}">${svg(busy ? 'clock' : 'warn', 12)} ${esc(JA_STATUS[m.status] || m.status)}${m.error ? '：' + esc(m.error) : ''}</div>` : '';
   return `<div class="ja-msg ja-a">${jaSteps(m.steps)}${m.text ? `<div class="ja-ans">${jaAnswerHtml(m)}</div>` : ''}${jaProposals(m, i)}${st}
-    ${m.text && !busy ? `<div class="ja-acts">${m.mock ? '<span class="chip c-w">示範模式</span>' : ''}<button class="btn sm" onclick="jaCopy(${i})">${svg('copy', 12)} 複製</button><button class="btn sm" onclick="jaToJournal(${i})">${svg('journal', 12)} 存進今天的日誌</button></div>` : ''}</div>`;
+    ${m.text && !busy ? `<div class="ja-acts">${m.mock ? '<span class="chip c-w">示範模式</span>' : m.modelLabel ? `<span class="ja-by" title="回答這一則的模型">${esc(m.modelLabel)}</span>` : ''}<button class="btn sm" onclick="jaCopy(${i})">${svg('copy', 12)} 複製</button><button class="btn sm" onclick="jaToJournal(${i})">${svg('journal', 12)} 存進今天的日誌</button></div>` : ''}</div>`;
 }
 function jaLiveInner(live) {
   const pending = live.text ? jaFormat(live.text, () => '<span class="ja-pend">引用</span>') : '';
@@ -400,13 +402,45 @@ function jaSources(msgs) {
     + `<div class="ja-sent">${svg('lock', 11)} 這個對話送出了 ${reads.length} 項資料、約 ${wan}。${jaShared() ? '這是共享對話：公司成員都看得到，新的提問只用公司看得到的資料。' : '只有你看得到這個對話。'}薪資與銀行對帳不會送出。</div>`;
 }
 
+/* ---------- 模型（RES-039）：Claude 或 OpenAI，每個對話自己選，隨時可換 ---------- */
+
+/**
+ * 選單只列伺服器接上了的模型（usage.models）。新對話：選了就用在建立的那一刻；
+ * 既有對話：建立者換了下一則起生效，同事只看得到用的是哪個。一家都沒接上時顯示「示範模式」。
+ */
+function jaModelPicker() {
+  const u = JA.usage;
+  if (!u) return '';
+  const models = u.models || [];
+  const s = jaSession(JA.active);
+  if (!models.length) return '<span class="chip c-w ja-model-x" title="伺服器還沒接上 Claude 或 OpenAI 的金鑰">示範模式</span>';
+  const cur = s ? s.model : (JA.pickModel || u.defaultModel);
+  if (s && !s.isOwner) return `<span class="ja-model-x" title="建立者選的模型">${svg('bot', 11)} ${esc(s.modelLabel || s.model)}</span>`;
+  const known = models.some(m => m.id === cur);
+  const opts = (known ? '' : `<option value="${esc(cur)}" selected disabled>${esc((s && s.modelLabel) || cur)}（沒有接上）</option>`)
+    + ['anthropic', 'openai'].map(p => {
+      const list = models.filter(m => m.provider === p);
+      if (!list.length) return '';
+      return `<optgroup label="${p === 'openai' ? 'OpenAI' : 'Claude'}">${list.map(m => `<option value="${esc(m.id)}" ${m.id === cur ? 'selected' : ''}>${esc(m.label)} · ${esc(m.note)}</option>`).join('')}</optgroup>`;
+    }).join('');
+  return `<select class="ja-model" aria-label="模型" title="這個對話用的模型，換了從下一則開始" ${JA.live ? 'disabled' : ''} onchange="jaSetModel(this.value)">${opts}</select>`;
+}
+async function jaSetModel(id) {
+  const s = jaSession(JA.active);
+  if (!s) { JA.pickModel = id; return; }
+  if (s.model === id) return;
+  await jaPatch(s.id, { model: id });
+  const after = jaSession(s.id);
+  if (after && after.model === id) toast('下一則起改用 ' + esc(after.modelLabel || id));
+}
+
 function jaComposer() {
   orBind(JA_KEY, { get: () => JA.draft, set: v => { JA.draft = v; }, focus: () => root.querySelector('#jaInput') });
   const busy = !!JA.live;
   return `<div class="ja-comp">
     <textarea id="jaInput" rows="1" aria-label="問日誌裡的任何事" placeholder="問日誌裡的任何事… @ 可以釘選物件" title="Enter 送出 · Shift+Enter 換行 · @ 釘選物件" oninput="jaInput(this)" onkeydown="jaInputKey(event)" onpaste="jaPaste(event)">${esc(JA.draft)}</textarea>
     <div class="ja-files" id="jaFiles">${jaFilesInner()}</div>
-    <div class="ja-comp-b">${orButton(JA_KEY)}<label class="btn sm" title="附上圖片、PDF、Word、Excel、PowerPoint 或文字檔（也可以直接貼上或拖進來）">${svg('paperclip', 12)} 檔案<input type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.csv,.json,.docx,.xlsx,.pptx" onchange="jaPick(this)"></label><span class="sp"></span>
+    <div class="ja-comp-b">${orButton(JA_KEY)}${jaModelPicker()}<label class="btn sm" title="附上圖片、PDF、Word、Excel、PowerPoint 或文字檔（也可以直接貼上或拖進來）">${svg('paperclip', 12)} 檔案<input type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.csv,.json,.docx,.xlsx,.pptx" onchange="jaPick(this)"></label><span class="sp"></span>
       ${busy ? `<button class="btn sm" onclick="jaStop()">${svg('x', 12)} 停止</button>` : `<button class="btn sm pri" onclick="jaSend()">${svg('send', 12)} 送出</button>`}</div>
     ${orTray(JA_KEY)}</div>`;
 }
@@ -699,11 +733,12 @@ const JA_TEAM = [
 ];
 function jaTeamView() {
   if (OP_LIVE && !JA.usage) jaLoadUsage();
-  const mode = JA.usage && JA.usage.provider === 'anthropic' ? '運作中' : '示範模式';
+  const mode = JA.usage && JA.usage.provider && JA.usage.provider !== 'mock' ? '運作中' : '示範模式';
+  const via = JA.usage && (JA.usage.providers || []).length ? '（' + JA.usage.providers.map(p => p.label).join('、') + '）' : '';
   const count = (JA.sessions || []).filter(s => s.agent === 'journal' || !s.agent).length;
   const rows = JA_TEAM.map(a => `<tr>
       <td><b>${svg('bot', 12)} ${esc(a.nm)}</b></td>
-      <td>${a.live ? `<span class="chip ${mode === '運作中' ? 'c-o' : 'c-w'}">${mode}</span>` : '<span class="chip c-n">規劃中</span>'}</td>
+      <td>${a.live ? `<span class="chip ${mode === '運作中' ? 'c-o' : 'c-w'}">${mode}${esc(via)}</span>` : '<span class="chip c-n">規劃中</span>'}</td>
       <td class="ja-team-t">${esc(a.reads)}</td>
       <td class="ja-team-t">${esc(a.does)}</td>
       <td>${a.live ? `${count} 個對話` : '—'}</td>

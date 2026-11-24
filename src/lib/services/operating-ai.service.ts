@@ -8,7 +8,8 @@ import { db } from "@/lib/db"
 import { verifyCitations, type Citation } from "@/lib/ai/journal-ai/citations"
 import { hydrateMessages, newHydrateContext } from "@/lib/ai/journal-ai/attachments"
 import { loadJournalCorpus } from "@/lib/ai/journal-ai/corpus-loader"
-import { journalAiModel, journalAiProvider, runJournalAiTurn, type MessageParam, type RunEvent } from "@/lib/ai/journal-ai/runner"
+import { modelLabel, modelInfo, PROVIDER_LABEL, providerOfModel } from "@/lib/ai/journal-ai/models"
+import { configuredProviders, journalAiModel, journalAiModels, journalAiProvider, runJournalAiTurn, runProviderFor, type MessageParam, type RunEvent } from "@/lib/ai/journal-ai/runner"
 import { citeLabels, resolvePins, type SentRef, type ToolStep } from "@/lib/ai/journal-ai/tools"
 
 /**
@@ -40,6 +41,9 @@ export type AiSessionView = {
   ownerKey: string
   isOwner: boolean
   shared: boolean
+  /** 這個對話用的模型（RES-039），建立者隨時可換 */
+  model: string
+  modelLabel: string
 }
 
 export type AiProposal = {
@@ -72,6 +76,8 @@ export type AiMessageView = {
   /** 誰問的（共享對話會有不同的人）；舊列為 null＝建立者 */
   authorKey: string | null
   proposals: AiProposal[]
+  /** 回答這一則的模型（示範模式為 null） */
+  modelLabel: string | null
 }
 
 type SessionRow = Awaited<ReturnType<typeof db.operatingAiSession.findFirst>> & {}
@@ -85,6 +91,8 @@ export function toSessionView(row: SessionRow, actor: AiActor): AiSessionView {
     ownerKey: row.ownerKey,
     isOwner: row.ownerId === actor.profileId,
     shared: !!row.sharedAt,
+    model: row.model,
+    modelLabel: modelLabel(row.model),
     id: row.id,
     title: row.title,
     titleAuto: row.titleAuto,
@@ -96,7 +104,7 @@ export function toSessionView(row: SessionRow, actor: AiActor): AiSessionView {
 }
 
 export function toMessageView(row: MessageRow): AiMessageView {
-  const usage = (row.usage ?? {}) as { mock?: boolean }
+  const usage = (row.usage ?? {}) as { mock?: boolean; model?: string }
   return {
     id: row.id,
     seq: row.seq,
@@ -110,6 +118,8 @@ export function toMessageView(row: MessageRow): AiMessageView {
     error: row.error,
     createdAt: row.createdAt.toISOString(),
     mock: usage.mock === true,
+    // 中途換過模型的對話：每一則標出是誰回答的（RES-039）
+    modelLabel: row.role === "assistant" && usage.model && usage.mock !== true ? modelLabel(usage.model) : null,
     authorKey: row.authorKey ?? null,
     proposals: asArray(row.proposals),
   }
@@ -156,10 +166,17 @@ export async function listSessions(actor: AiActor): Promise<AiSessionView[]> {
 /** AI 團隊裡現在能用的助理。金流、專案助理規劃中（RES-038 §3）。 */
 export const AI_AGENTS_LIVE = new Set(["journal"])
 
-export async function createSession(actor: AiActor, agent = "journal"): Promise<AiSessionView> {
+/** 選得到的模型：伺服器接上了那一家的才算（RES-039）。 */
+function assertModelUsable(model: string): void {
+  if (!modelInfo(model)) throw new AiStateError("沒有這個模型。")
+  if (runProviderFor(model) === null) throw new AiStateError(`${modelLabel(model)} 目前沒有接上，請選別的模型。`)
+}
+
+export async function createSession(actor: AiActor, agent = "journal", model?: string): Promise<AiSessionView> {
   if (!AI_AGENTS_LIVE.has(agent)) throw new AiStateError("這位助理還沒開放。")
+  if (model) assertModelUsable(model)
   const row = await db.operatingAiSession.create({
-    data: { workspaceId: actor.workspaceId, ownerId: actor.profileId, ownerKey: actor.seatKey, model: journalAiModel(), agent },
+    data: { workspaceId: actor.workspaceId, ownerId: actor.profileId, ownerKey: actor.seatKey, model: model || journalAiModel(), agent },
   })
   return toSessionView(row, actor)
 }
@@ -167,7 +184,7 @@ export async function createSession(actor: AiActor, agent = "journal"): Promise<
 export async function updateSession(
   actor: AiActor,
   sessionId: string,
-  patch: { title?: string; pinned?: boolean; archived?: boolean },
+  patch: { title?: string; pinned?: boolean; archived?: boolean; model?: string },
 ): Promise<AiSessionView> {
   await ownedSession(actor, sessionId)
   const data: Prisma.OperatingAiSessionUpdateInput = {}
@@ -180,6 +197,11 @@ export async function updateSession(
   }
   if (typeof patch.pinned === "boolean") data.pinnedAt = patch.pinned ? new Date() : null
   if (typeof patch.archived === "boolean") data.archivedAt = patch.archived ? new Date() : null
+  // 換模型：下一則起生效。歷史存法兩家共用，換過去接得上（convert.ts）
+  if (typeof patch.model === "string") {
+    assertModelUsable(patch.model)
+    data.model = patch.model
+  }
   const row = await db.operatingAiSession.update({ where: { id: sessionId }, data })
   return toSessionView(row, actor)
 }
@@ -234,6 +256,10 @@ export async function usageSummary(actor: AiActor, now = new Date()) {
     month: since.toISOString().slice(0, 7),
     // 畫面的「運作中／示範模式」：伺服器有沒有模型金鑰（不回傳金鑰本身）
     provider: journalAiProvider(),
+    // 接上了哪幾家、可選哪些模型、新對話預設哪一個（RES-039）。只有名稱，沒有金鑰。
+    providers: configuredProviders().map((id) => ({ id, label: PROVIDER_LABEL[id] })),
+    models: journalAiModels().map((m) => ({ id: m.id, label: m.label, note: m.note, provider: m.provider })),
+    defaultModel: journalAiModel(),
     capUsd: usd(monthlyCapMicroUsd()),
     spentUsd: usd(total),
     mineUsd: usd(mine.micro),
@@ -319,6 +345,11 @@ export function sanitizeTurnInput(raw: unknown): TurnInput | null {
  */
 export async function prepareTurn(actor: AiActor, sessionId: string, input: TurnInput): Promise<PreparedTurn> {
   const session = await visibleSession(actor, sessionId)
+  // 這個對話的模型那一家沒接上（例如金鑰被拿掉）：請人換模型，不偷偷改用別家
+  if (runProviderFor(session.model) === null) {
+    const who = providerOfModel(session.model)
+    throw new AiStateError(`${modelLabel(session.model)}${who ? `（${PROVIDER_LABEL[who]}）` : ""} 目前沒有接上，${session.ownerId === actor.profileId ? "請在上方換一個模型" : "請建立者換一個模型"}。`)
+  }
   const busy = await db.operatingAiMessage.findFirst({ where: { sessionId, status: { in: ["streaming", "stopping"] } }, select: { id: true, updatedAt: true } })
   // 超過 10 分鐘還在 streaming 的，是伺服器在中途被停掉留下的；當作已中斷，不再擋新的提問
   if (busy && Date.now() - busy.updatedAt.getTime() < 10 * 60 * 1000) throw new AiStateError("上一則還在回答中。")

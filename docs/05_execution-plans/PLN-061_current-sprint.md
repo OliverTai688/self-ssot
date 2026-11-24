@@ -1,5 +1,13 @@
 # Current Sprint
 
+## Owner-directed 模型供應者切換（JAI-S5）— 2026-11-24
+
+Owner：「幫我接上 API，我想要接 OpenAI API」「我希望之後可以 OpenAI 或是 Claude 可以自由切換選擇」。設計 `RES-039`。
+
+完成於分支 `claude/journal-ai`（未合併、未部署）：伺服器可同時接上 Claude 與 OpenAI；AI 模組輸入框下方選模型，建立者可中途換，每一則答案標出回答的模型。沒有 migration。
+
+待 Owner：在 Vercel 設定 `OPENAI_API_KEY`（與／或 `ANTHROPIC_API_KEY`）後合併部署；`CRON_SECRET`。
+
 ## Owner-directed AI 團隊模組（JAI-S4）— 2026-11-20
 
 Owner 指示開始 `JAI-S4`，並要 AI 成為左側的模組、之後形成公司的 AI team（金流、專案）。Owner 回覆四題：分享後同事可接著問、提案限議題與任務、搜尋加速表延後、日誌「問 AI」分頁拿掉。設計 `RES-038`。

@@ -17,14 +17,15 @@ export async function GET() {
   }
 }
 
-/** 開一個新對話（{ agent }：AI 團隊裡的哪一位，預設日誌助理）。標題等第一則訊息送出時自動取。 */
+/** 開一個新對話（{ agent, model }：AI 團隊裡的哪一位、用哪個模型；預設日誌助理與伺服器的預設模型）。標題等第一則訊息送出時自動取。 */
 export async function POST(request: NextRequest) {
   try {
     const actor = await resolveAiActor()
     if (isAiResponse(actor)) return actor
-    const body = (await request.json().catch(() => null)) as { agent?: unknown } | null
+    const body = (await request.json().catch(() => null)) as { agent?: unknown; model?: unknown } | null
     const agent = typeof body?.agent === "string" ? body.agent : "journal"
-    return NextResponse.json({ session: await createSession(actor, agent) }, { status: 201, headers: aiNoStore })
+    const model = typeof body?.model === "string" && body.model ? body.model.slice(0, 60) : undefined
+    return NextResponse.json({ session: await createSession(actor, agent, model) }, { status: 201, headers: aiNoStore })
   } catch (error) {
     return aiHandleError("POST sessions", error)
   }

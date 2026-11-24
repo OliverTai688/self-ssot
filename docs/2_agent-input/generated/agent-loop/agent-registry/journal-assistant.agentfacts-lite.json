@@ -8,18 +8,25 @@
     "agent_name": "urn:agent:personal-os:JournalAssistant",
     "label": "JournalAssistant",
     "description": "Answers a seat's questions about the company journal, objects and files, using read-only search tools scoped to what that seat can already see. Every factual sentence carries a server-verified citation.",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "provider": {
-      "name": "Anthropic (Claude API)",
-      "url": "https://platform.claude.com",
-      "model": "claude-opus-5-5",
+      "name": "Anthropic (Claude API) or OpenAI (Responses API), chosen per conversation",
+      "url": "https://platform.claude.com ; https://developers.openai.com",
+      "models": [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "gpt-6.2-astra",
+        "gpt-6.2-sol"
+      ],
+      "defaultModel": "claude-opus-5-5 when Claude is configured, else gpt-6.2-sol",
       "effort": "medium",
-      "fallbacks": "default"
+      "openaiState": "store:false; encrypted reasoning kept in our DB",
+      "fallbacks": "Claude: server-side fallback default; no cross-provider auto-fallback"
     },
     "lifecycle": {
       "status": "prototype",
       "ownerModule": "company/operating · journal",
-      "sourceOfTruth": "docs/07_research-and-design/RES-038_ai-team-module-sharing-and-proposals.md",
+      "sourceOfTruth": "docs/07_research-and-design/RES-039_ai-model-provider-switching-claude-openai.md",
       "team": "Yuanzhan AI team (journal live; cashflow, project planned)"
     },
     "endpoints": {
@@ -115,7 +122,8 @@
         "disposable-DB cross-seat proof 2026-11-16",
         "disposable-DB + R2 attachment proof 2026-11-18",
         "disposable-DB purge/audit/usage proof 2026-11-18",
-        "disposable-DB two-seat sharing/proposal proof 2026-11-20"
+        "disposable-DB two-seat sharing/proposal proof 2026-11-20",
+        "local fake-endpoint proof of Claude/OpenAI switching in one conversation 2026-11-24"
       ]
     },
     "observability": {
@@ -123,9 +131,10 @@
         "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261116-journal-ai-s1.md",
         "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s2.md",
         "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261118-journal-ai-s3.md",
-        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md"
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md",
+        "docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261124-ai-provider-switch-s5.md"
       ],
-      "lastVerification": "2026-11-20",
+      "lastVerification": "2026-11-24",
       "telemetryClaims": [
         "per-message sentRefs (what was sent to the model)",
         "per-message usage and cost estimate",

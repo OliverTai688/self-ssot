@@ -1,19 +1,24 @@
 import "server-only"
 
 import Anthropic from "@anthropic-ai/sdk"
+import OpenAI from "openai"
+import { toResponseInputItem } from "openai/lib/responses/ResponseInputItems"
 
 import { nativeCiteMarkers } from "./citations"
+import { fromOpenAIOutput, hasCompaction, toAnthropicMessages, toOpenAIInput, toOpenAITools, type StoredMessage } from "./convert"
 import { queryTerms, type JournalCorpus } from "./corpus"
-import { JOURNAL_AI_TOOLS, runTool, type ProposalDraft, type SentRef, type ToolStep } from "./tools"
+import { availableModels, costMicroUsd, defaultModelFor, resolveRunProvider, type ProviderId } from "./models"
+import { JOURNAL_AI_TOOLS, runTool, type ProposalDraft, type SentRef, type ToolOutcome, type ToolStep } from "./tools"
 
 /**
  * 一輪對話：使用者送出一則 → 模型查工具、回答 → 結束（RES-037 §6.2）。
  *
- * 兩個供應者：
- *   anthropic  真的呼叫 Claude（伺服器有 ANTHROPIC_API_KEY 或 ANTHROPIC_AUTH_TOKEN 時）
- *   mock       不呼叫任何模型：真的跑工具（所以權限、搜尋、引用都驗得到），答案由工具結果組成
- * `JOURNAL_AI_PROVIDER` 可以明確指定。沒有金鑰時一律 mock —— 本機開發不會因為機器上剛好有
- * `ant auth login` 的設定檔就花錢。
+ * 三個供應者（RES-039）：
+ *   anthropic  Claude（伺服器有 ANTHROPIC_API_KEY 或 ANTHROPIC_AUTH_TOKEN）
+ *   openai     OpenAI Responses API（伺服器有 OPENAI_API_KEY）
+ *   mock       一家都沒接上時：不呼叫任何模型，真的跑工具（權限、搜尋、引用都驗得到），答案由工具結果組成
+ * 每個對話記錄自己的模型，使用者隨時可換；用哪一家由模型決定。`JOURNAL_AI_PROVIDER=mock` 強制示範模式。
+ * 歷史一律存成同一種形狀（convert.ts），所以中途換家也接得上。
  */
 
 export type MessageParam = Anthropic.Beta.Messages.BetaMessageParam
@@ -29,36 +34,42 @@ export type RunResult = {
   steps: ToolStep[]
   sentRefs: SentRef[]
   proposals: ProposalDraft[]
-  usage: { input: number; output: number; cacheRead: number; cacheWrite: number; costMicroUsd: number; model: string; mock: boolean }
+  usage: { input: number; output: number; cacheRead: number; cacheWrite: number; costMicroUsd: number; model: string; mock: boolean; provider?: ProviderId }
   status: "done" | "stopped" | "error" | "refused"
   error?: string
 }
 
-export type Provider = "anthropic" | "mock"
+export type Provider = ProviderId | "mock"
 
+/** 伺服器接上了哪幾家（只看金鑰在不在，不回傳金鑰）。 */
+export function configuredProviders(): ProviderId[] {
+  if (process.env.JOURNAL_AI_PROVIDER === "mock") return []
+  const out: ProviderId[] = []
+  if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) out.push("anthropic")
+  if (process.env.OPENAI_API_KEY) out.push("openai")
+  return out
+}
+
+/** 畫面的「運作中／示範模式」。 */
 export function journalAiProvider(): Provider {
-  const explicit = process.env.JOURNAL_AI_PROVIDER
-  if (explicit === "mock") return "mock"
-  if (explicit === "anthropic") return "anthropic"
-  return process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN ? "anthropic" : "mock"
+  return configuredProviders()[0] ?? "mock"
 }
 
-/** RES-037 D5：Opus 5.5、effort medium。可用環境變數換，但舊對話維持建立時的模型。 */
+/** 新對話的模型。`JOURNAL_AI_MODEL` 可指定（那一家要接上）；舊對話維持自己的模型。 */
 export function journalAiModel(): string {
-  return process.env.JOURNAL_AI_MODEL || "claude-opus-5-5"
+  return defaultModelFor(configuredProviders(), process.env.JOURNAL_AI_MODEL || null)
 }
 
-/** 每百萬 token 的美元價格（2026-11 牌價）。fallback 改由別的模型回答時仍以請求的模型估算，是上限的估法。 */
-const PRICES: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
-  "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
-  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
+export function journalAiModels() {
+  return availableModels(configuredProviders())
 }
 
-export function costMicroUsd(model: string, u: { input: number; output: number; cacheRead: number; cacheWrite: number }): number {
-  const p = PRICES[model] ?? PRICES["claude-opus-5-5"]
-  // 每百萬 token 的美元 × token 數 ＝ 百萬分之一美元（micro USD）
-  return Math.round(u.input * p.input + u.output * p.output + u.cacheRead * p.cacheRead + u.cacheWrite * p.cacheWrite)
+/** 這個模型這一輪由誰跑；null＝那一家沒接上。 */
+export function runProviderFor(model: string): Provider | null {
+  return resolveRunProvider(model, configuredProviders(), process.env.JOURNAL_AI_PROVIDER === "mock")
 }
+
+export { costMicroUsd }
 
 /**
  * 系統提示。一字不改才吃得到快取：日期、提問者這些會變的東西放在使用者訊息裡，不放這裡。
@@ -101,8 +112,27 @@ type RunParams = {
 }
 
 export async function runJournalAiTurn(params: RunParams & { provider?: Provider }): Promise<RunResult> {
-  const provider = params.provider ?? journalAiProvider()
-  return provider === "mock" ? runMock(params) : runAnthropic(params)
+  const provider = params.provider ?? runProviderFor(params.model) ?? "mock"
+  if (provider === "mock") return runMock(params)
+  return provider === "openai" ? runOpenAI(params) : runAnthropic(params)
+}
+
+/** 一次跑完這一輪要求的工具，回 Claude 形狀的 tool_result（兩家共用；OpenAI 送出前由 convert 轉）。 */
+function runTools(p: RunParams, calls: Array<{ id: string; name: string; input: unknown; badJson?: boolean }>, steps: ToolStep[], sentRefs: SentRef[], proposals: ProposalDraft[]): ToolResult[] {
+  return calls.map((use) => {
+    const outcome: ToolOutcome = use.badJson
+      ? { content: "參數不是合法的 JSON，請重送。", isError: true, refs: [], step: { tool: use.name, label: "參數錯誤", hits: 0 } }
+      : runTool(p.corpus, use.name, use.input)
+    steps.push(outcome.step)
+    sentRefs.push(...outcome.refs)
+    if (outcome.proposal) proposals.push(outcome.proposal)
+    p.onEvent({ type: "step", step: outcome.step })
+    // 檔案以記號放在結果裡，送出前由 hydrate 換成真的內容；資料庫只存記號
+    const content = outcome.blocks?.length
+      ? ([{ type: "text", text: outcome.content }, ...outcome.blocks] as unknown as ToolResult["content"])
+      : outcome.content
+    return { type: "tool_result", tool_use_id: use.id, content, ...(outcome.isError ? { is_error: true } : {}) }
+  })
 }
 
 /** 文字區塊依序接起來；帶原生 citations 的區塊後面接上對應的引用記號（檔案頁碼）。 */
@@ -124,27 +154,31 @@ async function runAnthropic(p: RunParams): Promise<RunResult> {
   let partial = ""
   const done = (status: RunResult["status"], error?: string): RunResult => {
     const text = [...texts, partial].filter(Boolean).join("\n\n").trim()
-    return { turn, text, steps, sentRefs, proposals, usage: { ...usage, costMicroUsd: costMicroUsd(p.model, usage), model: p.model, mock: false }, status, ...(error ? { error } : {}) }
+    return { turn, text, steps, sentRefs, proposals, usage: { ...usage, costMicroUsd: costMicroUsd(p.model, usage), model: p.model, mock: false, provider: "anthropic" }, status, ...(error ? { error } : {}) }
   }
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     if (p.signal.aborted || (await p.shouldStop())) return done("stopped")
     partial = ""
+    // 中途從 OpenAI 換過來的對話：OpenAI 的推理項目拿掉（convert.ts）
+    const messages = toAnthropicMessages((await p.hydrate([...p.history, p.user, ...turn])) as unknown as StoredMessage[]) as unknown as MessageParam[]
+    // 歷史裡已經有 compaction 區塊時，這個 beta 一定要帶，否則送不出去
+    const compact = p.compact || hasCompaction(messages as unknown as StoredMessage[])
     const stream = client.beta.messages.stream(
       {
         model: p.model,
         max_tokens: 16000,
         system: [{ type: "text", text: JOURNAL_AI_SYSTEM }],
         tools: JOURNAL_AI_TOOLS as unknown as Anthropic.Beta.Messages.BetaToolUnion[],
-        messages: await p.hydrate([...p.history, p.user, ...turn]),
+        messages,
         output_config: { effort: "medium" },
         // 自動快取最後一個可快取的區塊：同一對話的下一輪，整段歷史都從快取讀
         cache_control: { type: "ephemeral" },
         // 拒答時由伺服器依類別改用其他模型（skill 預設開啟）
-        betas: p.compact ? ["server-side-fallback-2026-07-01", "compact-2026-01-12"] : ["server-side-fallback-2026-07-01"],
+        betas: compact ? ["server-side-fallback-2026-07-01", "compact-2026-01-12"] : ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
         // 長對話：較早的內容由 API 摘要掉；回傳的 compaction 區塊與其他區塊一起原樣存回（content 整包保存）
-        ...(p.compact
+        ...(compact
           ? { context_management: { edits: [{ type: "compact_20260112" as const, instructions: "摘要時保留每一個 cite（⟦line:…⟧、⟦asset:…⟧ 等）與它對應的事實，之後的回答仍要引用得到。" }] } }
           : {}),
       },
@@ -192,22 +226,109 @@ async function runAnthropic(p: RunParams): Promise<RunResult> {
     if (message.stop_reason === "refusal") return done("refused")
     if (!toolUses.length) return done("done")
 
-    const results: ToolResult[] = toolUses.map((use) => {
-      const outcome = runTool(p.corpus, use.name, use.input)
-      steps.push(outcome.step)
-      sentRefs.push(...outcome.refs)
-      if (outcome.proposal) proposals.push(outcome.proposal)
-      p.onEvent({ type: "step", step: outcome.step })
-      // 檔案以記號放在結果裡，送出前由 hydrate 換成真的內容；資料庫只存記號
-      const content = outcome.blocks?.length
-        ? ([{ type: "text", text: outcome.content }, ...outcome.blocks] as unknown as ToolResult["content"])
-        : outcome.content
-      return { type: "tool_result", tool_use_id: use.id, content, ...(outcome.isError ? { is_error: true } : {}) }
-    })
+    const results = runTools(p, toolUses.map((u) => ({ id: u.id, name: u.name, input: u.input })), steps, sentRefs, proposals)
     // 一次回傳全部結果、放在同一則訊息裡（分開送會讓模型不再平行呼叫工具）
     turn.push({ role: "user", content: results })
     await p.onCheckpoint?.({ turn, steps, sentRefs })
     // 下一次迴圈的文字是新的一段；畫面上中間的「我先查一下」不必一直留著
+    if (texts.length) p.onEvent({ type: "reset" })
+    texts.length = 0
+  }
+  return done("error", "查了太多次還沒有結論，請把問題問得具體一點。")
+}
+
+/* ---------- OpenAI（Responses API，RES-039）---------- */
+
+const OPENAI_TOOLS = toOpenAITools(JOURNAL_AI_TOOLS as unknown as Array<{ name: string; description: string; input_schema: unknown }>)
+const replayItem = (item: Record<string, unknown>) => toResponseInputItem(item as unknown as Parameters<typeof toResponseInputItem>[0]) as unknown as Record<string, unknown> | null
+
+async function runOpenAI(p: RunParams): Promise<RunResult> {
+  const client = new OpenAI()
+  const turn: MessageParam[] = []
+  const steps: ToolStep[] = []
+  const sentRefs: SentRef[] = []
+  const proposals: ProposalDraft[] = []
+  const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+  const texts: string[] = []
+  let partial = ""
+  const done = (status: RunResult["status"], error?: string): RunResult => {
+    const text = [...texts, partial].filter(Boolean).join("\n\n").trim()
+    return { turn, text, steps, sentRefs, proposals, usage: { ...usage, costMicroUsd: costMicroUsd(p.model, usage), model: p.model, mock: false, provider: "openai" }, status, ...(error ? { error } : {}) }
+  }
+
+  for (let i = 0; i < MAX_ITERATIONS; i++) {
+    if (p.signal.aborted || (await p.shouldStop())) return done("stopped")
+    partial = ""
+    const hydrated = (await p.hydrate([...p.history, p.user, ...turn])) as unknown as StoredMessage[]
+    const input = toOpenAIInput(JOURNAL_AI_SYSTEM, hydrated, replayItem)
+    const stream = client.responses.stream(
+      {
+        model: p.model,
+        input: input as unknown as OpenAI.Responses.ResponseInput,
+        tools: OPENAI_TOOLS,
+        reasoning: { effort: "medium" },
+        max_output_tokens: 16000,
+        // 不在 OpenAI 留存對話：每一輪自己送完整歷史，推理項目以加密內容帶回（D3 對話只存在我們的資料庫）
+        store: false,
+        include: ["reasoning.encrypted_content"],
+        parallel_tool_calls: true,
+      },
+      { signal: p.signal },
+    )
+    stream.on("response.output_text.delta", (event) => {
+      partial += event.delta
+      p.onEvent({ type: "delta", text: event.delta })
+    })
+
+    let response: OpenAI.Responses.Response
+    try {
+      response = await stream.finalResponse()
+    } catch (err) {
+      if (err instanceof OpenAI.APIUserAbortError || p.signal.aborted) return done("stopped")
+      if (err instanceof OpenAI.RateLimitError) return done("error", "模型目前太忙，請稍後再試。")
+      if (err instanceof OpenAI.AuthenticationError || err instanceof OpenAI.PermissionDeniedError) return done("error", "伺服器的模型金鑰無效。")
+      if (err instanceof OpenAI.BadRequestError) {
+        console.error("[journal-ai] openai bad request", err.message)
+        return done("error", "這一則送不出去（請求格式被模型拒絕）。")
+      }
+      if (err instanceof OpenAI.APIError) {
+        console.error("[journal-ai] openai api error", err.status, err.message)
+        return done("error", "模型服務暫時有問題，請稍後再試。")
+      }
+      if (err instanceof OpenAI.APIConnectionError) return done("error", "連不上模型服務。")
+      throw err
+    }
+
+    const u = response.usage
+    if (u) {
+      const cached = u.input_tokens_details?.cached_tokens ?? 0
+      const written = (u.input_tokens_details as { cache_write_tokens?: number } | undefined)?.cache_write_tokens ?? 0
+      // input_tokens 含快取讀與快取寫；分開計價
+      usage.input += Math.max(0, (u.input_tokens ?? 0) - cached - written)
+      usage.cacheRead += cached
+      usage.cacheWrite += written
+      usage.output += u.output_tokens ?? 0
+    }
+
+    const parsed = fromOpenAIOutput(response.output as unknown as unknown[])
+    const truncated = response.status === "incomplete" && response.incomplete_details?.reason === "max_output_tokens"
+    // 參數被截斷的工具呼叫不能執行，也不能進歷史
+    if (truncated && parsed.calls.length) return done("error", "回答太長被截斷了，請把問題拆小一點。")
+    if (response.status === "failed") {
+      console.error("[journal-ai] openai response failed", response.error?.code)
+      return done("error", "模型服務暫時有問題，請稍後再試。")
+    }
+
+    turn.push(parsed.message as unknown as MessageParam)
+    if (parsed.text) texts.push(parsed.text)
+    partial = ""
+
+    if (parsed.refused) return done("refused")
+    if (!parsed.calls.length) return done("done")
+
+    const results = runTools(p, parsed.calls, steps, sentRefs, proposals)
+    turn.push({ role: "user", content: results })
+    await p.onCheckpoint?.({ turn, steps, sentRefs })
     if (texts.length) p.onEvent({ type: "reset" })
     texts.length = 0
   }

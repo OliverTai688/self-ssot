@@ -2510,3 +2510,18 @@ Verification:
 
 證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261120-ai-team-s4.md`
 
+## Claude／OpenAI 切換（UI-088 · JAI-S5，2026-11-24）
+
+機檢：`pnpm ops:journal-ai:check`（M1–M18）。依據 `RES-039`。
+
+- [x] 伺服器可同時接上 Claude 與 OpenAI；一家都沒接上時是示範模式。
+- [x] 輸入框下方的模型選單只列接上的模型，依 Claude／OpenAI 分組。
+- [x] 建立者可以在對話中途換模型，下一則起生效；共享對話的同事只看得到、不能換。
+- [x] 同一個對話換家後歷史接得上（工具呼叫與結果配對、OpenAI 推理原樣帶回、Claude 不收到 OpenAI 推理）。
+- [x] 每一則答案標出回答的模型；費用依模型分別計價、算進同一個月上限。
+- [x] 對話的模型那一家沒接上時擋下並請人換，不自動改用別家。
+- [ ] 設定 `OPENAI_API_KEY` 後，以 GPT-6.2 Sol 問「最近報價怎麼付款」，答案引用日誌行、附 PDF 也讀得到。
+- [ ] 同一個對話換到 Claude 再問一題，回答接得上前文。
+
+證據報告：`docs/2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261124-ai-provider-switch-s5.md`
+
