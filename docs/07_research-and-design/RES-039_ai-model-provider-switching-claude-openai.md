@@ -4,7 +4,7 @@
 - 觸發：Owner：「幫我接上 API，我想要接 OpenAI API」→「我希望之後可以 OpenAI 或是 Claude 可以自由切換選擇」
 - 畫面：`UI-088` 圓展營運工作台 · AI 模組（輸入框下方的模型選單）
 - 前置：[`RES-037`](RES-037_journal-ai-assistant-multi-session-research.md)（D1 原本只用 Claude）、[`RES-038`](RES-038_ai-team-module-sharing-and-proposals.md)
-- 狀態：已實作於分支 `claude/journal-ai`（見 §8）
+- 狀態：已實作並部署（2026-11-24，`1801cdae30`；見 §8）
 
 ---
 

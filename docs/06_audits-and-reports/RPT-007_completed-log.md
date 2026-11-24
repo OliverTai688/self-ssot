@@ -9,7 +9,8 @@
 - **單一存法＋送出時轉換**（`convert.ts`）：對話仍存成 Claude 的形狀；OpenAI 的推理與原始項目附在旁邊。送 Claude 時拿掉 OpenAI 專屬內容，送 OpenAI 時 thinking 拿掉、工具呼叫與結果、圖片、PDF、文字檔、壓縮摘要逐一轉換。舊對話不用搬，沒有 migration。
 - **畫面**：輸入框下方的模型選單（Claude／OpenAI 分組、只列接上的）；建立者可中途換、下一則起生效；同事只看得到；每一則答案標出回答的模型；AI 團隊顯示「運作中（Claude、OpenAI）」。這個對話的模型那一家沒接上時擋下並請人換，不自動改用別家。
 - Verification：`pnpm ops:journal-ai:check` **66/66**（新增 M1–M18）；`verify-asset-object` 73/73、`verify-object-index` 19/19、`verify-obj-refs` 44/44、`verify-agenda-object` 126/126；`tsc` 0、eslint 0 錯（1 個既有警告在 `triage.ts`）、generate PASS（786）、`pnpm build` PASS。拋棄式 DB＋本機假端點（兩家的 SDK 真的串流）：同一個對話 GPT-6.2 Sol → Claude Opus 5.5 → GPT-6.2 Astra → 畫面選 Claude Sonnet 5.5，四則都完成、引用都驗證過、各自標出模型；送 Claude 的請求不含任何 OpenAI 推理，送 OpenAI 的請求依序帶回自己的加密推理、Claude 的工具呼叫轉成 function_call；費用依模型分別計價。手機寬度選單不溢出。
-- **待 Owner**：在 Vercel 設 `OPENAI_API_KEY` 後合併部署，以真模型驗收。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261124-ai-provider-switch-s5.md)
+- **部署**：已部署（2026-11-24，`1801cdae30`；Vercel Production success；無 migration，正式 DB `migrate status` up to date；未登入探測 sessions GET／POST、session PATCH、usage 皆 401，cron 503）。
+- **待 Owner**：在 Vercel 設 `OPENAI_API_KEY`，以真模型驗收。[報告](../2_agent-input/generated/agent-loop/reports/personal-os-owner-directed-20261124-ai-provider-switch-s5.md)
 
 ## 2026-11-20
 

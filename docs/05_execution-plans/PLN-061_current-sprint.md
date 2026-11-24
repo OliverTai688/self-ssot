@@ -4,9 +4,9 @@
 
 Owner：「幫我接上 API，我想要接 OpenAI API」「我希望之後可以 OpenAI 或是 Claude 可以自由切換選擇」。設計 `RES-039`。
 
-完成於分支 `claude/journal-ai`（未合併、未部署）：伺服器可同時接上 Claude 與 OpenAI；AI 模組輸入框下方選模型，建立者可中途換，每一則答案標出回答的模型。沒有 migration。
+完成並已部署（2026-11-24，`1801cdae30`；Vercel Production success；無 migration，正式 DB `migrate status` up to date；未登入探測 sessions GET／POST、session PATCH、usage 皆 401，cron 503）：伺服器可同時接上 Claude 與 OpenAI；AI 模組輸入框下方選模型，建立者可中途換，每一則答案標出回答的模型。沒有 migration。
 
-待 Owner：在 Vercel 設定 `OPENAI_API_KEY`（與／或 `ANTHROPIC_API_KEY`）後合併部署；`CRON_SECRET`。
+待 Owner：在 Vercel 設定 `OPENAI_API_KEY`（與／或 `ANTHROPIC_API_KEY`）後以真模型驗收；`CRON_SECRET`。
 
 ## Owner-directed AI 團隊模組（JAI-S4）— 2026-11-20
 

@@ -12,7 +12,7 @@
 
 - 新增：`src/lib/ai/journal-ai/models.ts`（模型目錄、價目、供應者決定）、`convert.ts`（單一存法 ↔ 兩家格式）、`RES-039`、依賴 `openai`。
 - 修改：`runner.ts`（OpenAI Responses 迴圈、共用工具執行、Claude 端剝除 OpenAI 項目）、`operating-ai.service.ts`（模型選擇與驗證、沒接上時擋下、用量回傳可選模型、每則答案的模型）、sessions 兩條路由（`model`）、`journal-ai.source.js`／`.css`（模型選單、答案標示、AI 團隊狀態）、生成物、檢查腳本、文件、manifest。
-- 沒有 migration（`operating_ai_sessions.model` 早已存在）。未合併、未部署。
+- 沒有 migration（`operating_ai_sessions.model` 早已存在）。已部署（2026-11-24，`1801cdae30`；Vercel Production success；無 migration，正式 DB `migrate status` up to date；未登入探測 sessions GET／POST、session PATCH、usage 皆 401，cron 503）。
 
 ## Strategic Review
 
@@ -54,4 +54,4 @@
 
 ## Final Status
 
-`JAI-S5` DONE（分支 `claude/journal-ai`，未合併、未部署、無 migration）。下一步：Owner 在 Vercel 設 `OPENAI_API_KEY`，合併部署後以真模型驗收。
+`JAI-S5` DONE，已部署（2026-11-24，`1801cdae30`；Vercel Production success；無 migration，正式 DB `migrate status` up to date；未登入探測 sessions GET／POST、session PATCH、usage 皆 401，cron 503）。下一步：Owner 在 Vercel 設 `OPENAI_API_KEY` 並重新部署，以真模型驗收（ACC-002 兩個未勾項目）。
